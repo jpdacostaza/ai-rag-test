@@ -101,7 +101,8 @@ services:
       - USE_OPENAI_ONLY=false
       # Performance optimizations
       - WATCHDOG_CHECK_INTERVAL=30
-      - WATCHDOG_STABLE_INTERVAL=60      - CHROMA_TELEMETRY=false
+      - WATCHDOG_STABLE_INTERVAL=60
+      - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
