@@ -323,7 +323,8 @@ class EmbeddingMonitor(SubsystemMonitor):
         try:
             # Import here to avoid circular imports
             from database import db_manager
-              # Check if embedding model is loaded
+            
+            # Check if embedding model is loaded
             if not db_manager.is_embeddings_available() or db_manager.embedding_model is None:
                 raise Exception("Embedding model not loaded")
             
@@ -338,7 +339,8 @@ class EmbeddingMonitor(SubsystemMonitor):
             # Verify embedding was generated successfully
             if test_embedding is None or len(test_embedding) == 0:
                 raise Exception("Failed to generate test embedding")
-              # Check embedding dimensions (should be > 0)
+            
+            # Check embedding dimensions (should be > 0)
             embedding_dim = len(test_embedding[0]) if len(test_embedding) > 0 else 0
             if embedding_dim == 0:
                 raise Exception("Generated embedding has invalid dimensions")
@@ -381,7 +383,8 @@ class SystemWatchdog:
         self.health_history: Dict[str, List[ServiceHealth]] = {}
         self.running = False
         self.loop = None
-          # Setup logging
+        
+        # Setup logging
         if self.config.enable_logging:
             logging.basicConfig(
                 level=getattr(logging, self.config.log_level),
@@ -390,7 +393,8 @@ class SystemWatchdog:
             self.logger = logging.getLogger("SystemWatchdog")
         else:
             self.logger = logging.getLogger("SystemWatchdog")
-          # Initialize monitors
+        
+        # Initialize monitors
         self._initialize_monitors()
     
     def _initialize_monitors(self):
@@ -399,8 +403,7 @@ class SystemWatchdog:
             RedisMonitor(self.config),
             ChromaDBMonitor(self.config),
             EmbeddingMonitor(self.config),
-            # OllamaMonitor disabled - using OpenAI API only
-            # OllamaMonitor(self.config)
+            OllamaMonitor(self.config)
         ]
         
         # Initialize health history
