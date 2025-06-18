@@ -90,11 +90,13 @@ opt/backend/
 │   ├── feedback_router.py          # User feedback collection & processing
 │   └── storage_manager.py          # File storage and management
 │
-├── � Deployment & Configuration
+├── 🚀 Deployment & Configuration
 │   ├── Dockerfile                  # Optimized container build (llama user)
 │   ├── docker-compose.yml          # Multi-service orchestration
-│   ├── startup.sh                  # Container initialization script
-│   ├── fix-permissions.sh          # Linux permissions setup script
+│   ├── smart-startup.sh            # ✨ Intelligent startup with auto-fixes
+│   ├── install-linux-host.sh       # ✨ Linux host preparation script
+│   ├── startup.sh                  # Original container initialization script
+│   ├── fix-permissions.sh          # Original Linux permissions setup script
 │   ├── requirements.txt            # Python dependencies with versions
 │   └── persona.json               # AI personality configuration
 │
@@ -107,7 +109,8 @@ opt/backend/
 │   └── storage/openwebui/          # Web UI data & vector DB
 │
 └── 📚 Documentation
-    └── README.md                   # This comprehensive guide (all docs merged)
+    ├── README.md                   # This comprehensive guide (all docs merged)
+    └── LINUX_DEPLOYMENT.md         # ✨ Detailed Linux deployment guide
 ```
 
 ### 🔧 Core Components Details
@@ -1922,10 +1925,45 @@ Your Advanced LLM Backend is now:
 - ✅ Internal network security
 
 ### **🚀 Deployment Steps**
-1. **Deploy files to `/opt/backend/`**
-2. **Run permission setup**: `sudo ./fix-permissions.sh`
-3. **Start services**: `docker-compose up --build -d`
-4. **Verify deployment**: `curl http://localhost:8001/health`
+
+#### **✨ New Smart Deployment (Recommended)**
+```bash
+# 1. Automated Linux host setup
+sudo ./install-linux-host.sh
+
+# 2. Smart startup with automatic fixes
+sudo ./smart-startup.sh
+
+# 3. Deploy services
+docker-compose up --build -d
+
+# 4. Verify deployment
+curl http://localhost:8001/health
+```
+
+#### **📚 Traditional Deployment**
+```bash
+# 1. Deploy files to /opt/backend/
+sudo cp -r . /opt/backend/ && cd /opt/backend
+
+# 2. Run permission setup
+sudo ./fix-permissions.sh
+
+# 3. Start services
+docker-compose up --build -d
+
+# 4. Verify deployment
+curl http://localhost:8001/health
+```
+
+#### **🔧 Smart Startup Features**
+- ✅ **Automatic Problem Detection**: Identifies and fixes permission issues
+- ✅ **ChromaDB Fix**: Creates proper llama user home directory
+- ✅ **Health Checks**: Comprehensive pre-startup validation
+- ✅ **Intelligent Setup**: Adapts to root/non-root execution
+- ✅ **Backwards Compatible**: Works with existing deployment methods
+
+> **📖 For detailed Linux deployment guide, see:** [`LINUX_DEPLOYMENT.md`](./LINUX_DEPLOYMENT.md)
 
 ### **📊 Enterprise Features Ready**
 - 🤖 **LLM**: llama3.2:3b with automatic management

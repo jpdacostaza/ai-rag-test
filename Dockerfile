@@ -32,9 +32,14 @@ RUN mkdir -p ./storage && \
     chmod -R 755 /opt/internal_cache && \
     chmod -R 755 /home/llama
 
+# Make startup scripts executable
+RUN chmod +x /opt/backend/startup.sh && \
+    chmod +x /opt/backend/smart-startup.sh
+
 # Switch to llama user
 USER llama
 
 EXPOSE 8001
 
-CMD ["./startup.sh"]
+# Use the smart startup script for enhanced setup and monitoring
+CMD ["./smart-startup.sh"]
