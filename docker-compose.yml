@@ -36,6 +36,7 @@ services:
       - ANONYMIZED_TELEMETRY=False
     networks:
       - backend-net
+
   ollama:
     image: ollama/ollama:latest
     container_name: backend-ollama
@@ -52,6 +53,7 @@ services:
       - "11434:11434"
     networks:
       - backend-net
+
   llm_backend:
     build:
       context: .
@@ -98,14 +100,16 @@ services:
       - OPENAI_API_MODEL=${OPENAI_API_MODEL:-gpt-4}
       - OPENAI_API_TIMEOUT=${OPENAI_API_TIMEOUT:-60}
       - ENABLE_OPENAI_API=false
-      - USE_OPENAI_ONLY=false      # Performance optimizations
+      - USE_OPENAI_ONLY=false
+      # Performance optimizations
       - WATCHDOG_CHECK_INTERVAL=30
       - WATCHDOG_STABLE_INTERVAL=60
       - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
-      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers      - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
+      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
+      - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
       - HF_HOME=/opt/internal_cache/sentence_transformers
       # ChromaDB ONNX cache location
       - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models
