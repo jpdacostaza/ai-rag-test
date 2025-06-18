@@ -35,15 +35,60 @@ class ServiceHealth:
 
 @dataclass
 class WatchdogConfig:
-    check_interval: int = int(os.getenv("WATCHDOG_CHECK_INTERVAL", "30"))  # seconds - configurable via env
-    timeout: int = int(os.getenv("WATCHDOG_TIMEOUT", "5"))  # seconds
-    startup_delay: int = int(os.getenv("WATCHDOG_STARTUP_DELAY", "10"))  # seconds to wait before starting monitoring
-    max_retries: int = int(os.getenv("WATCHDOG_MAX_RETRIES", "3"))
-    alert_threshold: int = int(os.getenv("WATCHDOG_ALERT_THRESHOLD", "3"))  # consecutive failures before alert
-    enable_logging: bool = os.getenv("WATCHDOG_ENABLE_LOGGING", "true").lower() == "true"
-    log_level: str = os.getenv("WATCHDOG_LOG_LEVEL", "INFO")
-    # Performance optimization: reduce frequency for stable environments
-    stable_mode_interval: int = int(os.getenv("WATCHDOG_STABLE_INTERVAL", "60"))  # Use longer intervals when all services are healthy
+    """Configuration for the watchdog system."""
+    check_interval: int = 30  # seconds between health checks
+    timeout: int = 5  # seconds
+    startup_delay: int = 10  # seconds to wait before starting monitoring
+    max_retries: int = 3
+    alert_threshold: int = 3  # consecutive failures before alert
+    enable_logging: bool = True
+    log_level: str = "INFO"
+    stable_mode_interval: int = 60  # Use longer intervals when all services are healthy
+    
+    def __post_init__(self):
+        """Parse environment variables with error handling."""
+        try:
+            self.check_interval = int(os.getenv("WATCHDOG_CHECK_INTERVAL", "30"))
+        except (ValueError, TypeError):
+            self.check_interval = 30
+            
+        try:
+            self.timeout = int(os.getenv("WATCHDOG_TIMEOUT", "5"))
+        except (ValueError, TypeError):
+            self.timeout = 5
+            
+        try:
+            self.startup_delay = int(os.getenv("WATCHDOG_STARTUP_DELAY", "10"))
+        except (ValueError, TypeError):
+            self.startup_delay = 10
+            
+        try:
+            self.max_retries = int(os.getenv("WATCHDOG_MAX_RETRIES", "3"))
+        except (ValueError, TypeError):
+            self.max_retries = 3
+            
+        try:
+            self.alert_threshold = int(os.getenv("WATCHDOG_ALERT_THRESHOLD", "3"))
+        except (ValueError, TypeError):
+            self.alert_threshold = 3
+            
+        try:
+            self.enable_logging = os.getenv("WATCHDOG_ENABLE_LOGGING", "true").lower() == "true"
+        except (ValueError, TypeError):
+            self.enable_logging = True
+            
+        try:
+            self.log_level = os.getenv("WATCHDOG_LOG_LEVEL", "INFO").strip()
+        except (ValueError, TypeError):
+            self.log_level = "INFO"
+            
+        try:
+            stable_interval_str = os.getenv("WATCHDOG_STABLE_INTERVAL", "60").strip()
+            # Handle cases where the env var might be malformed
+            stable_interval_str = stable_interval_str.split()[0] if stable_interval_str else "60"
+            self.stable_mode_interval = int(stable_interval_str)
+        except (ValueError, TypeError):
+            self.stable_mode_interval = 60
 
 class SubsystemMonitor:
     """Base class for monitoring individual subsystems."""

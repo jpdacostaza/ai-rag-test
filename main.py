@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request, Body, Response
+from fastapi import FastAPI, Request, Body, Response, Depends, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import logging
+import time
 from datetime import datetime
 from dataclasses import asdict # Import asdict
 import itertools
@@ -29,7 +30,7 @@ from watchdog import get_watchdog, start_watchdog_service, get_health_status, ge
 import asyncio
 import redis
 from typing import Optional
-from fastapi import Depends
+
 import httpx
 
 # Import and include upload router
@@ -109,7 +110,6 @@ async def startup_event():
             HumanLogger.log_service_status("MODEL", "ready", f"Default model {DEFAULT_MODEL} is available")
             # Preload model into memory by running a dummy inference
             try:
-                import httpx
                 preload_payload = {
                     "model": DEFAULT_MODEL,
                     "prompt": "Hello!",
@@ -127,6 +127,10 @@ async def startup_event():
             HumanLogger.log_service_status("MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available")
     except Exception as e:
         HumanLogger.log_service_status("MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}")
+    
+    # Initialize model cache on startup
+    HumanLogger.log_service_status("STARTUP", "starting", "Initializing model cache...")
+    await refresh_model_cache()
     
     # Background services
     HumanLogger.log_service_status("STARTUP", "starting", "Initializing background services...")
@@ -930,54 +934,18 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 @app.get("/v1/models")
 async def list_models():
     """
-    OpenAI-compatible endpoint for model listing. Returns available OpenAI and Ollama models.
+    OpenAI-compatible endpoint for model listing. Dynamically fetches available models from Ollama with caching.
     """
+    global _model_cache
+      # Check if cache is still valid
+    current_time = time.time()
+    if current_time - _model_cache["last_updated"] > _model_cache["ttl"]:
+        # Cache expired, refresh
+        await refresh_model_cache()
+    
     return {
         "object": "list",
-        "data": [
-            {
-                "id": "llama3.2:3b",
-                "object": "model",
-                "created": 1677649963,
-                "owned_by": "ollama",
-                "permission": [],
-            },
-            {
-                "id": "gpt-4",
-                "object": "model",
-                "created": 1677649963,
-                "owned_by": "openai",
-                "permission": [],
-            },
-            {
-                "id": "gpt-4-turbo",
-                "object": "model", 
-                "created": 1677649963,
-                "owned_by": "openai",
-                "permission": [],
-            },
-            {
-                "id": "gpt-3.5-turbo",
-                "object": "model",
-                "created": 1677649963,
-                "owned_by": "openai",
-                "permission": [],
-            },
-            {
-                "id": "gpt-4o",
-                "object": "model",
-                "created": 1677649963,
-                "owned_by": "openai",
-                "permission": [],
-            },
-            {
-                "id": "gpt-4o-mini",
-                "object": "model",
-                "created": 1677649963,
-                "owned_by": "openai",
-                "permission": [],
-            }
-        ]
+        "data": _model_cache["data"]
     }
 
 @app.post("/v1/chat/completions")
@@ -1236,6 +1204,78 @@ async def verify_model(model_name: str):
             "error": str(e)
         }
 
+# Global model cache
+_model_cache = {"data": [], "last_updated": 0, "ttl": 300}  # 5 minute TTL
+
+async def refresh_model_cache():
+    """Refresh the model cache by fetching from Ollama."""
+    global _model_cache
+    
+    models_data = []
+    
+    # Get Ollama models dynamically
+    if USE_OLLAMA:
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10.0)
+                if response.status_code == 200:
+                    ollama_data = response.json()
+                    for model in ollama_data.get("models", []):
+                        models_data.append({
+                            "id": model["name"],
+                            "object": "model",
+                            "created": int(time.time()),
+                            "owned_by": "ollama",
+                            "permission": [],
+                            "size": model.get("size", 0),
+                            "modified_at": model.get("modified_at", ""),
+                            "details": model.get("details", {})
+                        })
+                    HumanLogger.log_service_status("MODELS", "refreshed", f"Found {len(models_data)} Ollama models")
+                else:
+                    HumanLogger.log_service_status("MODELS", "warning", f"Failed to fetch Ollama models: HTTP {response.status_code}")
+        except Exception as e:
+            HumanLogger.log_service_status("MODELS", "error", f"Error fetching Ollama models: {str(e)}")
+    
+    # Add OpenAI models if enabled
+    openai_models = [
+        "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"
+    ]
+    
+    for model_id in openai_models:
+        models_data.append({
+            "id": model_id,
+            "object": "model",
+            "created": 1677649963,
+            "owned_by": "openai",
+            "permission": [],
+        })
+    
+    # Update cache
+    _model_cache = {
+        "data": models_data,
+        "last_updated": time.time(),
+        "ttl": 300
+    }
+    
+    return models_data
+
+@app.post("/v1/models/refresh")
+async def refresh_models():
+    """Force refresh the model list from Ollama."""
+    try:
+        models = await refresh_model_cache()
+        return {
+            "status": "success",
+            "message": f"Refreshed {len(models)} models",
+            "models": [model["id"] for model in models if model["owned_by"] == "ollama"]
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to refresh models: {str(e)}"
+        }
+
 @app.get("/test")
 async def test_endpoint():
     """Test endpoint to verify the updated code is running."""
@@ -1402,7 +1442,7 @@ async def feedback_alias(request: Request):
     response_time = data.get("response_time", 0)
     tools_used = data.get("tools_used")
     # Forward to the enhanced feedback endpoint
-    from fastapi import status
+
     from fastapi.responses import JSONResponse
     from enhanced_integration import submit_interaction_feedback
     try:
@@ -1425,7 +1465,6 @@ async def unload_ollama_model(model_name: str) -> bool:
         HumanLogger.log_service_status("MODEL", "skipped", "Ollama model unload skipped - using OpenAI API")
         return True
     try:
-        import httpx
         async with httpx.AsyncClient() as client:
             response = await client.post(f"{OLLAMA_BASE_URL}/api/unload", json={"name": model_name}, timeout=30)
             if response.status_code == 200:
@@ -1437,3 +1476,29 @@ async def unload_ollama_model(model_name: str) -> bool:
     except Exception as e:
         HumanLogger.log_service_status("MODEL", "warning", f"Model {model_name} unload failed: {e}")
         return False
+
+@app.post("/v1/models/added")
+async def model_added_webhook(model_data: dict = Body(...)):
+    """Webhook endpoint to notify when a new model is added."""
+    try:
+        model_name = model_data.get("name", "unknown")
+        HumanLogger.log_service_status("MODEL", "added", f"New model detected: {model_name}")
+        
+        # Force refresh the model cache
+        await refresh_model_cache()
+        
+        # Log available models
+        ollama_models = [model["id"] for model in _model_cache["data"] if model["owned_by"] == "ollama"]
+        HumanLogger.log_service_status("MODELS", "updated", f"Available Ollama models: {', '.join(ollama_models)}")
+        
+        return {
+            "status": "success",
+            "message": f"Model {model_name} registered successfully",
+            "available_models": ollama_models
+        }
+    except Exception as e:
+        HumanLogger.log_service_status("MODEL", "error", f"Error processing model addition: {str(e)}")
+        return {
+            "status": "error",
+            "message": f"Failed to process model addition: {str(e)}"
+        }

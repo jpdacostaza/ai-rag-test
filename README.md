@@ -93,14 +93,23 @@ opt/backend/
 ├── 🚀 Deployment & Configuration
 │   ├── Dockerfile                  # Optimized container build (llama user)
 │   ├── docker-compose.yml          # Multi-service orchestration
-│   ├── smart-startup.sh            # ✨ Intelligent startup with auto-fixes
-│   ├── install-linux-host.sh       # ✨ Linux host preparation script
-│   ├── startup.sh                  # Original container initialization script
-│   ├── fix-permissions.sh          # Original Linux permissions setup script
 │   ├── requirements.txt            # Python dependencies with versions
+│   ├── persona.json               # AI personality configuration
+│   └── refresh-models.py           # Python model refresh utility
 │   └── persona.json               # AI personality configuration
 │
-├── 📁 Data Storage (Persistent Volumes)
+├── � Shell Scripts & Utilities
+│   ├── startup.sh                  # Container initialization script
+│   ├── fix-permissions.sh          # Linux permissions setup script
+│   ├── manage-models.sh            # Model management utilities
+│   ├── test-model.sh               # Model testing script
+│   ├── add-model.sh                # Add new models to Ollama
+│   ├── enhanced-add-model.sh       # Enhanced model addition script
+│   ├── debug-openwebui-models.sh   # OpenWebUI model debugging
+│   ├── setup-github.sh             # GitHub repository setup
+│   └── refresh-models.py           # Python model refresh utility
+│
+├── �📁 Data Storage (Persistent Volumes)
 │   ├── storage/backend/            # Application data storage
 │   ├── storage/models/             # Embedding model cache (Qwen3-0.6B)
 │   ├── storage/chroma/             # Vector database (ChromaDB + ONNX cache)
@@ -109,8 +118,7 @@ opt/backend/
 │   └── storage/openwebui/          # Web UI data & vector DB
 │
 └── 📚 Documentation
-    ├── README.md                   # This comprehensive guide (all docs merged)
-    └── LINUX_DEPLOYMENT.md         # ✨ Detailed Linux deployment guide
+    └── README.md                   # This comprehensive guide
 ```
 
 ### 🔧 Core Components Details
@@ -411,14 +419,15 @@ WATCHDOG_ALERT_THRESHOLD=3    # Consecutive failures before alert
 ### Testing the Watchdog
 
 ```bash
-# Single health check
-python test_watchdog.py
+# Monitor the system logs
+docker logs -f backend-llm-backend
 
-# Continuous monitoring test (30 seconds)
-python test_watchdog.py continuous
+# Check individual service health
+curl http://localhost:8001/health/redis
+curl http://localhost:8001/health/chromadb
 
-# CLI monitoring mode
-python watchdog.py monitor
+# Test system health monitoring
+curl http://localhost:8001/health/detailed
 ```
 
 ### Health Status Values
@@ -434,25 +443,37 @@ python watchdog.py monitor
 opt/backend/
 ├── main.py                     # Core FastAPI application with tool integration
 ├── ai_tools.py                 # Tool implementations (web search, calc, Python execution)
-├── database.py                 # Centralized database management (Redis, ChromaDB)
-├── memory.py                   # Legacy memory functions (now using database.py)
+├── database.py                 # Database management with connection pooling
+├── database_manager.py         # Centralized database operations (Redis + ChromaDB)
 ├── error_handler.py            # Enterprise error handling & recovery systems
 ├── watchdog.py                 # System health monitoring & alerting
 ├── app.py                      # ASGI entrypoint for production deployment
+├── rag.py                      # RAG (Retrieval-Augmented Generation) implementation
+├── upload.py                   # File upload and document processing
+├── adaptive_learning.py        # Self-learning system with feedback loops
+├── enhanced_integration.py     # Enhanced endpoints for advanced features
+├── enhanced_document_processing.py  # Advanced document chunking & analysis
+├── model_manager.py            # LLM model management and optimization
+├── feedback_router.py          # User feedback collection & processing
+├── storage_manager.py          # File storage and management
+├── human_logging.py            # Beautiful console logging with emojis
 ├── requirements.txt            # Python dependencies with version pinning
 ├── Dockerfile                  # Optimized container build configuration
 ├── docker-compose.yml          # Multi-service orchestration with health checks
 ├── startup.sh                  # Container initialization and health verification
-├── test_backend.py             # Comprehensive API testing suite
-├── test_error_handling.py      # Error handling & recovery validation
-├── test_redis_resilience.py    # Redis connection resilience testing
-├── test_watchdog.py            # System monitoring validation
-├── test_production_readiness.py     # Production deployment checks
-├── redis.conf                  # Redis optimization configuration
+├── fix-permissions.sh          # Linux permissions setup script
+├── manage-models.sh            # Model management utilities
+├── test-model.sh               # Model testing script
+├── add-model.sh                # Add new models to Ollama
+├── enhanced-add-model.sh       # Enhanced model addition script
+├── debug-openwebui-models.sh   # OpenWebUI model debugging
+├── setup-github.sh             # GitHub repository setup
+├── refresh-models.py           # Python model refresh utility
+├── persona.json               # AI personality configuration
 └── README.md                   # This comprehensive documentation
 ```
 
-## 🏗️ Core Components
+## 🔧 Core Components
 
 ### **main.py** - FastAPI Application Core
 - **Async FastAPI Framework**: High-performance async endpoints with streaming support
@@ -476,6 +497,12 @@ opt/backend/
 - **Health Monitoring**: Database connectivity checks, performance metrics, and failover logic
 - **Operation Wrappers**: Safe execution with retry logic for all database operations
 
+### **database_manager.py** - Database Operations Coordination
+- **Unified Interface**: Centralized database operations for Redis and ChromaDB
+- **Transaction Management**: Coordinated operations across multiple database systems
+- **Connection Management**: Pooled connections with health monitoring and recovery
+- **Data Consistency**: Ensures data integrity across Redis cache and ChromaDB vectors
+
 ### **error_handler.py** - Enterprise Error Management
 - **Specialized Handlers**: Chat, tool, cache, memory, and Redis-specific error handling strategies
 - **Graceful Degradation**: System continues operating when subsystems fail with user notification
@@ -491,32 +518,31 @@ opt/backend/
 - **Background Processing**: Async monitoring loops with configurable intervals and timeout handling
 - **API Integration**: RESTful health endpoints for external monitoring and dashboard integration
 - **Performance Analytics**: Response time trending, error rate analysis, and capacity planning data
-- ChromaDB for semantic long-term storage
-- Automatic knowledge indexing
+- **ChromaDB for semantic long-term storage
+- **Automatic knowledge indexing from web searches and interactions
+- **Context-aware retrieval with semantic similarity matching
+- **Persistent storage with Docker volume management
 ## 🚀 Quick Start & Deployment
 
 ## 🚀 Quick Start & Deployment
 
 ### 🎯 **Performance-Optimized Quick Start** (Recommended)
 
-**For Linux hosts with user 'llama':**
+**Quick Start:**
 ```bash
-# 1. Fix permissions for user 'llama' (run as root/sudo)
-sudo ./fix-permissions.sh
-
-# 2. Start all services with Docker Compose
+# 1. Start all services with Docker Compose
 docker-compose up --build -d
 
-# 3. The system will automatically:
+# 2. The system will automatically:
 #    - Download llama3.2:3b model (~2GB) if not available
 #    - Configure all services (Redis, ChromaDB, Ollama, Backend)
 #    - Set up OpenWebUI at http://localhost:3000
 #    - Start backend API at http://localhost:8001
 
-# 4. Monitor startup progress
+# 3. Monitor startup progress
 docker logs -f backend-llm-backend
 
-# 5. Verify services are ready
+# 4. Verify services are ready
 curl http://localhost:8001/health
 ```
 
@@ -545,20 +571,17 @@ The system automatically handles everything:
 [MODEL] ✅ Ready - Default model llama3.2:3b is available
 ```
 
-### ⚙️ **Alternative Deployment Methods**
+### 🔧 **Alternative Deployment Methods**
 
 ```bash
 # Option A: Development Mode (with live reload)
-python startup_optimization.py
-uvicorn app:app --reload
+python -m uvicorn app:app --reload --host 0.0.0.0 --port 8001
 
-# Option B: Use Environment-Specific Quick Start
-./quick-start-optimized.ps1  # Windows
-./quick-start-optimized.sh   # Linux/Mac
+# Option B: Direct Python startup
+python app.py
 
-# Option C: Custom environment configurations
-python startup_optimization.py setup-env development
-python startup_optimization.py setup-env production
+# Option C: Docker development mode
+docker-compose -f docker-compose.yml up --build
 ```
 
 ### 📊 **Service Overview**
@@ -593,9 +616,8 @@ The performance-optimized Docker configuration includes:
 
 **Persistent Volumes:**
 ```yaml
-volumes:
-  - ./storage/ollama:/root/.ollama                    # Ollama models (llama3.2:3b)
-  - ./storage/models:/root/.cache/torch               # Embedding models
+volumes:  - ./storage/ollama:/home/ollama/.ollama               # Ollama models (llama3.2:3b)
+  - ./storage/models:/home/models/.cache/torch         # Embedding models
   - ./storage/chroma:/chroma                          # Vector database
   - ./storage/redis:/data                             # Redis persistence
   - ./storage/backend:/opt/backend/data               # Backend data
@@ -605,7 +627,7 @@ volumes:
 
 ## 🚦 Current System Status
 
-### ✅ **System Ready** (As of June 17, 2025)
+### ✅ **System Ready** (As of June 18, 2025)
 
 Your backend is currently **fully operational** with the following configuration:
 
@@ -774,7 +796,7 @@ docker exec backend-ollama olloma pull codellama:7b
 docker exec backend-ollama ollama list
 ```
 
-For detailed configuration, see `OPENWEBUI_CONNECTION_GUIDE.md`.
+For detailed configuration, see the Environment Variables section below.
 
 ## ⚙️ Configuration & Optimization
 
@@ -849,1129 +871,6 @@ save 60 1000
 - `GET /health/detailed` - Detailed system monitoring
 - Service-specific health monitoring
 
-## 🧪 Available Tools
-
-Users can trigger tools with natural language:
-
-| Tool | Trigger Examples | Description |
-|------|------------------|-------------|
-| **Python Code** | `run python print(2+2)`, `python for i in range(3): print(i)` | Execute Python code safely |
-| **Web Search** | `search latest AI news`, `find information about...` | Real-time web search |
-| **Wikipedia** | `wikipedia artificial intelligence`, `wiki python programming` | Wikipedia article summaries |
-| **Calculator** | `calculate 15 * 23`, `what is 2^8?` | Mathematical expressions |
-| **Weather** | `weather in London`, `what's the weather like in Tokyo?` | Current weather data |
-| **Time** | `what time is it in New York?`, `current time in Paris` | Time with timezone support |
-| **Currency** | `exchange rate USD to EUR`, `convert dollars to yen` | Real-time exchange rates |
-| **Unit Conversion** | `convert 10 km to miles`, `5 kg to pounds` | Unit conversions |
-| **News** | `latest news`, `current headlines` | Recent news headlines |
-| **System Info** | `system information`, `server stats` | System performance data |
-
-## 🔍 Advanced Features
-
-## 🎯 Key Features in Action
-
-### 🧠 Intelligent Memory & Context Management
-- **Automatic Knowledge Storage**: Web search results automatically indexed in ChromaDB for future reference
-- **Vector Similarity Search**: User queries matched against historical context using semantic embeddings
-- **Multi-layered Memory**: Redis for fast session data, ChromaDB for long-term semantic knowledge
-- **Context-Aware Responses**: Previous interactions inform current responses for continuity
-
-### ⚡ Advanced Caching & Performance
-- **Smart Cache Keys**: Context-aware caching based on user intent and tool usage patterns
-- **TTL Management**: Intelligent expiration policies with configurable timeouts
-- **Connection Pooling**: Optimized database connections with automatic recovery
-- **Async Processing**: Non-blocking operations with concurrent request handling
-
-### 🔄 Real-time Streaming & Session Management
-- **Server-Sent Events**: Live response streaming with automatic reconnection
-- **Session Persistence**: Multi-user concurrent sessions with state management
-- **Graceful Interruption**: Clean session termination and resource cleanup
-- **Background Processing**: Async tool execution with progress tracking
-
-### 🛡️ Production Security & Reliability
-- **Sandboxed Execution**: RestrictedPython environment for safe code execution
-- **Input Validation**: Comprehensive input sanitization and type checking
-- **Rate Limiting**: Redis-based request throttling with user-specific quotas
-- **Error Boundaries**: Isolated failure domains preventing cascade failures
-- **Audit Logging**: Complete request/response logging with correlation tracking
-
-## 🧪 Testing & Validation
-
-### Organized Test Suite
-
-All tests have been organized into the `tests/` directory for better project structure:
-
-```bash
-# Quick test runner - run specific test categories
-python run_tests.py --list                    # List all available tests
-python run_tests.py --redis                   # Run Redis-related tests
-python run_tests.py --production              # Run production readiness tests
-python run_tests.py --error-handling          # Run error handling tests
-python run_tests.py --all                     # Run all tests
-
-# Run individual tests
-python tests/test_backend.py                  # Core API functionality
-python tests/test_error_handling.py           # Error handling & recovery
-python tests/test_redis_resilience.py         # Redis connection resilience
-python tests/test_watchdog.py                 # System monitoring validation
-python tests/test_production_readiness.py     # Production deployment checks
-
-# Using pytest (if installed)
-python -m pytest tests/ -v                    # Run all tests with verbose output
-python -m pytest tests/test_redis_*.py        # Run Redis-specific tests
-```
-
-### Test Categories
-
-#### **Redis Tests** (`tests/test_redis_*.py`)
-- Connection pool validation
-- Broken pipe error recovery
-- Automatic reconnection testing
-- Cache operation resilience
-- Pool-based client management
-
-#### **Production Tests** (`tests/test_production_*.py`)
-- Docker Compose configuration validation
-- Environment variable parsing
-- Port configuration verification
-- Service health checks
-- Deployment readiness assessment
-
-#### **Error Handling Tests** (`tests/test_error_*.py`)
-- Centralized error handling validation
-- Graceful degradation testing
-- Recovery mechanism verification
-- Error logging and alerting
-
-#### **System Tests** (`tests/test_*.py`)
-- Backend API functionality
-- Watchdog monitoring system
-- Memory system integration
-- Tool execution validation
-
-### Performance Benchmarking
-```bash
-# Load testing with multiple concurrent users
-ab -n 1000 -c 10 http://localhost:8001/health
-
-# Memory usage profiling
-python -m memory_profiler tests/test_backend.py
-
-# Continuous health monitoring
-python tests/test_watchdog.py
-```
-
-## � Troubleshooting & Operations
-
-### 🗂️ ChromaDB Storage & Linux Permissions (FIXED)
-
-#### Issues Identified and Fixed ✅
-
-**1. ChromaDB Storage Location Issue** ✅ **FIXED**
-- **Problem**: ChromaDB data was being stored in `./chroma_db` instead of `./storage/chroma`
-- **Root Cause**: Code defaulted to `./chroma_db` when `USE_HTTP_CHROMA=false`
-- **Files Fixed**:
-  - `database_manager.py`: Changed default from `./chroma_db` to `./storage/chroma`
-  - `watchdog.py`: Changed default from `./chroma_db` to `./storage/chroma`
-- **Action Taken**: Removed unused `chroma_db/` folder
-
-**2. Configuration Consistency** ✅ **FIXED**
-- **Problem**: Mismatch between .env and docker-compose.yml settings
-- **.env file**: `USE_HTTP_CHROMA=false`, `CHROMA_DB_DIR=./storage/chroma`
-- **docker-compose.yml**: `USE_HTTP_CHROMA=true` (overrides .env)
-- **Result**: In Docker mode, HTTP ChromaDB is used (correct), but fallback paths were wrong
-
-**3. Linux User Permissions** ✅ **FIXED**
-- **Problem**: Docker containers need proper permissions for user 'llama'
-- **Dockerfile**: Added `llama` user creation (UID 1000)
-- **docker-compose.yml**: Added `user: "1000:1000"` to llm_backend service
-- **startup.sh**: Enhanced permission setting for all storage directories
-- **fix-permissions.sh**: New script to set host-level permissions
-
-**4. Storage Structure Consistency** ✅ **FIXED**
-- **Problem**: All storage should be centralized in `./storage/` directory
-- **Before**: Mixed locations (`./chroma_db`, `./storage/chroma`, etc.)
-- **After**: Everything in `./storage/` with proper subdirectories
-
-#### Current Storage Structure
-```
-./storage/
-├── backend/          # Application data
-├── chroma/           # ChromaDB vector database (when USE_HTTP_CHROMA=false)
-│   └── onnx_cache/   # ONNX model cache
-├── models/           # Sentence transformer models
-├── ollama/           # Ollama model storage
-├── openwebui/        # OpenWebUI data
-└── redis/            # Redis persistence files
-```
-
-#### Linux Deployment with User 'llama'
-
-**For Linux hosts with user 'llama':**
-
-1. **Set permissions** (run as root/sudo):
-   ```bash
-   sudo ./fix-permissions.sh
-   ```
-
-2. **Start services**:
-   ```bash
-   docker-compose up --build -d
-   ```
-
-3. **Verify**:
-   ```bash
-   curl http://localhost:8001/health
-   ```
-
-**Key Benefits:**
-- ✅ **Consistent Storage**: All data in `./storage/` directory
-- ✅ **Proper Permissions**: User 'llama' (UID 1000) owns all data
-- ✅ **Security**: Non-root container execution
-- ✅ **Persistence**: Data survives container restarts
-- ✅ **Backup-Friendly**: Single storage directory to backup
-
-**Technical Details:**
-- **User ID**: 1000 (standard first user on most Linux systems)
-- **Group ID**: 1000 (or 'llama' group)
-- **Permissions**: 755 for directories, 777 for data directories needing write access
-- **Ownership**: All storage owned by llama:llama
-- **Docker**: Containers run as llama user, not root
-
-### System Health Monitoring
-```bash
-# Real-time system status
-curl http://localhost:8001/health/detailed
-
-# Service-specific health checks
-curl http://localhost:8001/health/redis
-curl http://localhost:8001/health/chromadb
-curl http://localhost:8001/health/ollama
-
-# Historical health data
-curl http://localhost:8001/health/history/Redis?hours=24
-```
-
-### Common Issues & Solutions
-
-**🔧 Services Not Starting:**
-```bash
-# Clean restart with cache clearing
-docker-compose down -v
-docker-compose build --no-cache
-docker-compose up -d
-
-# Check service dependencies
-docker-compose ps
-docker-compose logs redis
-docker-compose logs chroma
-```
-
-**⚠️ Tool Execution Failures:**
-```bash
-# Detailed backend logs
-docker-compose logs -f llm_backend
-
-# Test individual tools
-python -c "from ai_tools import calculate; print(calculate('2+2'))"
-
-# Verify Python sandbox
-python test_backend.py --test-python-execution
-```
-
-**📊 Performance Issues:**
-```bash
-# Monitor resource usage
-docker stats --no-stream
-
-# Check Redis memory usage
-docker exec -it redis redis-cli info memory
-
-# ChromaDB performance metrics
-curl http://localhost:8002/api/v1/heartbeat
-
-# Adjust resource limits in docker-compose.yml
-```
-
-**🔌 Connection Problems:**
-```bash
-# Test database connectivity
-python test_watchdog.py
-
-# Redis connection debugging
-docker exec -it redis redis-cli ping
-
-# Check network connectivity
-docker network ls
-docker network inspect backend-network
-```
-
-**🧠 Memory/Context Issues:**
-```bash
-# Clear user-specific cache
-docker exec -it redis redis-cli flushdb
-
-# Reset ChromaDB collections
-curl -X DELETE http://localhost:8002/api/v1/collections/user_memory
-
-# Restart with fresh state
-docker-compose down && docker-compose up -d
-```
-
-### Debug Mode & Advanced Configuration
-```bash
-# Enable detailed logging for troubleshooting
-# In docker-compose.yml or .env file:
-LOG_LEVEL=DEBUG
-WATCHDOG_LOG_LEVEL=DEBUG
-
-# Enable request tracing
-ENABLE_REQUEST_TRACKING=true
-
-# Monitor specific components
-docker-compose logs -f llm_backend | grep -E "(ERROR|WARNING|REDIS|CHROMA)"
-```
-
-## 🔗 Integration & Deployment
-
-### OpenWebUI Integration
-The backend is fully compatible with OpenWebUI and other chat interfaces:
-```bash
-# OpenWebUI configuration
-BACKEND_API_URL=http://llm_backend:8001
-BACKEND_API_KEY=your-secure-api-key
-ENABLE_TOOLS=true
-
-# All tool capabilities are available through the chat interface:
-# - Python code execution with results display
-# - Web search with automatic knowledge storage
-# - Real-time weather, time, and financial data
-# - Mathematical calculations and unit conversions
-# - Semantic memory and context awareness
-```
-
-### API Integration
-```bash
-# Direct API usage for custom applications
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer your-api-key" \
-  -d '{
-    "model": "mistral:7b-instruct-v0.3-q4_k_m",
-    "messages": [{"role": "user", "content": "run python print('Hello, World!')"}],
-    "stream": true,
-    "tools": ["calculator", "web_search", "python_code"]
-  }'
-```
-
-### Production Deployment
-```bash
-# Docker Swarm deployment
-docker stack deploy -c docker-compose.yml llm-backend
-
-# Kubernetes deployment
-kubectl apply -f k8s/
-
-# Environment-specific configurations
-cp .env.example .env.production
-# Edit production values: database URLs, API keys, resource limits
-
-# Health check configuration for load balancers
-# GET /health - Basic health check
-# GET /health/detailed - Full system status with metrics
-```
-
-## 📊 Performance & Monitoring
-
-### Key Metrics
-- **Response Time**: Average tool execution time < 2 seconds
-- **Throughput**: Supports 100+ concurrent users with proper resource allocation
-- **Memory Usage**: ~2GB baseline, scales with user count and context size
-- **Cache Hit Rate**: 85%+ for repeated queries and tool results
-- **Uptime**: 99.9%+ with proper monitoring and auto-recovery
-
-### Monitoring Dashboards
-```bash
-# Grafana dashboard for system metrics
-# - Service health status over time
-# - Response time trends and percentiles  
-# - Error rate analysis by service
-# - Resource utilization (CPU, memory, network)
-# - User activity and tool usage patterns
-
-# Prometheus metrics endpoint
-curl http://localhost:8001/metrics
-```
-
-### Scaling Considerations
-```yaml
-# docker-compose.override.yml for production
-services:
-  llm_backend:
-    deploy:
-      replicas: 3
-      resources:
-        limits:
-          memory: 4G
-          cpus: '2.0'
-  redis:
-    deploy:
-      resources:
-        limits:
-          memory: 2G
-```
-
-## 🏆 Production Features Summary
-
-✅ **Complete Tool Integration**: 8 production-ready tools with sandboxed execution and comprehensive coverage  
-✅ **Enhanced Intelligence**: Self-learning system with 5 feedback types and adaptive document processing  
-✅ **Comprehensive API**: 20+ endpoints including OpenAI compatibility and enhanced integration router  
-✅ **Enterprise Error Handling**: 5 specialized error handlers with graceful degradation and recovery  
-✅ **Advanced Monitoring**: Real-time watchdog with 24/7 health tracking and performance analytics  
-✅ **Dual Database System**: Redis (cache/sessions) + ChromaDB (vectors/memory) with intelligent caching  
-✅ **Memory Management**: Short-term + long-term memory with semantic awareness and auto-indexing  
-✅ **Document Processing**: 5 chunking strategies for 5 document types with quality scoring  
-✅ **Security & Performance**: Input validation, timeout protection, connection pooling, and resource monitoring  
-✅ **Complete Documentation**: Unified README with all functions, endpoints, and capabilities documented  
-✅ **Production Deployment**: Docker containers with user security, persistent volumes, and auto-recovery  
-✅ **Model Management**: Automatic model download, verification, and embedding system with fallbacks
-
-### Changelog & System Status
-
-### Latest Updates (June 18, 2025)
-
-#### ✅ **Complete Documentation Overhaul** (NEW)
-- **Unified Documentation**: All .md files merged into comprehensive README
-- **Complete Function Catalog**: All 8 tools, 20+ endpoints, and enhanced features documented
-- **System Capabilities**: Full breakdown of LLM, tools, memory, monitoring, and intelligence
-- **API Reference**: Complete endpoint documentation with enhanced integration router
-- **Architecture Details**: In-depth component analysis and data flow documentation
-
-#### ✅ **Missing Function Implementation** (NEW)
-- **AI Tools Enhancement**: Added 5 missing functions to ai_tools.py
-  - `chunk_text()`: Advanced text chunking with recursive character splitting
-  - `convert_units()`: Comprehensive unit conversion (6 categories, 20+ units)
-  - `get_time_from_timeanddate()`: External time API integration
-  - `wikipedia_search()`: Wikipedia article retrieval with summary extraction
-  - `run_python_code()`: Sandboxed Python execution environment
-
-#### ✅ **ChromaDB Storage & Linux Permissions** (FIXED)
-- **Storage Location**: Fixed ChromaDB data storage to use `./storage/chroma` consistently
-- **Linux Compatibility**: Added support for user 'llama' (UID 1000) with proper permissions
-- **Docker Security**: Containers now run as non-root user for enhanced security
-- **Permission Script**: Added `fix-permissions.sh` for easy Linux host setup
-- **Folder Cleanup**: Removed unused `chroma_db/` folder after migration
-
-### Previous Updates (June 17, 2025)
-
-#### ✅ **Model Configuration & Management**
-- **Default Model**: Switched to `llama3.2:3b` (2GB) for optimal performance
-- **Automatic Download**: Models are now automatically downloaded on first startup
-- **Model Verification**: Built-in verification system with `/v1/models/verify/{model}` endpoint
-- **Startup Logging**: Clear progress indicators for model download and verification
-
-#### ✅ **System Architecture**
-- **Request Flow**: All requests flow through backend - no direct Ollama access
-- **Security**: OpenWebUI configured to use backend API exclusively
-- **Isolation**: Ollama port 11434 is internal-only for enhanced security
-
-#### ✅ **File Upload & RAG**
-- **Document Processing**: Upload router integrated into main application
-- **Vector Storage**: Documents automatically processed and stored in ChromaDB
-- **Semantic Search**: Query uploaded documents with semantic similarity
-
-#### ✅ **Enhanced Monitoring**
-- **Health Checks**: Comprehensive service monitoring with detailed status
-- **Logging**: Enhanced human-readable logs with service status indicators
-- **API Status**: All endpoints verified and operational
-
-#### ✅ **Production Ready**
-- **Docker Compose**: Fully configured with persistent volumes
-- **Service Dependencies**: Proper startup order and health checks
-- **Error Handling**: Robust error recovery and graceful degradation
-
-#### 🔧 **Technical Improvements**
-- **Model Auto-Download**: `ensure_model_available()` function for automatic model management
-- **Request Processing**: Enhanced chat endpoint with tool integration and memory
-- **API Compatibility**: Full OpenAI API compatibility maintained
-- **Performance**: Optimized startup sequence and resource utilization
-
 ---
 
-**System Status**: ✅ **Fully Operational**  
-**Last Verified**: June 17, 2025  
-**All Services**: Running and Healthy  
-**Model**: llama3.2:3b Ready
-
----
-
-# Embedding Model Guide
-
-## 🧠 What Does the Embedding Model Do?
-
-### Core Function
-The **Qwen3-Embedding-0.6B** model converts text into **1024-dimensional numerical vectors** that capture semantic meaning. Think of it as translating human language into "mathematical language" that computers can understand and compare.
-
-### Key Capabilities
-1. **Semantic Understanding**: Similar concepts produce similar vectors
-2. **Vector Search**: Enables finding related content mathematically
-3. **RAG (Retrieval-Augmented Generation)**: Powers intelligent document search
-
-### In Our System Architecture
-```
-User Text Input
-     ↓
-🧠 Qwen3-Embedding-0.6B (1024 dimensions)
-     ↓
-Vector Storage (ChromaDB)
-     ↓
-Semantic Search & Retrieval
-     ↓
-Enhanced AI Responses
-```
-
-## ✅ Test Results Summary
-- System Health: Embedding model loaded and available
-- Chat with Memory: Storing and retrieving semantic information through chat
-- Semantic Similarity: Cross-session memory recall through semantic matching
-- Capabilities Reporting: System properly reports embedding model status
-- Model Persistence: Model remains stable across multiple requests
-
-## 🔬 How to Test the Embedding Model
-... (include test commands and explanations from EMBEDDING_MODEL_GUIDE.md) ...
-
-## 🛠️ Technical Implementation
-... (include technical details, storage integration, performance characteristics, and use cases) ...
-
----
-
-# Project Completion & Production Readiness
-
-## 🎉 PROJECT STATUS: PRODUCTION READY
-
-**Date:** June 18, 2025
-**Final Status:** ✅ COMPLETE - All requirements fulfilled
-
-## ✅ COMPLETED REQUIREMENTS
-... (summarize from COMPLETION_REPORT.md) ...
-
-## 🚀 SYSTEM ARCHITECTURE
-... (include architecture and storage structure from COMPLETION_REPORT.md) ...
-
-## 🧠 AI CAPABILITIES
-... (summarize capabilities, document processing, and technical features) ...
-
-## 🧪 TESTING RESULTS
-... (include final system test and performance metrics) ...
-
-## 🛠️ DEPLOYMENT READY
-... (deployment, environment variables, and readiness checklist) ...
-
-## 🏁 FINAL NOTES
-... (final notes and summary) ...
-
----
-
-# Enhancement Proposals & Roadmap
-
-## 🚀 LLM System Enhancement Proposals
-
-### Overview
-This section outlines comprehensive enhancements for self-learning capabilities and document processing in the FastAPI LLM backend system.
-
-## 🧠 1. Self-Learning Capabilities Enhancement
-... (summarize and include key points from ENHANCEMENT_PROPOSAL.md) ...
-
-## 📄 2. Enhanced Document Processing System
-... (summarize and include key points from ENHANCEMENT_PROPOSAL.md) ...
-
-## 🔗 3. System Integration
-... (summarize and include new API endpoints and integration steps) ...
-
-## 🚦 4. Implementation Roadmap
-... (summarize phases and steps) ...
-
-## 📈 5. Expected Improvements
-... (quantitative and qualitative benefits) ...
-
-## 🔒 6. Technical Considerations
-... (performance, privacy, scalability) ...
-
-## 🛠️ 7. Deployment Instructions
-... (deployment steps and environment variables) ...
-
-## 🎯 8. Success Criteria
-... (short, medium, long term goals) ...
-
-## 📞 Support & Maintenance
-... (monitoring, troubleshooting, and support) ...
-
----
-
-# End of Unified Documentation
-
----
-
-*All previous documentation files have been merged into this README. For historical versions, see project history.*
-
----
-
-# 🐧 Complete Linux Production Deployment Guide
-
-## Pre-Deployment Requirements
-
-### **System Requirements**
-- ✅ Linux server (Ubuntu 20.04+ recommended)
-- ✅ Docker installed and running
-- ✅ Docker Compose v2+ installed
-- ✅ User `llama` with UID 1000 (will be created by setup script)
-- ✅ Minimum 8GB RAM, 20GB storage
-- ✅ Internet access for model downloads
-
-### **File Structure Setup for `/opt/backend/`**
-- ✅ All project files deployed to `/opt/backend/`
-- ✅ Proper ownership: `chown -R llama:llama /opt/backend/`
-- ✅ Execute permissions on scripts: `chmod +x /opt/backend/*.sh`
-- ✅ Storage directories with correct permissions
-
-## 🔧 Complete Permission Setup Commands
-
-### **Step 1: Create User and Base Structure**
-```bash
-# Run as root/sudo
-sudo su
-
-# Create llama user if it doesn't exist
-if ! id "llama" &>/dev/null; then
-    useradd -u 1000 -g 1000 -m -s /bin/bash llama
-    echo "✅ Created user llama (UID 1000)"
-else
-    echo "✅ User llama already exists"
-fi
-
-# Create base directory
-mkdir -p /opt/backend
-cd /opt/backend
-```
-
-### **Step 2: Set Directory Ownership**
-```bash
-# Set ownership of entire backend directory to llama
-chown -R llama:llama /opt/backend/
-
-# Verify ownership
-ls -la /opt/backend/
-# Should show: drwxr-xr-x llama llama
-```
-
-### **Step 3: Set File Permissions**
-```bash
-# Navigate to backend directory
-cd /opt/backend
-
-# Set directory permissions (755 = rwxr-xr-x)
-find /opt/backend -type d -exec chmod 755 {} \;
-
-# Set file permissions (644 = rw-r--r--)
-find /opt/backend -type f -exec chmod 644 {} \;
-
-# Make shell scripts executable (755 = rwxr-xr-x)
-chmod +x /opt/backend/*.sh
-chmod +x /opt/backend/fix-permissions.sh
-chmod +x /opt/backend/startup.sh
-
-# Make Python files executable if needed
-chmod +x /opt/backend/*.py
-```
-
-### **Step 4: Storage Directory Permissions**
-```bash
-# Create storage directories with proper structure
-mkdir -p /opt/backend/storage/{backend,models,chroma,redis,ollama,openwebui}
-mkdir -p /opt/backend/storage/chroma/onnx_cache
-
-# Set storage ownership
-chown -R llama:llama /opt/backend/storage/
-
-# Set storage permissions for Docker containers
-# Directories: 775 (rwxrwxr-x) - allows group write for Docker
-find /opt/backend/storage -type d -exec chmod 775 {} \;
-
-# Files: 664 (rw-rw-r--) - allows group write for Docker
-find /opt/backend/storage -type f -exec chmod 664 {} \;
-
-# Special permissions for specific directories
-chmod -R 777 /opt/backend/storage/redis      # Redis needs full write access
-chmod -R 777 /opt/backend/storage/chroma     # ChromaDB needs full write access
-chmod -R 777 /opt/backend/storage/ollama     # Ollama needs full write access
-chmod -R 777 /opt/backend/storage/models     # Model cache needs full write access
-chmod -R 777 /opt/backend/storage/openwebui  # OpenWebUI needs full write access
-```
-
-### **Step 5: Verify Permissions**
-```bash
-# Check user and group
-id llama
-# Expected: uid=1000(llama) gid=1000(llama) groups=1000(llama)
-
-# Check directory structure and permissions
-ls -la /opt/backend/
-# Expected: All files owned by llama:llama
-
-# Check storage permissions
-ls -la /opt/backend/storage/
-# Expected: All directories with 775 or 777 permissions
-
-# Check script permissions
-ls -la /opt/backend/*.sh
-# Expected: -rwxr-xr-x (755) llama llama
-```
-
-## 🚀 Linux Deployment Steps
-
-### **1. Initial Setup**
-```bash
-# Switch to deployment directory
-cd /opt/backend
-
-# Verify files are present
-ls -la  # Should show all project files
-
-# Run complete permission setup
-sudo ./fix-permissions.sh
-
-# Verify Docker is running
-systemctl status docker
-sudo systemctl start docker  # if not running
-```
-
-### **2. Environment Configuration**
-```bash
-# Copy environment template
-cp .env.example .env
-
-# Edit with your settings (nano, vim, or preferred editor)
-nano .env
-
-# Required settings:
-# - API keys (WeatherAPI, OpenAI if needed)
-# - Any custom configuration
-```
-
-### **3. Docker Deployment**
-```bash
-# Start all services (as llama user or with sudo)
-docker-compose up --build -d
-
-# Monitor startup progress
-docker logs -f backend-llm-backend
-
-# Watch for these success indicators:
-# [MODEL] ✅ Ready - Model llama3.2:3b is available
-# [EMBEDDINGS] ✅ Ready - Qwen3-Embedding loaded
-# [STARTUP] ✅ Ready - All services operational
-```
-
-### **4. First-Run Verification**
-```bash
-# Check all containers are running
-docker-compose ps
-# All should show "Up" status
-
-# Test health endpoint
-curl http://localhost:8001/health
-# Expected: {"status": "ok", "summary": "Health check: 3/3 services healthy"}
-
-# Test web interface
-curl -I http://localhost:3000
-# Expected: HTTP/1.1 200 OK
-
-# Verify model download (if first run)
-docker logs backend-ollama | grep llama3.2
-# Should show download progress or "model already exists"
-```
-
-## 📋 Complete Deployment Checklist
-
-### **Pre-Deployment**
-- [ ] Linux server with Docker installed
-- [ ] Files deployed to `/opt/backend/`
-- [ ] User `llama` created (UID 1000)
-- [ ] All permissions set correctly
-- [ ] Environment variables configured
-
-### **During Deployment**
-- [ ] `docker-compose up --build -d` runs successfully
-- [ ] All containers start without errors
-- [ ] Model download completes (first run)
-- [ ] No permission errors in logs
-
-### **Post-Deployment Verification**
-- [ ] Health check: `curl http://localhost:8001/health` ✅
-- [ ] Capabilities: `curl http://localhost:8001/capabilities` ✅
-- [ ] OpenWebUI accessible: `http://server-ip:3000` ✅
-- [ ] Chat functionality working ✅
-- [ ] All 10 AI tools operational ✅
-
-## 🛡️ Security and Permission Summary
-
-### **File Permissions**
-```bash
-/opt/backend/                    # 755 (rwxr-xr-x) llama:llama
-├── *.py                        # 644 (rw-r--r--) llama:llama
-├── *.sh                        # 755 (rwxr-xr-x) llama:llama
-├── *.yml                       # 644 (rw-r--r--) llama:llama
-├── *.md                        # 644 (rw-r--r--) llama:llama
-└── storage/                    # 775 (rwxrwxr-x) llama:llama
-    ├── backend/    (777 llama:llama) # Application data
-    ├── models/     (777 llama:llama) # AI model cache
-    ├── chroma/     (777 llama:llama) # Vector database
-    ├── redis/      (777 llama:llama) # Cache storage
-    ├── ollama/     (777 llama:llama) # LLM models
-    └── openwebui/  (777 llama:llama) # Web interface data
-```
-
-### **Docker Security**
-- ✅ Containers run as non-root user `llama` (UID 1000)
-- ✅ Internal network isolation via Docker bridge
-- ✅ Volume mounts with proper ownership
-- ✅ No privileged container access required
-
-### **Network Security**
-```bash
-# Optional: Configure firewall for external access
-ufw allow 3000   # OpenWebUI (if external access needed)
-ufw allow 8001   # Backend API (if external access needed)
-
-# For internal-only deployment, no firewall changes needed
-# Services communicate via Docker internal network
-```
-
-## 🔄 Maintenance Commands
-
-### **Service Management**
-```bash
-# Restart all services
-docker-compose restart
-
-# Restart specific service
-docker-compose restart llm_backend
-
-# View logs
-docker logs -f backend-llm-backend
-docker logs -f backend-ollama
-
-# Check resource usage
-docker stats
-
-# Update and rebuild
-git pull
-docker-compose build --no-cache
-docker-compose up -d
-```
-
-### **Backup and Recovery**
-```bash
-# Create full backup
-cd /opt/backend
-tar -czf /backup/llm-backend-$(date +%Y%m%d-%H%M).tar.gz \
-    --exclude='storage/ollama' \
-    --exclude='storage/models' \
-    .
-
-# Backup only data (excluding large models)
-tar -czf /backup/llm-data-$(date +%Y%m%d-%H%M).tar.gz \
-    storage/backend/ \
-    storage/chroma/ \
-    storage/redis/ \
-    storage/openwebui/
-
-# Restore from backup
-cd /opt/backend
-tar -xzf /backup/llm-backend-YYYYMMDD-HHMM.tar.gz
-sudo ./fix-permissions.sh
-docker-compose up -d
-```
-
-### **Monitoring and Troubleshooting**
-```bash
-# Check disk usage
-du -sh /opt/backend/storage/*
-df -h
-
-# Monitor system resources
-htop
-free -h
-
-# Check Docker system
-docker system df
-docker system prune  # Clean unused resources
-
-# View container logs for specific issues
-docker logs backend-llm-backend | grep ERROR
-docker logs backend-llm-backend | grep WARNING
-```
-
----
-
-# 📚 GitHub Backup and Repository Management
-
-## 🚀 Manual GitHub Setup Instructions
-
-### **Prerequisites**
-1. **Install Git** (if not already installed):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt update && sudo apt install git
-   
-   # CentOS/RHEL
-   sudo yum install git
-   
-   # Or download from: https://git-scm.com/download/linux
-   ```
-
-2. **Create GitHub Account**: Go to https://github.com and sign up
-
-### **Step-by-Step Repository Setup**
-
-#### **1. Initialize Git Repository**
-```bash
-cd /opt/backend
-git init
-```
-
-#### **2. Configure Git**
-```bash
-git config user.name "Your GitHub Username"
-git config user.email "your-email@example.com"
-
-# Verify configuration
-git config --list
-```
-
-#### **3. Add Files and Create Initial Commit**
-```bash
-# Add all files
-git add .
-
-# Create descriptive initial commit
-git commit -m "Initial commit: Advanced LLM Backend with Tool Integration
-
-🚀 Production-Ready Features:
-- 🤖 Local LLM with llama3.2:3b model
-- 🛠️ 8 AI tools (Python, web, weather, math, Wikipedia, time, unit conversion, text processing)
-- 🧠 Adaptive learning system with user feedback loops
-- 📄 Enhanced document processing (5 strategies for 5 document types)
-- 🏥 24/7 health monitoring and automated recovery
-- 🔒 Enterprise security and error handling
-- 🐳 Docker deployment with persistent storage
-- 📚 Complete documentation and API reference
-- 🐧 Linux production deployment ready
-
-System Status: Production Ready ✅
-Deployment: /opt/backend/ with user llama (UID 1000)"
-```
-
-#### **4. Create GitHub Repository**
-1. Go to https://github.com/new
-2. Repository name: `advanced-llm-backend`
-3. Description: `Enterprise FastAPI backend with tool-augmented AI and adaptive learning`
-4. Choose Public or Private
-5. **DO NOT** check "Add a README file", "Add .gitignore", or "Choose a license"
-6. Click "Create repository"
-
-#### **5. Connect Local Repository to GitHub**
-```bash
-# Add remote origin (replace YOUR_USERNAME)
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/advanced-llm-backend.git
-
-# Push to GitHub
-git push -u origin main
-```
-
-### **6. Verify GitHub Upload**
-Visit: `https://github.com/YOUR_USERNAME/advanced-llm-backend`
-
-You should see all your files uploaded successfully!
-
-## 🔄 Keeping Repository Updated
-
-### **Regular Updates**
-```bash
-# Stage changes
-git add .
-
-# Commit with descriptive message
-git commit -m "Update: Brief description of changes"
-
-# Push to GitHub
-git push
-```
-
-### **For Major Updates**
-```bash
-git add .
-git commit -m "Major update: Enhanced Linux deployment
-
-✨ Changes:
-- Improved permission management
-- Enhanced documentation
-- Updated deployment scripts
-- Performance optimizations"
-
-git push
-```
-
-## 🔒 Repository Security
-
-### **Files Included in Repository**
-- ✅ All Python source code
-- ✅ Docker configuration files
-- ✅ Documentation and guides
-- ✅ Setup and deployment scripts
-- ✅ Configuration templates
-
-### **Files Excluded (by .gitignore)**
-- ❌ Environment files with API keys (`.env`, `.env.*`)
-- ❌ Large model files (`storage/models/`, `storage/ollama/`)
-- ❌ Database data (`storage/chroma/`, `storage/redis/`)
-- ❌ Cache and temporary files (`__pycache__/`, `*.log`)
-- ❌ Personal data and user conversations
-
-### **Repository Benefits**
-- 💾 **Safe Backup**: Code safely stored on GitHub's servers
-- 📈 **Version Control**: Complete change history and rollback capability
-- 🤝 **Collaboration**: Easy sharing with team members
-- 🚀 **Deployment**: Clone to new servers for easy deployment
-- 📖 **Documentation**: Complete setup and usage guides
-- 🔄 **Synchronization**: Keep multiple environments in sync
-
----
-
-# 🎯 Production Deployment Summary
-
-## 🔄 **Recent Updates & Testing Results**
-
-### **📅 June 18, 2025 - Production Testing Complete**
-
-#### **🛠️ ChromaDB Permission Issue Resolved**
-- **Issue**: ChromaDB failing with "Permission denied: '/home/llama'" error
-- **Root Cause**: Docker user created without home directory
-- **Fix Applied**: Modified Dockerfile to create user with proper home directory
-  ```dockerfile
-  # Fixed: useradd -r -g llama -u 1000 -m -d /home/llama llama
-  ```
-- **Result**: ✅ All services now healthy, ChromaDB fully operational
-
-#### **✅ Comprehensive Storage & Caching Testing**
-
-**Redis Caching Verification:**
-- ✅ **Chat History Storage**: 16+ users with cached conversations
-- ✅ **Response Caching**: Individual messages cached with pattern `chat:{user_id}:{message}`
-- ✅ **Performance**: Sub-millisecond retrieval times
-- ✅ **Data Integrity**: JSON objects preserved correctly in Redis lists
-
-**ChromaDB Vector Storage Verification:**
-- ✅ **Collections Active**: 
-  - `watchdog_health_check` (384-dimensional embeddings)
-  - `user_memory` (1024-dimensional embeddings) - 1 vector stored
-- ✅ **Document Upload**: Test document successfully processed and vectorized
-- ✅ **Embedding Model**: `Qwen/Qwen3-Embedding-0.6B` working correctly
-- ✅ **Vector Indexing**: Chunk processing and storage fully operational
-
-**Service Health Status:**
-- ✅ **Redis**: Healthy (v7.4.4) - All operations verified
-- ✅ **ChromaDB**: Healthy - Vector storage confirmed
-- ✅ **Backend**: All 4 services healthy
-- ✅ **Ollama**: Ready with llama3.2:3b model
-- ✅ **OpenWebUI**: Frontend integration working
-
-#### **🎯 Production Readiness Confirmed**
-```
-📊 Current Status: ALL SYSTEMS OPERATIONAL
-├── Redis Cache: 17 active keys, optimal performance
-├── ChromaDB: 2 collections, 1 vector stored
-├── Backend API: All 20+ endpoints responding
-├── Model Pipeline: Embedding generation working
-└── Health Monitoring: Continuous 24/7 operation
-```
-
----
-
-## ✅ **Complete Deployment Ready**
-
-Your Advanced LLM Backend is now:
-
-### **📁 File Structure Optimized**
-```
-/opt/backend/                           # Main application directory
-├── [Python Applications & Config]     # All source code and configs
-├── storage/                           # Persistent data storage
-│   ├── backend/    (777 llama:llama) # Application data
-│   ├── models/     (777 llama:llama) # AI model cache
-│   ├── chroma/     (777 llama:llama) # Vector database
-│   ├── redis/      (777 llama:llama) # Cache storage
-│   ├── ollama/     (777 llama:llama) # LLM models
-│   └── openwebui/  (777 llama:llama) # Web interface data
-└── [Scripts & Documentation]         # Setup and maintenance scripts
-```
-
-### **🔐 Security Configured**
-- ✅ Non-root execution (user `llama` UID 1000)
-- ✅ Proper file permissions (755/644/777 as appropriate)
-- ✅ Docker container isolation
-- ✅ API key protection via .gitignore
-- ✅ Internal network security
-
-### **🚀 Deployment Steps**
-
-#### **✨ New Smart Deployment (Recommended)**
-```bash
-# 1. Automated Linux host setup
-sudo ./install-linux-host.sh
-
-# 2. Smart startup with automatic fixes
-sudo ./smart-startup.sh
-
-# 3. Deploy services
-docker-compose up --build -d
-
-# 4. Verify deployment
-curl http://localhost:8001/health
-```
-
-#### **📚 Traditional Deployment**
-```bash
-# 1. Deploy files to /opt/backend/
-sudo cp -r . /opt/backend/ && cd /opt/backend
-
-# 2. Run permission setup
-sudo ./fix-permissions.sh
-
-# 3. Start services
-docker-compose up --build -d
-
-# 4. Verify deployment
-curl http://localhost:8001/health
-```
-
-#### **🔧 Smart Startup Features**
-- ✅ **Automatic Problem Detection**: Identifies and fixes permission issues
-- ✅ **ChromaDB Fix**: Creates proper llama user home directory
-- ✅ **Health Checks**: Comprehensive pre-startup validation
-- ✅ **Intelligent Setup**: Adapts to root/non-root execution
-- ✅ **Backwards Compatible**: Works with existing deployment methods
-
-> **📖 For detailed Linux deployment guide, see:** [`LINUX_DEPLOYMENT.md`](./LINUX_DEPLOYMENT.md)
-
-### **📊 Enterprise Features Ready**
-- 🤖 **LLM**: llama3.2:3b with automatic management
-- 🛠️ **Tools**: 8 production AI tools
-- 🧠 **Memory**: Redis + ChromaDB dual storage
-- 📄 **Documents**: Advanced RAG with 5 chunking strategies
-- 🏥 **Monitoring**: 24/7 health monitoring with alerts
-- 📈 **Learning**: Adaptive system with feedback loops
-- 🔄 **Backup**: GitHub repository with version control
-
-Your system is **production-ready** for enterprise Linux deployment! 🎉
+*All documentation has been consolidated into this README for easy reference and maintenance.*

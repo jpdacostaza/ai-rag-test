@@ -68,4 +68,3 @@ RestrictedPython>=6.0  # For safer code execution
 # Testing dependencies
 pytest>=7.4.0               # Testing framework
 pytest-asyncio>=0.21.0      # Async testing support
-httpx>=0.25.0               # For async HTTP testing

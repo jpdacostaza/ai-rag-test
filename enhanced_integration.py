@@ -11,14 +11,12 @@ systems with the existing FastAPI backend. It provides:
 4. Performance monitoring and insights
 """
 
-from fastapi import APIRouter, HTTPException, Form, UploadFile, File, Depends
+from fastapi import APIRouter, HTTPException, Form, UploadFile, File, Depends, Request, status
 from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
 import time
 import asyncio
 from datetime import datetime
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
 
 # Import our enhanced modules
 from adaptive_learning import adaptive_learning_system, FeedbackType
