@@ -364,3 +364,158 @@ def run_python_code(code: str) -> str:
     except Exception as e:
         logging.error(f"[PYTHON_EXEC] Error executing code: {e}")
         return f"Error executing Python code: {e}"
+
+def calculate(expression: str) -> str:
+    """
+    Safely evaluate mathematical expressions.
+    
+    Args:
+        expression: Mathematical expression as string (e.g., "2 + 2 * 3")
+        
+    Returns:
+        Result of the calculation or error message
+    """
+    try:
+        # Remove any potentially dangerous characters
+        expression = expression.replace(" ", "")
+        
+        # Only allow numbers, operators, parentheses, and decimal points
+        allowed_chars = set("0123456789+-*/().^%")
+        if not all(c in allowed_chars for c in expression):
+            return "Error: Invalid characters in expression"
+        
+        # Replace ^ with ** for Python exponentiation
+        expression = expression.replace("^", "**")
+        
+        # Safe evaluation
+        result = eval(expression, {"__builtins__": {}}, {})
+        return str(result)
+        
+    except Exception as e:
+        return f"Calculation error: {str(e)}"
+
+def web_search(query: str, num_results: int = 5) -> str:
+    """
+    Perform a web search and return results.
+    
+    Args:
+        query: Search query
+        num_results: Number of results to return
+        
+    Returns:
+        Search results or error message
+    """
+    try:
+        import requests
+        from bs4 import BeautifulSoup
+        import urllib.parse
+        
+        # Use DuckDuckGo Instant Answer API as a simple search
+        encoded_query = urllib.parse.quote_plus(query)
+        url = f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1&skip_disambig=1"
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
+        
+        if data.get('AbstractText'):
+            return f"Search result for '{query}': {data['AbstractText']}"
+        elif data.get('Definition'):
+            return f"Definition for '{query}': {data['Definition']}"
+        else:
+            return f"No detailed results found for '{query}'. Try a more specific search."
+            
+    except Exception as e:
+        return f"Web search unavailable: {str(e)}"
+
+def get_news(category: str = "general", country: str = "us") -> str:
+    """
+    Get latest news headlines.
+    
+    Args:
+        category: News category (general, business, tech, etc.)
+        country: Country code (us, uk, etc.)
+        
+    Returns:
+        News headlines or error message
+    """
+    try:
+        # For demo purposes, return a placeholder
+        # In production, you would integrate with a news API like NewsAPI
+        return f"News lookup is currently unavailable. Would you like me to search the web for '{category}' news instead?"
+        
+    except Exception as e:
+        return f"News service error: {str(e)}"
+
+def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0) -> str:
+    """
+    Get currency exchange rates.
+    
+    Args:
+        from_currency: Source currency code (e.g., USD)
+        to_currency: Target currency code (e.g., EUR)
+        amount: Amount to convert
+        
+    Returns:
+        Exchange rate information or error message
+    """
+    try:
+        # Use a free exchange rate API
+        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency.upper()}"
+        response = requests.get(url, timeout=10)
+        data = response.json()
+        
+        if to_currency.upper() in data['rates']:
+            rate = data['rates'][to_currency.upper()]
+            converted_amount = amount * rate
+            return f"{amount} {from_currency.upper()} = {converted_amount:.2f} {to_currency.upper()} (Rate: {rate:.4f})"
+        else:
+            return f"Currency {to_currency.upper()} not found"
+            
+    except Exception as e:
+        return f"Exchange rate lookup failed: {str(e)}"
+
+def get_system_info() -> str:
+    """
+    Get system information.
+    
+    Returns:
+        System information or error message
+    """
+    try:
+        import platform
+        import os
+        
+        info = {
+            "OS": platform.system(),
+            "OS Version": platform.release(),
+            "Architecture": platform.architecture()[0],
+            "Python Version": platform.python_version(),
+            "Hostname": platform.node()
+        }
+        
+        return "System Information: " + ", ".join([f"{k}: {v}" for k, v in info.items()])
+        
+    except Exception as e:
+        return f"System info unavailable: {str(e)}"
+
+def get_timezone_for_location(location: str) -> str:
+    """
+    Get timezone information for a location.
+    
+    Args:
+        location: Location name or city
+        
+    Returns:
+        Timezone information or error message
+    """
+    try:
+        # This would typically use a timezone API
+        # For now, return a placeholder that calls the time function
+        return get_time_from_timeanddate(location)
+        
+    except Exception as e:
+        return f"Timezone lookup failed: {str(e)}"
