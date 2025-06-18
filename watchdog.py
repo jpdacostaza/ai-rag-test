@@ -11,8 +11,8 @@ import os
 import threading
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
-import requests
-import redis
+import httpx
+import redis.asyncio as redis
 import chromadb
 from chromadb.config import Settings
 from dataclasses import dataclass, asdict
@@ -130,7 +130,8 @@ class RedisMonitor(SubsystemMonitor):
     async def check_health(self) -> ServiceHealth:
         start_time = time.time()
         
-        try:            # Create Redis client with timeout
+        try:
+            # Create async Redis client with timeout
             client = redis.Redis(
                 host=self.redis_host,
                 port=self.redis_port,
@@ -139,10 +140,11 @@ class RedisMonitor(SubsystemMonitor):
                 decode_responses=True
             )
             
-            # Test basic operations
-            await asyncio.to_thread(client.ping)
-            await asyncio.to_thread(client.set, "watchdog:health_check", "ok", ex=60)
-            result = await asyncio.to_thread(client.get, "watchdog:health_check")
+            # Test basic operations asynchronously
+            await client.ping()
+            await client.set("watchdog:health_check", "ok", ex=60)
+            result = await client.get("watchdog:health_check")
+            await client.close() # Close the connection
             
             response_time = (time.time() - start_time) * 1000
             
@@ -296,9 +298,9 @@ class OllamaMonitor(SubsystemMonitor):
     
     def __init__(self, config: WatchdogConfig):
         super().__init__("Ollama", config)
-        # Use OLLAMA_URL for health checks, not LLM_API_URL which is for chat
         self.ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         self.api_key = os.getenv("LLM_API_KEY")
+        self.client = httpx.AsyncClient(timeout=self.config.timeout)
     
     async def check_health(self) -> ServiceHealth:
         start_time = time.time()
@@ -306,15 +308,11 @@ class OllamaMonitor(SubsystemMonitor):
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"            # Check if Ollama is running - use base URL for health checks
+                headers["Authorization"] = f"Bearer {self.api_key}"
+
             health_url = f"{self.ollama_url.rstrip('/')}/api/tags"
             
-            response = await asyncio.to_thread(
-                requests.get,
-                health_url,
-                headers=headers,
-                timeout=self.config.timeout
-            )
+            response = await self.client.get(health_url, headers=headers)
             
             response_time = (time.time() - start_time) * 1000
             
@@ -325,7 +323,7 @@ class OllamaMonitor(SubsystemMonitor):
                     data = response.json()
                     models = data.get("models", [])
                     model_names = [model.get("name", "unknown") for model in models]
-                except:
+                except json.JSONDecodeError:
                     models = []
                     model_names = []
                 

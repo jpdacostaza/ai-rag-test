@@ -10,8 +10,8 @@ from fastapi import UploadFile, HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import chromadb
-from database import db_manager, index_user_document, retrieve_user_memory, get_embedding
-from human_logging import HumanLogger
+from database import db_manager, index_document_chunks, retrieve_user_memory, get_embedding
+from human_logging import log_service_status
 from error_handler import MemoryErrorHandler, safe_execute
 
 class RAGProcessor:
@@ -36,7 +36,7 @@ class RAGProcessor:
             chunks = self.text_splitter.split_text(text)
             
             if not chunks:
-                HumanLogger.log_service_status("RAG", "error", f"No chunks created from {file.filename}")
+                log_service_status("RAG", "error", f"No chunks created from {file.filename}")
                 return {
                     "document_id": None,
                     "filename": file.filename,
@@ -46,29 +46,22 @@ class RAGProcessor:
                     "error": "No chunks created from document"
                 }
             
-            # Store chunks with embeddings
+            # Store chunks with embeddings in a single batch operation
             document_id = f"{user_id}_{file.filename}_{hash(text)}"
             
-            success_count = 0
-            for i, chunk in enumerate(chunks):
-                chunk_id = f"{document_id}_chunk_{i}"
-                try:
-                    success = index_user_document(
-                        db_manager=db_manager,
-                        user_id=user_id,
-                        doc_id=chunk_id,
-                        name=file.filename,
-                        text=chunk
-                    )
-                    if success:
-                        success_count += 1
-                    else:
-                        HumanLogger.log_service_status("RAG", "error", f"Failed to index chunk {i} for {file.filename}")
-                except Exception as e:
-                    HumanLogger.log_service_status("RAG", "error", f"Exception indexing chunk {i}: {str(e)}")
+            success = index_document_chunks(
+                db_manager=db_manager,
+                user_id=user_id,
+                doc_id=document_id,
+                name=file.filename,
+                chunks=chunks
+            )
             
-            HumanLogger.log_service_status(
-                "RAG", "ready", 
+            success_count = len(chunks) if success else 0
+
+            log_service_status(
+                "RAG", 
+                "ready" if success else "error", 
                 f"Processed {file.filename}: {success_count}/{len(chunks)} chunks stored"
             )
             
@@ -77,11 +70,11 @@ class RAGProcessor:
                 "filename": file.filename,
                 "chunks_processed": success_count,
                 "total_chunks": len(chunks),
-                "status": "success" if success_count == len(chunks) else "partial" if success_count > 0 else "failed"
+                "status": "success" if success else "failed"
             }
             
         except Exception as e:
-            HumanLogger.log_service_status("RAG", "error", f"Document processing error: {str(e)}")
+            log_service_status("RAG", "error", f"Document processing error: {str(e)}")
             MemoryErrorHandler.handle_memory_error(e, "document_processing", user_id)
             raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
     
@@ -96,7 +89,7 @@ class RAGProcessor:
             # Retrieve similar documents
             results = retrieve_user_memory(db_manager, user_id, query_embedding, limit)
             
-            HumanLogger.log_service_status(
+            log_service_status(
                 "RAG", "ready", 
                 f"Found {len(results)} relevant documents for query: {query[:50]}..."
             )

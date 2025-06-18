@@ -21,8 +21,8 @@ from datetime import datetime
 # Import our enhanced modules
 from adaptive_learning import adaptive_learning_system, FeedbackType
 from enhanced_document_processing import enhanced_chunker, ChunkingStrategy, DocumentType
-from database import db_manager, index_user_document
-from human_logging import HumanLogger
+from database import db_manager, index_document_chunks
+from human_logging import log_service_status, log_error
 
 # Create router for enhanced features
 enhanced_router = APIRouter(prefix="/enhanced", tags=["enhanced"])
@@ -57,55 +57,56 @@ async def upload_document_advanced(
                     status_code=400, 
                     detail=f"Invalid chunking strategy. Options: {[s.value for s in ChunkingStrategy]}"
                 )
-          # Process document with enhanced chunker
+        # Process document with enhanced chunker
         processed_chunks = await enhanced_chunker.process_document(
             content=text,
             filename=file.filename or "unknown_file",
             user_id=user_id,
             strategy=strategy
         )
-          # Store chunks in database
-        success_count = 0
-        stored_chunks = []
-        
-        for chunk in processed_chunks:
-            success = index_user_document(
-                db_manager=db_manager,
-                user_id=user_id,
-                doc_id=chunk.chunk_id,
-                name=file.filename or "unknown_file",
-                text=chunk.text
-            )
-            
-            if success:
-                success_count += 1
-                stored_chunks.append({
-                    "chunk_id": chunk.chunk_id,
-                    "chunk_index": chunk.chunk_index,
-                    "quality_score": chunk.quality_score,
-                    "strategy": chunk.strategy.value,
-                    "metadata": chunk.metadata
-                })
-        
+
+        # Store chunks in database using a single batch operation
+        chunk_texts = [chunk.text for chunk in processed_chunks]
+        doc_id = f"{user_id}_{file.filename}_{hash(text)}"
+
+        success = index_document_chunks(
+            db_manager=db_manager,
+            user_id=user_id,
+            doc_id=doc_id,
+            name=file.filename or "unknown_file",
+            chunks=chunk_texts
+        )
+
+        success_count = len(processed_chunks) if success else 0
+        stored_chunks_details = []
+        if success:
+            stored_chunks_details = [{
+                "chunk_id": chunk.chunk_id,
+                "chunk_index": chunk.chunk_index,
+                "quality_score": chunk.quality_score,
+                "strategy": chunk.strategy.value,
+                "metadata": chunk.metadata
+            } for chunk in processed_chunks]
+
         processing_time = time.time() - start_time
         
         # Log the successful processing
-        HumanLogger.log_service_status(
-            "ENHANCED_UPLOAD", "ready",
+        log_service_status(
+            "ENHANCED_UPLOAD", "ready" if success else "error",
             f"Processed {file.filename or 'unknown_file'}: {success_count}/{len(processed_chunks)} chunks stored in {processing_time:.2f}s"
         )
         
         return JSONResponse(
             status_code=200,
             content={
-                "success": True,
+                "success": success,
                 "message": "Document processed with advanced features",
                 "data": {
                     "filename": file.filename,
                     "total_chunks": len(processed_chunks),
                     "stored_chunks": success_count,
                     "processing_time": round(processing_time, 2),
-                    "chunks": stored_chunks,
+                    "chunks": stored_chunks_details,
                     "document_metadata": {
                         "strategy_used": processed_chunks[0].strategy.value if processed_chunks else "none",
                         "avg_quality_score": round(
@@ -119,7 +120,7 @@ async def upload_document_advanced(
     except HTTPException:
         raise
     except Exception as e:
-        HumanLogger.log_service_status("ENHANCED_UPLOAD", "error", f"Processing failed: {e}")
+        log_error(e, "enhanced_upload")
         raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
 
 
@@ -175,7 +176,7 @@ async def submit_interaction_feedback(
     except HTTPException:
         raise
     except Exception as e:
-        HumanLogger.log_service_status("FEEDBACK", "error", f"Feedback processing failed: {e}")
+        log_error(e, "feedback_processing")
         raise HTTPException(status_code=500, detail=f"Feedback processing failed: {str(e)}")
 
 
@@ -194,7 +195,7 @@ async def get_user_insights(user_id: str):
         )
         
     except Exception as e:
-        HumanLogger.log_service_status("INSIGHTS", "error", f"Insights retrieval failed: {e}")
+        log_error(e, "insights_retrieval")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve insights: {str(e)}")
 
 
@@ -336,7 +337,7 @@ async def enhanced_chat_endpoint(
         }
         
     except Exception as e:
-        HumanLogger.log_service_status("ENHANCED_CHAT", "error", f"Enhanced chat failed: {e}")
+        log_error(e, "enhanced_chat")
         raise HTTPException(status_code=500, detail=f"Enhanced chat failed: {str(e)}")
 
 
@@ -349,40 +350,13 @@ async def start_enhanced_background_tasks():
         # Start the learning background tasks
         asyncio.create_task(start_learning_background_tasks())
         
-        HumanLogger.log_service_status(
+        log_service_status(
             "ENHANCED_SYSTEM", "ready", 
             "Enhanced learning and document processing systems initialized"
         )
         
     except Exception as e:
-        HumanLogger.log_service_status(
+        log_service_status(
             "ENHANCED_SYSTEM", "error", 
             f"Failed to start enhanced background tasks: {e}"
         )
-
-
-@enhanced_router.post("/feedback")
-async def feedback_alias(request: Request):
-    """Alias for /enhanced/feedback/interaction for OpenWebUI rating integration."""
-    data = await request.json()
-    # Map OpenWebUI rating fields to backend feedback fields
-    user_id = data.get("user_id") or data.get("user")
-    conversation_id = data.get("conversation_id") or data.get("conv_id")
-    user_message = data.get("user_message") or data.get("input")
-    assistant_response = data.get("assistant_response") or data.get("output")
-    feedback_type = data.get("feedback_type") or data.get("rating")
-    response_time = data.get("response_time", 0)
-    tools_used = data.get("tools_used")
-    try:
-        result = await submit_interaction_feedback(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            user_message=user_message,
-            assistant_response=assistant_response,
-            feedback_type=feedback_type,
-            response_time=response_time,
-            tools_used=tools_used
-        )
-        return result
-    except Exception as e:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"success": False, "error": str(e)})

@@ -30,7 +30,7 @@ from langchain.text_splitter import (
 from sentence_transformers import SentenceTransformer
 
 from database import db_manager, index_user_document, get_embedding
-from human_logging import HumanLogger
+from human_logging import log_service_status, log_error
 from error_handler import MemoryErrorHandler, safe_execute
 
 
@@ -112,7 +112,7 @@ class DocumentAnalyzer:
             return doc_type, metadata
             
         except Exception as e:
-            HumanLogger.log_service_status("DOC_ANALYSIS", "error", f"Document analysis failed: {e}")
+            log_service_status("DOC_ANALYSIS", "error", f"Document analysis failed: {e}")
             # Return default values
             return DocumentType.TEXT, DocumentMetadata(
                 filename=filename,
@@ -342,7 +342,7 @@ class EnhancedChunker:
                 )
                 processed_chunks.append(chunk)
             
-            HumanLogger.log_service_status(
+            log_service_status(
                 "DOC_PROCESSING", "ready",
                 f"Processed {filename}: {len(processed_chunks)} chunks using {strategy.value} strategy"
             )

@@ -20,8 +20,8 @@ from enum import Enum
 import numpy as np
 from collections import defaultdict, deque
 
-from database import db_manager, index_user_document, retrieve_user_memory, get_embedding
-from human_logging import HumanLogger
+from database import db_manager, index_document_chunks, retrieve_user_memory, get_embedding
+from human_logging import log_service_status, log_error
 from error_handler import MemoryErrorHandler, safe_execute
 
 
@@ -107,7 +107,7 @@ class ConversationAnalyzer:
             return metrics
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Interaction analysis failed: {e}")
+            log_service_status("LEARNING", "error", f"Interaction analysis failed: {e}")
             return None
     
     def _classify_feedback(self, message: str) -> FeedbackType:
@@ -178,7 +178,7 @@ class ConversationAnalyzer:
             return min((query_memory_overlap + response_memory_overlap) / 2, 1.0)
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Context relevance calculation failed: {e}")
+            log_service_status("LEARNING", "error", f"Context relevance calculation failed: {e}")
             return 0.5
     
     def _count_follow_up_indicators(self, message: str) -> int:
@@ -226,7 +226,7 @@ class AdaptiveLearningSystem:
             # Update user preference models
             await self._update_user_preferences(user_id, metrics)
             
-            HumanLogger.log_service_status(
+            log_service_status(
                 "LEARNING", "ready", 
                 f"Processed interaction for {user_id}: {metrics.feedback_type.value if metrics.feedback_type else 'neutral'}"
             )
@@ -319,7 +319,7 @@ class AdaptiveLearningSystem:
             user_data["feedback_history"] = user_data["feedback_history"][-100:]
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Pattern update failed: {e}")
+            log_service_status("LEARNING", "error", f"Pattern update failed: {e}")
     
     async def _check_knowledge_expansion(self, user_id: str, metrics: InteractionMetrics,
                                        user_message: str, assistant_response: str):
@@ -363,30 +363,32 @@ class AdaptiveLearningSystem:
                     await self._process_knowledge_expansion(user_id, expansion_content, expansion_type)
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Knowledge expansion check failed: {e}")
+            log_service_status("LEARNING", "error", f"Knowledge expansion check failed: {e}")
     
     async def _process_knowledge_expansion(self, user_id: str, content: str, expansion_type: str):
         """Process knowledge expansion by storing new information."""
         try:
             doc_id = f"learning_{expansion_type}_{user_id}_{int(time.time())}"
             
-            # Store the new knowledge in the user's document space
-            success = index_user_document(
+            # Use the more efficient batch indexing function
+            success = index_document_chunks(
                 db_manager=db_manager,
                 user_id=user_id,
                 doc_id=doc_id,
                 name=f"Learned Knowledge - {expansion_type}",
-                text=content
+                chunks=[content] # Wrap content in a list for the new function
             )
             
             if success:
-                HumanLogger.log_service_status(
+                log_service_status(
                     "LEARNING", "ready",
                     f"Expanded knowledge base for {user_id}: {expansion_type}"
                 )
+            else:
+                log_service_status("LEARNING", "error", f"Failed to expand knowledge base for {user_id}")
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Knowledge expansion processing failed: {e}")
+            log_service_status("LEARNING", "error", f"Knowledge expansion processing failed: {e}")
     
     async def _update_user_preferences(self, user_id: str, metrics: InteractionMetrics):
         """Update user preference models based on interaction feedback."""
@@ -418,7 +420,7 @@ class AdaptiveLearningSystem:
             self.user_patterns[user_id]["preferences"] = preferences
             
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Preference update failed: {e}")
+            log_service_status("LEARNING", "error", f"Preference update failed: {e}")
     
     async def process_knowledge_expansion_queue(self):
         """Process queued knowledge expansions in background."""
@@ -434,7 +436,7 @@ class AdaptiveLearningSystem:
                 await asyncio.sleep(0.1)
                 
         except Exception as e:
-            HumanLogger.log_service_status("LEARNING", "error", f"Queue processing failed: {e}")
+            log_service_status("LEARNING", "error", f"Queue processing failed: {e}")
 
 
 # Background task function
@@ -445,7 +447,7 @@ async def start_learning_background_tasks():
             await adaptive_learning_system.process_knowledge_expansion_queue()
             await asyncio.sleep(60)  # Process queue every minute
     except Exception as e:
-        HumanLogger.log_service_status("LEARNING", "error", f"Background task error: {e}")
+        log_service_status("LEARNING", "error", f"Background task error: {e}")
 
 
 # Global adaptive learning system instance

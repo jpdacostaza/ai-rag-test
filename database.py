@@ -11,7 +11,7 @@ import redis
 from sentence_transformers import SentenceTransformer
 import json
 from error_handler import RedisConnectionHandler, MemoryErrorHandler, safe_execute
-from human_logging import log_redis_status, log_chromadb_status, HumanLogger
+from human_logging import log_service_status
 import time
 from database_manager import DatabaseManager
 
@@ -98,9 +98,9 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(e, "get_chat", f"chat_history:{user_id}", user_id, request_id)
     )
 
-def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):
-    """Chunk, embed, and index a document for a specific user in ChromaDB."""
-    def _index_document():
+def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
+    """Embed and index a list of pre-chunked text documents for a user in ChromaDB."""
+    def _index_op():
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] ChromaDB not available, skipping document indexing")
             return False
@@ -108,39 +108,18 @@ def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available, skipping document indexing")
             return False
-        
-        # Import chunk_text function
+
         try:
-            from ai_tools import chunk_text
-        except ImportError:
-            logging.error("[CHUNKING] Failed to import chunk_text from ai_tools")
-            return False
-        
-        # Create chunks
-        try:
-            chunks = chunk_text(text, chunk_size, chunk_overlap)
-            if not chunks:
-                logging.warning(f"No chunks created for doc_id={doc_id}, user_id={user_id}")
-                return False
-            
-            logging.info(f"Created {len(chunks)} chunks for doc_id={doc_id}")
+            # Set show_progress_bar to False for cleaner logs
+            embeddings = db_manager.embedding_model.encode(chunks, show_progress_bar=False).tolist()
+            logging.info(f"Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
         except Exception as e:
-            logging.error(f"Failed to chunk text: {e}")
-            return False
-        
-        # Generate embeddings
-        try:
-            embeddings = db_manager.embedding_model.encode(chunks).tolist()
-            logging.info(f"Generated embeddings for {len(chunks)} chunks")
-        except Exception as e:
-            logging.error(f"Failed to generate embeddings: {e}")
-            return False
-        
-        # Create metadata
+            logging.error(f"Failed to generate embeddings for doc_id={doc_id}: {e}")
+            raise e
+
         chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
         metadatas = [{"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i} for i in range(len(chunks))]
         
-        # Store in ChromaDB
         try:
             db_manager.chroma_collection.add(
                 embeddings=embeddings, 
@@ -148,18 +127,35 @@ def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000
                 metadatas=metadatas, 
                 documents=chunks
             )
-            
             logging.info(f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}")
             return True
         except Exception as e:
-            logging.error(f"Failed to store chunks in ChromaDB: {e}")
-            return False
-    
+            logging.error(f"Failed to store chunks in ChromaDB for doc_id={doc_id}: {e}")
+            raise e
+
     return safe_execute(
-        _index_document,
+        _index_op,
         fallback_value=False,
-        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "index", user_id, request_id)
+        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "index_chunks", user_id, request_id)
     )
+
+def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):
+    """
+    Chunk, embed, and index a document for a specific user in ChromaDB.
+    Note: This is a convenience wrapper. For pre-chunked data, use index_document_chunks.
+    """
+    try:
+        from ai_tools import chunk_text
+    except ImportError:
+        logging.error("[CHUNKING] Failed to import chunk_text from ai_tools")
+        return False
+    
+    chunks = chunk_text(text, chunk_size, chunk_overlap)
+    if not chunks:
+        logging.warning(f"No chunks created for doc_id={doc_id}, user_id={user_id}")
+        return False
+        
+    return index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id)
 
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from ChromaDB."""

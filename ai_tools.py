@@ -1,7 +1,7 @@
 # ai_tools.py: Real-time tools for LLM augmentation (time, weather, math, etc.)
 from datetime import datetime
 from typing import Optional, List
-import requests
+import httpx
 import math
 import re
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -31,8 +31,9 @@ def get_weather_weatherapi(city: str = "London") -> str:
     try:
         url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
         logging.debug(f"[WeatherAPI] Requesting: {url}")
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(url)
+            data = resp.json()
         logging.debug(f"[WeatherAPI] Response: {data}")
         if resp.status_code != 200 or 'error' in data:
             return f"WeatherAPI.com error: {data.get('error', {}).get('message', 'Unknown error')}"
@@ -53,13 +54,18 @@ def get_weather(city: str = "London") -> str:
         logging.debug(f"[WeatherTool] WeatherAPI.com result: {result}")
         if result and not result.startswith("WeatherAPI.com API key not set"):
             return result
+    
     try:
         logging.info(f"[WeatherTool] Falling back to Open-Meteo for city: {city}")
-        geo = requests.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}").json()
+        with httpx.Client(timeout=10) as client:
+            geo_resp = client.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}")
+            geo = geo_resp.json()
         logging.debug(f"[WeatherTool] Open-Meteo geo response: {geo}")
         if not geo.get("results"): return f"Could not find city: {city}"
         lat, lon = geo["results"][0]["latitude"], geo["results"][0]["longitude"]
-        weather = requests.get(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true").json()
+        with httpx.Client(timeout=10) as client:
+            weather_resp = client.get(f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true")
+            weather = weather_resp.json()
         logging.debug(f"[WeatherTool] Open-Meteo weather response: {weather}")
         w = weather.get("current_weather", {})
         return f"Weather in {city}: {w.get('temperature','?')}°C, wind {w.get('windspeed','?')} km/h, {w.get('weathercode','?')}"
@@ -206,8 +212,9 @@ def get_time_from_timeanddate(location: str) -> str:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
+        with httpx.Client(timeout=10) as client:
+            response = client.get(url, headers=headers)
+            response.raise_for_status()
         
         # Parse HTML to extract time
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -233,7 +240,7 @@ def get_time_from_timeanddate(location: str) -> str:
             
             return f"Could not extract time for {location} from timeanddate.com"
             
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         logging.error(f"[TIMEANDDATE] Network error for {location}: {e}")
         return f"Network error getting time for {location}: {e}"
     except Exception as e:
@@ -403,14 +410,11 @@ def web_search(query: str, num_results: int = 5) -> str:
         num_results: Number of results to return
         
     Returns:
-        Search results or error message
-    """
+        Search results or error message    """
     try:
-        import requests
         from bs4 import BeautifulSoup
         import urllib.parse
-        
-        # Use DuckDuckGo Instant Answer API as a simple search
+          # Use DuckDuckGo Instant Answer API as a simple search
         encoded_query = urllib.parse.quote_plus(query)
         url = f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1&skip_disambig=1"
         
@@ -418,8 +422,9 @@ def web_search(query: str, num_results: int = 5) -> str:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        response = requests.get(url, headers=headers, timeout=10)
-        data = response.json()
+        with httpx.Client(timeout=10) as client:
+            response = client.get(url, headers=headers)
+            data = response.json()
         
         if data.get('AbstractText'):
             return f"Search result for '{query}': {data['AbstractText']}"
@@ -458,15 +463,15 @@ def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0)
         from_currency: Source currency code (e.g., USD)
         to_currency: Target currency code (e.g., EUR)
         amount: Amount to convert
-        
-    Returns:
+          Returns:
         Exchange rate information or error message
     """
     try:
         # Use a free exchange rate API
         url = f"https://api.exchangerate-api.com/v4/latest/{from_currency.upper()}"
-        response = requests.get(url, timeout=10)
-        data = response.json()
+        with httpx.Client(timeout=10) as client:
+            response = client.get(url)
+            data = response.json()
         
         if to_currency.upper() in data['rates']:
             rate = data['rates'][to_currency.upper()]

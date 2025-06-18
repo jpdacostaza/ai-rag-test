@@ -13,7 +13,6 @@ redis>=4.6.0
 # HTTP client
 httpx>=0.25.0
 httpcore>=0.17.0
-requests>=2.31.0
 
 # LLM & RAG
 chromadb>=0.4.24

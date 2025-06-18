@@ -9,7 +9,7 @@ import itertools
 import sys
 
 # Initialize human-readable logging
-from human_logging import init_logging, HumanLogger, log_redis_status, log_chromadb_status, log_api_request
+from human_logging import init_logging, log_service_status, log_api_request
 init_logging(level="INFO")
 
 from ai_tools import get_current_time, get_weather, convert_units
@@ -22,14 +22,13 @@ from database import (
 )
 from error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, RedisConnectionHandler, safe_execute
 import os
-import requests
 import re
 import json
 import uuid
 from watchdog import get_watchdog, start_watchdog_service, get_health_status, get_system_overview
 import asyncio
 import redis
-from typing import Optional
+from typing import Optional, AsyncGenerator, Dict
 
 import httpx
 
@@ -38,7 +37,7 @@ from upload import upload_router
 # Import and include enhanced router
 from enhanced_integration import enhanced_router, start_enhanced_background_tasks
 from feedback_router import feedback_router
-from model_manager import router as model_manager_router
+from model_manager import router as model_manager_router, refresh_model_cache, ensure_model_available
 
 app = FastAPI()
 app.include_router(model_manager_router)
@@ -74,40 +73,40 @@ async def startup_event():
     global watchdog_thread
     
     # Enhanced startup logging
-    HumanLogger.log_startup_banner()
+    log_service_status("STARTUP", "starting", "🚀 FastAPI LLM Backend Starting...")
     _log_system_info()
     _log_environment_variables()
     
     # Storage
-    HumanLogger.log_service_status("STARTUP", "starting", "Initializing storage structure...")
+    log_service_status("STARTUP", "starting", "Initializing storage structure...")
     await _spinner_log("[STARTUP] Initializing storage structure", 2)
     from storage_manager import initialize_storage
     storage_success = initialize_storage()
     if not storage_success:
-        HumanLogger.log_service_status("STARTUP", "degraded", "Storage initialization had issues - some features may be affected")
+        log_service_status("STARTUP", "degraded", "Storage initialization had issues - some features may be affected")
     else:
-        HumanLogger.log_service_status("STARTUP", "ready", "Storage structure initialized successfully")
+        log_service_status("STARTUP", "ready", "Storage structure initialized successfully")
     
     # Database
-    HumanLogger.log_service_status("STARTUP", "starting", "Initializing database connections...")
+    log_service_status("STARTUP", "starting", "Initializing database connections...")
     await _spinner_log("[STARTUP] Initializing database connections", 2)
     from database import db_manager
     
     # Store Redis pool in app state for dependency injection (like working implementation)
     if hasattr(db_manager, 'redis_pool') and db_manager.redis_pool is not None:
         app.state.redis_pool = db_manager.redis_pool
-        HumanLogger.log_service_status("STARTUP", "ready", "Redis pool stored in app state")
+        log_service_status("STARTUP", "ready", "Redis pool stored in app state")
     else:
         app.state.redis_pool = None
-        HumanLogger.log_service_status("STARTUP", "degraded", "Redis pool not available - some features may be degraded")
+        log_service_status("STARTUP", "degraded", "Redis pool not available - some features may be degraded")
     
     # Model preload
-    HumanLogger.log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
+    log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
     await _spinner_log(f"[MODEL] Preloading {DEFAULT_MODEL}", 2)
     try:
         model_available = await ensure_model_available(DEFAULT_MODEL)
         if model_available:
-            HumanLogger.log_service_status("MODEL", "ready", f"Default model {DEFAULT_MODEL} is available")
+            log_service_status("MODEL", "ready", f"Default model {DEFAULT_MODEL} is available")
             # Preload model into memory by running a dummy inference
             try:
                 preload_payload = {
@@ -118,38 +117,39 @@ async def startup_event():
                 async with httpx.AsyncClient() as client:
                     resp = await client.post(f"{OLLAMA_BASE_URL}/api/generate", json=preload_payload, timeout=60)
                     if resp.status_code == 200:
-                        HumanLogger.log_service_status("MODEL", "preloaded", f"Model {DEFAULT_MODEL} preloaded into memory")
+                        log_service_status("MODEL", "preloaded", f"Model {DEFAULT_MODEL} preloaded into memory")
                     else:
-                        HumanLogger.log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}")
+                        log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}")
             except Exception as e:
-                HumanLogger.log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: {e}")
+                log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: {e}")
         else:
-            HumanLogger.log_service_status("MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available")
+            log_service_status("MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available")
     except Exception as e:
-        HumanLogger.log_service_status("MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}")
+        log_service_status("MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}")
     
     # Initialize model cache on startup
-    HumanLogger.log_service_status("STARTUP", "starting", "Initializing model cache...")
+    log_service_status("STARTUP", "starting", "Initializing model cache...")
     await refresh_model_cache()
     
     # Background services
-    HumanLogger.log_service_status("STARTUP", "starting", "Initializing background services...")
+    log_service_status("STARTUP", "starting", "Initializing background services...")
     await _spinner_log("[STARTUP] Initializing background services", 2)
     await asyncio.sleep(2)
-    HumanLogger.log_service_status("STARTUP", "starting", "Waiting 2 seconds for services to initialize...")
+    log_service_status("STARTUP", "starting", "Waiting 2 seconds for services to initialize...")
     
     # Watchdog
     watchdog_thread = start_watchdog_service()
-    HumanLogger.log_service_status("WATCHDOG", "starting", "Service started with delayed initialization")
+    log_service_status("WATCHDOG", "starting", "Service started with delayed initialization")
 
     # Enhanced background tasks
     await start_enhanced_background_tasks()
-    HumanLogger.log_service_status("ENHANCED_SYSTEM", "ready", "Enhanced learning and document processing systems initialized")
+    log_service_status("ENHANCED_SYSTEM", "ready", "Enhanced learning and document processing systems initialized")
     
     # Final summary banner
     await _spinner_log("[STARTUP] Finalizing startup", 1)
     _print_startup_summary()
-    HumanLogger.log_service_status("STARTUP", "ready", "🚀 FastAPI LLM Backend startup completed successfully!")
+    log_service_status("STARTUP", "ready", "🚀 FastAPI LLM Backend startup completed successfully!")
+
 
 def _print_startup_summary():
     """Print a visually distinct summary banner with health status of all services."""
@@ -172,14 +172,12 @@ def _log_system_info():
         import sys
         import os
         
-        HumanLogger.log_service_status("STARTUP", "starting", f"🚀 FastAPI LLM Backend Starting...")
-        HumanLogger.log_service_status("STARTUP", "starting", f"🔧 Initializing services...")
-        HumanLogger.log_service_status("SYSTEM", "starting", f"Python version: {sys.version.split()[0]}")
-        HumanLogger.log_service_status("SYSTEM", "starting", f"Platform: {platform.system()} {platform.release()}")
-        HumanLogger.log_service_status("SYSTEM", "starting", f"Working directory: {os.getcwd()}")
+        log_service_status("SYSTEM", "info", f"Python version: {sys.version.split()[0]}")
+        log_service_status("SYSTEM", "info", f"Platform: {platform.system()} {platform.release()}")
+        log_service_status("SYSTEM", "info", f"Working directory: {os.getcwd()}")
         
     except Exception as e:
-        HumanLogger.log_service_status("SYSTEM", "warning", f"Failed to log system info: {e}")
+        log_service_status("SYSTEM", "warning", f"Failed to log system info: {e}")
 
 def _log_environment_variables():
     """Log relevant environment variables for startup diagnostics."""
@@ -192,16 +190,16 @@ def _log_environment_variables():
             "OLLAMA_URL", "USE_OLLAMA", "USE_HTTP_CHROMA"
         ]
         
-        HumanLogger.log_service_status("STARTUP", "starting", "Environment configuration:")
+        log_service_status("STARTUP", "info", "Environment configuration:")
         for var in env_vars_to_log:
             value = os.getenv(var, "Not set")
             # Mask sensitive values
             if "KEY" in var or "SECRET" in var:
                 value = "***" if value != "Not set" else "Not set"
-            HumanLogger.log_service_status("CONFIG", "starting", f"{var}={value}")
+            log_service_status("CONFIG", "info", f"{var}={value}")
             
     except Exception as e:
-        HumanLogger.log_service_status("CONFIG", "warning", f"Failed to log environment: {e}")
+        log_service_status("CONFIG", "warning", f"Failed to log environment: {e}")
 
 @app.get("/health")
 async def health_check():
@@ -361,219 +359,169 @@ async def storage_health():
     }
 
 # --- LLM call (Ollama or OpenAI API) ---
-def call_llm(messages, model=None, api_url=None, api_key=None):
-    if model is None:
-        model = DEFAULT_MODEL
+async def call_llm(messages, model=None, api_url=None, api_key=None):
+    model = model or DEFAULT_MODEL
     """
-    Calls Ollama or OpenAI API with the provided messages and returns the response.
+    Calls an LLM API (Ollama or OpenAI) with the provided messages and returns the response.
+    This function is asynchronous.
     """
     if USE_OLLAMA:
-        return call_ollama_llm(messages, model)
+        return await call_ollama_llm(messages, model)
     else:
-        return call_openai_llm(messages, model, api_url, api_key)
+        return await call_openai_llm(messages, model, api_url, api_key)
 
-def call_ollama_llm(messages, model=None):
+async def call_ollama_llm(messages, model=None):
     """
-    Calls Ollama API with the provided messages and returns the response.
+    Asynchronously calls the Ollama API.
     """
-    if model is None:
-        model = DEFAULT_MODEL
-        
+    model = model or DEFAULT_MODEL
+    prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
+    
+    payload = {"model": model, "prompt": prompt, "stream": False}
+    timeout = int(os.getenv("LLM_TIMEOUT", "180"))
+
     try:
-        # Convert messages to Ollama format
-        prompt = ""
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                prompt += f"System: {content}\n"
-            elif role == "user":
-                prompt += f"User: {content}\n"
-            elif role == "assistant":
-                prompt += f"Assistant: {content}\n"
-        
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": False
-        }
-        
-        timeout = int(os.getenv("LLM_TIMEOUT", "180"))
-        response = requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout)
-        response.raise_for_status()
-        data = response.json()
-        
-        return data.get("response", "")
-        
-    except requests.exceptions.ConnectionError:
-        HumanLogger.log_service_status("LLM", "error", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}")
-        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}")
-    except Exception as e:
-        HumanLogger.log_service_status("LLM", "error", f"Ollama API call failed: {str(e)}")
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("response", "")
+    except httpx.RequestError as e:
+        log_service_status("OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}")
+        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
+    except httpx.HTTPStatusError as e:
+        log_service_status("OLLAMA", "failed", f"Ollama API returned an error: {e.response.status_code} - {e.response.text}")
         raise
 
-def call_openai_llm(messages, model=None, api_url=None, api_key=None):
-    if model is None:
-        model = DEFAULT_MODEL
+async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
+    model = model or DEFAULT_MODEL
     """
-    Calls OpenAI API with the provided messages and returns the response.
+    Asynchronously calls an OpenAI-compatible API.
     """
-    # Use OpenAI API configuration
     api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     
-    # Ensure we have the chat/completions endpoint
     if not api_url.endswith('/chat/completions'):
-        api_url = api_url.rstrip('/') + '/chat/completions'
+        api_url = f"{api_url.rstrip('/')}/chat/completions"
     
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     payload = {
         "model": model,
         "messages": messages,
         "stream": False,
         "max_tokens": int(os.getenv("OPENAI_API_MAX_TOKENS", "4096")),
-        "temperature": 0.7
+        "temperature": 0.7,
     }
-    
     timeout = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
-    resp = requests.post(api_url, headers=headers, json=payload, timeout=timeout)
-    resp.raise_for_status()
-    data = resp.json()
-    
-    # OpenAI API response format
-    if "choices" in data and len(data["choices"]) > 0:
-        return data["choices"][0]["message"]["content"]
-    return ""
 
-def call_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None):
-    if model is None:
-        model = DEFAULT_MODEL
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(api_url, headers=headers, json=payload, timeout=timeout)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    except httpx.RequestError as e:
+        log_service_status("OPENAI", "failed", f"Connection to OpenAI API at {api_url} failed: {e}")
+        raise Exception(f"Cannot connect to OpenAI service at {api_url}") from e
+    except httpx.HTTPStatusError as e:
+        log_service_status("OPENAI", "failed", f"OpenAI API returned an error: {e.response.status_code} - {e.response.text}")
+        raise
+
+async def call_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None):
+    model = model or DEFAULT_MODEL
     """
-    Streams tokens from Ollama or OpenAI API in real time.
+    Streams tokens from an LLM API (Ollama or OpenAI) in real time.
     """
     if USE_OLLAMA:
         return call_ollama_llm_stream(messages, model, stop_event, session_id)
     else:
         return call_openai_llm_stream(messages, model, api_url, api_key, stop_event, session_id)
 
-def call_ollama_llm_stream(messages, model=None, stop_event=None, session_id=None):
+async def call_ollama_llm_stream(messages, model=None, stop_event=None, session_id=None) -> AsyncGenerator[str, None]:
     """
-    Streams tokens from Ollama API in real time.
+    Asynchronously streams tokens from the Ollama API.
     """
-    if model is None:
-        model = DEFAULT_MODEL
-        
+    model = model or DEFAULT_MODEL
+    prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
+    payload = {"model": model, "prompt": prompt, "stream": True}
+    timeout = int(os.getenv("LLM_TIMEOUT", "180"))
+
     try:
-        # Convert messages to Ollama format
-        prompt = ""
-        for msg in messages:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
-            if role == "system":
-                prompt += f"System: {content}\n"
-            elif role == "user":
-                prompt += f"User: {content}\n"
-            elif role == "assistant":
-                prompt += f"Assistant: {content}\n"
-        
-        payload = {
-            "model": model,
-            "prompt": prompt,
-            "stream": True
-        }
-        
-        timeout = int(os.getenv("LLM_TIMEOUT", "180"))
-        with requests.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, stream=True, timeout=timeout) as resp:
-            resp.raise_for_status()
-            for line in resp.iter_lines():
-                if stop_event and stop_event.is_set():
-                    break
-                if session_id and session_id in STREAM_SESSION_STOP and STREAM_SESSION_STOP[session_id]:
-                    break
-                if not line:
-                    continue
-                
-                try:
-                    data = json.loads(line.decode("utf-8"))
-                    if "response" in data:
-                        yield data["response"]
-                    if data.get("done", False):
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
                         break
-                except json.JSONDecodeError:
-                    continue
-                    
-    except requests.exceptions.ConnectionError:
-        HumanLogger.log_service_status("LLM", "error", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}")
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        if "response" in data:
+                            yield data["response"]
+                        if data.get("done"):
+                            break
+                    except json.JSONDecodeError:
+                        continue
+    except httpx.RequestError as e:
+        log_service_status("OLLAMA", "failed", f"Streaming connection to Ollama failed: {e}")
         yield "Error: Cannot connect to Ollama service"
     except Exception as e:
-        HumanLogger.log_service_status("LLM", "error", f"Ollama streaming failed: {str(e)}")
+        log_service_status("OLLAMA", "failed", f"Ollama streaming failed: {e}")
         yield f"Error: {str(e)}"
 
-def call_openai_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None):
-    if model is None:
-        model = DEFAULT_MODEL
+async def call_openai_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None) -> AsyncGenerator[str, None]:
     """
-    Streams tokens from OpenAI API in real time.
+    Asynchronously streams tokens from an OpenAI-compatible API.
     """
-    import requests
-    
-    # Use OpenAI API configuration
+    model = model or DEFAULT_MODEL
     api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
     api_key = api_key or os.getenv("OPENAI_API_KEY")
-    
-    # Ensure we have the chat/completions endpoint
+
     if not api_url.endswith('/chat/completions'):
-        api_url = api_url.rstrip('/') + '/chat/completions'
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    
+        api_url = f"{api_url.rstrip('/')}/chat/completions"
+
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     payload = {
         "model": model,
         "messages": messages,
         "stream": True,
         "max_tokens": int(os.getenv("OPENAI_API_MAX_TOKENS", "4096")),
-        "temperature": 0.7
+        "temperature": 0.7,
     }
-    
     timeout = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
-    with requests.post(api_url, headers=headers, json=payload, stream=True, timeout=timeout) as resp:
-        resp.raise_for_status()
-        for line in resp.iter_lines():
-            if stop_event and stop_event.is_set():
-                break
-            if session_id and session_id in STREAM_SESSION_STOP and STREAM_SESSION_STOP[session_id]:
-                break
-            if not line:
-                continue
-            
-            line_text = line.decode("utf-8")
-            if line_text.startswith("data: "):
-                line_text = line_text[6:]  # Remove "data: " prefix
-            
-            if line_text.strip() == "[DONE]":
-                break
-                
-            try:
-                data = json.loads(line_text)
-                # OpenAI API streaming format
-                if "choices" in data and len(data["choices"]) > 0:
-                    delta = data["choices"][0].get("delta", {})
-                    if "content" in delta:
-                        yield delta["content"]
-            except Exception:
-                continue
+
+    try:
+        async with httpx.AsyncClient() as client:
+            async with client.stream("POST", api_url, headers=headers, json=payload, timeout=timeout) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
+                        break
+                    if not line or not line.startswith("data: "):
+                        continue
+                    
+                    line_text = line[6:]
+                    if line_text.strip() == "[DONE]":
+                        break
+
+                    try:
+                        data = json.loads(line_text)
+                        if (choices := data.get("choices")) and (delta := choices[0].get("delta")) and (content := delta.get("content")):
+                            yield content
+                    except json.JSONDecodeError:
+                        continue
+    except httpx.RequestError as e:
+        log_service_status("OPENAI", "failed", f"Streaming connection to OpenAI API failed: {e}")
+        yield "Error: Cannot connect to OpenAI API"
+    except Exception as e:
+        log_service_status("OPENAI", "failed", f"OpenAI streaming failed: {e}")
+        yield f"Error: {str(e)}"
 
 # Global dict to track streaming sessions
-STREAM_SESSION_STOP = {}
+STREAM_SESSION_STOP: Dict[str, bool] = {}
 
-def stop_streaming_session(session_id):
+def stop_streaming_session(session_id: str):
     STREAM_SESSION_STOP[session_id] = True
 
 # --- Chat Endpoint ---
@@ -968,13 +916,14 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             break
     # Call the existing chat logic
     chat_req = ChatRequest(user_id=user_id, message=user_message)
-    chat_resp = await chat_endpoint(chat_req, request)    # Streaming support
+    # Streaming support
     if stream:
         session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}"
         STREAM_SESSION_STOP[session_id] = False
-        def event_stream():
+        async def event_stream():
             logging.debug("[STREAM] Streaming response triggered.")
-            for token in call_llm_stream(messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id):
+            llm_streamer = await call_llm_stream(messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id)
+            async for token in llm_streamer:
                 if not token:
                     continue
                 data = {
@@ -991,514 +940,44 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     ]
                 }
                 logging.debug(f"[STREAM] Sending chunk: {token}")
-                yield f"data: {json.dumps(data)}\n\n"            # End of stream
+                yield f"data: {json.dumps(data)}\n\n"
+            # End of stream
             logging.debug("[STREAM] Streaming complete.")
             yield "data: [DONE]\n\n"
             STREAM_SESSION_STOP.pop(session_id, None)
         
-        # Log streaming completion
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    else:
+        chat_resp = await chat_endpoint(chat_req, request)
+        # Non-streaming response
         end_time = time.time()
         response_time = (end_time - start_time) * 1000
         log_api_request("POST", "/v1/chat/completions", 200, response_time)
         
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
-    
-    # Non-streaming response
-    end_time = time.time()
-    response_time = (end_time - start_time) * 1000
-    response_length = len(chat_resp.response)
-    message_length = sum(len(msg.get("content", "")) for msg in messages)
-    
-    # Log the chat interaction
-    from human_logging import log_chat_interaction
-    log_chat_interaction(user_id, message_length, response_length)
-    log_api_request("POST", "/v1/chat/completions", 200, response_time)
-    
-    return {
-        "id": "chatcmpl-1",
-        "object": "chat.completion",
-        "created": 0,
-        "model": body.get("model", DEFAULT_MODEL),
-        "choices": [
-            {
-                "index": 0,
-                "message": {"role": "assistant", "content": chat_resp.response},
-                "finish_reason": "stop"
-            }
-        ],
-        "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
-    }
-
-@app.post("/api/chat/completions")
-async def api_chat_completions(request: Request, body: dict = Body(...)):
-    # Alias for OpenAI-compatible /v1/chat/completions endpoint, including streaming
-    return await openai_chat_completions(request, body)
-
-@app.post("/v1/stop_stream")
-async def stop_stream(request: Request, body: dict = Body(...)):
-    """
-    Endpoint to stop a streaming session (e.g., when switching models or user cancels).
-    """
-    user_id = body.get("user_id")
-    model = body.get("model", DEFAULT_MODEL)
-    session_id = f"{user_id}:{model}"
-    stop_streaming_session(session_id)
-    return {"status": "stopped", "session_id": session_id}
-
-@app.post("/api/stop_stream")
-async def api_stop_stream(request: Request, body: dict = Body(...)):
-    """
-    Alias for /v1/stop_stream for OpenWebUI compatibility.
-    """
-    user_id = body.get("user_id")
-    model = body.get("model", DEFAULT_MODEL)
-    session_id = f"{user_id}:{model}"
-    stop_streaming_session(session_id)
-    return {"status": "stopped", "session_id": session_id}
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up services when FastAPI app shuts down."""
-    global watchdog_thread
-    
-    if watchdog_thread and watchdog_thread.is_alive():
-        logging.info("[SHUTDOWN] Stopping watchdog service...")
-        # The watchdog service runs in a daemon thread, so it will stop automatically
-        # when the main process exits
-    
-    logging.info("[SHUTDOWN] App shutdown complete")
-
-# Redis dependency function (like the working implementation)
-async def get_redis() -> Optional[redis.Redis]:
-    """
-    Provides a Redis client from the connection pool with Docker-optimized error handling.
-    Tests connection before returning to ensure reliability in Docker environments.
-    """
-    if not hasattr(app.state, "redis_pool") or app.state.redis_pool is None:
-        logging.error("[REDIS_DEPENDENCY] Redis pool not initialized")
-        return None
-    
-    try:
-        # Create a new client instance from the pool for this request
-        r_client = redis.Redis(connection_pool=app.state.redis_pool)
-        
-        # Test connection before returning (important for Docker environments)
-        r_client.ping()
-        return r_client
-        
-    except redis.ConnectionError as e:
-        logging.error(f"[REDIS_DEPENDENCY] Connection error getting Redis client: {e}")
-        return None
-    except Exception as e:
-        logging.error(f"[REDIS_DEPENDENCY] Error getting Redis client from pool: {e}", exc_info=True)
-        return None
-
-async def verify_ollama_model_exists(model_name: str) -> bool:
-    """Verify if a model exists in Ollama, return True if exists."""
-    if not USE_OLLAMA:
-        HumanLogger.log_service_status("MODEL", "skipped", "Ollama model check skipped - using OpenAI API")
-        return True  # Skip verification for OpenAI models
-        
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10.0)
-            if response.status_code == 200:
-                data = response.json()
-                models = data.get("models", [])
-                for model in models:
-                    model_name_full = model.get("name", "")
-                    # Check for exact match or partial match (e.g., llama3.2:3b matches llama3.2:3b-something)
-                    if model_name_full == model_name or model_name_full.startswith(model_name.split(":")[0]):
-                        HumanLogger.log_service_status("MODEL", "available", f"Model {model_name} found as {model_name_full}")
-                        return True
-                HumanLogger.log_service_status("MODEL", "missing", f"Model {model_name} not found in Ollama")
-                return False
-            else:
-                HumanLogger.log_service_status("MODEL", "error", f"Failed to check Ollama models: HTTP {response.status_code}")
-                return False
-    except httpx.ConnectError:
-        HumanLogger.log_service_status("MODEL", "error", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}")
-        return False
-    except Exception as e:
-        HumanLogger.log_service_status("MODEL", "error", f"Failed to check model {model_name}: {str(e)}")
-        return False
-
-async def download_ollama_model(model_name: str) -> bool:
-    """Download a model to Ollama if it doesn't exist."""
-    if not USE_OLLAMA:
-        HumanLogger.log_service_status("MODEL", "skipped", "Ollama model download skipped - using OpenAI API")
-        return True
-        
-    try:
-        HumanLogger.log_service_status("MODEL", "downloading", f"Downloading model {model_name} to Ollama")
-        async with httpx.AsyncClient() as client:
-            # Start the download
-            response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/pull",
-                json={"name": model_name},
-                timeout=600.0  # 10 minutes timeout for model download
-            )
-            
-            if response.status_code == 200:
-                # For streaming responses, we need to read the stream
-                async for line in response.aiter_lines():
-                    if line:
-                        try:
-                            status_data = json.loads(line)
-                            if "status" in status_data:
-                                HumanLogger.log_service_status("MODEL", "downloading", f"{model_name}: {status_data['status']}")
-                            if status_data.get("status") == "success":
-                                HumanLogger.log_service_status("MODEL", "ready", f"Model {model_name} downloaded successfully")
-                                return True
-                        except json.JSONDecodeError:
-                            continue
-                
-                # If we reach here, download completed
-                HumanLogger.log_service_status("MODEL", "ready", f"Model {model_name} download completed")
-                return True
-            else:
-                HumanLogger.log_service_status("MODEL", "error", f"Failed to download model {model_name}: HTTP {response.status_code}")
-                return False
-                
-    except httpx.ConnectError:
-        HumanLogger.log_service_status("MODEL", "error", f"Cannot connect to Ollama at {OLLAMA_BASE_URL} for download")
-        return False
-    except Exception as e:
-        HumanLogger.log_service_status("MODEL", "error", f"Error downloading model {model_name}: {str(e)}")
-        return False
-
-async def ensure_model_available(model_name: str) -> bool:
-    """Ensure a model is available, download if necessary."""
-    if await verify_ollama_model_exists(model_name):
-        return True
-    
-    HumanLogger.log_service_status("MODEL", "downloading", f"Model {model_name} not found, attempting download")
-    return await download_ollama_model(model_name)
-
-@app.get("/v1/models/verify/{model_name}")
-async def verify_model(model_name: str):
-    """Verify if a model exists and download if necessary."""
-    try:
-        exists = await verify_ollama_model_exists(model_name)
-        if not exists:
-            HumanLogger.log_service_status("MODEL", "downloading", f"Model {model_name} not found, downloading...")
-            downloaded = await download_ollama_model(model_name)
-            return {
-                "model": model_name,
-                "exists": False,
-                "downloaded": downloaded,
-                "status": "ready" if downloaded else "failed"
-            }
         return {
-            "model": model_name,
-            "exists": True,
-            "downloaded": False,
-            "status": "ready"
-        }
-    except Exception as e:
-        return {
-            "model": model_name,
-            "exists": False,
-            "downloaded": False,
-            "status": "error",
-            "error": str(e)
-        }
-
-# Global model cache
-_model_cache = {"data": [], "last_updated": 0, "ttl": 300}  # 5 minute TTL
-
-async def refresh_model_cache():
-    """Refresh the model cache by fetching from Ollama."""
-    global _model_cache
-    
-    models_data = []
-    
-    # Get Ollama models dynamically
-    if USE_OLLAMA:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{OLLAMA_BASE_URL}/api/tags", timeout=10.0)
-                if response.status_code == 200:
-                    ollama_data = response.json()
-                    for model in ollama_data.get("models", []):
-                        models_data.append({
-                            "id": model["name"],
-                            "object": "model",
-                            "created": int(time.time()),
-                            "owned_by": "ollama",
-                            "permission": [],
-                            "size": model.get("size", 0),
-                            "modified_at": model.get("modified_at", ""),
-                            "details": model.get("details", {})
-                        })
-                    HumanLogger.log_service_status("MODELS", "refreshed", f"Found {len(models_data)} Ollama models")
-                else:
-                    HumanLogger.log_service_status("MODELS", "warning", f"Failed to fetch Ollama models: HTTP {response.status_code}")
-        except Exception as e:
-            HumanLogger.log_service_status("MODELS", "error", f"Error fetching Ollama models: {str(e)}")
-    
-    # Add OpenAI models if enabled
-    openai_models = [
-        "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"
-    ]
-    
-    for model_id in openai_models:
-        models_data.append({
-            "id": model_id,
-            "object": "model",
-            "created": 1677649963,
-            "owned_by": "openai",
-            "permission": [],
-        })
-    
-    # Update cache
-    _model_cache = {
-        "data": models_data,
-        "last_updated": time.time(),
-        "ttl": 300
-    }
-    
-    return models_data
-
-@app.post("/v1/models/refresh")
-async def refresh_models():
-    """Force refresh the model list from Ollama."""
-    try:
-        models = await refresh_model_cache()
-        return {
-            "status": "success",
-            "message": f"Refreshed {len(models)} models",
-            "models": [model["id"] for model in models if model["owned_by"] == "ollama"]
-        }
-    except Exception as e:
-        return {
-            "status": "error",
-            "message": f"Failed to refresh models: {str(e)}"
-        }
-
-@app.get("/test")
-async def test_endpoint():
-    """Test endpoint to verify the updated code is running."""
-    return {"message": "Updated backend is running", "default_model": DEFAULT_MODEL}
-
-@app.get("/capabilities")
-async def get_system_capabilities():
-    """Get comprehensive system capabilities and features."""
-    from storage_manager import StorageManager
-    import json
-    
-    # Load persona information
-    try:
-        with open("persona.json", "r") as f:
-            persona_data = json.load(f)
-    except Exception:
-        persona_data = {"error": "Could not load persona.json"}
-    
-    # Get storage information
-    storage_info = StorageManager.get_storage_info()
-    
-    # Get database health
-    db_health = get_database_health()
-    
-    # Count available tools
-    available_tools = [
-        "get_current_time", "get_weather", "convert_units", 
-        "get_news", "web_search", "get_exchange_rate", "get_system_info", 
-        "get_timezone_for_location", "run_python_code", "wikipedia_search"
-    ]
-    
-    return {
-        "system_name": "FastAPI LLM Backend with Self-Learning",
-        "version": "2.0",
-        "status": "production_ready",
-        "capabilities": {
-            "tools": {
-                "count": len(available_tools),
-                "available": available_tools,
-                "features": [
-                    "Real-time web search",
-                    "Weather data retrieval", 
-                    "Mathematical calculations",
-                    "Unit conversions",
-                    "News aggregation",
-                    "Currency exchange rates",
-                    "System information",
-                    "Timezone operations",
-                    "Wikipedia search",
-                    "Python code execution"
-                ]
-            },
-            "memory_and_storage": {
-                "type": "Persistent vector storage",
-                "providers": ["Redis", "ChromaDB"],
-                "features": [
-                    "Semantic memory search",
-                    "Conversation history",
-                    "User preference learning",
-                    "Knowledge base expansion",
-                    "Session continuity",
-                    "Automatic backups"
-                ],
-                "storage_health": {
-                    "redis": db_health.get("redis", {}).get("available", False),
-                    "chromadb": db_health.get("chromadb", {}).get("available", False),
-                    "total_storage_mb": sum(
-                        dir_info.get('size_mb', 0) 
-                        for dir_info in storage_info['directories'].values()
-                    )
+            "id": f"chatcmpl-1",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": body.get("model", DEFAULT_MODEL),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {
+                        "role": "assistant",
+                        "content": chat_resp.response
+                    },
+                    "finish_reason": "stop"
                 }
-            },
-            "document_processing": {
-                "chunking_strategies": [
-                    {"name": "semantic", "description": "Content-aware boundaries"},
-                    {"name": "adaptive", "description": "Dynamic sizing based on density"},
-                    {"name": "hierarchical", "description": "Structure-aware processing"},
-                    {"name": "fixed_size", "description": "Traditional consistent chunks"},
-                    {"name": "paragraph", "description": "Natural paragraph breaks"},
-                    {"name": "sentence", "description": "Sentence-level granularity"}
-                ],
-                "document_types": [
-                    "text", "code", "markdown", "academic", "conversation", "structured"
-                ],
-                "features": [
-                    "Quality assessment",
-                    "Metadata extraction", 
-                    "Type classification",
-                    "Semantic chunking",
-                    "Content summarization"
-                ]
-            },
-            "learning_system": {
-                "type": "Adaptive self-learning",
-                "feedback_collection": [
-                    "Positive feedback", "Negative feedback", 
-                    "User corrections", "Clarification requests"
-                ],
-                "adaptation_areas": [
-                    "Response personalization",
-                    "Tool usage optimization",
-                    "Context relevance improvement",
-                    "Knowledge base expansion"
-                ],
-                "features": [
-                    "Interaction pattern analysis",
-                    "Automatic knowledge extraction",
-                    "User preference tracking",
-                    "Quality scoring"
-                ]
-            },
-            "api_endpoints": {
-                "health_monitoring": [
-                    "/health", "/health/detailed", "/health/simple",
-                    "/health/redis", "/health/chromadb", "/health/storage"
-                ],
-                "enhanced_features": [
-                    "/enhanced/document/upload-advanced",
-                    "/enhanced/feedback/interaction",
-                    "/enhanced/insights/user/{user_id}",
-                    "/enhanced/chat/enhanced",
-                    "/enhanced/system/learning-status"
-                ],
-                "standard_endpoints": [
-                    "/chat", "/upload/document", "/upload/search",
-                    "/v1/chat/completions", "/v1/models"
-                ]
-            },
-            "monitoring_and_reliability": {
-                "health_checks": "Multi-level monitoring",
-                "error_handling": "Comprehensive with recovery",
-                "logging": "Human-readable structured logs",
-                "storage_management": "Automatic directory creation",
-                "restart_policy": "Always restart with data persistence"
-            }
-        },
-        "persona": persona_data,
-        "deployment": {
-            "containerized": True,
-            "services": ["Redis", "ChromaDB", "Ollama", "OpenWebUI", "Backend"],
-            "persistent_storage": True,
-            "auto_restart": True,
-            "health_monitoring": True
-        },
-        "integrations": {
-            "llm_providers": ["Ollama (local)", "OpenAI API (fallback)"],
-            "vector_database": "ChromaDB",
-            "cache_layer": "Redis",
-            "web_interface": "OpenWebUI",
-            "model_support": ["llama3.2:3b", "GPT-4", "Custom embeddings"]
+            ]
         }
-    }
 
-@app.post("/feedback")
-async def feedback_alias(request: Request):
-    """Alias for /enhanced/feedback/interaction for OpenWebUI rating integration."""
-    data = await request.json()
-    # Map OpenWebUI rating fields to backend feedback fields
-    user_id = data.get("user_id") or data.get("user")
-    conversation_id = data.get("conversation_id") or data.get("conv_id")
-    user_message = data.get("user_message") or data.get("input")
-    assistant_response = data.get("assistant_response") or data.get("output")
-    feedback_type = data.get("feedback_type") or data.get("rating")
-    response_time = data.get("response_time", 0)
-    tools_used = data.get("tools_used")
-    # Forward to the enhanced feedback endpoint
-
-    from fastapi.responses import JSONResponse
-    from enhanced_integration import submit_interaction_feedback
-    try:
-        result = await submit_interaction_feedback(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            user_message=user_message,
-            assistant_response=assistant_response,
-            feedback_type=feedback_type,
-            response_time=response_time,
-            tools_used=tools_used
-        )
-        return result
-    except Exception as e:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"success": False, "error": str(e)})
-
-async def unload_ollama_model(model_name: str) -> bool:
-    """Unload a model from Ollama memory if supported."""
-    if not USE_OLLAMA:
-        HumanLogger.log_service_status("MODEL", "skipped", "Ollama model unload skipped - using OpenAI API")
-        return True
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{OLLAMA_BASE_URL}/api/unload", json={"name": model_name}, timeout=30)
-            if response.status_code == 200:
-                HumanLogger.log_service_status("MODEL", "unloaded", f"Model {model_name} unloaded from memory")
-                return True
-            else:
-                HumanLogger.log_service_status("MODEL", "warning", f"Model {model_name} unload failed: HTTP {response.status_code}")
-                return False
-    except Exception as e:
-        HumanLogger.log_service_status("MODEL", "warning", f"Model {model_name} unload failed: {e}")
-        return False
-
-@app.post("/v1/models/added")
-async def model_added_webhook(model_data: dict = Body(...)):
-    """Webhook endpoint to notify when a new model is added."""
-    try:
-        model_name = model_data.get("name", "unknown")
-        HumanLogger.log_service_status("MODEL", "added", f"New model detected: {model_name}")
-        
-        # Force refresh the model cache
-        await refresh_model_cache()
-        
-        # Log available models
-        ollama_models = [model["id"] for model in _model_cache["data"] if model["owned_by"] == "ollama"]
-        HumanLogger.log_service_status("MODELS", "updated", f"Available Ollama models: {', '.join(ollama_models)}")
-        
-        return {
-            "status": "success",
-            "message": f"Model {model_name} registered successfully",
-            "available_models": ollama_models
-        }
-    except Exception as e:
-        HumanLogger.log_service_status("MODEL", "error", f"Error processing model addition: {str(e)}")
-        return {
-            "status": "error",
-            "message": f"Failed to process model addition: {str(e)}"
-        }
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Middleware to log API requests and responses."""
+    start_time = time.time()
+    response = await call_next(request)
+    end_time = time.time()
+    response_time_ms = (end_time - start_time) * 1000
+    log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
+    return response

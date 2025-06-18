@@ -8,20 +8,27 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 import os
 from rag import rag_processor
-from human_logging import HumanLogger
-from error_handler import ErrorHandler
+from human_logging import log_api_request, log_service_status, log_error
+from error_handler import get_user_friendly_message
 
 # Create router for upload endpoints
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
-ALLOWED_FILE_TYPES = {
-    "text/plain": [".txt", ".md", ".py", ".js", ".html", ".css", ".json"],
-    "application/pdf": [".pdf"],
-    "application/msword": [".doc"],
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"]
-}
+ALLOWED_MIME_TYPES = [
+    "text/plain",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "text/markdown",
+    "text/x-python",
+    "application/json",
+]
 
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+def is_file_type_allowed(file: UploadFile) -> bool:
+    """Validate file content type and extension."""
+    return file.content_type in ALLOWED_MIME_TYPES
 
 @upload_router.post("/document")
 async def upload_document(
@@ -30,6 +37,9 @@ async def upload_document(
     description: Optional[str] = Form(None)
 ):
     """Upload and process a document for RAG integration."""
+    request_id = os.urandom(8).hex() # Generate a unique request ID
+    log_api_request("POST", "/upload/document", 202, 0) # Log accepted request
+
     try:
         # Validate file size
         if file.size and file.size > MAX_FILE_SIZE:
@@ -39,17 +49,18 @@ async def upload_document(
             )
         
         # Validate file type
-        if file.content_type not in ALLOWED_FILE_TYPES:
+        if not is_file_type_allowed(file):
             raise HTTPException(
                 status_code=415,
-                detail=f"File type {file.content_type} not supported. Allowed types: {list(ALLOWED_FILE_TYPES.keys())}"
+                detail=f"File type ''{file.content_type}'' not supported."
             )
         
         # Process document with RAG system
-        result = await rag_processor.process_document(file, user_id)        
-        HumanLogger.log_service_status(
+        result = await rag_processor.process_document(file, user_id)
+        
+        log_service_status(
             "API", "ready", 
-            f"Document uploaded: {file.filename} ({result['chunks_processed']} chunks)"
+            f"Document uploaded: {file.filename} ({result.get('chunks_processed', 0)} chunks)"
         )
         
         return JSONResponse(
@@ -61,20 +72,21 @@ async def upload_document(
             }
         )
         
-    except HTTPException:
+    except HTTPException as http_exc:
+        log_error(http_exc, "upload_document", request_id)
         raise
     except Exception as e:
-        ErrorHandler.log_error(e, "upload_document", user_id)
+        log_error(e, "upload_document", request_id)
         raise HTTPException(
             status_code=500,
-            detail=ErrorHandler.get_user_friendly_message(e, "upload")
+            detail=get_user_friendly_message(e, "upload")
         )
 
 @upload_router.get("/formats")
 async def get_supported_formats():
     """Get list of supported file formats for upload."""
     return {
-        "supported_types": ALLOWED_FILE_TYPES,
+        "supported_mime_types": ALLOWED_MIME_TYPES,
         "max_file_size_mb": MAX_FILE_SIZE // (1024*1024),
         "description": "Supported file formats for document upload and processing"
     }
@@ -83,17 +95,18 @@ async def get_supported_formats():
 async def search_documents(
     query: str = Form(...),
     user_id: str = Form(...),
-    limit: int = Form(5)
+    limit: int = Form(5, ge=1, le=50) # Add validation for limit
 ):
     """Search through uploaded documents using semantic search."""
+    request_id = os.urandom(8).hex()
+    log_api_request("POST", "/upload/search", 202, 0)
+
     try:
-        if limit > 20:
-            limit = 20  # Prevent excessive results
-            
-        results = await rag_processor.semantic_search(query, user_id, limit)        
-        HumanLogger.log_service_status(
+        results = await rag_processor.semantic_search(query, user_id, limit)
+        
+        log_service_status(
             "API", "ready", 
-            f"Document search: '{query}' returned {len(results)} results"
+            f"Document search: ''{query}'' returned {len(results)} results"
         )
         
         return JSONResponse(
@@ -107,8 +120,8 @@ async def search_documents(
         )
         
     except Exception as e:
-        ErrorHandler.log_error(e, "search_documents", user_id)
+        log_error(e, "search_documents", request_id)
         raise HTTPException(
             status_code=500,
-            detail=ErrorHandler.get_user_friendly_message(e, "search")
+            detail=get_user_friendly_message(e, "search")
         )

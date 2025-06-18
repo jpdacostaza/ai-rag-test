@@ -1,73 +1,117 @@
-from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
+from typing import List, Optional, Dict, Any
 import os
 import shutil
-import requests
+import httpx
+import time
+import asyncio
+import logging
 
-router = APIRouter(prefix="/models", tags=["Model Management"])
+router = APIRouter(tags=["Model Management"])
 
-# Example model directories (customize as needed)
-OLLAMA_MODEL_DIR = os.path.abspath("storage/ollama/models")
+# --- Configuration ---
+OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
 CUSTOM_MODEL_DIR = os.path.abspath("storage/models")
 
-# Helper to list models in a directory
-def list_models_in_dir(directory: str) -> List[str]:
-    if not os.path.exists(directory):
-        return []
-    return [f for f in os.listdir(directory) if os.path.isdir(os.path.join(directory, f)) or os.path.isfile(os.path.join(directory, f))]
+# --- Model Cache ---
+_model_cache: Dict[str, Any] = {
+    "data": [],
+    "last_updated": 0,
+    "ttl": 300  # 5 minutes
+}
 
-@router.get("/", response_model=List[str])
-def list_models():
-    """List all available models from all sources."""
-    ollama_models = list_models_in_dir(OLLAMA_MODEL_DIR)
-    custom_models = list_models_in_dir(CUSTOM_MODEL_DIR)
-    return list(set(ollama_models + custom_models))
+# --- Helper Functions ---
 
-@router.get("/{model_name}")
-def get_model_details(model_name: str):
-    """Get details about a specific model."""
-    for directory in [OLLAMA_MODEL_DIR, CUSTOM_MODEL_DIR]:
-        model_path = os.path.join(directory, model_name)
-        if os.path.exists(model_path):
-            return {"model_name": model_name, "path": model_path, "size": os.path.getsize(model_path) if os.path.isfile(model_path) else None}
-    raise HTTPException(status_code=404, detail="Model not found")
+async def refresh_model_cache(force: bool = False) -> None:
+    """
+    Refreshes the model cache from the Ollama API and local directories.
+    """
+    global _model_cache
+    current_time = time.time()
+    if not force and (current_time - _model_cache["last_updated"] < _model_cache["ttl"]):
+        return
 
-@router.post("/download")
-def download_model(source: str = Query(..., description="Model source URL or identifier"),
-                  target_dir: Optional[str] = Query(None, description="Target directory (ollama, custom, etc.)")):
-    """Download a new model from a URL or identifier."""
-    if target_dir == "ollama":
-        dest_dir = OLLAMA_MODEL_DIR
-    else:
-        dest_dir = CUSTOM_MODEL_DIR
-    os.makedirs(dest_dir, exist_ok=True)
-    filename = os.path.basename(source)
-    dest_path = os.path.join(dest_dir, filename)
-    # Simple HTTP/HTTPS download
-    if source.startswith("http://") or source.startswith("https://"):
-        with requests.get(source, stream=True) as r:
-            r.raise_for_status()
-            with open(dest_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        return {"status": "downloaded", "path": dest_path}
-    # For Ollama or HuggingFace, you can add custom logic here
-    return {"status": "not_implemented", "detail": "Only HTTP/HTTPS download supported in this example."}
+    logging.info("[MODELS] Refreshing model cache...")
+    ollama_models = []
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+            resp.raise_for_status()
+            models_data = resp.json().get("models", [])
+            ollama_models = [
+                {
+                    "id": model["name"],
+                    "object": "model",
+                    "created": int(time.mktime(time.strptime(model["modified_at"], "%Y-%m-%dT%H:%M:%S.%f%z"))),
+                    "owned_by": "ollama"
+                } for model in models_data
+            ]
+        logging.info(f"[MODELS] Successfully fetched {len(ollama_models)} models from Ollama.")
+    except httpx.RequestError as e:
+        logging.error(f"[MODELS] Failed to connect to Ollama to refresh models: {e}")
+    except Exception as e:
+        logging.error(f"[MODELS] An unexpected error occurred while fetching Ollama models: {e}")
 
-@router.delete("/{model_name}")
-def delete_model(model_name: str):
-    """Delete a model by name."""
-    deleted = False
-    for directory in [OLLAMA_MODEL_DIR, CUSTOM_MODEL_DIR]:
-        model_path = os.path.join(directory, model_name)
-        if os.path.exists(model_path):
-            if os.path.isfile(model_path):
-                os.remove(model_path)
-            else:
-                shutil.rmtree(model_path)
-            deleted = True
-    if not deleted:
-        raise HTTPException(status_code=404, detail="Model not found")
-    return {"status": "deleted", "model": model_name}
+    # Combine with local models (if any)
+    # custom_models = list_models_in_dir(CUSTOM_MODEL_DIR) # You can extend this
+    
+    _model_cache["data"] = ollama_models
+    _model_cache["last_updated"] = time.time()
 
-# (Optional) Add endpoints for refresh, status, set default, etc.
+async def ensure_model_available(model_name: str) -> bool:
+    """
+    Checks if a model is available in the cache. Refreshes if cache is stale.
+    """
+    await refresh_model_cache() # Refresh if stale
+    return any(model["id"] == model_name for model in _model_cache["data"])
+
+# --- API Endpoints ---
+
+@router.on_event("startup")
+async def on_startup():
+    """Initial model cache population on startup."""
+    await refresh_model_cache(force=True)
+
+@router.get("/models", response_model=Dict[str, Any])
+async def list_available_models():
+    """
+    Returns a list of available models, compatible with the OpenAI API format.
+    Refreshes the cache if it is expired.
+    """
+    await refresh_model_cache()
+    return {
+        "object": "list",
+        "data": _model_cache["data"]
+    }
+
+@router.post("/models/refresh")
+async def force_refresh_models():
+    """Forces an immediate refresh of the model cache."""
+    await refresh_model_cache(force=True)
+    return {"status": "refreshed", "models_found": len(_model_cache["data"])}
+
+@router.get("/models/{model_name}")
+async def get_model_details(model_name: str):
+    """Get details about a specific model from the cache."""
+    await refresh_model_cache()
+    model_info = next((m for m in _model_cache["data"] if m["id"] == model_name), None)
+    if not model_info:
+        raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found.")
+    return model_info
+
+@router.delete("/models/{model_name}")
+async def delete_model(model_name: str):
+    """Deletes a model from Ollama."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.request("DELETE", f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name})
+            resp.raise_for_status()
+        await refresh_model_cache(force=True) # Refresh cache after deletion
+        return {"status": "deleted", "model": model_name}
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in Ollama.")
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to delete model from Ollama: {e.response.text}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect to Ollama: {e}")

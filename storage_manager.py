@@ -10,7 +10,7 @@ import os
 import stat
 from pathlib import Path
 from typing import Dict, List
-from human_logging import HumanLogger
+from human_logging import log_service_status
 
 
 class StorageManager:
@@ -78,7 +78,7 @@ class StorageManager:
         
         # Create base storage directory
         if not base_path.exists():
-            HumanLogger.log_service_status(
+            log_service_status(
                 "STORAGE", "starting", 
                 f"Creating base storage directory: {base_path.absolute()}"
             )
@@ -93,7 +93,7 @@ class StorageManager:
                 # Create directory if it doesn't exist
                 if not dir_path.exists():
                     dir_path.mkdir(parents=True, exist_ok=True)
-                    HumanLogger.log_service_status(
+                    log_service_status(
                         "STORAGE", "ready",
                         f"Created {name}: {config['description']}"
                     )
@@ -114,7 +114,7 @@ class StorageManager:
                 results[name] = True
                 
             except Exception as e:
-                HumanLogger.log_service_status(
+                log_service_status(
                     "STORAGE", "error",
                     f"Failed to create {name}: {str(e)}"
                 )
@@ -182,7 +182,7 @@ class StorageManager:
         base_path = Path(cls.STORAGE_ROOT)
         
         if not base_path.exists():
-            HumanLogger.log_service_status(
+            log_service_status(
                 "STORAGE", "error",
                 "Base storage directory does not exist"
             )
@@ -203,7 +203,7 @@ class StorageManager:
                 results[name] = True
                 
             except Exception as e:
-                HumanLogger.log_service_status(
+                log_service_status(
                     "STORAGE", "degraded",
                     f"Write permission issue in {name}: {str(e)}"
                 )
@@ -220,7 +220,7 @@ def initialize_storage() -> bool:
         True if storage initialization was successful
     """
     try:
-        HumanLogger.log_service_status("STORAGE", "starting", "Initializing storage structure...")
+        log_service_status("STORAGE", "starting", "Initializing storage structure...")
         
         # Ensure storage structure exists
         results = StorageManager.ensure_storage_structure()
@@ -230,20 +230,20 @@ def initialize_storage() -> bool:
         total_count = len(results)
         
         if success_count == total_count:
-            HumanLogger.log_service_status(
+            log_service_status(
                 "STORAGE", "ready",
                 f"All {total_count} storage directories initialized successfully"
             )
             return True
         else:
-            HumanLogger.log_service_status(
+            log_service_status(
                 "STORAGE", "degraded",
                 f"Storage partially initialized: {success_count}/{total_count} directories created"
             )
             return False
     
     except Exception as e:
-        HumanLogger.log_service_status(
+        log_service_status(
             "STORAGE", "error",
             f"Storage initialization failed: {str(e)}"
         )
