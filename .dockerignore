@@ -1,0 +1,61 @@
+# Node modules
+node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.env
+.venv/
+
+# Storage and cache directories
+storage/
+data/
+logs/
+backups/
+env_backups/
+
+# Docker files
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test files
+tests/
+*.test.py
+
+# Documentation
+README.md
+*.md
+
+# Scripts that shouldn't be in container
+scripts/
+*.ps1
+# Note: startup.sh is needed for the container
+
+# Temporary files
+*.tmp
+*.temp

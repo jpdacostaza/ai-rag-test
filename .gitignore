@@ -1,0 +1,136 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Environment Variables (IMPORTANT: Keep API keys private)
+.env
+.env.local
+.env.development
+.env.production
+.env.performance
+*.env
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump files
+dump.rdb
+appendonly.aof
+appendonlydir/
+
+# ChromaDB data (keep structure, not data)
+storage/chroma/
+chroma_db/
+*.parquet
+*.bin
+
+# Model files (too large for GitHub)
+storage/models/
+storage/ollama/
+*.gguf
+*.ggml
+models/
+
+# OpenWebUI data
+storage/openwebui/
+webui.db
+
+# Docker volumes and data
+storage/backend/
+storage/redis/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE files
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Backup files
+*.bak
+*.backup
+backups/
+staging/
+
+# Large files and downloads
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Node modules (if any frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker override files (keep example versions)
+docker-compose.override.yml
+
+# Test outputs
+test-results/
+coverage.xml
+.nyc_output/
+
+# Misc
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
