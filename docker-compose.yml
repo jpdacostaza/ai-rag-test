@@ -102,13 +102,12 @@ services:
       # Performance optimizations
       - WATCHDOG_CHECK_INTERVAL=30
       - WATCHDOG_STABLE_INTERVAL=60
-      - CHROMA_TELEMETRY=false
-      - LOG_LEVEL=INFO
+      - CHROMA_TELEMETRY=false      - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
-      - SENTENCE_TRANSFORMERS_HOME=/opt/models/sentence_transformers
-      - TRANSFORMERS_CACHE=/opt/models/sentence_transformers
-      - HF_HOME=/opt/models/sentence_transformers
+      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
+      - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
+      - HF_HOME=/opt/internal_cache/sentence_transformers
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
@@ -118,7 +117,6 @@ services:
       start_period: 90s
     volumes:
       - ./storage/backend:/opt/backend/data
-      - ./storage/models:/opt/models/sentence_transformers
       - ./storage/chroma/onnx_cache:/root/.cache/chroma/onnx_models
       - ./app.py:/opt/backend/app.py
       - ./persona.json:/opt/backend/persona.json

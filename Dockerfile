@@ -3,8 +3,8 @@ FROM python:3.11-slim-bookworm
 # Add a build argument to force cache invalidation
 ARG CACHEBUST=1
 
-# Create llama user for Linux compatibility
-RUN groupadd -r llama && useradd -r -g llama -u 1000 llama
+# Create llama user for Linux compatibility with home directory
+RUN groupadd -r llama && useradd -r -g llama -u 1000 -m -d /home/llama llama
 
 WORKDIR /opt/backend
 
@@ -24,8 +24,13 @@ RUN chmod +x startup.sh
 
 # Create storage directory and set proper permissions
 RUN mkdir -p ./storage && \
+    mkdir -p /opt/internal_cache/sentence_transformers && \
     chown -R llama:llama /opt/backend && \
-    chmod -R 755 /opt/backend
+    chown -R llama:llama /opt/internal_cache && \
+    chown -R llama:llama /home/llama && \
+    chmod -R 755 /opt/backend && \
+    chmod -R 755 /opt/internal_cache && \
+    chmod -R 755 /home/llama
 
 # Switch to llama user
 USER llama

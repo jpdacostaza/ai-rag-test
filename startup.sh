@@ -18,6 +18,10 @@ mkdir -p ./storage/backend
 mkdir -p ./storage/models
 mkdir -p ./storage/openwebui
 
+# Internal cache directories should already exist from Dockerfile
+echo "Verifying internal cache directories..."
+ls -la /opt/internal_cache/sentence_transformers || echo "Internal cache directory not found - will be created by HuggingFace"
+
 # Set proper permissions for storage directories
 echo "Setting storage directory permissions for Linux user 'llama'..."
 chmod -R 755 ./storage
