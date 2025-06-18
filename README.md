@@ -672,7 +672,7 @@ This sequence ensures all dependencies are ready before monitoring begins.
 ### 4. Health Verification
 ```bash
 # Check overall system health
-curl http://localhost:8001/health/detailed
+curl http://localhost:8001/health
 
 # Verify individual services
 curl http://localhost:8001/health/redis
@@ -1410,3 +1410,482 @@ This section outlines comprehensive enhancements for self-learning capabilities 
 ---
 
 *All previous documentation files have been merged into this README. For historical versions, see project history.*
+
+---
+
+# 🐧 Complete Linux Production Deployment Guide
+
+## Pre-Deployment Requirements
+
+### **System Requirements**
+- ✅ Linux server (Ubuntu 20.04+ recommended)
+- ✅ Docker installed and running
+- ✅ Docker Compose v2+ installed
+- ✅ User `llama` with UID 1000 (will be created by setup script)
+- ✅ Minimum 8GB RAM, 20GB storage
+- ✅ Internet access for model downloads
+
+### **File Structure Setup for `/opt/backend/`**
+- ✅ All project files deployed to `/opt/backend/`
+- ✅ Proper ownership: `chown -R llama:llama /opt/backend/`
+- ✅ Execute permissions on scripts: `chmod +x /opt/backend/*.sh`
+- ✅ Storage directories with correct permissions
+
+## 🔧 Complete Permission Setup Commands
+
+### **Step 1: Create User and Base Structure**
+```bash
+# Run as root/sudo
+sudo su
+
+# Create llama user if it doesn't exist
+if ! id "llama" &>/dev/null; then
+    useradd -u 1000 -g 1000 -m -s /bin/bash llama
+    echo "✅ Created user llama (UID 1000)"
+else
+    echo "✅ User llama already exists"
+fi
+
+# Create base directory
+mkdir -p /opt/backend
+cd /opt/backend
+```
+
+### **Step 2: Set Directory Ownership**
+```bash
+# Set ownership of entire backend directory to llama
+chown -R llama:llama /opt/backend/
+
+# Verify ownership
+ls -la /opt/backend/
+# Should show: drwxr-xr-x llama llama
+```
+
+### **Step 3: Set File Permissions**
+```bash
+# Navigate to backend directory
+cd /opt/backend
+
+# Set directory permissions (755 = rwxr-xr-x)
+find /opt/backend -type d -exec chmod 755 {} \;
+
+# Set file permissions (644 = rw-r--r--)
+find /opt/backend -type f -exec chmod 644 {} \;
+
+# Make shell scripts executable (755 = rwxr-xr-x)
+chmod +x /opt/backend/*.sh
+chmod +x /opt/backend/fix-permissions.sh
+chmod +x /opt/backend/startup.sh
+
+# Make Python files executable if needed
+chmod +x /opt/backend/*.py
+```
+
+### **Step 4: Storage Directory Permissions**
+```bash
+# Create storage directories with proper structure
+mkdir -p /opt/backend/storage/{backend,models,chroma,redis,ollama,openwebui}
+mkdir -p /opt/backend/storage/chroma/onnx_cache
+
+# Set storage ownership
+chown -R llama:llama /opt/backend/storage/
+
+# Set storage permissions for Docker containers
+# Directories: 775 (rwxrwxr-x) - allows group write for Docker
+find /opt/backend/storage -type d -exec chmod 775 {} \;
+
+# Files: 664 (rw-rw-r--) - allows group write for Docker
+find /opt/backend/storage -type f -exec chmod 664 {} \;
+
+# Special permissions for specific directories
+chmod -R 777 /opt/backend/storage/redis      # Redis needs full write access
+chmod -R 777 /opt/backend/storage/chroma     # ChromaDB needs full write access
+chmod -R 777 /opt/backend/storage/ollama     # Ollama needs full write access
+chmod -R 777 /opt/backend/storage/models     # Model cache needs full write access
+chmod -R 777 /opt/backend/storage/openwebui  # OpenWebUI needs full write access
+```
+
+### **Step 5: Verify Permissions**
+```bash
+# Check user and group
+id llama
+# Expected: uid=1000(llama) gid=1000(llama) groups=1000(llama)
+
+# Check directory structure and permissions
+ls -la /opt/backend/
+# Expected: All files owned by llama:llama
+
+# Check storage permissions
+ls -la /opt/backend/storage/
+# Expected: All directories with 775 or 777 permissions
+
+# Check script permissions
+ls -la /opt/backend/*.sh
+# Expected: -rwxr-xr-x (755) llama llama
+```
+
+## 🚀 Linux Deployment Steps
+
+### **1. Initial Setup**
+```bash
+# Switch to deployment directory
+cd /opt/backend
+
+# Verify files are present
+ls -la  # Should show all project files
+
+# Run complete permission setup
+sudo ./fix-permissions.sh
+
+# Verify Docker is running
+systemctl status docker
+sudo systemctl start docker  # if not running
+```
+
+### **2. Environment Configuration**
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit with your settings (nano, vim, or preferred editor)
+nano .env
+
+# Required settings:
+# - API keys (WeatherAPI, OpenAI if needed)
+# - Any custom configuration
+```
+
+### **3. Docker Deployment**
+```bash
+# Start all services (as llama user or with sudo)
+docker-compose up --build -d
+
+# Monitor startup progress
+docker logs -f backend-llm-backend
+
+# Watch for these success indicators:
+# [MODEL] ✅ Ready - Model llama3.2:3b is available
+# [EMBEDDINGS] ✅ Ready - Qwen3-Embedding loaded
+# [STARTUP] ✅ Ready - All services operational
+```
+
+### **4. First-Run Verification**
+```bash
+# Check all containers are running
+docker-compose ps
+# All should show "Up" status
+
+# Test health endpoint
+curl http://localhost:8001/health
+# Expected: {"status": "ok", "summary": "Health check: 3/3 services healthy"}
+
+# Test web interface
+curl -I http://localhost:3000
+# Expected: HTTP/1.1 200 OK
+
+# Verify model download (if first run)
+docker logs backend-ollama | grep llama3.2
+# Should show download progress or "model already exists"
+```
+
+## 📋 Complete Deployment Checklist
+
+### **Pre-Deployment**
+- [ ] Linux server with Docker installed
+- [ ] Files deployed to `/opt/backend/`
+- [ ] User `llama` created (UID 1000)
+- [ ] All permissions set correctly
+- [ ] Environment variables configured
+
+### **During Deployment**
+- [ ] `docker-compose up --build -d` runs successfully
+- [ ] All containers start without errors
+- [ ] Model download completes (first run)
+- [ ] No permission errors in logs
+
+### **Post-Deployment Verification**
+- [ ] Health check: `curl http://localhost:8001/health` ✅
+- [ ] Capabilities: `curl http://localhost:8001/capabilities` ✅
+- [ ] OpenWebUI accessible: `http://server-ip:3000` ✅
+- [ ] Chat functionality working ✅
+- [ ] All 10 AI tools operational ✅
+
+## 🛡️ Security and Permission Summary
+
+### **File Permissions**
+```bash
+/opt/backend/                    # 755 (rwxr-xr-x) llama:llama
+├── *.py                        # 644 (rw-r--r--) llama:llama
+├── *.sh                        # 755 (rwxr-xr-x) llama:llama
+├── *.yml                       # 644 (rw-r--r--) llama:llama
+├── *.md                        # 644 (rw-r--r--) llama:llama
+└── storage/                    # 775 (rwxrwxr-x) llama:llama
+    ├── backend/    (777 llama:llama) # Application data
+    ├── models/     (777 llama:llama) # AI model cache
+    ├── chroma/     (777 llama:llama) # Vector database
+    ├── redis/      (777 llama:llama) # Cache storage
+    ├── ollama/     (777 llama:llama) # LLM models
+    └── openwebui/  (777 llama:llama) # Web interface data
+```
+
+### **Docker Security**
+- ✅ Containers run as non-root user `llama` (UID 1000)
+- ✅ Internal network isolation via Docker bridge
+- ✅ Volume mounts with proper ownership
+- ✅ No privileged container access required
+
+### **Network Security**
+```bash
+# Optional: Configure firewall for external access
+ufw allow 3000   # OpenWebUI (if external access needed)
+ufw allow 8001   # Backend API (if external access needed)
+
+# For internal-only deployment, no firewall changes needed
+# Services communicate via Docker internal network
+```
+
+## 🔄 Maintenance Commands
+
+### **Service Management**
+```bash
+# Restart all services
+docker-compose restart
+
+# Restart specific service
+docker-compose restart llm_backend
+
+# View logs
+docker logs -f backend-llm-backend
+docker logs -f backend-ollama
+
+# Check resource usage
+docker stats
+
+# Update and rebuild
+git pull
+docker-compose build --no-cache
+docker-compose up -d
+```
+
+### **Backup and Recovery**
+```bash
+# Create full backup
+cd /opt/backend
+tar -czf /backup/llm-backend-$(date +%Y%m%d-%H%M).tar.gz \
+    --exclude='storage/ollama' \
+    --exclude='storage/models' \
+    .
+
+# Backup only data (excluding large models)
+tar -czf /backup/llm-data-$(date +%Y%m%d-%H%M).tar.gz \
+    storage/backend/ \
+    storage/chroma/ \
+    storage/redis/ \
+    storage/openwebui/
+
+# Restore from backup
+cd /opt/backend
+tar -xzf /backup/llm-backend-YYYYMMDD-HHMM.tar.gz
+sudo ./fix-permissions.sh
+docker-compose up -d
+```
+
+### **Monitoring and Troubleshooting**
+```bash
+# Check disk usage
+du -sh /opt/backend/storage/*
+df -h
+
+# Monitor system resources
+htop
+free -h
+
+# Check Docker system
+docker system df
+docker system prune  # Clean unused resources
+
+# View container logs for specific issues
+docker logs backend-llm-backend | grep ERROR
+docker logs backend-llm-backend | grep WARNING
+```
+
+---
+
+# 📚 GitHub Backup and Repository Management
+
+## 🚀 Manual GitHub Setup Instructions
+
+### **Prerequisites**
+1. **Install Git** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt update && sudo apt install git
+   
+   # CentOS/RHEL
+   sudo yum install git
+   
+   # Or download from: https://git-scm.com/download/linux
+   ```
+
+2. **Create GitHub Account**: Go to https://github.com and sign up
+
+### **Step-by-Step Repository Setup**
+
+#### **1. Initialize Git Repository**
+```bash
+cd /opt/backend
+git init
+```
+
+#### **2. Configure Git**
+```bash
+git config user.name "Your GitHub Username"
+git config user.email "your-email@example.com"
+
+# Verify configuration
+git config --list
+```
+
+#### **3. Add Files and Create Initial Commit**
+```bash
+# Add all files
+git add .
+
+# Create descriptive initial commit
+git commit -m "Initial commit: Advanced LLM Backend with Tool Integration
+
+🚀 Production-Ready Features:
+- 🤖 Local LLM with llama3.2:3b model
+- 🛠️ 8 AI tools (Python, web, weather, math, Wikipedia, time, unit conversion, text processing)
+- 🧠 Adaptive learning system with user feedback loops
+- 📄 Enhanced document processing (5 strategies for 5 document types)
+- 🏥 24/7 health monitoring and automated recovery
+- 🔒 Enterprise security and error handling
+- 🐳 Docker deployment with persistent storage
+- 📚 Complete documentation and API reference
+- 🐧 Linux production deployment ready
+
+System Status: Production Ready ✅
+Deployment: /opt/backend/ with user llama (UID 1000)"
+```
+
+#### **4. Create GitHub Repository**
+1. Go to https://github.com/new
+2. Repository name: `advanced-llm-backend`
+3. Description: `Enterprise FastAPI backend with tool-augmented AI and adaptive learning`
+4. Choose Public or Private
+5. **DO NOT** check "Add a README file", "Add .gitignore", or "Choose a license"
+6. Click "Create repository"
+
+#### **5. Connect Local Repository to GitHub**
+```bash
+# Add remote origin (replace YOUR_USERNAME)
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/advanced-llm-backend.git
+
+# Push to GitHub
+git push -u origin main
+```
+
+### **6. Verify GitHub Upload**
+Visit: `https://github.com/YOUR_USERNAME/advanced-llm-backend`
+
+You should see all your files uploaded successfully!
+
+## 🔄 Keeping Repository Updated
+
+### **Regular Updates**
+```bash
+# Stage changes
+git add .
+
+# Commit with descriptive message
+git commit -m "Update: Brief description of changes"
+
+# Push to GitHub
+git push
+```
+
+### **For Major Updates**
+```bash
+git add .
+git commit -m "Major update: Enhanced Linux deployment
+
+✨ Changes:
+- Improved permission management
+- Enhanced documentation
+- Updated deployment scripts
+- Performance optimizations"
+
+git push
+```
+
+## 🔒 Repository Security
+
+### **Files Included in Repository**
+- ✅ All Python source code
+- ✅ Docker configuration files
+- ✅ Documentation and guides
+- ✅ Setup and deployment scripts
+- ✅ Configuration templates
+
+### **Files Excluded (by .gitignore)**
+- ❌ Environment files with API keys (`.env`, `.env.*`)
+- ❌ Large model files (`storage/models/`, `storage/ollama/`)
+- ❌ Database data (`storage/chroma/`, `storage/redis/`)
+- ❌ Cache and temporary files (`__pycache__/`, `*.log`)
+- ❌ Personal data and user conversations
+
+### **Repository Benefits**
+- 💾 **Safe Backup**: Code safely stored on GitHub's servers
+- 📈 **Version Control**: Complete change history and rollback capability
+- 🤝 **Collaboration**: Easy sharing with team members
+- 🚀 **Deployment**: Clone to new servers for easy deployment
+- 📖 **Documentation**: Complete setup and usage guides
+- 🔄 **Synchronization**: Keep multiple environments in sync
+
+---
+
+# 🎯 Production Deployment Summary
+
+## ✅ **Complete Deployment Ready**
+
+Your Advanced LLM Backend is now:
+
+### **📁 File Structure Optimized**
+```
+/opt/backend/                           # Main application directory
+├── [Python Applications & Config]     # All source code and configs
+├── storage/                           # Persistent data storage
+│   ├── backend/    (777 llama:llama) # Application data
+│   ├── models/     (777 llama:llama) # AI model cache
+│   ├── chroma/     (777 llama:llama) # Vector database
+│   ├── redis/      (777 llama:llama) # Cache storage
+│   ├── ollama/     (777 llama:llama) # LLM models
+│   └── openwebui/  (777 llama:llama) # Web interface data
+└── [Scripts & Documentation]         # Setup and maintenance scripts
+```
+
+### **🔐 Security Configured**
+- ✅ Non-root execution (user `llama` UID 1000)
+- ✅ Proper file permissions (755/644/777 as appropriate)
+- ✅ Docker container isolation
+- ✅ API key protection via .gitignore
+- ✅ Internal network security
+
+### **🚀 Deployment Steps**
+1. **Deploy files to `/opt/backend/`**
+2. **Run permission setup**: `sudo ./fix-permissions.sh`
+3. **Start services**: `docker-compose up --build -d`
+4. **Verify deployment**: `curl http://localhost:8001/health`
+
+### **📊 Enterprise Features Ready**
+- 🤖 **LLM**: llama3.2:3b with automatic management
+- 🛠️ **Tools**: 8 production AI tools
+- 🧠 **Memory**: Redis + ChromaDB dual storage
+- 📄 **Documents**: Advanced RAG with 5 chunking strategies
+- 🏥 **Monitoring**: 24/7 health monitoring with alerts
+- 📈 **Learning**: Adaptive system with feedback loops
+- 🔄 **Backup**: GitHub repository with version control
+
+Your system is **production-ready** for enterprise Linux deployment! 🎉
