@@ -101,8 +101,8 @@ services:
       - USE_OPENAI_ONLY=false
       # Performance optimizations
       - WATCHDOG_CHECK_INTERVAL=30
-      - WATCHDOG_STABLE_INTERVAL=60
-      - CHROMA_TELEMETRY=false      - LOG_LEVEL=INFO
+      - WATCHDOG_STABLE_INTERVAL=60      - CHROMA_TELEMETRY=false
+      - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
       - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
@@ -117,7 +117,7 @@ services:
       start_period: 90s
     volumes:
       - ./storage/backend:/opt/backend/data
-      - ./storage/chroma/onnx_cache:/root/.cache/chroma/onnx_models
+      - ./storage/chroma/onnx_cache:/home/llama/.cache/chroma/onnx_models
       - ./app.py:/opt/backend/app.py
       - ./persona.json:/opt/backend/persona.json
       # For development only: mount the whole codebase for live reload (do not use in production)
