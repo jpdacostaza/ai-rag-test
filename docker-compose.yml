@@ -36,7 +36,6 @@ services:
       - ANONYMIZED_TELEMETRY=False
     networks:
       - backend-net
-
   ollama:
     image: ollama/ollama:latest
     container_name: backend-ollama
@@ -59,7 +58,7 @@ services:
       dockerfile: Dockerfile
     image: backend-llm_backend
     container_name: backend-llm-backend
-    # Run as user llama (UID 1000) for Linux compatibility
+    # Run as user llama (UID 1000) for Linux deployment
     user: "1000:1000"
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
@@ -102,12 +101,13 @@ services:
       - USE_OPENAI_ONLY=false
       # Performance optimizations
       - WATCHDOG_CHECK_INTERVAL=30
-      - WATCHDOG_STABLE_INTERVAL=60
-      - CHROMA_TELEMETRY=false
+      - WATCHDOG_STABLE_INTERVAL=60      - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
       - SENTENCE_TRANSFORMERS_HOME=/opt/models/sentence_transformers
+      - TRANSFORMERS_CACHE=/opt/models/sentence_transformers
+      - HF_HOME=/opt/models/sentence_transformers
     command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/health"]

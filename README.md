@@ -765,7 +765,7 @@ curl http://localhost:8001/v1/models/verify/llama3.2:3b
 
 # Pull additional Ollama models (if needed)
 docker exec backend-ollama ollama pull mistral:7b
-docker exec backend-ollama ollama pull codellama:7b
+docker exec backend-ollama olloma pull codellama:7b
 
 # List available models
 docker exec backend-ollama ollama list
@@ -993,7 +993,7 @@ python tests/test_watchdog.py
 #### Current Storage Structure
 ```
 ./storage/
-├── backend/          # Backend application data
+├── backend/          # Application data
 ├── chroma/           # ChromaDB vector database (when USE_HTTP_CHROMA=false)
 │   └── onnx_cache/   # ONNX model cache
 ├── models/           # Sentence transformer models
