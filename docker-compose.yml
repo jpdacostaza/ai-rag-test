@@ -88,9 +88,9 @@ services:
       - JWT_SECRET=change_this_in_production
       - JWT_ALGORITHM=HS256
       - API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-      - MAX_REQUESTS_PER_MINUTE=60
-      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36
-      - WATCHDOG_STARTUP_DELAY=10      # Ollama Configuration (Primary mode)
+      - MAX_REQUESTS_PER_MINUTE=60      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36
+      - WATCHDOG_STARTUP_DELAY=10
+      # Ollama Configuration (Primary mode)
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_LOG_LEVEL=INFO
       # OpenAI/OpenAPI Integration (Fallback mode)

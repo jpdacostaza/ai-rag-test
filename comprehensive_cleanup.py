@@ -194,16 +194,24 @@ class BackendCleanup:
         config_files = [
             "docker-compose.yml", ".env.example", "README.md"
         ]
-        
-        # Check for OLLAMA_URL vs OLLAMA_BASE_URL consistency
+          # Check for OLLAMA_URL vs OLLAMA_BASE_URL consistency
         inconsistencies = []
-        
         for config_file in config_files:
             if os.path.exists(config_file):
-                with open(config_file, 'r') as f:
-                    content = f.read()
-                    if 'OLLAMA_URL=' in content and 'OLLAMA_BASE_URL=' not in content:
-                        inconsistencies.append(f"{config_file} uses OLLAMA_URL instead of OLLAMA_BASE_URL")
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        if 'OLLAMA_URL=' in content and 'OLLAMA_BASE_URL=' not in content:
+                            inconsistencies.append(f"{config_file} uses OLLAMA_URL instead of OLLAMA_BASE_URL")
+                except UnicodeDecodeError:
+                    try:
+                        with open(config_file, 'r', encoding='latin-1') as f:
+                            content = f.read()
+                            if 'OLLAMA_URL=' in content and 'OLLAMA_BASE_URL=' not in content:
+                                inconsistencies.append(f"{config_file} uses OLLAMA_URL instead of OLLAMA_BASE_URL")
+                    except Exception as e:
+                        logger.warning(f"Could not read {config_file}: {e}")
+                        continue
         
         if inconsistencies:
             logger.warning("Configuration inconsistencies found:")
