@@ -129,15 +129,14 @@ async def startup_event():
       # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
     await refresh_model_cache()
-    
-    # Initialize cache management system
-    log_service_status("STARTUP", "starting", "Initializing cache management...")
-    from init_cache import initialize_cache_management
-    cache_init_success = initialize_cache_management()
-    if cache_init_success:
-        log_service_status("CACHE", "ready", "Cache management system initialized successfully")
+      # Initialize cache management system with health check
+    log_service_status("STARTUP", "starting", "Initializing cache management and memory systems...")
+    from startup_memory_health import initialize_memory_systems
+    memory_init_success = initialize_memory_systems()
+    if memory_init_success:
+        log_service_status("MEMORY", "ready", "Memory and cache systems initialized successfully")
     else:
-        log_service_status("CACHE", "warning", "Cache management initialization had issues")
+        log_service_status("MEMORY", "warning", "Memory and cache systems initialization had issues")
     
     # Background services
     log_service_status("STARTUP", "starting", "Initializing background services...")
@@ -1108,3 +1107,23 @@ async def check_system_prompt():
     current_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
     cache_manager.check_system_prompt_change(current_prompt)
     return {"status": "ok", "message": "System prompt check completed"}
+
+@app.get("/health/memory")
+async def memory_health():
+    """Check memory and cache systems health specifically."""
+    from startup_memory_health import startup_memory_health_check
+    
+    try:
+        result = startup_memory_health_check()
+        return {
+            "service": "Memory Systems",
+            "timestamp": datetime.now().isoformat(),
+            "health": result
+        }
+    except Exception as e:
+        return {
+            "service": "Memory Systems",
+            "timestamp": datetime.now().isoformat(),
+            "status": "error",
+            "error": str(e)
+        }
