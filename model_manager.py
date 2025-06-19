@@ -42,7 +42,7 @@ async def refresh_model_cache(force: bool = False) -> None:
                 {
                     "id": model["name"],
                     "object": "model",
-                    "created": int(time.mktime(time.strptime(model["modified_at"], "%Y-%m-%dT%H:%M:%S.%f%z"))),
+                    "created": int(time.time()),  # Use current timestamp instead of parsing
                     "owned_by": "ollama"
                 } for model in models_data
             ]

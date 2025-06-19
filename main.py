@@ -935,18 +935,31 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 @app.get("/v1/models")
 async def list_models():
     """
-    OpenAI-compatible endpoint for model listing. Dynamically fetches available models from Ollama with caching.
+    OpenAI-compatible endpoint for model listing. Only returns local Ollama models.
     """
     global _model_cache
-      # Check if cache is still valid
+    # Check if cache is still valid
     current_time = time.time()
     if current_time - _model_cache["last_updated"] > _model_cache["ttl"]:
         # Cache expired, refresh
         await refresh_model_cache()
     
+    # Get models from cache and filter to only include Ollama models
+    models_data = _model_cache["data"].copy()
+    
+    # Filter out any non-Ollama models (remove OpenAI fallback models)
+    ollama_only_models = [
+        model for model in models_data 
+        if model.get("owned_by") == "ollama"
+    ]
+    
+    logging.info(f"[MODELS] Returning {len(ollama_only_models)} Ollama models (filtered from {len(models_data)} total)")
+    for model in ollama_only_models:
+        logging.info(f"[MODELS] Available: {model['id']}")
+    
     return {
         "object": "list",
-        "data": _model_cache["data"]
+        "data": ollama_only_models
     }
 
 @app.post("/v1/chat/completions")
