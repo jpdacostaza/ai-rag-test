@@ -1,0 +1,74 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed_tests": 5,
+    "failed_tests": 4,
+    "success_rate": 55.55555555555556,
+    "total_duration": 1.4195592403411865,
+    "timestamp": "2025-06-19T17:25:33.311677"
+  },
+  "test_results": {
+    "Service Availability": {
+      "success": true,
+      "details": "Services all ready",
+      "duration": 0.025798559188842773,
+      "timestamp": "2025-06-19T17:25:31.917845"
+    },
+    "Health Monitoring": {
+      "success": true,
+      "details": "Passed: 6/6",
+      "duration": 0.7351696491241455,
+      "timestamp": "2025-06-19T17:25:32.654060"
+    },
+    "Authentication": {
+      "success": false,
+      "details": "Valid auth: \u2705, Rejects invalid: \u274c",
+      "duration": 0.1477811336517334,
+      "timestamp": "2025-06-19T17:25:32.802896"
+    },
+    "Model Management": {
+      "success": true,
+      "details": "Models available: \u2705, OpenAI compat: \u2705",
+      "duration": 0.10957169532775879,
+      "timestamp": "2025-06-19T17:25:32.912468"
+    },
+    "Chat Functionality": {
+      "success": false,
+      "details": "Basic chat: \u274c, OpenAI chat: \u2705",
+      "duration": 0.029498577117919922,
+      "timestamp": "2025-06-19T17:25:32.943054"
+    },
+    "Document Processing": {
+      "success": false,
+      "details": "Upload: \u2705, Search: \u274c",
+      "duration": 0.26006579399108887,
+      "timestamp": "2025-06-19T17:25:33.203635"
+    },
+    "Cache & Storage": {
+      "success": true,
+      "details": "Cache ops: \u2705, Storage: \u2705",
+      "duration": 0.03603219985961914,
+      "timestamp": "2025-06-19T17:25:33.240186"
+    },
+    "Error Handling": {
+      "success": false,
+      "details": "404: \u2705, Auth: \u274c",
+      "duration": 0.04154515266418457,
+      "timestamp": "2025-06-19T17:25:33.282251"
+    },
+    "Concurrent Load": {
+      "success": true,
+      "details": "Success rate: 100.0% (5/5), Avg time: 0.01s",
+      "duration": 0.027284860610961914,
+      "timestamp": "2025-06-19T17:25:33.310063"
+    }
+  },
+  "performance_metrics": {
+    "concurrent_load": {
+      "total_requests": 5,
+      "successful_requests": 5,
+      "success_rate": 1.0,
+      "average_response_time": 0.011058187484741211
+    }
+  }
+}

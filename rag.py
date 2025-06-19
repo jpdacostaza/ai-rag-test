@@ -10,7 +10,7 @@ from fastapi import UploadFile, HTTPException
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import chromadb
-from database import db_manager, index_document_chunks, retrieve_user_memory, get_embedding
+from core.database import db_manager, index_document_chunks, retrieve_user_memory, get_embedding
 from human_logging import log_service_status
 from error_handler import MemoryErrorHandler, safe_execute
 

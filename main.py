@@ -1,55 +1,53 @@
-from fastapi import FastAPI, Request, Body, Response, Depends, status, HTTPException
+from fastapi import FastAPI, Request, Body
 from fastapi.responses import StreamingResponse, JSONResponse
-from pydantic import BaseModel
 import logging
 import time
-from datetime import datetime
-from dataclasses import asdict # Import asdict
-import itertools
+import uuid
+import asyncio
+import os
 import sys
+import itertools
+import httpx
+import re
+import json
+from datetime import datetime
+from dataclasses import asdict
+from typing import Optional
 
 # Initialize human-readable logging
 from human_logging import init_logging, log_service_status, log_api_request
 init_logging(level="INFO")
 
-from ai_tools import get_current_time, get_weather, convert_units
-from database import (
+# Import AI tools
+from utils.ai_tools import get_current_time, get_weather, convert_units
+
+# Import modular components
+from core.schemas import ChatRequest, ChatResponse
+from managers.health_manager import health_router
+from managers.startup_manager import startup_manager
+from routers.tool_router import tool_router
+from managers.llm_manager import call_llm, call_llm_stream, stop_streaming_session, STREAM_SESSION_STOP
+
+# Import existing modules
+from core.database import (
     db_manager, 
     get_cache, set_cache, 
     store_chat_history, get_chat_history, 
     index_user_document, retrieve_user_memory, 
     get_embedding, get_database_health
 )
-from error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, RedisConnectionHandler, safe_execute, log_error
-import os
-import re
-import json
-import uuid
-from watchdog import get_watchdog, start_watchdog_service, get_health_status, get_system_overview
-import asyncio
-import redis
-from typing import Optional, AsyncGenerator, Dict
-
-import httpx
-
-# Import authentication and middleware
-from authentication import auth_manager, validate_api_key, extract_api_key_from_request, create_auth_exception
-from middleware_new import setup_middleware
-
-# Import and include upload router
-from upload import upload_router
-# Import and include enhanced router
-from enhanced_integration import enhanced_router, start_enhanced_background_tasks
-from feedback_router import feedback_router
-from model_manager import router as model_manager_router, refresh_model_cache, ensure_model_available, _model_cache
-
-# Import and include missing endpoints router
-from missing_endpoints import missing_router
+from core.error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, safe_execute, log_error
+from utils.watchdog import get_watchdog, start_watchdog_service, get_health_status
+from utils.middleware_new import AuthenticationMiddleware
+from routers.upload import upload_router
+from routers.enhanced_integration import enhanced_router, start_enhanced_background_tasks
+from routers.feedback_router import feedback_router
+from managers.model_manager import router as model_manager_router, refresh_model_cache, _model_cache, ensure_model_available
+from routers.missing_endpoints import missing_router
 
 app = FastAPI()
 
 # Directly add the authentication middleware for debugging
-from middleware_new import AuthenticationMiddleware
 app.add_middleware(AuthenticationMiddleware)
 
 # Log middleware setup completion
@@ -70,10 +68,8 @@ async def log_requests(request: Request, call_next):
 
 app.include_router(model_manager_router)
 app.include_router(missing_router)
-
-# Include upload router
+app.include_router(health_router)  # Include health router
 app.include_router(upload_router)
-# Include enhanced router
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
 
@@ -98,6 +94,8 @@ async def _spinner_log(message, duration=2, interval=0.2):
 
 @app.on_event("startup")
 async def startup_event():
+    """Application startup event handler."""
+    await startup_manager.initialize_application()
     """Initialize services after FastAPI app has started."""
     global watchdog_thread
     
@@ -119,7 +117,7 @@ async def startup_event():
     # Database
     log_service_status("STARTUP", "starting", "Initializing database connections...")
     await _spinner_log("[STARTUP] Initializing database connections", 2)
-    from database import db_manager
+    from core.database import db_manager
     
     # Store Redis pool in app state for dependency injection (like working implementation)
     if hasattr(db_manager, 'redis_pool') and db_manager.redis_pool is not None:
@@ -189,7 +187,7 @@ async def startup_event():
 
 def _print_startup_summary():
     """Print a visually distinct summary banner with health status of all services."""
-    from database import get_database_health
+    from core.database import get_database_health
     health = get_database_health()
     lines = [
         "\n================= SERVICE STATUS SUMMARY =================",
@@ -243,7 +241,7 @@ async def health_check():
     health_status = get_database_health()
     
     # Add cache information
-    from database import get_cache_manager
+    from core.database import get_cache_manager
     cache_manager = get_cache_manager()
     cache_info = {}
     if cache_manager:
@@ -408,204 +406,10 @@ async def storage_health():
         "directory_details": storage_info['directories']
     }
 
-# --- LLM call (Ollama or OpenAI API) ---
-async def call_llm(messages, model=None, api_url=None, api_key=None):
-    model = model or DEFAULT_MODEL
-    """
-    Calls an LLM API (Ollama or OpenAI) with the provided messages and returns the response.
-    This function is asynchronous.
-    """
-    if USE_OLLAMA:
-        return await call_ollama_llm(messages, model)
-    else:
-        return await call_openai_llm(messages, model, api_url, api_key)
-
-async def call_ollama_llm(messages, model=None):
-    """
-    Asynchronously calls the Ollama API using the chat endpoint for better control.
-    """
-    model = model or DEFAULT_MODEL
-    
-    # Debug logging to see what messages are being sent
-    logging.info(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
-    
-    # Use Ollama's chat endpoint which provides better control over system prompts
-    payload = {
-        "model": model, 
-        "messages": messages, 
-        "stream": False,
-        "options": {
-            "temperature": 0.7,
-            "top_p": 0.9
-        }
-    }
-    timeout = int(os.getenv("LLM_TIMEOUT", "180"))
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("message", {}).get("content", "")
-    except httpx.RequestError as e:
-        log_service_status("OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}")
-        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
-    except httpx.HTTPStatusError as e:
-        log_service_status("OLLAMA", "failed", f"Ollama API returned an error: {e.response.status_code} - {e.response.text}")
-        raise
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout)
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "")
-    except httpx.RequestError as e:
-        log_service_status("OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}")
-        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
-    except httpx.HTTPStatusError as e:
-        log_service_status("OLLAMA", "failed", f"Ollama API returned an error: {e.response.status_code} - {e.response.text}")
-        raise
-
-async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
-    model = model or DEFAULT_MODEL
-    """
-    Asynchronously calls an OpenAI-compatible API.
-    """
-    api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
-    api_key = api_key or os.getenv("OPENAI_API_KEY")
-    
-    if not api_url.endswith('/chat/completions'):
-        api_url = f"{api_url.rstrip('/')}/chat/completions"
-    
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "max_tokens": int(os.getenv("OPENAI_API_MAX_TOKENS", "4096")),
-        "temperature": 0.7,
-    }
-    timeout = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
-
-    try:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(api_url, headers=headers, json=payload, timeout=timeout)
-            resp.raise_for_status()
-            data = resp.json()
-            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-    except httpx.RequestError as e:
-        log_service_status("OPENAI", "failed", f"Connection to OpenAI API at {api_url} failed: {e}")
-        raise Exception(f"Cannot connect to OpenAI service at {api_url}") from e
-    except httpx.HTTPStatusError as e:
-        log_service_status("OPENAI", "failed", f"OpenAI API returned an error: {e.response.status_code} - {e.response.text}")
-        raise
-
-async def call_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None):
-    model = model or DEFAULT_MODEL
-    """
-    Streams tokens from an LLM API (Ollama or OpenAI) in real time.
-    """
-    if USE_OLLAMA:
-        return call_ollama_llm_stream(messages, model, stop_event, session_id)
-    else:
-        return call_openai_llm_stream(messages, model, api_url, api_key, stop_event, session_id)
-
-async def call_ollama_llm_stream(messages, model=None, stop_event=None, session_id=None) -> AsyncGenerator[str, None]:
-    """
-    Asynchronously streams tokens from the Ollama API.
-    """
-    model = model or DEFAULT_MODEL
-    prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
-    payload = {"model": model, "prompt": prompt, "stream": True}
-    timeout = int(os.getenv("LLM_TIMEOUT", "180"))
-
-    try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream("POST", f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
-                        break
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                        if "response" in data:
-                            yield data["response"]
-                        if data.get("done"):
-                            break
-                    except json.JSONDecodeError:
-                        continue
-    except httpx.RequestError as e:
-        log_service_status("OLLAMA", "failed", f"Streaming connection to Ollama failed: {e}")
-        yield "Error: Cannot connect to Ollama service"
-    except Exception as e:
-        log_service_status("OLLAMA", "failed", f"Ollama streaming failed: {e}")
-        yield f"Error: {str(e)}"
-
-async def call_openai_llm_stream(messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None) -> AsyncGenerator[str, None]:
-    """
-    Asynchronously streams tokens from an OpenAI-compatible API.
-    """
-    model = model or DEFAULT_MODEL
-    api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
-    api_key = api_key or os.getenv("OPENAI_API_KEY")
-
-    if not api_url.endswith('/chat/completions'):
-        api_url = f"{api_url.rstrip('/')}/chat/completions"
-
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": True,
-        "max_tokens": int(os.getenv("OPENAI_API_MAX_TOKENS", "4096")),
-        "temperature": 0.7,
-    }
-    timeout = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
-
-    try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream("POST", api_url, headers=headers, json=payload, timeout=timeout) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
-                        break
-                    if not line or not line.startswith("data: "):
-                        continue
-                    
-                    line_text = line[6:]
-                    if line_text.strip() == "[DONE]":
-                        break
-
-                    try:
-                        data = json.loads(line_text)
-                        if (choices := data.get("choices")) and (delta := choices[0].get("delta")) and (content := delta.get("content")):
-                            yield content
-                    except json.JSONDecodeError:
-                        continue
-    except httpx.RequestError as e:
-        log_service_status("OPENAI", "failed", f"Streaming connection to OpenAI API failed: {e}")
-        yield "Error: Cannot connect to OpenAI API"
-    except Exception as e:
-        log_service_status("OPENAI", "failed", f"OpenAI streaming failed: {e}")
-        yield f"Error: {str(e)}"
-
-# Global dict to track streaming sessions
-STREAM_SESSION_STOP: Dict[str, bool] = {}
-
-def stop_streaming_session(session_id: str):
-    STREAM_SESSION_STOP[session_id] = True
+# Import LLM manager
+from llm_manager import call_llm, call_llm_stream, stop_streaming_session, STREAM_SESSION_STOP
 
 # --- Chat Endpoint ---
-class ChatRequest(BaseModel):
-    user_id: str
-    message: str
-
-class ChatResponse(BaseModel):
-    response: str
-
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(chat: ChatRequest, request: Request):
     # Generate a unique request ID for tracking
@@ -700,7 +504,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 if tz:
                     return get_current_time(tz) + f" (timezone: {tz})", "geo_timezone"
                 else:
-                    from ai_tools import get_time_from_timeanddate
+                    from utils.ai_tools import get_time_from_timeanddate
                     return get_time_from_timeanddate(country), "timeanddate.com"
             
             result = safe_execute(
@@ -877,7 +681,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             # )
             user_response = "Wikipedia search is currently unavailable."
             tool_used = True
-            tool_name = "wikipedia"        # --- If no tool matched, use LLM with memory/context ---        if not tool_used:
+            tool_name = "wikipedia"
+            
+        # --- If no tool matched, use LLM with memory/context ---
+        if not tool_used:
             def llm_query():
                 # Embed user query and retrieve relevant memory
                 query_emb = get_embedding(db_manager, user_message, request_id)
@@ -885,9 +692,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 
                 # Compose LLM context with explicit instructions for plain text responses
                 system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
-                
-                # Check for system prompt changes and invalidate cache if needed
-                from database import get_cache_manager
+                  # Check for system prompt changes and invalidate cache if needed
+                from core.database import get_cache_manager
                 cache_manager = get_cache_manager()
                 if cache_manager:
                     cache_manager.check_system_prompt_change(system_prompt)
@@ -914,14 +720,18 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             debug_info.append("[TOOL] Used LLM fallback")
         else:
             logging.debug(f"[RESPONSE] Tool '{tool_name}' response returned for user {user_id}")
-            debug_info.append(f"[TOOL] Tool '{tool_name}' response returned")              # --- Store chat in Redis ---
+            debug_info.append(f"[TOOL] Tool '{tool_name}' response returned")
+            
+        # --- Store chat in Redis ---
         def store_chat():
             store_chat_history(db_manager, user_id, {"message": user_message, "response": user_response}, request_id=request_id)
         
         safe_execute(
             store_chat,
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(e, "store_chat", f"chat:{user_id}", user_id, request_id)
-        )          # --- Cache the response (after generating user_response) ---
+        )
+        
+        # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query:
                 set_cache(db_manager, cache_key, str(user_response), ttl=600, user_id=user_id, request_id=request_id)
@@ -1034,9 +844,10 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     if stream:
         session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}"
         STREAM_SESSION_STOP[session_id] = False
+        
         async def event_stream():
             logging.debug("[STREAM] Streaming response triggered.")
-            llm_streamer = await call_llm_stream(messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id)
+            llm_streamer = call_llm_stream(messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id)
             async for token in llm_streamer:
                 if not token:
                     continue

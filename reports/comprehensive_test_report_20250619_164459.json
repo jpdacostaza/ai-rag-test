@@ -1,0 +1,74 @@
+{
+  "summary": {
+    "total_tests": 9,
+    "passed_tests": 5,
+    "failed_tests": 4,
+    "success_rate": 55.55555555555556,
+    "total_duration": 1.3923537731170654,
+    "timestamp": "2025-06-19T16:44:59.407931"
+  },
+  "test_results": {
+    "Service Availability": {
+      "success": true,
+      "details": "Services all ready",
+      "duration": 0.0157167911529541,
+      "timestamp": "2025-06-19T16:44:58.031218"
+    },
+    "Health Monitoring": {
+      "success": true,
+      "details": "Passed: 6/6",
+      "duration": 0.807549238204956,
+      "timestamp": "2025-06-19T16:44:58.839304"
+    },
+    "Authentication": {
+      "success": false,
+      "details": "Valid auth: \u2705, Rejects invalid: \u274c",
+      "duration": 0.03633880615234375,
+      "timestamp": "2025-06-19T16:44:58.875643"
+    },
+    "Model Management": {
+      "success": true,
+      "details": "Models available: \u2705, OpenAI compat: \u2705",
+      "duration": 0.10430622100830078,
+      "timestamp": "2025-06-19T16:44:58.980470"
+    },
+    "Chat Functionality": {
+      "success": false,
+      "details": "Basic chat: \u274c, OpenAI chat: \u2705",
+      "duration": 0.01435708999633789,
+      "timestamp": "2025-06-19T16:44:58.995880"
+    },
+    "Document Processing": {
+      "success": false,
+      "details": "Upload: \u2705, Search: \u274c",
+      "duration": 0.313856840133667,
+      "timestamp": "2025-06-19T16:44:59.309736"
+    },
+    "Cache & Storage": {
+      "success": true,
+      "details": "Cache ops: \u2705, Storage: \u2705",
+      "duration": 0.01620197296142578,
+      "timestamp": "2025-06-19T16:44:59.327074"
+    },
+    "Error Handling": {
+      "success": false,
+      "details": "404: \u2705, Auth: \u274c",
+      "duration": 0.035839080810546875,
+      "timestamp": "2025-06-19T16:44:59.363451"
+    },
+    "Concurrent Load": {
+      "success": true,
+      "details": "Success rate: 100.0% (5/5), Avg time: 0.02s",
+      "duration": 0.04234719276428223,
+      "timestamp": "2025-06-19T16:44:59.406329"
+    }
+  },
+  "performance_metrics": {
+    "concurrent_load": {
+      "total_requests": 5,
+      "successful_requests": 5,
+      "success_rate": 1.0,
+      "average_response_time": 0.02062358856201172
+    }
+  }
+}
