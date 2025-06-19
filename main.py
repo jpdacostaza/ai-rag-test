@@ -20,7 +20,7 @@ from database import (
     index_user_document, retrieve_user_memory, 
     get_embedding, get_database_health
 )
-from error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, RedisConnectionHandler, safe_execute
+from error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, RedisConnectionHandler, safe_execute, log_error
 import os
 import re
 import json
@@ -37,7 +37,7 @@ from upload import upload_router
 # Import and include enhanced router
 from enhanced_integration import enhanced_router, start_enhanced_background_tasks
 from feedback_router import feedback_router
-from model_manager import router as model_manager_router, refresh_model_cache, ensure_model_available
+from model_manager import router as model_manager_router, refresh_model_cache, ensure_model_available, _model_cache
 
 app = FastAPI()
 app.include_router(model_manager_router)
@@ -50,7 +50,7 @@ app.include_router(feedback_router)
 
 # Model configuration  
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
 
 # Global variable to store watchdog thread
@@ -195,7 +195,7 @@ def _log_environment_variables():
         env_vars_to_log = [
             "REDIS_HOST", "REDIS_PORT", "CHROMA_HOST", "CHROMA_PORT", 
             "DEFAULT_MODEL", "EMBEDDING_MODEL", "SENTENCE_TRANSFORMERS_HOME",
-            "OLLAMA_URL", "USE_OLLAMA", "USE_HTTP_CHROMA"
+            "OLLAMA_BASE_URL", "USE_OLLAMA", "USE_HTTP_CHROMA"
         ]
         
         log_service_status("STARTUP", "info", "Environment configuration:")
@@ -880,7 +880,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             user_response = safe_execute(
                 llm_query,
                 fallback_value="I apologize, but I'm having trouble processing your request right now. Please try again.",
-                error_handler=lambda e: ErrorHandler.log_error(e, "LLM query", user_id, request_id)
+                error_handler=lambda e: log_error(e, "LLM query", user_id, request_id)
             )
             logging.debug(f"[RESPONSE] LLM response returned for user {user_id}")
             debug_info.append("[TOOL] Used LLM fallback")

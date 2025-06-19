@@ -1,19 +1,22 @@
 from fastapi import APIRouter, Request, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from enhanced_integration import submit_interaction_feedback
 from error_handler import log_error
 
 feedback_router = APIRouter()
 
-@feedback_router.post("/feedback", deprecated=True, summary="Legacy feedback endpoint")
+@feedback_router.post("/feedback", deprecated=True, summary="Legacy feedback endpoint - Redirects to new endpoint")
 async def feedback_alias(request: Request):
     """
-    Alias for /enhanced/feedback/interaction for backward compatibility, specifically for OpenWebUI rating integration.
-    This endpoint is deprecated and will be removed in a future version.
+    Deprecated legacy feedback endpoint that redirects to /enhanced/feedback/interaction.
+    This endpoint is maintained for backward compatibility but should not be used for new integrations.
+    
+    DEPRECATED: Use /enhanced/feedback/interaction instead.
+    This endpoint will be removed in v2.0.0.
     """
     try:
         data = await request.json()
-        # Map OpenWebUI rating fields to backend feedback fields
+        # Map legacy OpenWebUI rating fields to enhanced feedback fields
         feedback_data = {
             "user_id": data.get("user_id") or data.get("user"),
             "conversation_id": data.get("conversation_id") or data.get("conv_id"),
@@ -24,12 +27,43 @@ async def feedback_alias(request: Request):
             "tools_used": data.get("tools_used")
         }
         
-        # Forward to the new endpoint
-        return await submit_interaction_feedback(**feedback_data)
+        # Forward to the enhanced endpoint
+        result = await submit_interaction_feedback(**feedback_data)
+          # Add deprecation warning to response
+        if isinstance(result, JSONResponse):
+            # Get the content from the JSONResponse
+            content = result.body
+            if isinstance(content, (bytes, bytearray)):
+                response_data = content.decode('utf-8')
+            else:
+                response_data = str(content)
+            
+            import json
+            try:
+                parsed_data = json.loads(response_data)
+                parsed_data["deprecation_warning"] = {
+                    "message": "This endpoint is deprecated. Use /enhanced/feedback/interaction instead.",
+                    "removal_version": "v2.0.0",
+                    "new_endpoint": "/enhanced/feedback/interaction"
+                }
+                return JSONResponse(content=parsed_data, status_code=result.status_code)
+            except json.JSONDecodeError:
+                # If we can't parse the JSON, just return the original result with headers
+                pass
+        
+        return result
 
     except Exception as e:
         log_error(e, "feedback_alias_endpoint")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST, 
-            content={"success": False, "error": str(e)}
+            content={
+                "success": False, 
+                "error": str(e),
+                "deprecation_warning": {
+                    "message": "This endpoint is deprecated. Use /enhanced/feedback/interaction instead.",
+                    "removal_version": "v2.0.0",
+                    "new_endpoint": "/enhanced/feedback/interaction"
+                }
+            }
         )

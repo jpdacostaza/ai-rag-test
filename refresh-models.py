@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434')
+OLLAMA_URL = os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434')
 OPENWEBUI_URL = os.getenv('OPENWEBUI_URL', 'http://localhost:3000')
 BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:8001')
 API_KEY = os.getenv('API_KEY', 'demo-key-replace-with-actual')

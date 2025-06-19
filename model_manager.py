@@ -10,7 +10,7 @@ import logging
 router = APIRouter(tags=["Model Management"])
 
 # --- Configuration ---
-OLLAMA_BASE_URL = os.getenv("OLLAMA_URL", "http://ollama:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 CUSTOM_MODEL_DIR = os.path.abspath("storage/models")
 
 # --- Model Cache ---

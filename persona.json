@@ -51,14 +51,13 @@
       "logging": "human_readable_structured",
       "cache_management": "advanced_with_validation",
       "system_prompt_monitoring": "automatic_change_detection"
-    },
-    "api_endpoints": {
+    },    "api_endpoints": {
       "health": "/health",
       "models": "/v1/models", 
       "chat": "/v1/chat/completions",
       "upload": "/upload",
       "enhanced_upload": "/enhanced/document/upload-advanced",
-      "feedback": "/feedback",
+      "feedback": "/enhanced/feedback/interaction",
       "admin_cache": "/admin/cache/*"
     }
   },

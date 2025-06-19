@@ -298,7 +298,7 @@ class OllamaMonitor(SubsystemMonitor):
     
     def __init__(self, config: WatchdogConfig):
         super().__init__("Ollama", config)
-        self.ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
+        self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         self.api_key = os.getenv("LLM_API_KEY")
         self.client = httpx.AsyncClient(timeout=self.config.timeout)
     
