@@ -935,7 +935,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 @app.get("/v1/models")
 async def list_models():
     """
-    OpenAI-compatible endpoint for model listing. Only returns local Ollama models.
+    OpenAI-compatible endpoint for model listing. Dynamically fetches available models from Ollama with caching.
     """
     global _model_cache
     # Check if cache is still valid
@@ -943,23 +943,42 @@ async def list_models():
     if current_time - _model_cache["last_updated"] > _model_cache["ttl"]:
         # Cache expired, refresh
         await refresh_model_cache()
-    
-    # Get models from cache and filter to only include Ollama models
+      # Temporary workaround: ensure Mistral model is included if it exists in Ollama
     models_data = _model_cache["data"].copy()
+    mistral_exists = any(model["id"] == "mistral:7b-instruct-v0.3-q4_k_m" for model in models_data)
     
-    # Filter out any non-Ollama models (remove OpenAI fallback models)
-    ollama_only_models = [
-        model for model in models_data 
-        if model.get("owned_by") == "ollama"
-    ]
+    logging.info(f"[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}")
+    logging.info(f"[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
     
-    logging.info(f"[MODELS] Returning {len(ollama_only_models)} Ollama models (filtered from {len(models_data)} total)")
-    for model in ollama_only_models:
-        logging.info(f"[MODELS] Available: {model['id']}")
+    if not mistral_exists:
+        # Check if Mistral model exists in Ollama directly
+        try:
+            import httpx
+            logging.info(f"[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags")
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+                logging.info(f"[MODELS DEBUG] Ollama response status: {resp.status_code}")
+                if resp.status_code == 200:
+                    ollama_models = resp.json().get("models", [])
+                    logging.info(f"[MODELS DEBUG] Found {len(ollama_models)} models in Ollama")
+                    for model in ollama_models:
+                        logging.info(f"[MODELS DEBUG] Ollama model: {model['name']}")
+                        if model["name"] == "mistral:7b-instruct-v0.3-q4_k_m":
+                            models_data.append({
+                                "id": "mistral:7b-instruct-v0.3-q4_k_m",
+                                "object": "model", 
+                                "created": int(time.time()),
+                                "owned_by": "ollama",
+                                "permission": []
+                            })
+                            logging.info("[MODELS DEBUG] Added Mistral model to response")
+                            break
+        except Exception as e:
+            logging.warning(f"Failed to check Ollama for Mistral model: {e}")
     
     return {
         "object": "list",
-        "data": ollama_only_models
+        "data": models_data
     }
 
 @app.post("/v1/chat/completions")

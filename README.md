@@ -770,7 +770,7 @@ Add to your `.env` file:
 # LLM Configuration (Current)
 DEFAULT_MODEL=llama3.2:3b                   # Current default model
 USE_OLLAMA=true                              # Primary LLM provider
-OLLAMA_URL=http://ollama:11434              # Ollama service URL
+OLLAMA_BASE_URL=http://ollama:11434              # Ollama service URL
 
 # Fallback Configuration
 OPENAI_API_KEY=sk-your_api_key_here         # Optional for OpenAI fallback
@@ -805,7 +805,7 @@ For detailed configuration, see the Environment Variables section below.
 # LLM Configuration (Updated)
 DEFAULT_MODEL=llama3.2:3b                   # Current default model (2GB)
 USE_OLLAMA=true                              # Primary LLM provider
-OLLAMA_URL=http://ollama:11434              # Ollama service URL
+OLLAMA_BASE_URL=http://ollama:11434              # Ollama service URL
 LLM_TIMEOUT=180                             # Request timeout in seconds
 
 # Database Configuration  
