@@ -1,6 +1,6 @@
 {
   "test_run": {
-    "timestamp": "2025-06-19T12:18:20.359824",
+    "timestamp": "2025-06-19T12:21:51.769706",
     "total_tests": 16,
     "passed": 16,
     "failed": 0,
@@ -12,112 +12,112 @@
       "status": "\u2705 PASS",
       "passed": true,
       "details": "",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075009"
     },
     {
       "test": "Feedback Classification: 'That's wrong, it should be dif...'",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075513"
     },
     {
       "test": "Feedback Classification: 'I don't understand, can you ex...'",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075513"
     },
     {
       "test": "Feedback Classification: 'That was unhelpful and terribl...'",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075513"
     },
     {
       "test": "Feedback Classification: 'Hello there...'",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075513"
     },
     {
       "test": "Topic Extraction",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Found topics: ['programming', 'python', 'machine learning']",
-      "timestamp": "2025-06-19T12:18:19.681974"
+      "timestamp": "2025-06-19T12:21:51.075513"
     },
     {
       "test": "Full Interaction Analysis",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Metrics: FeedbackType.POSITIVE, Topics: ['python']",
-      "timestamp": "2025-06-19T12:18:19.762298"
+      "timestamp": "2025-06-19T12:21:51.163185"
     },
     {
       "test": "Process Interaction",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Result: {\n  \"status\": \"success\",\n  \"feedback_type\": \"neutral\",\n  \"context_relevance\": 0.5,\n  \"topics\": [\n    \"programming\",\n    \"python\"\n  ],\n  \"learning_applied\": true\n}",
-      "timestamp": "2025-06-19T12:18:19.850972"
+      "timestamp": "2025-06-19T12:21:51.253367"
     },
     {
       "test": "Process Positive Feedback",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Feedback type: positive",
-      "timestamp": "2025-06-19T12:18:19.933868"
+      "timestamp": "2025-06-19T12:21:51.337045"
     },
     {
       "test": "Process Correction",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Feedback type: correction",
-      "timestamp": "2025-06-19T12:18:20.019794"
+      "timestamp": "2025-06-19T12:21:51.437264"
     },
     {
       "test": "Get User Insights",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Interactions: 3",
-      "timestamp": "2025-06-19T12:18:20.019794"
+      "timestamp": "2025-06-19T12:21:51.438266"
     },
     {
       "test": "Knowledge Expansion Queuing",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Queue length: 1",
-      "timestamp": "2025-06-19T12:18:20.100869"
+      "timestamp": "2025-06-19T12:21:51.516811"
     },
     {
       "test": "Knowledge Expansion Processing",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Queue processed without errors",
-      "timestamp": "2025-06-19T12:18:20.210774"
+      "timestamp": "2025-06-19T12:21:51.620991"
     },
     {
       "test": "Invalid Input Handling",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Result status: success",
-      "timestamp": "2025-06-19T12:18:20.286304"
+      "timestamp": "2025-06-19T12:21:51.694279"
     },
     {
       "test": "Non-existent User Handling",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Status: no_data",
-      "timestamp": "2025-06-19T12:18:20.286304"
+      "timestamp": "2025-06-19T12:21:51.694279"
     },
     {
       "test": "Global Instance Functionality",
       "status": "\u2705 PASS",
       "passed": true,
       "details": "Status: success",
-      "timestamp": "2025-06-19T12:18:20.358819"
+      "timestamp": "2025-06-19T12:21:51.769706"
     }
   ]
 }
