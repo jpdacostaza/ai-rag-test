@@ -365,7 +365,7 @@ class EmbeddingMonitor(SubsystemMonitor):
         
         try:
             # Import here to avoid circular imports
-            from core.database import db_manager
+            from database import db_manager
             
             # Check if embedding model is loaded
             if not db_manager.is_embeddings_available() or db_manager.embedding_model is None:

@@ -9,11 +9,11 @@ import time
 from datetime import datetime
 from dataclasses import asdict
 
-from core.schemas import HealthStatus, ServiceHealth, DetailedHealthResponse
-from core.database import get_database_health
-from utils.watchdog import get_watchdog, get_health_status
-from managers.storage_manager import StorageManager
-from utils.human_logging import log_service_status
+from schemas import HealthStatus, ServiceHealth, DetailedHealthResponse
+from database import get_database_health
+from watchdog import get_watchdog, get_health_status
+from storage_manager import StorageManager
+from human_logging import log_service_status
 
 # Create router for health endpoints
 health_router = APIRouter(prefix="/health", tags=["health"])
@@ -24,7 +24,7 @@ async def health_check():
     health_status = get_database_health()
     
     # Add cache information
-    from core.database import get_cache_manager
+    from database import get_cache_manager
     cache_manager = get_cache_manager()
     cache_info = {}
     if cache_manager:

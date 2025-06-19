@@ -13,7 +13,7 @@ import logging
 
 from human_logging import log_api_request, log_service_status
 from error_handler import log_error
-from core.database import get_cache, set_cache, get_database_health
+from database import get_cache, set_cache, get_database_health
 
 # Create router for missing endpoints
 missing_router = APIRouter(tags=["missing_endpoints"])
@@ -330,7 +330,7 @@ async def cache_set(cache_data: dict = Body(...)):
         if value is None:
             raise HTTPException(status_code=400, detail="value is required")
         
-        from core.database import db_manager
+        from database import db_manager
         success = set_cache(db_manager, key, value, ttl)
         
         if success:
@@ -351,7 +351,7 @@ async def cache_set(cache_data: dict = Body(...)):
 async def cache_get(key: str):
     """Get cache value by key"""
     try:
-        from core.database import db_manager
+        from database import db_manager
         value = get_cache(db_manager, cache_key=key)
         
         if value is not None:
@@ -377,7 +377,7 @@ async def cache_delete(key: str):
     """Delete cache value by key"""
     try:
         import redis
-        from core.database import db_manager
+        from database import db_manager
         if db_manager and hasattr(db_manager, 'redis_pool') and db_manager.redis_pool:
             redis_client = redis.Redis(connection_pool=db_manager.redis_pool)
             result = redis_client.delete(key)
@@ -398,7 +398,7 @@ async def cache_delete(key: str):
 async def cache_stats():
     """Get cache statistics"""
     try:
-        from core.database import get_cache_manager
+        from database import get_cache_manager
         cache_manager = get_cache_manager()
         
         if cache_manager:
@@ -482,7 +482,7 @@ async def storage_store(store_data: dict = Body(...)):
         if value is None:
             raise HTTPException(status_code=400, detail="value is required")
         
-        from core.database import db_manager
+        from database import db_manager
         success = set_cache(db_manager, key, value, 3600)  # 1 hour TTL
         
         if success:
@@ -504,7 +504,7 @@ async def storage_store(store_data: dict = Body(...)):
 async def storage_retrieve(key: str):
     """Retrieve data from storage system"""
     try:
-        from core.database import db_manager
+        from database import db_manager
         value = get_cache(db_manager, cache_key=key)
         
         if value is not None:

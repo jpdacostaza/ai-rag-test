@@ -168,9 +168,9 @@ def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000
     Note: This is a convenience wrapper. For pre-chunked data, use index_document_chunks.
     """
     try:
-        from utils.ai_tools import chunk_text
+        from ai_tools import chunk_text
     except ImportError:
-        logging.error("[CHUNKING] Failed to import chunk_text from utils.ai_tools")
+        logging.error("[CHUNKING] Failed to import chunk_text from ai_tools")
         return False
     
     chunks = chunk_text(text, chunk_size, chunk_overlap)

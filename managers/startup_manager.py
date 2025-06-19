@@ -10,11 +10,11 @@ import os
 import platform
 from typing import Optional, Dict, Any
 
-from utils.human_logging import log_service_status, init_logging
-from utils.watchdog import start_watchdog_service, get_watchdog
-from routers.enhanced_integration import start_enhanced_background_tasks
-from core.database import db_manager
-from managers.model_manager import refresh_model_cache
+from human_logging import log_service_status, init_logging
+from watchdog import start_watchdog_service, get_watchdog
+from enhanced_integration import start_enhanced_background_tasks
+from database import db_manager
+from model_manager import refresh_model_cache
 
 class StartupManager:
     """Manages application startup process and configuration."""
@@ -61,7 +61,7 @@ class StartupManager:
     async def _initialize_memory_systems(self):
         """Initialize cache management and memory systems."""
         try:
-            from core.database import get_cache_manager, get_database_health
+            from database import get_cache_manager, get_database_health
             
             # Initialize cache manager
             log_service_status("CACHE_INIT", "starting", "Initializing cache management system")
@@ -81,7 +81,7 @@ class StartupManager:
             test_key = f"startup_health_test"
             test_value = f"test_{int(time.time())}"
             
-            from core.database import set_cache, get_cache
+            from database import set_cache, get_cache
             set_cache(db_manager, test_key, test_value, ttl=10)
             retrieved = get_cache(db_manager, test_key)
             

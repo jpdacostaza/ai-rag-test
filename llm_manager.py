@@ -18,23 +18,26 @@ import json
 import logging
 import httpx
 from typing import Dict, List, Optional, AsyncGenerator, Any
-from human_logging import log_service_status
+from threading import Lock
+from collections import defaultdict
+from utils.human_logging import log_service_status
 
 # --- Configuration Constants ---
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
 
-# Global dict to track streaming sessions
-STREAM_SESSION_STOP: Dict[str, bool] = {}
-
 class LLMManager:
     """Centralized LLM operations manager"""
     
-    def __init__(self):
-        self.default_model = DEFAULT_MODEL
-        self.ollama_url = OLLAMA_BASE_URL
-        self.use_ollama = USE_OLLAMA
+    def __init__(self) -> None:
+        self.default_model: str = DEFAULT_MODEL
+        self.ollama_url: str = OLLAMA_BASE_URL
+        self.use_ollama: bool = USE_OLLAMA
+        
+        # Thread-safe session management
+        self._stream_sessions: Dict[str, bool] = defaultdict(bool)
+        self._session_lock = Lock()
         
         # Default options for LLM calls
         self.default_options = {
@@ -59,7 +62,13 @@ class LLMManager:
         Returns:
             str: LLM response content
         """
+        # Input validation
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+        
         model = model or self.default_model
+        if not model:
+            raise ValueError("Model name is required")
         
         try:
             if self.use_ollama:
@@ -67,8 +76,9 @@ class LLMManager:
             else:
                 return await self._call_openai_llm(messages, model, api_url, api_key)
         except Exception as e:
-            log_service_status("LLM_MANAGER", "error", f"LLM call failed: {str(e)}")
-            raise
+            error_msg = f"LLM call failed for model {model}: {str(e)}"
+            log_service_status("LLM_MANAGER", "error", error_msg)
+            raise RuntimeError(error_msg) from e
     
     async def call_llm_stream(self, messages: List[Dict[str, str]], model: Optional[str] = None,
                              api_url: Optional[str] = None, api_key: Optional[str] = None,
@@ -87,7 +97,13 @@ class LLMManager:
         Yields:
             str: Individual tokens from the LLM
         """
+        # Input validation
+        if not messages:
+            raise ValueError("Messages list cannot be empty")
+        
         model = model or self.default_model
+        if not model:
+            raise ValueError("Model name is required")
         
         try:
             if self.use_ollama:
@@ -97,8 +113,9 @@ class LLMManager:
                 async for token in self._call_openai_llm_stream(messages, model, api_url, api_key, stop_event, session_id):
                     yield token
         except Exception as e:
-            log_service_status("LLM_MANAGER", "error", f"LLM streaming failed: {str(e)}")
-            yield f"Error: {str(e)}"
+            error_msg = f"LLM streaming failed for model {model}: {str(e)}"
+            log_service_status("LLM_MANAGER", "error", error_msg)
+            raise RuntimeError(error_msg) from e
     
     async def _call_ollama_llm(self, messages: List[Dict[str, str]], model: str) -> str:
         """
@@ -111,10 +128,11 @@ class LLMManager:
         Returns:
             str: Response content
         """
-        # Debug logging
+        # Debug logging (conditional for performance)
         logging.info(f"[LLM_MANAGER] Sending {len(messages)} messages to Ollama model {model}")
-        for i, msg in enumerate(messages):
-            logging.debug(f"[LLM_MANAGER] Message {i}: {msg.get('role', 'unknown')} - {msg.get('content', '')[:100]}...")
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            for i, msg in enumerate(messages):
+                logging.debug(f"[LLM_MANAGER] Message {i}: {msg.get('role', 'unknown')} - {msg.get('content', '')[:100]}...")
         
         # Prepare payload for Ollama chat API
         payload = {
@@ -176,6 +194,10 @@ class LLMManager:
         api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         
+        # API key validation
+        if not api_key:
+            raise ValueError("API key is required for OpenAI-compatible services")
+        
         if not api_url.endswith('/chat/completions'):
             api_url = f"{api_url.rstrip('/')}/chat/completions"
         
@@ -217,7 +239,7 @@ class LLMManager:
     async def _call_ollama_llm_stream(self, messages: List[Dict[str, str]], model: str,
                                      stop_event=None, session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
-        Stream tokens from Ollama API.
+        Stream tokens from Ollama API using chat endpoint.
         
         Args:
             messages: List of message dictionaries
@@ -228,12 +250,10 @@ class LLMManager:
         Yields:
             str: Individual tokens
         """
-        # Convert messages to prompt format for Ollama generate endpoint
-        prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
-        
+        # Use chat API for streaming (preserves message format)
         payload = {
             "model": model,
-            "prompt": prompt,
+            "messages": messages,
             "stream": True
         }
         
@@ -241,12 +261,14 @@ class LLMManager:
         
         try:
             async with httpx.AsyncClient() as client:
-                async with client.stream("POST", f"{self.ollama_url}/api/generate", json=payload, timeout=timeout) as resp:
+                async with client.stream("POST", f"{self.ollama_url}/api/chat", json=payload, timeout=timeout) as resp:
                     resp.raise_for_status()
                     
                     async for line in resp.aiter_lines():
                         # Check for stop conditions
-                        if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
+                        with self._session_lock:
+                            session_stopped = session_id and self._stream_sessions.get(session_id, False)
+                        if (stop_event and stop_event.is_set()) or session_stopped:
                             break
                         
                         if not line:
@@ -254,11 +276,13 @@ class LLMManager:
                         
                         try:
                             data = json.loads(line)
-                            if "response" in data:
-                                yield data["response"]
+                            if "message" in data and "content" in data["message"]:
+                                yield data["message"]["content"]
                             if data.get("done"):
                                 break
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as e:
+                            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                                logging.debug(f"Failed to parse JSON line: {line} - {e}")
                             continue
                             
         except httpx.RequestError as e:
@@ -288,6 +312,10 @@ class LLMManager:
         api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         
+        # API key validation
+        if not api_key:
+            raise ValueError("API key is required for OpenAI-compatible services")
+        
         if not api_url.endswith('/chat/completions'):
             api_url = f"{api_url.rstrip('/')}/chat/completions"
         
@@ -313,7 +341,9 @@ class LLMManager:
                     
                     async for line in resp.aiter_lines():
                         # Check for stop conditions
-                        if (stop_event and stop_event.is_set()) or (session_id and STREAM_SESSION_STOP.get(session_id)):
+                        with self._session_lock:
+                            session_stopped = session_id and self._stream_sessions.get(session_id, False)
+                        if (stop_event and stop_event.is_set()) or session_stopped:
                             break
                         
                         if not line or not line.startswith("data: "):
@@ -325,9 +355,17 @@ class LLMManager:
                         
                         try:
                             data = json.loads(line_text)
-                            if (choices := data.get("choices")) and (delta := choices[0].get("delta")) and (content := delta.get("content")):
-                                yield content
-                        except json.JSONDecodeError:
+                            # Safer walrus operator usage
+                            choices = data.get("choices")
+                            if choices and len(choices) > 0:
+                                delta = choices[0].get("delta")
+                                if delta:
+                                    content = delta.get("content")
+                                    if content:
+                                        yield content
+                        except json.JSONDecodeError as e:
+                            if logging.getLogger().isEnabledFor(logging.DEBUG):
+                                logging.debug(f"Failed to parse JSON line: {line_text} - {e}")
                             continue
                             
         except httpx.RequestError as e:
@@ -339,7 +377,8 @@ class LLMManager:
     
     def stop_streaming_session(self, session_id: str):
         """Stop a streaming session by session ID."""
-        STREAM_SESSION_STOP[session_id] = True
+        with self._session_lock:
+            self._stream_sessions[session_id] = True
         log_service_status("LLM_MANAGER", "info", f"Stopped streaming session: {session_id}")
     
     def get_model_info(self) -> Dict[str, Any]:
@@ -369,10 +408,17 @@ def stop_streaming_session(session_id: str):
     llm_manager.stop_streaming_session(session_id)
 
 # Deprecated function wrappers (for compatibility)
+import warnings
+
 async def call_ollama_llm(messages, model=None):
     """DEPRECATED: Use llm_manager.call_llm() instead."""
-    return await llm_manager._call_ollama_llm(messages, model or DEFAULT_MODEL)
+    warnings.warn("call_ollama_llm is deprecated, use llm_manager.call_llm()", DeprecationWarning, stacklevel=2)
+    return await llm_manager.call_llm(messages, model)
 
 async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
     """DEPRECATED: Use llm_manager.call_llm() instead."""
-    return await llm_manager._call_openai_llm(messages, model or DEFAULT_MODEL, api_url, api_key)
+    warnings.warn("call_openai_llm is deprecated, use llm_manager.call_llm()", DeprecationWarning, stacklevel=2)
+    return await llm_manager.call_llm(messages, model, api_url, api_key)
+
+# Expose STREAM_SESSION_STOP for backward compatibility
+STREAM_SESSION_STOP = llm_manager._stream_sessions

@@ -7,10 +7,10 @@ import re
 import logging
 from typing import Tuple, Optional, Dict, Any, List
 
-from utils.ai_tools import get_current_time, get_weather, convert_units
-from core.error_handler import ToolErrorHandler, safe_execute
-from utils.human_logging import log_service_status
-from core.schemas import ToolRequest, ToolResponse
+from ai_tools import get_current_time, get_weather, convert_units
+from error_handler import ToolErrorHandler, safe_execute
+from human_logging import log_service_status
+from schemas import ToolRequest, ToolResponse
 
 class ToolRouter:
     """Handles tool detection and execution for chat messages."""
@@ -135,7 +135,8 @@ class ToolRouter:
             if match:
                 country = match.group(1).strip()
                 break
-          # Clean up extracted location string
+        
+        # Clean up extracted location string
         country = re.sub(r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|to|of|about|time|current time|the time|\s)+", "", country, flags=re.IGNORECASE)
         country = re.sub(r"\?$", "", country).strip()
         if not country:
@@ -146,7 +147,7 @@ class ToolRouter:
             if tz:
                 return get_current_time(tz) + f" (timezone: {tz})", "geo_timezone"
             else:
-                from utils.ai_tools import get_time_from_timeanddate
+                from ai_tools import get_time_from_timeanddate
                 return get_time_from_timeanddate(country), "timeanddate.com"
         
         result = safe_execute(
