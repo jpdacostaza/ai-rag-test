@@ -1,0 +1,9 @@
+This is a test document for uploading to the backend system.
+
+It contains some sample information:
+- Company: Test Corp
+- Location: New York
+- Products: AI Solutions, Data Analytics
+- Founded: 2020
+
+This document will be used to test the RAG functionality and document processing capabilities of the backend system.
