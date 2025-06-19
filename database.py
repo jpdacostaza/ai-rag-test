@@ -195,15 +195,35 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         )
         
         docs = results.get("documents", [[]])[0] if results else []
+        metadatas = results.get("metadatas", [[]])[0] if results else []
+        distances = results.get("distances", [[]])[0] if results else []
+        
         logging.debug(f"Retrieved {len(docs)} memory chunks for user_id={user_id}")
         
-        if docs:
-            for i, doc in enumerate(docs):
-                logging.debug(f"Chunk {i+1}: {doc[:100]}...")
-        else:
+        # Format results properly for RAG consumption
+        formatted_results = []
+        for i, doc in enumerate(docs):
+            metadata = metadatas[i] if i < len(metadatas) else {}
+            distance = distances[i] if i < len(distances) else 1.0
+            
+            formatted_results.append({
+                "content": doc,
+                "score": max(0.0, 1.0 - distance),  # Convert distance to similarity score
+                "document_id": metadata.get("doc_id", f"unknown_{i}"),
+                "metadata": {
+                    "source": metadata.get("source", "unknown"),
+                    "chunk_index": metadata.get("chunk_index", i),
+                    "user_id": metadata.get("user_id", user_id),
+                    "distance": distance
+                }
+            })
+            
+            logging.debug(f"Chunk {i+1}: {doc[:100]}...")
+        
+        if not formatted_results:
             logging.debug(f"No relevant memory found for user_id={user_id}")
         
-        return docs
+        return formatted_results
     
     return safe_execute(
         _retrieve_memory,

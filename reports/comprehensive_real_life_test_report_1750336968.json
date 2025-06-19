@@ -1,0 +1,363 @@
+{
+  "test_summary": {
+    "total_tests": 10,
+    "passed_tests": 5,
+    "failed_tests": 5,
+    "pass_rate": 50.0,
+    "timestamp": "2025-06-19T14:42:48.459466"
+  },
+  "test_results": {
+    "Docker Container Health": {
+      "success": false,
+      "details": "Failed services: ['Redis']"
+    },
+    "Startup Memory Health Integration": {
+      "success": true,
+      "details": "Cache: vv2.0.0 (11 keys), Redis: \u2705, ChromaDB: \u2705"
+    },
+    "Cache Manager Integration": {
+      "success": true,
+      "details": "Requests: 3, Cache hit detected: False"
+    },
+    "AI Tools Integration": {
+      "success": true,
+      "details": "Successful tool calls: 3/3"
+    },
+    "Document Upload and RAG": {
+      "success": false,
+      "details": "Upload: \u274c, RAG: \u274c, Quality: \u274c"
+    },
+    "Error Handling and Feedback": {
+      "success": false,
+      "details": "Properly handled errors: 1/3"
+    },
+    "Storage and Persistence": {
+      "success": true,
+      "details": "Storage: \u2705, Redis: \u2705, ChromaDB: \u274c"
+    },
+    "Adaptive Learning System": {
+      "success": true,
+      "details": "Learning components working: 2/3"
+    },
+    "Comprehensive Integration Scenario": {
+      "success": false,
+      "details": "Successful steps: 3/4"
+    },
+    "Persona and Configuration": {
+      "success": false,
+      "details": "Persona tests passed: 1/2"
+    }
+  },
+  "test_data": {
+    "container_health": {
+      "LLM Backend": true,
+      "ChromaDB": true,
+      "OpenWebUI": true,
+      "Redis": false
+    },
+    "startup_health": {
+      "cache_info": true,
+      "cache_version": "v2.0.0",
+      "cache_keys": 11,
+      "redis_available": true,
+      "chromadb_available": true
+    },
+    "detailed_health": {
+      "status": "ok",
+      "timestamp": "2025-06-19T12:42:29.741998",
+      "overall_status": "healthy",
+      "services": {
+        "Redis": {
+          "service": "Redis",
+          "status": "healthy",
+          "last_check": "2025-06-19T12:42:29.467267",
+          "response_time_ms": 129.5931339263916,
+          "error_message": null,
+          "metadata": {
+            "host": "redis",
+            "port": 6379,
+            "connection_status": "connected"
+          }
+        },
+        "ChromaDB": {
+          "service": "ChromaDB",
+          "status": "healthy",
+          "last_check": "2025-06-19T12:42:29.600848",
+          "response_time_ms": 261.12914085388184,
+          "error_message": null,
+          "metadata": {
+            "collection_count": 2,
+            "test_collection": "watchdog_health_check",
+            "mode": "http",
+            "host": "chroma",
+            "port": 8000,
+            "url": "http://chroma:8000"
+          }
+        },
+        "Embeddings": {
+          "service": "Embeddings",
+          "status": "healthy",
+          "last_check": "2025-06-19T12:42:29.741832",
+          "response_time_ms": 367.91515350341797,
+          "error_message": null,
+          "metadata": {
+            "model_name": "Unknown",
+            "embedding_dimensions": 1024,
+            "test_embedding_size": 1
+          }
+        },
+        "Ollama": {
+          "service": "Ollama",
+          "status": "unhealthy",
+          "last_check": "2025-06-19T12:42:29.377337",
+          "response_time_ms": 2.0232200622558594,
+          "error_message": "<asyncio.locks.Event object at 0x7f366010b610 [unset]> is bound to a different event loop",
+          "metadata": null
+        }
+      },
+      "summary": {
+        "total_services": 4,
+        "healthy_services": 0,
+        "degraded_services": 0,
+        "unhealthy_services": 0
+      }
+    },
+    "cache_manager": {
+      "response_times": [
+        0.013265371322631836,
+        0.03119182586669922,
+        0.025113821029663086
+      ],
+      "cache_behavior": [
+        {
+          "request": 1,
+          "message": "What is the capital of France?",
+          "duration": 0.013265371322631836,
+          "status": "success"
+        },
+        {
+          "request": 2,
+          "message": "Explain quantum computing in simple terms",
+          "duration": 0.03119182586669922,
+          "status": "success"
+        },
+        {
+          "request": 3,
+          "message": "What is the capital of France?",
+          "duration": 0.025113821029663086,
+          "status": "success"
+        }
+      ],
+      "cache_hit_detected": false,
+      "final_cache_keys": 13
+    },
+    "ai_tools": [
+      {
+        "query": "What's the current time?",
+        "expected_tool": "get_current_time",
+        "response": "2025-06-19 12:42:33 ",
+        "success": true
+      },
+      {
+        "query": "What's the weather like in London?",
+        "expected_tool": "get_weather",
+        "response": "Weather in London: 28.5\u00b0C, wind 1.1 km/h, 1",
+        "success": true
+      },
+      {
+        "query": "Convert 100 celsius to fahrenheit",
+        "expected_tool": "convert_units",
+        "response": "100.0\u00b0C = 212.00\u00b0F",
+        "success": true
+      }
+    ],
+    "document_rag": {
+      "upload_success": false,
+      "upload_details": "{\"detail\":[{\"type\":\"missing\",\"loc\":[\"body\",\"user_id\"],\"msg\":\"Field required\",\"input\":null}]}",
+      "rag_success": false,
+      "rag_quality": false,
+      "rag_response": "Upload failed, cannot test RAG"
+    },
+    "error_handling": [
+      {
+        "test": "Invalid API Key",
+        "status_code": 200,
+        "handled": false
+      },
+      {
+        "test": "Malformed Request",
+        "status_code": 200,
+        "handled": false
+      },
+      {
+        "test": "Health Endpoint",
+        "status_code": 200,
+        "handled": true
+      }
+    ],
+    "storage_persistence": {
+      "storage_endpoint": true,
+      "storage_data": {
+        "service": "Storage",
+        "status": "healthy",
+        "base_path": "/opt/backend/storage",
+        "directories": {
+          "total": 7,
+          "existing": 7,
+          "missing": 0
+        },
+        "storage_usage": {
+          "total_size_mb": 0.0,
+          "total_files": 0
+        },
+        "permissions": {
+          "redis": true,
+          "chroma": true,
+          "chroma_onnx": true,
+          "ollama": true,
+          "backend": true,
+          "models": true,
+          "openwebui": true
+        },
+        "directory_details": {
+          "redis": {
+            "path": "storage/redis",
+            "exists": true,
+            "description": "Redis persistence data (RDB snapshots, AOF logs)",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "chroma": {
+            "path": "storage/chroma",
+            "exists": true,
+            "description": "ChromaDB vector database storage",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "chroma_onnx": {
+            "path": "storage/chroma/onnx_cache",
+            "exists": true,
+            "description": "ChromaDB ONNX model optimization cache",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "ollama": {
+            "path": "storage/ollama",
+            "exists": true,
+            "description": "Ollama LLM model storage (can be several GB)",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "backend": {
+            "path": "storage/backend",
+            "exists": true,
+            "description": "Application data, logs, temporary files",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "models": {
+            "path": "storage/models",
+            "exists": true,
+            "description": "Sentence transformer and embedding model cache",
+            "size_mb": 0.0,
+            "file_count": 0
+          },
+          "openwebui": {
+            "path": "storage/openwebui",
+            "exists": true,
+            "description": "OpenWebUI user data, chat history, settings",
+            "size_mb": 0.0,
+            "file_count": 0
+          }
+        }
+      },
+      "redis_persistent": true,
+      "chromadb_available": false
+    },
+    "adaptive_learning": [
+      {
+        "test": "Feedback Submission",
+        "success": false,
+        "status_code": 400
+      },
+      {
+        "test": "Learning Stats",
+        "success": true,
+        "status_code": 200
+      },
+      {
+        "test": "Basic Chat (Learning Foundation)",
+        "success": true,
+        "status_code": 200
+      }
+    ],
+    "integration_scenario": [
+      {
+        "step": "Document Upload",
+        "success": false
+      },
+      {
+        "step": "AI Tools",
+        "success": true
+      },
+      {
+        "step": "Cache Test",
+        "success": true
+      },
+      {
+        "step": "Health Check",
+        "success": true
+      }
+    ],
+    "persona_config": [
+      {
+        "test": "Personality Consistency",
+        "success": false,
+        "response_length": 0,
+        "has_structure": false
+      },
+      {
+        "test": "Configuration Endpoint",
+        "success": true,
+        "status_code": 200
+      }
+    ]
+  },
+  "categories": {
+    "critical": {
+      "tests": [
+        "Docker Container Health",
+        "Startup Memory Health Integration",
+        "Cache Manager Integration"
+      ],
+      "passed": 2,
+      "total": 3
+    },
+    "core": {
+      "tests": [
+        "AI Tools Integration",
+        "Document Upload and RAG",
+        "Error Handling and Feedback"
+      ],
+      "passed": 1,
+      "total": 3
+    },
+    "advanced": {
+      "tests": [
+        "Storage and Persistence",
+        "Adaptive Learning System",
+        "Comprehensive Integration Scenario",
+        "Persona and Configuration"
+      ],
+      "passed": 2,
+      "total": 4
+    }
+  },
+  "recommendations": [
+    "\ud83d\udea8 CRITICAL: Fix core infrastructure issues (Docker, memory, cache)",
+    "Fix Docker container startup issues - check compose configuration",
+    "Check file upload permissions and ChromaDB vector operations",
+    "Optimize cache configuration for better performance",
+    "Improve error handling and security validation"
+  ]
+}
