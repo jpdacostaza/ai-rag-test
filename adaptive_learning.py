@@ -66,12 +66,11 @@ class LearningPattern:
 class ConversationAnalyzer:
     """Analyzes conversations to extract learning patterns."""
     
-    def __init__(self):
-        self.sentiment_keywords = {
-            "positive": ["good", "great", "perfect", "thanks", "helpful", "correct", "exactly"],
-            "negative": ["wrong", "incorrect", "bad", "unhelpful", "unclear", "confused"],
-            "correction": ["actually", "no", "but", "however", "should be", "meant to"],
-            "clarification": ["what", "how", "why", "explain", "clarify", "more details"]
+    def __init__(self):        self.sentiment_keywords = {
+            "positive": ["good", "great", "perfect", "thanks", "helpful", "correct", "exactly", "excellent", "amazing", "thank you"],
+            "negative": ["wrong", "incorrect", "bad", "unhelpful", "unclear", "confused", "useless", "terrible", "awful"],
+            "correction": ["actually", "no", "but", "however", "should be", "meant to", "that's wrong", "not right"],
+            "clarification": ["what do you mean", "can you explain", "i don't understand", "please clarify", "more details", "confused about"]
         }
     
     async def analyze_interaction(self, user_id: str, conversation_id: str, 
@@ -117,19 +116,23 @@ class ConversationAnalyzer:
         
         scores = {feedback_type: 0 for feedback_type in FeedbackType}
         
+        # Check for multi-word phrases first (more specific)
         for feedback_type, keywords in self.sentiment_keywords.items():
             for keyword in keywords:
                 if keyword in message_lower:
-                    scores[FeedbackType(feedback_type)] += 1
+                    # Give higher weight to longer, more specific phrases
+                    weight = len(keyword.split())
+                    scores[FeedbackType(feedback_type)] += weight
         
+        # Prioritize feedback types by strength of signal
         if scores[FeedbackType.CORRECTION] > 0:
             return FeedbackType.CORRECTION
+        elif scores[FeedbackType.POSITIVE] > scores[FeedbackType.NEGATIVE] and scores[FeedbackType.POSITIVE] > scores[FeedbackType.CLARIFICATION]:
+            return FeedbackType.POSITIVE
+        elif scores[FeedbackType.NEGATIVE] > scores[FeedbackType.POSITIVE] and scores[FeedbackType.NEGATIVE] > scores[FeedbackType.CLARIFICATION]:
+            return FeedbackType.NEGATIVE
         elif scores[FeedbackType.CLARIFICATION] > 0:
             return FeedbackType.CLARIFICATION
-        elif scores[FeedbackType.POSITIVE] > scores[FeedbackType.NEGATIVE]:
-            return FeedbackType.POSITIVE
-        elif scores[FeedbackType.NEGATIVE] > scores[FeedbackType.POSITIVE]:
-            return FeedbackType.NEGATIVE
         else:
             return FeedbackType.NEUTRAL
     
@@ -151,7 +154,7 @@ class ConversationAnalyzer:
         try:
             # Get user's recent memory
             query_embedding = get_embedding(db_manager, query)
-            if not query_embedding:
+            if query_embedding is None or (hasattr(query_embedding, 'size') and query_embedding.size == 0):
                 return 0.5  # Neutral score if can't get embedding
             
             recent_memories = retrieve_user_memory(db_manager, user_id, query_embedding, n_results=3)
@@ -168,11 +171,13 @@ class ConversationAnalyzer:
             for memory in recent_memories:
                 if isinstance(memory, dict) and 'text' in memory:
                     memory_words.update(memory['text'].lower().split())
+                elif isinstance(memory, str):
+                    memory_words.update(memory.lower().split())
             
             if not memory_words:
                 return 0.5
             
-            # Calculate overlap scores
+            # Calculate overlap scores safely
             query_memory_overlap = len(query_words & memory_words) / max(len(query_words), 1)
             response_memory_overlap = len(response_words & memory_words) / max(len(response_words), 1)
             
