@@ -8,7 +8,8 @@ from fastapi.responses import JSONResponse
 from typing import List, Optional
 import os
 from rag import rag_processor
-from human_logging import log_api_request, log_service_status, log_error
+from human_logging import log_api_request, log_service_status
+from error_handler import log_error
 from error_handler import get_user_friendly_message
 
 # Create router for upload endpoints

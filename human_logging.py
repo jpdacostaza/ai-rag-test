@@ -1,94 +1,182 @@
 """
-Human-readable logging for the FastAPI LLM backend.
-Provides structured, colorized logging for better observability.
+Enhanced logging configuration for human-readable logs
+Provides colored, structured, and user-friendly logging output
 """
 
 import logging
 import sys
-from logging import StreamHandler, Formatter
+import os
+from datetime import datetime
+from typing import Optional, Dict
 
-class ColorizedFormatter(Formatter):
-    """Custom formatter to add colors to log levels."""
+# --- Constants ---
+
+# Color codes for terminal output
+COLORS = {
+    'DEBUG': '\033[36m',    # Cyan
+    'INFO': '\033[32m',     # Green
+    'WARNING': '\033[33m',  # Yellow
+    'ERROR': '\033[31m',    # Red
+    'CRITICAL': '\033[35m', # Magenta
+    'RESET': '\033[0m',     # Reset
+    'BOLD': '\033[1m',      # Bold
+    'DIM': '\033[2m',       # Dim
+}
+
+# Emojis for different log levels
+EMOJIS = {
+    'DEBUG': '🔍',
+    'INFO': '✅',
+    'WARNING': '⚠️',
+    'ERROR': '❌',
+    'CRITICAL': '🚨',
+}
+
+# Icons for various services and components
+SERVICE_ICONS = {
+    'REDIS': '🔴',
+    'CHROMADB': '🟣',
+    'OLLAMA': '🤖',
+    'DATABASE': '💾',
+    'API': '🚀',
+    'HEALTH': '🏥',
+    'MEMORY': '🧠',
+    'CHAT': '💬',
+    'TOOLS': '🔧',
+    'WATCHDOG': '👀',
+    'STARTUP': '🏁',
+    'CACHE': '⚡',
+    'ERROR': '💥',
+    'NETWORK': '🌐',
+    'EMBEDDINGS': '🧠',
+}
+
+# --- Formatter ---
+
+class ColoredFormatter(logging.Formatter):
+    """Custom formatter with colors, emojis, and structured output."""
     
-    LOG_COLORS = {
-        logging.DEBUG: "\033[90m",    # Grey
-        logging.INFO: "\033[92m",     # Green
-        logging.WARNING: "\033[93m",  # Yellow
-        logging.ERROR: "\033[91m",    # Red
-        logging.CRITICAL: "\033[95m", # Magenta
-    }
-    RESET_COLOR = "\033[0m"
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.use_colors = sys.stdout.isatty()
 
-    def format(self, record):
-        log_color = self.LOG_COLORS.get(record.levelno, "")
-        record.levelname = f"{log_color}{record.levelname:8s}{self.RESET_COLOR}"
-        record.service = getattr(record, "service", "SYSTEM")
-        record.status = getattr(record, "status", "-")
-        
-        # Format the final message
-        log_format = "[%(asctime)s] [%(levelname)s] [%(service)s:%(status)s] - %(message)s"
-        formatter = logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
-        return formatter.format(record)
+    def format(self, record: logging.LogRecord) -> str:
+        """Formats a log record with colors, emojis, and contextual icons."""
+        level_name = record.levelname
+        message = record.getMessage()
+
+        if self.use_colors:
+            level_color = COLORS.get(level_name, '')
+            reset, bold, dim = COLORS['RESET'], COLORS['BOLD'], COLORS['DIM']
+        else:
+            level_color = reset = bold = dim = ''
+
+        emoji = EMOJIS.get(level_name, '📝')
+        timestamp = datetime.fromtimestamp(record.created).strftime('%H:%M:%S')
+
+        # Extract service icon from message (e.g., "[REDIS]")
+        service_icon = ''
+        for service, icon in SERVICE_ICONS.items():
+            if f'[{service}]' in message:
+                service_icon = f'{icon} '
+                message = message.replace(f'[{service}]', '').strip()
+                break
+
+        # Define format based on log level
+        log_formats = {
+            'ERROR': f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
+            'CRITICAL': f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
+            'WARNING': f"{emoji} {level_color}{timestamp}{reset} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
+            'INFO': f"{emoji} {timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
+            'DEBUG': f"{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}",
+        }
+
+        return log_formats.get(level_name, f"{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}")
+
+# --- Logger Setup ---
+
+# Singleton logger instance
+logger = logging.getLogger(__name__)
 
 class HumanLogger:
-    """Singleton logger for consistent, human-readable output."""
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(HumanLogger, cls).__new__(cls)
-            cls._instance._initialize_logger()
-        return cls._instance
-
-    def _initialize_logger(self):
-        self.logger = logging.getLogger("HumanLogger")
-        self.logger.setLevel(logging.DEBUG)
-        self.logger.propagate = False
-
-        if not self.logger.handlers:
-            handler = StreamHandler(sys.stdout)
-            handler.setFormatter(ColorizedFormatter())
-            self.logger.addHandler(handler)
-
+    """Manages the setup and configuration of the application logger."""
+    
     @staticmethod
-    def _log(level, service, status, message, *args, **kwargs):
-        """Internal log method."""
-        logger = HumanLogger().logger
-        extra = {'service': service, 'status': status}
-        logger.log(level, message, *args, extra=extra, **kwargs)
+    def setup(level: str = "INFO") -> None:
+        """
+        Set up human-readable logging for the entire application.
+        
+        Args:
+            level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        """
+        numeric_level = getattr(logging, level.upper(), logging.INFO)
+        
+        # Clear existing handlers to prevent duplicate logs
+        if logger.hasHandlers():
+            logger.handlers.clear()
 
-    @staticmethod
-    def log_service_status(service: str, status: str, message: str):
-        """Log a generic service status update."""
-        level = logging.INFO
-        if status in ["error", "failed"]: level = logging.ERROR
-        if status == "warning": level = logging.WARNING
-        HumanLogger._log(level, service.upper(), status.upper(), message)
+        logger.setLevel(numeric_level)
+        
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(numeric_level)
+        
+        # Use ColoredFormatter for TTY, otherwise a simple one
+        if sys.stdout.isatty():
+            formatter = ColoredFormatter()
+        else:
+            formatter = logging.Formatter('%(asctime)s │ %(levelname)-8s │ %(message)s', datefmt='%H:%M:%S')
+        
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
+        
+        logger.info(f"[STARTUP] 🎨 Enhanced logging initialized at level {level.upper()}")
 
-    @staticmethod
-    def log_redis_status(status: str, message: str):
-        """Log Redis-specific status."""
-        HumanLogger.log_service_status("REDIS", status, message)
+# --- Convenience Functions ---
 
-    @staticmethod
-    def log_chromadb_status(status: str, message: str):
-        """Log ChromaDB-specific status."""
-        HumanLogger.log_service_status("CHROMADB", status, message)
+def log_service_status(service: str, status: str, details: str = ""):
+    """Log service status in a consistent, structured format."""
+    status_icons = {
+        'starting': '🟡',
+        'ready': '✅',
+        'degraded': '⚠️',
+        'failed': '❌',
+        'connecting': '🔗',
+        'reconnecting': '🔄',
+    }
+    icon = status_icons.get(status.lower(), '📝')
+    message = f"[{service.upper()}] {icon} {status.title()}{f' - {details}' if details else ''}"
+    
+    log_level = 'error' if status.lower() == 'failed' else 'warning' if status.lower() == 'degraded' else 'info'
+    getattr(logger, log_level)(message)
 
-    @staticmethod
-    def log_info(service: str, message: str):
-        """Log an informational message."""
-        HumanLogger._log(logging.INFO, service.upper(), "INFO", message)
+def log_api_request(method: str, endpoint: str, status_code: int, response_time_ms: float):
+    """Log API requests with color-coded status and timing."""
+    if status_code < 400:
+        status_emoji = '✅'
+    elif 400 <= status_code < 500:
+        status_emoji = '⚠️'
+    else:
+        status_emoji = '❌'
+    logger.info(f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)")
 
-    @staticmethod
-    def log_warning(service: str, message: str):
-        """Log a warning message."""
-        HumanLogger._log(logging.WARNING, service.upper(), "WARNING", message)
+def log_chat_interaction(
+    user_id: str, 
+    message_len: int, 
+    response_len: int, 
+    tools_used: Optional[list] = None, 
+    request_id: Optional[str] = None
+):
+    """Log key details of a chat interaction."""
+    tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ''
+    req_id_info = f" [ReqID: {request_id}]" if request_id else ''
+    logger.info(f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}")
 
-    @staticmethod
-    def log_error(service: str, message: str, exc_info=False):
-        """Log an error message."""
-        HumanLogger._log(logging.ERROR, service.upper(), "ERROR", message, exc_info=exc_info)
+# --- Initialization ---
 
-# Initialize the logger instance
-human_logger = HumanLogger()
+def init_logging(level: Optional[str] = None):
+    """Initialize the enhanced logging system from environment variables or defaults."""
+    log_level = level or os.getenv('LOG_LEVEL', 'INFO')
+    HumanLogger.setup(log_level)
+
+# Initialize automatically on import
+init_logging()

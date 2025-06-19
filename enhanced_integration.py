@@ -22,7 +22,8 @@ from datetime import datetime
 from adaptive_learning import adaptive_learning_system, FeedbackType
 from enhanced_document_processing import enhanced_chunker, ChunkingStrategy, DocumentType
 from database import db_manager, index_document_chunks
-from human_logging import log_service_status, log_error
+from human_logging import log_service_status
+from error_handler import log_error
 
 # Create router for enhanced features
 enhanced_router = APIRouter(prefix="/enhanced", tags=["enhanced"])

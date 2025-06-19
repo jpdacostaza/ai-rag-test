@@ -30,7 +30,8 @@ from langchain.text_splitter import (
 from sentence_transformers import SentenceTransformer
 
 from database import db_manager, index_user_document, get_embedding
-from human_logging import log_service_status, log_error
+from human_logging import log_service_status
+from error_handler import log_error
 from error_handler import MemoryErrorHandler, safe_execute
 
 

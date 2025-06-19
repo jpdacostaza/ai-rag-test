@@ -21,7 +21,8 @@ import numpy as np
 from collections import defaultdict, deque
 
 from database import db_manager, index_document_chunks, retrieve_user_memory, get_embedding
-from human_logging import log_service_status, log_error
+from human_logging import log_service_status
+from error_handler import log_error
 from error_handler import MemoryErrorHandler, safe_execute
 
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, status
 from fastapi.responses import JSONResponse
 from enhanced_integration import submit_interaction_feedback
-from human_logging import log_error
+from error_handler import log_error
 
 feedback_router = APIRouter()
 
