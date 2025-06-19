@@ -126,10 +126,18 @@ async def startup_event():
             log_service_status("MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available")
     except Exception as e:
         log_service_status("MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}")
-    
-    # Initialize model cache on startup
+      # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
     await refresh_model_cache()
+    
+    # Initialize cache management system
+    log_service_status("STARTUP", "starting", "Initializing cache management...")
+    from init_cache import initialize_cache_management
+    cache_init_success = initialize_cache_management()
+    if cache_init_success:
+        log_service_status("CACHE", "ready", "Cache management system initialized successfully")
+    else:
+        log_service_status("CACHE", "warning", "Cache management initialization had issues")
     
     # Background services
     log_service_status("STARTUP", "starting", "Initializing background services...")
@@ -205,6 +213,14 @@ def _log_environment_variables():
 async def health_check():
     """Health check endpoint that includes database status and a human-readable summary."""
     health_status = get_database_health()
+    
+    # Add cache information
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    cache_info = {}
+    if cache_manager:
+        cache_info = cache_manager.get_cache_stats()
+    
     services = [
         ("Redis", health_status["redis"]["available"]),
         ("ChromaDB", health_status["chromadb"]["available"]),
@@ -215,11 +231,17 @@ async def health_check():
     summary = f"Health check: {healthy}/{total} services healthy. " + ", ".join([
         f"{name}: {'✅' if ok else '❌'}" for name, ok in services
     ])
-    return {
+    
+    response = {
         "status": "ok" if healthy == total else "degraded",
         "summary": summary,
         "databases": health_status
     }
+    
+    if cache_info:
+        response["cache"] = cache_info
+    
+    return response
 
 @app.get("/health/simple")
 async def simple_health():
@@ -372,13 +394,37 @@ async def call_llm(messages, model=None, api_url=None, api_key=None):
 
 async def call_ollama_llm(messages, model=None):
     """
-    Asynchronously calls the Ollama API.
+    Asynchronously calls the Ollama API using the chat endpoint for better control.
     """
     model = model or DEFAULT_MODEL
-    prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
     
-    payload = {"model": model, "prompt": prompt, "stream": False}
+    # Debug logging to see what messages are being sent
+    logging.info(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
+    
+    # Use Ollama's chat endpoint which provides better control over system prompts
+    payload = {
+        "model": model, 
+        "messages": messages, 
+        "stream": False,
+        "options": {
+            "temperature": 0.7,
+            "top_p": 0.9
+        }
+    }
     timeout = int(os.getenv("LLM_TIMEOUT", "180"))
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=timeout)
+            response.raise_for_status()
+            data = response.json()
+            return data.get("message", {}).get("content", "")
+    except httpx.RequestError as e:
+        log_service_status("OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}")
+        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
+    except httpx.HTTPStatusError as e:
+        log_service_status("OLLAMA", "failed", f"Ollama API returned an error: {e.response.status_code} - {e.response.text}")
+        raise
 
     try:
         async with httpx.AsyncClient() as client:
@@ -803,14 +849,21 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             # )
             user_response = "Wikipedia search is currently unavailable."
             tool_used = True
-            tool_name = "wikipedia"        # --- If no tool matched, use LLM with memory/context ---
-        if not tool_used:
+            tool_name = "wikipedia"        # --- If no tool matched, use LLM with memory/context ---        if not tool_used:
             def llm_query():
                 # Embed user query and retrieve relevant memory
                 query_emb = get_embedding(db_manager, user_message, request_id)
                 memory_chunks = retrieve_user_memory(db_manager, user_id, query_emb, n_results=3, request_id=request_id) if query_emb is not None else []
-                # Compose LLM context
-                system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer."
+                
+                # Compose LLM context with explicit instructions for plain text responses
+                system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
+                
+                # Check for system prompt changes and invalidate cache if needed
+                from database import get_cache_manager
+                cache_manager = get_cache_manager()
+                if cache_manager:
+                    cache_manager.check_system_prompt_change(system_prompt)
+                
                 # Ensure all memory_chunks and history_msgs are strings and handle None values
                 memory_chunks = memory_chunks or []
                 current_history_msgs = history_msgs or []
@@ -981,3 +1034,45 @@ async def log_requests(request: Request, call_next):
     response_time_ms = (end_time - start_time) * 1000
     log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
     return response
+
+# Cache Management Endpoints
+@app.get("/admin/cache/status")
+async def get_cache_status():
+    """Get cache status and statistics."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if cache_manager:
+        stats = cache_manager.get_cache_stats()
+        return {"status": "ok", "cache_stats": stats}
+    else:
+        return {"status": "error", "message": "Cache manager not available"}
+
+@app.post("/admin/cache/invalidate")
+async def invalidate_cache(cache_type: str = "chat"):
+    """Invalidate cache entries."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if not cache_manager:
+        return {"status": "error", "message": "Cache manager not available"}
+    
+    if cache_type == "chat":
+        cache_manager.invalidate_chat_cache()
+        return {"status": "ok", "message": "Chat cache invalidated"}
+    elif cache_type == "all":
+        cache_manager.invalidate_all_cache()
+        return {"status": "ok", "message": "All cache invalidated"}
+    else:
+        return {"status": "error", "message": "Invalid cache_type. Use 'chat' or 'all'"}
+
+@app.post("/admin/cache/check-prompt")
+async def check_system_prompt():
+    """Force check system prompt and invalidate cache if needed."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if not cache_manager:
+        return {"status": "error", "message": "Cache manager not available"}
+    
+    # Use the current system prompt
+    current_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
+    cache_manager.check_system_prompt_change(current_prompt)
+    return {"status": "ok", "message": "System prompt check completed"}

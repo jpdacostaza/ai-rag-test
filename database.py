@@ -14,10 +14,23 @@ from error_handler import RedisConnectionHandler, MemoryErrorHandler, safe_execu
 from human_logging import log_service_status
 import time
 from database_manager import DatabaseManager
+from cache_manager import CacheManager
 
 # Global database manager instance
 # (all methods and logic now in database_manager.py)
 db_manager = DatabaseManager()
+
+# Initialize cache manager
+_cache_manager = None
+
+def get_cache_manager():
+    """Get or initialize cache manager."""
+    global _cache_manager
+    if _cache_manager is None:
+        redis_client = db_manager.get_redis_client()
+        if redis_client:
+            _cache_manager = CacheManager(redis_client)
+    return _cache_manager
 
 # Convenience functions for backward compatibility
 def get_redis_client():
@@ -39,7 +52,12 @@ def get_database_health():
 # Database operations functions (simplified for better compatibility)
 
 def get_cache(db_manager, cache_key, user_id="", request_id=""):
-    """Get cached value from Redis with automatic retry."""
+    """Get cached value from Redis with format validation."""
+    cache_manager = get_cache_manager()
+    if cache_manager:
+        return cache_manager.get_with_validation(cache_key)
+    
+    # Fallback to direct Redis if cache manager unavailable
     def _get_cache_operation(redis_client):
         cached = redis_client.get(cache_key)
         if cached:
@@ -56,7 +74,12 @@ def get_cache(db_manager, cache_key, user_id="", request_id=""):
     )
 
 def set_cache(db_manager, cache_key, value, ttl=600, user_id="", request_id=""):
-    """Set cached value in Redis with automatic retry."""
+    """Set cached value in Redis with format validation."""
+    cache_manager = get_cache_manager()
+    if cache_manager:
+        return cache_manager.set_with_validation(cache_key, value, ttl)
+    
+    # Fallback to direct Redis if cache manager unavailable
     def _set_cache_operation(redis_client):
         redis_client.setex(cache_key, ttl, value)
         logging.debug(f"[CACHE] SET for key: {cache_key}")
