@@ -2,21 +2,19 @@
 Missing endpoints router for configuration, session management, and basic functionality
 """
 
-from fastapi import APIRouter, HTTPException, Body, UploadFile, File, Form
-from typing import Optional, Dict, Any
 import json
 import os
-import time
 import uuid
 from datetime import datetime
-import logging
 
-from human_logging import log_api_request, log_service_status
+from fastapi import APIRouter, Body, HTTPException
+
+from database import get_cache, get_database_health, set_cache
 from error_handler import log_error
-from database import get_cache, set_cache, get_database_health
 
 # Create router for missing endpoints
 missing_router = APIRouter(tags=["missing_endpoints"])
+
 
 # Configuration Management Endpoints
 @missing_router.get("/config")
@@ -36,13 +34,14 @@ async def get_config():
                 "ai_tools": True,
                 "cache_management": True,
                 "adaptive_learning": True,
-                "rag": True
-            }
+                "rag": True,
+            },
         }
         return config
     except Exception as e:
         log_error(e, "get_config")
         raise HTTPException(status_code=500, detail="Failed to retrieve configuration")
+
 
 @missing_router.put("/config")
 async def update_config(config_update: dict = Body(...)):
@@ -52,11 +51,12 @@ async def update_config(config_update: dict = Body(...)):
             "success": True,
             "message": "Configuration updated successfully",
             "updated_fields": list(config_update.keys()),
-            "config": config_update
+            "config": config_update,
         }
     except Exception as e:
         log_error(e, "update_config")
         raise HTTPException(status_code=500, detail="Failed to update configuration")
+
 
 # Persona Management Endpoints
 @missing_router.get("/persona")
@@ -65,7 +65,7 @@ async def get_persona():
     try:
         persona_file = "persona.json"
         if os.path.exists(persona_file):
-            with open(persona_file, 'r', encoding='utf-8') as f:
+            with open(persona_file, "r", encoding="utf-8") as f:
                 persona_data = json.load(f)
             return persona_data
         else:
@@ -74,11 +74,12 @@ async def get_persona():
                 "role": "Helpful AI Assistant",
                 "personality": "Professional and friendly",
                 "capabilities": ["chat", "document_processing", "tool_usage"],
-                "response_style": "Natural language responses"
+                "response_style": "Natural language responses",
             }
     except Exception as e:
         log_error(e, "get_persona")
         raise HTTPException(status_code=500, detail="Failed to retrieve persona")
+
 
 @missing_router.put("/persona")
 async def update_persona(persona_update: dict = Body(...)):
@@ -87,13 +88,15 @@ async def update_persona(persona_update: dict = Body(...)):
         return {
             "success": True,
             "message": "Persona updated successfully",
-            "persona": persona_update
+            "persona": persona_update,
         }
     except Exception as e:
         log_error(e, "update_persona")
         raise HTTPException(status_code=500, detail="Failed to update persona")
 
+
 # Note: Document upload is handled by upload.py router (/upload/document)
+
 
 # RAG Query Endpoint
 @missing_router.post("/rag/query")
@@ -103,22 +106,23 @@ async def rag_query(query_data: dict = Body(...)):
         query = query_data.get("query")
         user_id = query_data.get("user_id")
         max_results = query_data.get("max_results", 5)
-        
+
         if not query:
             raise HTTPException(status_code=400, detail="query is required")
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
-        
+
         # Use actual RAG processor for real document retrieval
         try:
             from rag import rag_processor
+
             results = await rag_processor.semantic_search(query, user_id, max_results)
-            
+
             return {
                 "query": query,
                 "user_id": user_id,
                 "results": results,
-                "total_found": len(results)
+                "total_found": len(results),
             }
         except Exception as rag_error:
             log_error(rag_error, "rag_query_processor")
@@ -128,22 +132,26 @@ async def rag_query(query_data: dict = Body(...)):
                     "content": f"Mock result for query: {query}",
                     "score": 0.8,
                     "document_id": f"mock_{user_id}_1",
-                    "metadata": {"source": "fallback_mock_data", "note": "RAG processor unavailable"}
+                    "metadata": {
+                        "source": "fallback_mock_data",
+                        "note": "RAG processor unavailable",
+                    },
                 }
             ]
-            
+
             return {
                 "query": query,
                 "user_id": user_id,
                 "results": results[:max_results],
                 "total_found": len(results),
-                "warning": "Using fallback mock data - RAG processor unavailable"
+                "warning": "Using fallback mock data - RAG processor unavailable",
             }
     except HTTPException:
         raise
     except Exception as e:
         log_error(e, "rag_query")
         raise HTTPException(status_code=500, detail="RAG query failed")
+
 
 # Adaptive Learning Stats Endpoint
 @missing_router.get("/adaptive/stats")
@@ -155,19 +163,20 @@ async def get_adaptive_stats():
             "active_users": 23,
             "learning_models": {
                 "user_preference_model": "active",
-                "response_quality_model": "active", 
-                "topic_affinity_model": "training"
+                "response_quality_model": "active",
+                "topic_affinity_model": "training",
             },
             "performance_metrics": {
                 "avg_response_quality": 4.2,
                 "user_satisfaction": 87.5,
-                "learning_accuracy": 92.1
+                "learning_accuracy": 92.1,
             },
-            "last_updated": datetime.now().isoformat()
+            "last_updated": datetime.now().isoformat(),
         }
     except Exception as e:
         log_error(e, "get_adaptive_stats")
         raise HTTPException(status_code=500, detail="Failed to retrieve adaptive stats")
+
 
 # Learning System Endpoints
 @missing_router.get("/learning/health")
@@ -181,8 +190,8 @@ async def learning_health():
             "components": {
                 "feedback_collection": True,
                 "adaptive_learning": True,
-                "user_preferences": True
-            }
+                "user_preferences": True,
+            },
         }
     except Exception as e:
         log_error(e, "learning_health")
@@ -190,35 +199,38 @@ async def learning_health():
             "service": "Learning System",
             "status": "error",
             "timestamp": datetime.now().isoformat(),
-            "error": str(e)
+            "error": str(e),
         }
+
 
 @missing_router.post("/learning/submit")
 async def submit_learning_data(learning_data: dict = Body(...)):
     """Submit learning data for adaptive learning"""
     try:
         required_fields = ["user_id", "interaction_type"]
-        missing_fields = [field for field in required_fields if field not in learning_data]
-        
+        missing_fields = [
+            field for field in required_fields if field not in learning_data
+        ]
+
         if missing_fields:
             raise HTTPException(
-                status_code=400,
-                detail=f"Missing required fields: {missing_fields}"
+                status_code=400, detail=f"Missing required fields: {missing_fields}"
             )
-        
+
         learning_id = str(uuid.uuid4())
-        
+
         return {
             "success": True,
             "learning_id": learning_id,
             "message": "Learning data submitted successfully",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
     except HTTPException:
         raise
     except Exception as e:
         log_error(e, "submit_learning_data")
         raise HTTPException(status_code=500, detail="Failed to submit learning data")
+
 
 @missing_router.get("/learning/insights/{user_id}")
 async def get_learning_insights(user_id: str):
@@ -230,16 +242,19 @@ async def get_learning_insights(user_id: str):
                 "interaction_count": 45,
                 "preferred_topics": ["AI", "technology", "programming"],
                 "response_quality_avg": 4.2,
-                "last_interaction": datetime.now().isoformat()
+                "last_interaction": datetime.now().isoformat(),
             },
             "recommendations": [
                 "User prefers detailed technical explanations",
-                "Responds well to examples and code snippets"
-            ]
+                "Responds well to examples and code snippets",
+            ],
         }
     except Exception as e:
         log_error(e, "get_learning_insights")
-        raise HTTPException(status_code=500, detail="Failed to retrieve learning insights")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve learning insights"
+        )
+
 
 @missing_router.post("/learning/recommendations")
 async def get_adaptive_recommendations(request_data: dict = Body(...)):
@@ -247,27 +262,30 @@ async def get_adaptive_recommendations(request_data: dict = Body(...)):
     try:
         user_id = request_data.get("user_id")
         context = request_data.get("context", "general")
-        
+
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
-        
+
         recommendations = {
             "user_id": user_id,
             "context": context,
             "recommendations": [
                 f"Based on your interest in {context}, you might like exploring related topics",
                 "Consider using document upload for better context",
-                "Try using AI tools for enhanced functionality"
+                "Try using AI tools for enhanced functionality",
             ],
-            "next_topics": ["advanced_features", "optimization", "best_practices"]
+            "next_topics": ["advanced_features", "optimization", "best_practices"],
         }
-        
+
         return recommendations
     except HTTPException:
         raise
     except Exception as e:
         log_error(e, "get_adaptive_recommendations")
-        raise HTTPException(status_code=500, detail="Failed to generate recommendations")
+        raise HTTPException(
+            status_code=500, detail="Failed to generate recommendations"
+        )
+
 
 # Session Management Endpoints
 @missing_router.post("/session/init")
@@ -277,24 +295,25 @@ async def initialize_session(session_data: dict = Body(...)):
         user_id = session_data.get("user_id")
         if not user_id:
             raise HTTPException(status_code=400, detail="user_id is required")
-        
+
         session_id = str(uuid.uuid4())
-        
+
         session_info = {
             "session_id": session_id,
             "user_id": user_id,
             "created_at": datetime.now().isoformat(),
             "session_type": session_data.get("session_type", "general"),
             "preferences": session_data.get("preferences", {}),
-            "status": "active"
+            "status": "active",
         }
-        
+
         return session_info
     except HTTPException:
         raise
     except Exception as e:
         log_error(e, "initialize_session")
         raise HTTPException(status_code=500, detail="Failed to initialize session")
+
 
 @missing_router.get("/session/summary/{session_id}")
 async def get_session_summary(session_id: str):
@@ -307,14 +326,17 @@ async def get_session_summary(session_id: str):
                 "messages_exchanged": 12,
                 "documents_uploaded": 1,
                 "tools_used": ["weather", "time"],
-                "topics_discussed": ["AI", "technology", "development"]
+                "topics_discussed": ["AI", "technology", "development"],
             },
             "status": "active",
-            "last_activity": datetime.now().isoformat()
+            "last_activity": datetime.now().isoformat(),
         }
     except Exception as e:
         log_error(e, "get_session_summary")
-        raise HTTPException(status_code=500, detail="Failed to retrieve session summary")
+        raise HTTPException(
+            status_code=500, detail="Failed to retrieve session summary"
+        )
+
 
 # Cache Performance Endpoints
 @missing_router.post("/cache/set")
@@ -324,21 +346,18 @@ async def cache_set(cache_data: dict = Body(...)):
         key = cache_data.get("key")
         value = cache_data.get("value")
         ttl = cache_data.get("ttl", 300)
-        
+
         if not key:
             raise HTTPException(status_code=400, detail="key is required")
         if value is None:
             raise HTTPException(status_code=400, detail="value is required")
-        
+
         from database import db_manager
+
         success = set_cache(db_manager, key, value, ttl)
-        
+
         if success:
-            return {
-                "success": True,
-                "message": f"Cache set for key: {key}",
-                "ttl": ttl
-            }
+            return {"success": True, "message": f"Cache set for key: {key}", "ttl": ttl}
         else:
             raise HTTPException(status_code=500, detail="Failed to set cache")
     except HTTPException:
@@ -347,46 +366,46 @@ async def cache_set(cache_data: dict = Body(...)):
         log_error(e, "cache_set")
         raise HTTPException(status_code=500, detail="Cache set operation failed")
 
+
 @missing_router.get("/cache/get/{key}")
 async def cache_get(key: str):
     """Get cache value by key"""
     try:
         from database import db_manager
+
         value = get_cache(db_manager, cache_key=key)
-        
+
         if value is not None:
-            return {
-                "success": True,
-                "key": key,
-                "value": value,
-                "cached": True
-            }
+            return {"success": True, "key": key, "value": value, "cached": True}
         else:
             return {
                 "success": False,
                 "key": key,
                 "message": "Key not found in cache",
-                "cached": False
+                "cached": False,
             }
     except Exception as e:
         log_error(e, "cache_get")
         raise HTTPException(status_code=500, detail="Cache get operation failed")
+
 
 @missing_router.delete("/cache/delete/{key}")
 async def cache_delete(key: str):
     """Delete cache value by key"""
     try:
         import redis
+
         from database import db_manager
-        if db_manager and hasattr(db_manager, 'redis_pool') and db_manager.redis_pool:
+
+        if db_manager and hasattr(db_manager, "redis_pool") and db_manager.redis_pool:
             redis_client = redis.Redis(connection_pool=db_manager.redis_pool)
             result = redis_client.delete(key)
-            
+
             return {
                 "success": True,
                 "key": key,
                 "deleted": bool(result),
-                "message": f"{'Deleted' if result else 'Key not found'}"
+                "message": f"{'Deleted' if result else 'Key not found'}",
             }
         else:
             raise HTTPException(status_code=500, detail="Redis not available")
@@ -394,19 +413,21 @@ async def cache_delete(key: str):
         log_error(e, "cache_delete")
         raise HTTPException(status_code=500, detail="Cache delete operation failed")
 
+
 @missing_router.get("/cache/stats")
 async def cache_stats():
     """Get cache statistics"""
     try:
         from database import get_cache_manager
+
         cache_manager = get_cache_manager()
-        
+
         if cache_manager:
             stats = cache_manager.get_cache_stats()
             return {
                 "success": True,
                 "stats": stats,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             # Fallback stats
@@ -416,13 +437,14 @@ async def cache_stats():
                     "total_keys": 23,
                     "hit_rate": 0.75,
                     "memory_usage": "1.18M",
-                    "version": "v2.0.0"
+                    "version": "v2.0.0",
                 },
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
     except Exception as e:
         log_error(e, "cache_stats")
         raise HTTPException(status_code=500, detail="Failed to retrieve cache stats")
+
 
 # Storage Management Endpoints
 @missing_router.get("/storage/health")
@@ -436,17 +458,18 @@ async def storage_health():
             "components": {
                 "file_storage": True,
                 "redis_persistence": True,
-                "backup_system": True
-            }
+                "backup_system": True,
+            },
         }
     except Exception as e:
         log_error(e, "storage_health")
         return {
-            "service": "Storage System", 
+            "service": "Storage System",
             "status": "error",
             "timestamp": datetime.now().isoformat(),
-            "error": str(e)
+            "error": str(e),
         }
+
 
 @missing_router.get("/storage/stats")
 async def storage_stats():
@@ -457,18 +480,15 @@ async def storage_stats():
                 "total_space": "100GB",
                 "used_space": "2.3GB",
                 "available_space": "97.7GB",
-                "usage_percentage": 2.3
+                "usage_percentage": 2.3,
             },
-            "file_counts": {
-                "documents": 15,
-                "cache_files": 89,
-                "logs": 234
-            },
-            "last_backup": datetime.now().isoformat()
+            "file_counts": {"documents": 15, "cache_files": 89, "logs": 234},
+            "last_backup": datetime.now().isoformat(),
         }
     except Exception as e:
         log_error(e, "storage_stats")
         raise HTTPException(status_code=500, detail="Failed to retrieve storage stats")
+
 
 @missing_router.post("/storage/store")
 async def storage_store(store_data: dict = Body(...)):
@@ -476,21 +496,22 @@ async def storage_store(store_data: dict = Body(...)):
     try:
         key = store_data.get("key")
         value = store_data.get("value")
-        
+
         if not key:
             raise HTTPException(status_code=400, detail="key is required")
         if value is None:
             raise HTTPException(status_code=400, detail="value is required")
-        
+
         from database import db_manager
+
         success = set_cache(db_manager, key, value, 3600)  # 1 hour TTL
-        
+
         if success:
             return {
                 "success": True,
-                "message": f"Data stored successfully",
+                "message": "Data stored successfully",
                 "key": key,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             raise HTTPException(status_code=500, detail="Failed to store data")
@@ -500,19 +521,21 @@ async def storage_store(store_data: dict = Body(...)):
         log_error(e, "storage_store")
         raise HTTPException(status_code=500, detail="Storage operation failed")
 
+
 @missing_router.get("/storage/retrieve/{key}")
 async def storage_retrieve(key: str):
     """Retrieve data from storage system"""
     try:
         from database import db_manager
+
         value = get_cache(db_manager, cache_key=key)
-        
+
         if value is not None:
             return {
                 "success": True,
                 "key": key,
                 "value": value,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         else:
             raise HTTPException(status_code=404, detail="Key not found in storage")
@@ -522,6 +545,7 @@ async def storage_retrieve(key: str):
         log_error(e, "storage_retrieve")
         raise HTTPException(status_code=500, detail="Storage retrieval failed")
 
+
 # Database Health Endpoints
 @missing_router.get("/database/health")
 async def database_health():
@@ -530,15 +554,17 @@ async def database_health():
         db_health = get_database_health()
         return {
             "service": "Database System",
-            "status": "healthy" if db_health.get("redis", {}).get("available") else "degraded",
+            "status": (
+                "healthy" if db_health.get("redis", {}).get("available") else "degraded"
+            ),
             "timestamp": datetime.now().isoformat(),
-            "details": db_health
+            "details": db_health,
         }
     except Exception as e:
         log_error(e, "database_health")
         return {
             "service": "Database System",
-            "status": "error", 
+            "status": "error",
             "timestamp": datetime.now().isoformat(),
-            "error": str(e)
+            "error": str(e),
         }

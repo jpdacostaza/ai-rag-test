@@ -1,0 +1,139 @@
+{
+  "total_tests": 8,
+  "passed": 6,
+  "failed": 2,
+  "start_time": "2025-06-19T18:52:08.108353",
+  "tests": [
+    {
+      "name": "Service Health Check",
+      "success": true,
+      "details": "All services healthy",
+      "response_time": 0.024115800857543945,
+      "timestamp": "2025-06-19T18:52:08.132469",
+      "data": {
+        "status": "ok",
+        "summary": "Health check: 3/3 services healthy. Redis: \u2705, ChromaDB: \u2705, Embeddings: \u2705",
+        "databases": {
+          "redis": {
+            "available": true
+          },
+          "chromadb": {
+            "available": true,
+            "client": true,
+            "collection": true
+          },
+          "embeddings": {
+            "available": true,
+            "model": true
+          }
+        },
+        "cache": {
+          "version": "v2.0.0",
+          "cache_counts": {
+            "chat": 7,
+            "history": 0,
+            "other": 4
+          },
+          "memory_usage": "1.14M",
+          "connected_clients": 2,
+          "total_keys": 11
+        }
+      }
+    },
+    {
+      "name": "Cache Operations",
+      "success": true,
+      "details": "Cache set and get successful",
+      "response_time": 0.014407634735107422,
+      "timestamp": "2025-06-19T18:52:08.163166",
+      "data": {
+        "success": true,
+        "key": "test_simulation_key",
+        "value": "real_life_test_value",
+        "cached": true
+      }
+    },
+    {
+      "name": "Document Upload",
+      "success": false,
+      "details": "Upload failed: {\"detail\":\"Not Found\"}",
+      "response_time": 0.01497650146484375,
+      "timestamp": "2025-06-19T18:52:08.178658",
+      "data": null
+    },
+    {
+      "name": "RAG Query",
+      "success": true,
+      "details": "RAG query successful",
+      "response_time": 0.19468069076538086,
+      "timestamp": "2025-06-19T18:52:08.373339",
+      "data": {
+        "query": "What is the system architecture?",
+        "user_id": "test_user_simulation",
+        "results": [],
+        "total_found": 0
+      }
+    },
+    {
+      "name": "LLM Chat",
+      "success": true,
+      "details": "Chat completion successful",
+      "response_time": 0.0042078495025634766,
+      "timestamp": "2025-06-19T18:52:08.377546",
+      "data": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1750351928,
+        "model": "llama3.2:3b",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "<coroutine object call_llm at 0x7fea8d34bb40>"
+            },
+            "finish_reason": "stop"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Models Endpoint",
+      "success": true,
+      "details": "Retrieved 0 models",
+      "response_time": 0.037421464920043945,
+      "timestamp": "2025-06-19T18:52:08.416944",
+      "data": {
+        "object": "list",
+        "data": []
+      }
+    },
+    {
+      "name": "Learning System",
+      "success": false,
+      "details": "Learning submission failed: {\"detail\":\"Missing required fields: ['interaction_type']\"}",
+      "response_time": 0.0036978721618652344,
+      "timestamp": "2025-06-19T18:52:08.420642",
+      "data": null
+    },
+    {
+      "name": "Storage Health",
+      "success": true,
+      "details": "Storage health check successful",
+      "response_time": 0.003156423568725586,
+      "timestamp": "2025-06-19T18:52:08.423799",
+      "data": {
+        "service": "Storage System",
+        "status": "healthy",
+        "timestamp": "2025-06-19T16:52:08.423823",
+        "components": {
+          "file_storage": true,
+          "redis_persistence": true,
+          "backup_system": true
+        }
+      }
+    }
+  ],
+  "end_time": "2025-06-19T18:52:08.423799",
+  "duration": 0.315446
+}

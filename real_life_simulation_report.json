@@ -1,0 +1,244 @@
+{
+  "total_tests": 10,
+  "passed": 4,
+  "failed": 6,
+  "start_time": "2025-06-19T18:50:03.354850",
+  "tests": [
+    {
+      "name": "Service Health Check",
+      "success": true,
+      "details": "All services healthy",
+      "response_time": 0.00564122200012207,
+      "timestamp": "2025-06-19T18:50:18.390537",
+      "data": {
+        "status": "ok",
+        "summary": "Health check: 3/3 services healthy. Redis: \u2705, ChromaDB: \u2705, Embeddings: \u2705",
+        "databases": {
+          "redis": {
+            "available": true
+          },
+          "chromadb": {
+            "available": true,
+            "client": true,
+            "collection": true
+          },
+          "embeddings": {
+            "available": true,
+            "model": true
+          }
+        },
+        "cache": {
+          "version": "v2.0.0",
+          "cache_counts": {
+            "chat": 0,
+            "history": 0,
+            "other": 3
+          },
+          "memory_usage": "1.12M",
+          "connected_clients": 2,
+          "total_keys": 3
+        }
+      }
+    },
+    {
+      "name": "Redis Cache Operations",
+      "success": true,
+      "details": "Cache set and get successful",
+      "response_time": 0.02028059959411621,
+      "timestamp": "2025-06-19T18:50:18.428533",
+      "data": {
+        "success": true,
+        "key": "test_simulation_key",
+        "value": "real_life_test_value",
+        "cached": true
+      }
+    },
+    {
+      "name": "Document Processing",
+      "success": false,
+      "details": "Upload failed: {\"detail\":\"Not Found\"}",
+      "response_time": 0.013169288635253906,
+      "timestamp": "2025-06-19T18:50:18.443818",
+      "data": null
+    },
+    {
+      "name": "RAG Query Processing",
+      "success": false,
+      "details": "RAG query failed: {\"detail\":\"user_id is required\"}",
+      "response_time": 0.003110647201538086,
+      "timestamp": "2025-06-19T18:50:18.449552",
+      "data": null
+    },
+    {
+      "name": "LLM Chat Completion",
+      "success": true,
+      "details": "Generated response with 45 characters",
+      "response_time": 0.2283632755279541,
+      "timestamp": "2025-06-19T18:50:18.680112",
+      "data": {
+        "id": "chatcmpl-1",
+        "object": "chat.completion",
+        "created": 1750351818,
+        "model": "llama3.2:3b",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "<coroutine object call_llm at 0x7feaf0123340>"
+            },
+            "finish_reason": "stop"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Weather Tool",
+      "success": false,
+      "details": "Weather tool failed: {\"detail\":\"Not Found\"}",
+      "response_time": 0.02421426773071289,
+      "timestamp": "2025-06-19T18:50:18.706414",
+      "data": null
+    },
+    {
+      "name": "Adaptive Learning Feedback",
+      "success": false,
+      "details": "Feedback submission failed: {\"detail\":\"Not Found\"}",
+      "response_time": 0.014046192169189453,
+      "timestamp": "2025-06-19T18:50:18.722549",
+      "data": null
+    },
+    {
+      "name": "Performance Metrics",
+      "success": false,
+      "details": "Metrics failed: {\"detail\":\"Not Found\"}",
+      "response_time": 0.028398513793945312,
+      "timestamp": "2025-06-19T18:50:18.754133",
+      "data": null
+    },
+    {
+      "name": "Concurrent Request Handling",
+      "success": true,
+      "details": "5/5 requests successful",
+      "response_time": 0.9549202919006348,
+      "timestamp": "2025-06-19T18:50:20.068097",
+      "data": [
+        {
+          "request_id": 0,
+          "status": 200,
+          "success": true,
+          "response": {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1750351819,
+            "model": "llama3.2:3b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "<coroutine object call_llm at 0x7fea8d3c3140>"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          }
+        },
+        {
+          "request_id": 1,
+          "status": 200,
+          "success": true,
+          "response": {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1750351819,
+            "model": "llama3.2:3b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "<coroutine object call_llm at 0x7fea8d3c2040>"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          }
+        },
+        {
+          "request_id": 2,
+          "status": 200,
+          "success": true,
+          "response": {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1750351819,
+            "model": "llama3.2:3b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "<coroutine object call_llm at 0x7fea8d349c40>"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          }
+        },
+        {
+          "request_id": 3,
+          "status": 200,
+          "success": true,
+          "response": {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1750351820,
+            "model": "llama3.2:3b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "<coroutine object call_llm at 0x7fea8d34bb40>"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          }
+        },
+        {
+          "request_id": 4,
+          "status": 200,
+          "success": true,
+          "response": {
+            "id": "chatcmpl-1",
+            "object": "chat.completion",
+            "created": 1750351819,
+            "model": "llama3.2:3b",
+            "choices": [
+              {
+                "index": 0,
+                "message": {
+                  "role": "assistant",
+                  "content": "<coroutine object call_llm at 0x7fea8d34bd40>"
+                },
+                "finish_reason": "stop"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication Error Handling",
+      "success": false,
+      "details": "Unexpected response to invalid API key: 200",
+      "response_time": 0.025284528732299805,
+      "timestamp": "2025-06-19T18:50:20.095422",
+      "data": null
+    }
+  ],
+  "end_time": "2025-06-19T18:50:20.095422",
+  "duration": 16.740572
+}

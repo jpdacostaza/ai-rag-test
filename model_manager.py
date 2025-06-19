@@ -1,11 +1,10 @@
-from fastapi import APIRouter, HTTPException, Query, Depends
-from typing import List, Optional, Dict, Any
-import os
-import shutil
-import httpx
-import time
-import asyncio
 import logging
+import os
+import time
+from typing import Any, Dict
+
+import httpx
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(tags=["Model Management"])
 
@@ -17,10 +16,11 @@ CUSTOM_MODEL_DIR = os.path.abspath("storage/models")
 _model_cache: Dict[str, Any] = {
     "data": [],
     "last_updated": 0,
-    "ttl": 300  # 5 minutes
+    "ttl": 300,  # 5 minutes
 }
 
 # --- Helper Functions ---
+
 
 async def refresh_model_cache(force: bool = False) -> None:
     """
@@ -28,7 +28,9 @@ async def refresh_model_cache(force: bool = False) -> None:
     """
     global _model_cache
     current_time = time.time()
-    if not force and (current_time - _model_cache["last_updated"] < _model_cache["ttl"]):
+    if not force and (
+        current_time - _model_cache["last_updated"] < _model_cache["ttl"]
+    ):
         return
 
     logging.info("[MODELS] Refreshing model cache...")
@@ -42,35 +44,46 @@ async def refresh_model_cache(force: bool = False) -> None:
                 {
                     "id": model["name"],
                     "object": "model",
-                    "created": int(time.time()),  # Use current timestamp instead of parsing
-                    "owned_by": "ollama"
-                } for model in models_data
+                    "created": int(
+                        time.time()
+                    ),  # Use current timestamp instead of parsing
+                    "owned_by": "ollama",
+                }
+                for model in models_data
             ]
-        logging.info(f"[MODELS] Successfully fetched {len(ollama_models)} models from Ollama.")
+        logging.info(
+            f"[MODELS] Successfully fetched {len(ollama_models)} models from Ollama."
+        )
     except httpx.RequestError as e:
         logging.error(f"[MODELS] Failed to connect to Ollama to refresh models: {e}")
     except Exception as e:
-        logging.error(f"[MODELS] An unexpected error occurred while fetching Ollama models: {e}")
+        logging.error(
+            f"[MODELS] An unexpected error occurred while fetching Ollama models: {e}"
+        )
 
     # Combine with local models (if any)
     # custom_models = list_models_in_dir(CUSTOM_MODEL_DIR) # You can extend this
-    
+
     _model_cache["data"] = ollama_models
     _model_cache["last_updated"] = time.time()
+
 
 async def ensure_model_available(model_name: str) -> bool:
     """
     Checks if a model is available in the cache. Refreshes if cache is stale.
     """
-    await refresh_model_cache() # Refresh if stale
+    await refresh_model_cache()  # Refresh if stale
     return any(model["id"] == model_name for model in _model_cache["data"])
 
+
 # --- API Endpoints ---
+
 
 @router.on_event("startup")
 async def on_startup():
     """Initial model cache population on startup."""
     await refresh_model_cache(force=True)
+
 
 @router.get("/models", response_model=Dict[str, Any])
 async def list_available_models():
@@ -79,16 +92,15 @@ async def list_available_models():
     Refreshes the cache if it is expired.
     """
     await refresh_model_cache()
-    return {
-        "object": "list",
-        "data": _model_cache["data"]
-    }
+    return {"object": "list", "data": _model_cache["data"]}
+
 
 @router.post("/models/refresh")
 async def force_refresh_models():
     """Forces an immediate refresh of the model cache."""
     await refresh_model_cache(force=True)
     return {"status": "refreshed", "models_found": len(_model_cache["data"])}
+
 
 @router.get("/models/{model_name}")
 async def get_model_details(model_name: str):
@@ -99,19 +111,30 @@ async def get_model_details(model_name: str):
         raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found.")
     return model_info
 
+
 @router.delete("/models/{model_name}")
 async def delete_model(model_name: str):
     """Deletes a model from Ollama."""
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.request("DELETE", f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name})
+            resp = await client.request(
+                "DELETE",
+                f"{OLLAMA_BASE_URL}/api/delete",
+                json={"name": model_name},
+            )
             resp.raise_for_status()
-        await refresh_model_cache(force=True) # Refresh cache after deletion
+        await refresh_model_cache(force=True)  # Refresh cache after deletion
         return {"status": "deleted", "model": model_name}
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in Ollama.")
+            raise HTTPException(
+                status_code=404,
+                detail=f"Model '{model_name}' not found in Ollama.",
+            )
         else:
-            raise HTTPException(status_code=500, detail=f"Failed to delete model from Ollama: {e.response.text}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to delete model from Ollama: {e.response.text}",
+            )
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect to Ollama: {e}")

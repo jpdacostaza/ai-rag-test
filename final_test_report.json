@@ -1,0 +1,48 @@
+{
+  "timestamp": "2025-06-19T19:05:32.116453",
+  "duration": 0.7317941188812256,
+  "status": "PRODUCTION_READY",
+  "success_rate": 87.5,
+  "results": [
+    {
+      "name": "Docker Container Status",
+      "status": "FAILED",
+      "duration": 0.1519453525543213
+    },
+    {
+      "name": "Health Endpoint",
+      "status": "PASSED",
+      "duration": 0.009237289428710938
+    },
+    {
+      "name": "Cache Functionality",
+      "status": "PASSED",
+      "duration": 0.007820367813110352
+    },
+    {
+      "name": "Models Endpoint",
+      "status": "PASSED",
+      "duration": 0.05217623710632324
+    },
+    {
+      "name": "Ollama Model Availability",
+      "status": "PASSED",
+      "duration": 0.11424875259399414
+    },
+    {
+      "name": "Chat Completion",
+      "status": "PASSED",
+      "duration": 0.20022368431091309
+    },
+    {
+      "name": "RAG Query Processing",
+      "status": "PASSED",
+      "duration": 0.19034790992736816
+    },
+    {
+      "name": "Web Interface",
+      "status": "PASSED",
+      "duration": 0.0052683353424072266
+    }
+  ]
+}

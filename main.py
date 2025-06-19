@@ -1,58 +1,76 @@
-from fastapi import FastAPI, Request, Body
-from fastapi.responses import StreamingResponse, JSONResponse
+import asyncio
+import itertools
+import json
 import logging
+import os
+import re
+import sys
 import time
 import uuid
-import asyncio
-import os
-import sys
-import itertools
-import httpx
-import re
-import json
-from datetime import datetime
 from dataclasses import asdict
-from typing import Optional
+from datetime import datetime
+
+import httpx
+from fastapi import Body, FastAPI, Request
+from fastapi.responses import StreamingResponse
+
+from core.database import (
+    db_manager,
+    get_cache,
+    get_chat_history,
+    get_database_health,
+    get_embedding,
+    index_user_document,
+    retrieve_user_memory,
+    set_cache,
+    store_chat_history,
+)
+from core.error_handler import (
+    CacheErrorHandler,
+    ChatErrorHandler,
+    MemoryErrorHandler,
+    ToolErrorHandler,
+    log_error,
+    safe_execute,
+)
+from core.schemas import ChatRequest, ChatResponse
 
 # Initialize human-readable logging
-from human_logging import init_logging, log_service_status, log_api_request
+from human_logging import init_logging, log_api_request, log_service_status
+from managers.health_manager import health_router
+from managers.llm_manager import STREAM_SESSION_STOP, call_llm, call_llm_stream
+from managers.model_manager import ensure_model_available, refresh_model_cache
+from managers.model_manager import router as model_manager_router
+from managers.startup_manager import startup_manager
+from routers.enhanced_integration import (
+    enhanced_router,
+    start_enhanced_background_tasks,
+)
+from routers.feedback_router import feedback_router
+from routers.missing_endpoints import missing_router
+from routers.upload import upload_router
+from utils.ai_tools import convert_units, get_current_time, get_weather
+from utils.middleware_new import AuthenticationMiddleware
+from utils.watchdog import get_health_status, get_watchdog, start_watchdog_service
+
 init_logging(level="INFO")
 
-# Import AI tools
-from utils.ai_tools import get_current_time, get_weather, convert_units
+# Import existing modules
 
 # Import modular components
-from core.schemas import ChatRequest, ChatResponse
-from managers.health_manager import health_router
-from managers.startup_manager import startup_manager
-from routers.tool_router import tool_router
-from managers.llm_manager import call_llm, call_llm_stream, stop_streaming_session, STREAM_SESSION_STOP
 
-# Import existing modules
-from core.database import (
-    db_manager, 
-    get_cache, set_cache, 
-    store_chat_history, get_chat_history, 
-    index_user_document, retrieve_user_memory, 
-    get_embedding, get_database_health
-)
-from core.error_handler import ErrorHandler, ChatErrorHandler, ToolErrorHandler, CacheErrorHandler, MemoryErrorHandler, safe_execute, log_error
-from utils.watchdog import get_watchdog, start_watchdog_service, get_health_status
-from utils.middleware_new import AuthenticationMiddleware
-from routers.upload import upload_router
-from routers.enhanced_integration import enhanced_router, start_enhanced_background_tasks
-from routers.feedback_router import feedback_router
-from managers.model_manager import router as model_manager_router, refresh_model_cache, _model_cache, ensure_model_available
-from routers.missing_endpoints import missing_router
+# Import AI tools
 
 app = FastAPI()
 
-# Directly add the authentication middleware for debugging
+# Add authentication middleware with proper initialization
 app.add_middleware(AuthenticationMiddleware)
 
 # Log middleware setup completion
-from human_logging import log_service_status
-log_service_status("MIDDLEWARE", "ready", "Authentication middleware directly added to app")
+log_service_status(
+    "MIDDLEWARE", "ready", "Authentication middleware directly added to app"
+)
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -63,8 +81,14 @@ async def log_requests(request: Request, call_next):
     response = await call_next(request)
     end_time = time.time()
     response_time_ms = (end_time - start_time) * 1000
-    log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
+    log_api_request(
+        request.method,
+        request.url.path,
+        response.status_code,
+        response_time_ms,
+    )
     return response
+
 
 app.include_router(model_manager_router)
 app.include_router(missing_router)
@@ -73,7 +97,7 @@ app.include_router(upload_router)
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
 
-# Model configuration  
+# Model configuration
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
@@ -81,9 +105,10 @@ USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
 # Global variable to store watchdog thread
 watchdog_thread = None
 
+
 async def _spinner_log(message, duration=2, interval=0.2):
     """Show a spinner/progress animation in the logs for a given duration."""
-    spinner = itertools.cycle(['|', '/', '-', '\\'])
+    spinner = itertools.cycle(["|", "/", "-", "\\"])
     steps = int(duration / interval)
     for _ in range(steps):
         sys.stdout.write(f"\r{message} {next(spinner)}")
@@ -92,138 +117,223 @@ async def _spinner_log(message, duration=2, interval=0.2):
     sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")
     sys.stdout.flush()
 
+
 @app.on_event("startup")
 async def startup_event():
     """Application startup event handler."""
     await startup_manager.initialize_application()
     """Initialize services after FastAPI app has started."""
     global watchdog_thread
-    
+
     # Enhanced startup logging
     log_service_status("STARTUP", "starting", "🚀 FastAPI LLM Backend Starting...")
     _log_system_info()
     _log_environment_variables()
-    
+
     # Storage
     log_service_status("STARTUP", "starting", "Initializing storage structure...")
     await _spinner_log("[STARTUP] Initializing storage structure", 2)
     from storage_manager import initialize_storage
+
     storage_success = initialize_storage()
     if not storage_success:
-        log_service_status("STARTUP", "degraded", "Storage initialization had issues - some features may be affected")
+        log_service_status(
+            "STARTUP",
+            "degraded",
+            "Storage initialization had issues - some features may be affected",
+        )
     else:
-        log_service_status("STARTUP", "ready", "Storage structure initialized successfully")
-    
+        log_service_status(
+            "STARTUP", "ready", "Storage structure initialized successfully"
+        )
+
     # Database
     log_service_status("STARTUP", "starting", "Initializing database connections...")
     await _spinner_log("[STARTUP] Initializing database connections", 2)
     from core.database import db_manager
-    
+
     # Store Redis pool in app state for dependency injection (like working implementation)
-    if hasattr(db_manager, 'redis_pool') and db_manager.redis_pool is not None:
+    if hasattr(db_manager, "redis_pool") and db_manager.redis_pool is not None:
         app.state.redis_pool = db_manager.redis_pool
         log_service_status("STARTUP", "ready", "Redis pool stored in app state")
     else:
         app.state.redis_pool = None
-        log_service_status("STARTUP", "degraded", "Redis pool not available - some features may be degraded")
-    
+        log_service_status(
+            "STARTUP",
+            "degraded",
+            "Redis pool not available - some features may be degraded",
+        )
+
     # Model preload
-    log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
+    log_service_status(
+        "STARTUP",
+        "starting",
+        f"Verifying and preloading model: {DEFAULT_MODEL}",
+    )
     await _spinner_log(f"[MODEL] Preloading {DEFAULT_MODEL}", 2)
     try:
         model_available = await ensure_model_available(DEFAULT_MODEL)
         if model_available:
-            log_service_status("MODEL", "ready", f"Default model {DEFAULT_MODEL} is available")
+            log_service_status(
+                "MODEL", "ready", f"Default model {DEFAULT_MODEL} is available"
+            )
             # Preload model into memory by running a dummy inference
             try:
                 preload_payload = {
                     "model": DEFAULT_MODEL,
                     "prompt": "Hello!",
-                    "stream": False
+                    "stream": False,
                 }
                 async with httpx.AsyncClient() as client:
-                    resp = await client.post(f"{OLLAMA_BASE_URL}/api/generate", json=preload_payload, timeout=60)
+                    resp = await client.post(
+                        f"{OLLAMA_BASE_URL}/api/generate",
+                        json=preload_payload,
+                        timeout=60,
+                    )
                     if resp.status_code == 200:
-                        log_service_status("MODEL", "preloaded", f"Model {DEFAULT_MODEL} preloaded into memory")
+                        log_service_status(
+                            "MODEL",
+                            "preloaded",
+                            f"Model {DEFAULT_MODEL} preloaded into memory",
+                        )
                     else:
-                        log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}")
+                        log_service_status(
+                            "MODEL",
+                            "warning",
+                            f"Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}",
+                        )
             except Exception as e:
-                log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: {e}")
+                log_service_status(
+                    "MODEL",
+                    "warning",
+                    f"Model {DEFAULT_MODEL} preload failed: {e}",
+                )
         else:
-            log_service_status("MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available")
+            log_service_status(
+                "MODEL",
+                "error",
+                f"Failed to ensure default model {DEFAULT_MODEL} is available",
+            )
     except Exception as e:
-        log_service_status("MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}")
-      # Initialize model cache on startup
+        log_service_status(
+            "MODEL",
+            "error",
+            f"Error checking default model {DEFAULT_MODEL}: {str(e)}",
+        )
+    # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
     await refresh_model_cache()
-      # Initialize cache management system with health check
-    log_service_status("STARTUP", "starting", "Initializing cache management and memory systems...")
+    # Initialize cache management system with health check
+    log_service_status(
+        "STARTUP",
+        "starting",
+        "Initializing cache management and memory systems...",
+    )
     from startup_memory_health import initialize_memory_systems
+
     memory_init_success = initialize_memory_systems()
     if memory_init_success:
-        log_service_status("MEMORY", "ready", "Memory and cache systems initialized successfully")
+        log_service_status(
+            "MEMORY",
+            "ready",
+            "Memory and cache systems initialized successfully",
+        )
     else:
-        log_service_status("MEMORY", "warning", "Memory and cache systems initialization had issues")
-    
+        log_service_status(
+            "MEMORY",
+            "warning",
+            "Memory and cache systems initialization had issues",
+        )
+
     # Background services
     log_service_status("STARTUP", "starting", "Initializing background services...")
     await _spinner_log("[STARTUP] Initializing background services", 2)
     await asyncio.sleep(2)
-    log_service_status("STARTUP", "starting", "Waiting 2 seconds for services to initialize...")
-    
+    log_service_status(
+        "STARTUP",
+        "starting",
+        "Waiting 2 seconds for services to initialize...",
+    )
+
     # Watchdog
     watchdog_thread = start_watchdog_service()
-    log_service_status("WATCHDOG", "starting", "Service started with delayed initialization")
+    log_service_status(
+        "WATCHDOG", "starting", "Service started with delayed initialization"
+    )
 
     # Enhanced background tasks
     await start_enhanced_background_tasks()
-    log_service_status("ENHANCED_SYSTEM", "ready", "Enhanced learning and document processing systems initialized")
-    
+    log_service_status(
+        "ENHANCED_SYSTEM",
+        "ready",
+        "Enhanced learning and document processing systems initialized",
+    )
+
     # Final summary banner
     await _spinner_log("[STARTUP] Finalizing startup", 1)
     _print_startup_summary()
-    log_service_status("STARTUP", "ready", "🚀 FastAPI LLM Backend startup completed successfully!")
+    log_service_status(
+        "STARTUP",
+        "ready",
+        "🚀 FastAPI LLM Backend startup completed successfully!",
+    )
 
 
 def _print_startup_summary():
     """Print a visually distinct summary banner with health status of all services."""
     from core.database import get_database_health
+
     health = get_database_health()
     lines = [
         "\n================= SERVICE STATUS SUMMARY =================",
         f"Redis:      {'✅' if health['redis']['available'] else '❌'}",
         f"ChromaDB:   {'✅' if health['chromadb']['available'] else '❌'}",
         f"Embeddings: {'✅' if health['embeddings']['available'] else '❌'}",
-        "========================================================\n"
+        "========================================================\n",
     ]
     for line in lines:
         print(line)
 
+
 def _log_system_info():
     """Log system information for startup diagnostics."""
     try:
+        import os
         import platform
         import sys
-        import os
-        
-        log_service_status("SYSTEM", "info", f"Python version: {sys.version.split()[0]}")
-        log_service_status("SYSTEM", "info", f"Platform: {platform.system()} {platform.release()}")
+
+        log_service_status(
+            "SYSTEM", "info", f"Python version: {sys.version.split()[0]}"
+        )
+        log_service_status(
+            "SYSTEM",
+            "info",
+            f"Platform: {platform.system()} {platform.release()}",
+        )
         log_service_status("SYSTEM", "info", f"Working directory: {os.getcwd()}")
-        
+
     except Exception as e:
         log_service_status("SYSTEM", "warning", f"Failed to log system info: {e}")
+
 
 def _log_environment_variables():
     """Log relevant environment variables for startup diagnostics."""
     try:
         import os
-        
+
         env_vars_to_log = [
-            "REDIS_HOST", "REDIS_PORT", "CHROMA_HOST", "CHROMA_PORT", 
-            "DEFAULT_MODEL", "EMBEDDING_MODEL", "SENTENCE_TRANSFORMERS_HOME",
-            "OLLAMA_BASE_URL", "USE_OLLAMA", "USE_HTTP_CHROMA"
+            "REDIS_HOST",
+            "REDIS_PORT",
+            "CHROMA_HOST",
+            "CHROMA_PORT",
+            "DEFAULT_MODEL",
+            "EMBEDDING_MODEL",
+            "SENTENCE_TRANSFORMERS_HOME",
+            "OLLAMA_BASE_URL",
+            "USE_OLLAMA",
+            "USE_HTTP_CHROMA",
         ]
-        
+
         log_service_status("STARTUP", "info", "Environment configuration:")
         for var in env_vars_to_log:
             value = os.getenv(var, "Not set")
@@ -231,67 +341,72 @@ def _log_environment_variables():
             if "KEY" in var or "SECRET" in var:
                 value = "***" if value != "Not set" else "Not set"
             log_service_status("CONFIG", "info", f"{var}={value}")
-            
+
     except Exception as e:
         log_service_status("CONFIG", "warning", f"Failed to log environment: {e}")
+
 
 @app.get("/health")
 async def health_check():
     """Health check endpoint that includes database status and a human-readable summary."""
     health_status = get_database_health()
-    
+
     # Add cache information
     from core.database import get_cache_manager
+
     cache_manager = get_cache_manager()
     cache_info = {}
     if cache_manager:
         cache_info = cache_manager.get_cache_stats()
-    
+
     services = [
         ("Redis", health_status["redis"]["available"]),
         ("ChromaDB", health_status["chromadb"]["available"]),
-        ("Embeddings", health_status["embeddings"]["available"])
+        ("Embeddings", health_status["embeddings"]["available"]),
     ]
     healthy = sum(1 for _, ok in services if ok)
     total = len(services)
-    summary = f"Health check: {healthy}/{total} services healthy. " + ", ".join([
-        f"{name}: {'✅' if ok else '❌'}" for name, ok in services
-    ])
-    
+    summary = f"Health check: {healthy}/{total} services healthy. " + ", ".join(
+        [f"{name}: {'✅' if ok else '❌'}" for name, ok in services]
+    )
+
     response = {
         "status": "ok" if healthy == total else "degraded",
         "summary": summary,
-        "databases": health_status
+        "databases": health_status,
     }
-    
+
     if cache_info:
         response["cache"] = cache_info
-    
+
     return response
+
 
 @app.get("/health/simple")
 async def simple_health():
     """Simple health check without any dependencies."""
     import time
+
     return {
         "status": "ok",
         "timestamp": time.time(),
-        "message": "Simple health check working"
+        "message": "Simple health check working",
     }
+
 
 @app.get("/health/detailed")
 async def detailed_health_check():
     """Detailed health check with subsystem monitoring."""
-    health_status = await get_health_status() # Correctly call the helper function
-    
+    health_status = await get_health_status()  # Correctly call the helper function
+
     # The health_status is now a dictionary of ServiceHealth objects
     # We need to process it for the final response
-    
+
     services = {name: asdict(status) for name, status in health_status.items()}
-    healthy_count = sum(1 for s in services.values() if s['status'] == 'healthy')
-    degraded_count = sum(1 for s in services.values() if s['status'] == 'degraded')
-    unhealthy_count = sum(1 for s in services.values() if s['status'] == 'unhealthy')
-    
+    healthy_count = sum(1 for s in services.values() if s["status"] == "healthy")
+    degraded_count = sum(1 for s in services.values() if s["status"] == "degraded")
+    unhealthy_count = sum(1 for s in services.values() if s["status"] == "unhealthy")
+
     overall = "healthy"
     if unhealthy_count > 0:
         overall = "unhealthy"
@@ -307,9 +422,10 @@ async def detailed_health_check():
             "total_services": len(services),
             "healthy_services": healthy_count,
             "degraded_services": degraded_count,
-            "unhealthy_services": unhealthy_count
-        }
+            "unhealthy_services": unhealthy_count,
+        },
     }
+
 
 @app.get("/health/redis")
 async def redis_health():
@@ -321,6 +437,7 @@ async def redis_health():
         return {"service": "Redis", "health": result.__dict__}
     return {"service": "Redis", "status": "monitor_not_found"}
 
+
 @app.get("/health/chromadb")
 async def chromadb_health():
     """Check ChromaDB connectivity specifically."""
@@ -330,6 +447,7 @@ async def chromadb_health():
         result = await chroma_monitor.check_health()
         return {"service": "ChromaDB", "health": result.__dict__}
     return {"service": "ChromaDB", "status": "monitor_not_found"}
+
 
 # Ollama health check disabled - using OpenAI API only
 # @app.get("/health/ollama")
@@ -342,6 +460,7 @@ async def chromadb_health():
 #         return {"service": "Ollama", "health": result.__dict__}
 #     return {"service": "Ollama", "status": "monitor_not_found"}
 
+
 @app.get("/health/history/{service_name}")
 async def service_health_history(service_name: str, hours: int = 24):
     """Get health history for a specific service."""
@@ -351,33 +470,32 @@ async def service_health_history(service_name: str, hours: int = 24):
         "service": service_name,
         "history_hours": hours,
         "checks": len(history),
-        "history": [h.__dict__ for h in history]
+        "history": [h.__dict__ for h in history],
     }
+
 
 @app.get("/health/storage")
 async def storage_health():
     """Check storage directory structure and permissions."""
     from storage_manager import StorageManager
-    
+
     # Get storage information
     storage_info = StorageManager.get_storage_info()
-    
+
     # Validate permissions
     permissions = StorageManager.validate_permissions()
-    
+
     # Calculate total storage usage
     total_size_mb = sum(
-        dir_info.get('size_mb', 0) 
-        for dir_info in storage_info['directories'].values()
+        dir_info.get("size_mb", 0) for dir_info in storage_info["directories"].values()
     )
-    
+
     # Count directories
     existing_dirs = sum(
-        1 for dir_info in storage_info['directories'].values() 
-        if dir_info['exists']
+        1 for dir_info in storage_info["directories"].values() if dir_info["exists"]
     )
-    total_dirs = len(storage_info['directories'])
-    
+    total_dirs = len(storage_info["directories"])
+
     # Determine overall status
     if existing_dirs == total_dirs and all(permissions.values()):
         status = "healthy"
@@ -385,79 +503,106 @@ async def storage_health():
         status = "degraded"
     else:
         status = "unhealthy"
-    
+
     return {
         "service": "Storage",
         "status": status,
-        "base_path": storage_info['base_path'],
+        "base_path": storage_info["base_path"],
         "directories": {
             "total": total_dirs,
             "existing": existing_dirs,
-            "missing": total_dirs - existing_dirs
+            "missing": total_dirs - existing_dirs,
         },
         "storage_usage": {
             "total_size_mb": total_size_mb,
             "total_files": sum(
-                dir_info.get('file_count', 0) 
-                for dir_info in storage_info['directories'].values()
-            )
+                dir_info.get("file_count", 0)
+                for dir_info in storage_info["directories"].values()
+            ),
         },
         "permissions": permissions,
-        "directory_details": storage_info['directories']
+        "directory_details": storage_info["directories"],
     }
 
-# Import LLM manager
-from llm_manager import call_llm, call_llm_stream, stop_streaming_session, STREAM_SESSION_STOP
 
 # --- Chat Endpoint ---
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(chat: ChatRequest, request: Request):
     # Generate a unique request ID for tracking
     request_id = str(uuid.uuid4())
-    
+
     try:
         user_message = chat.message
         user_id = chat.user_id
         user_response = None
-        
-        logging.debug(f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}...")
-        
+
+        logging.debug(
+            f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}..."
+        )
+
         # --- Check cache before tool/LLM logic ---
         cache_key = f"chat:{user_id}:{user_message}"
         cached = None
         logging.debug(f"[CACHE] Checking cache for key: {cache_key}")
-          # Bypass cache for time queries to ensure real-time lookup
+        # Bypass cache for time queries to ensure real-time lookup
         is_time_query = False
-        timeanddate_pattern = re.compile(r"time(?:\\s*(?:in|for|at))?\\s+([a-zA-Z ]+)", re.IGNORECASE)
+        timeanddate_pattern = re.compile(
+            r"time(?:\\s*(?:in|for|at))?\\s+([a-zA-Z ]+)", re.IGNORECASE
+        )
         if (
-            "timeanddate.com" in user_message.lower() or
-            (timeanddate_pattern.search(user_message) and not any(x in user_message.lower() for x in ["weather", "convert", "calculate", "exchange rate", "system info", "news", "search"])) or
-            "time" in user_message.lower()
+            "timeanddate.com" in user_message.lower()
+            or (
+                timeanddate_pattern.search(user_message)
+                and not any(
+                    x in user_message.lower()
+                    for x in [
+                        "weather",
+                        "convert",
+                        "calculate",
+                        "exchange rate",
+                        "system info",
+                        "news",
+                        "search",
+                    ]
+                )
+            )
+            or "time" in user_message.lower()
         ):
             is_time_query = True
-            
+
         if not is_time_query:
-            cached = get_cache(db_manager, cache_key, user_id=user_id, request_id=request_id)
+            cached = get_cache(
+                db_manager, cache_key, user_id=user_id, request_id=request_id
+            )
             if cached:
                 return ChatResponse(response=cached)
-                
+
         # --- Retrieve chat history and memory ---
         def get_history():
-            return get_chat_history(db_manager, user_id, max_history=10, request_id=request_id)
-        
+            return get_chat_history(
+                db_manager, user_id, max_history=10, request_id=request_id
+            )
+
         history = safe_execute(
             get_history,
             fallback_value=[],
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(e, "get_history", f"history:{user_id}", user_id, request_id)
+            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                e, "get_history", f"history:{user_id}", user_id, request_id
+            ),
         )
-        
-        history_msgs = [m["message"] if isinstance(m, dict) and "message" in m else str(m) for m in (history or [])]
-        
+
+        history_msgs = [
+            m["message"] if isinstance(m, dict) and "message" in m else str(m)
+            for m in (history or [])
+        ]
         # --- Intent/tool detection (tool results take precedence) ---
         tool_used = False
         tool_name = None
         debug_info = []
-        
+        logging.info(
+            f"[DEBUG] Starting tool detection for message: {user_message[:50]}..."
+        )
+
         # --- Robust time query detection ---
         time_query = False
         match = None
@@ -466,7 +611,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             r"time(?:\s*(?:in|for|at))?\s+([a-zA-Z ]+)",
             r"current time in ([a-zA-Z ]+)",
             r"what(?:'s| is) the time in ([a-zA-Z ]+)",
-            r"timeanddate\\.com.*([a-zA-Z ]+)"
+            r"timeanddate\\.com.*([a-zA-Z ]+)",
         ]
         for pat in time_patterns:
             m = re.search(pat, user_message, re.IGNORECASE)
@@ -474,140 +619,226 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 match = m
                 time_query = True
                 break
-                
+
         if time_query or "timeanddate.com" in user_message.lower():
             system_msg = f"[TOOL] Robust time lookup (geo+timezone, fallback to timeanddate.com) triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             country = match.group(1).strip() if match else "netherlands"
-            # Clean up extracted location string
-            country = re.sub(r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|to|of|about|time|current time|the time|\s)+", "", country, flags=re.IGNORECASE)
+            # Clean up extracted location string            country = re.sub(r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|to|of|about|time|current time|the time|\s)+", "", country, flags=re.IGNORECASE)
             country = re.sub(r"\?$", "", country).strip()
             if not country:
-                country = "netherlands"            
+                country = "netherlands"
+
+            # Try to get timezone for the country
+            country_timezones = {
+                "netherlands": "Europe/Amsterdam",
+                "amsterdam": "Europe/Amsterdam",
+                "london": "Europe/London",
+                "uk": "Europe/London",
+                "new york": "America/New_York",
+                "tokyo": "Asia/Tokyo",
+                "paris": "Europe/Paris",
+                "berlin": "Europe/Berlin",
+                "moscow": "Europe/Moscow",
+                "sydney": "Australia/Sydney",
+            }
+
             def get_timezone_time():
-                # Try to get timezone for the country
-                country_timezones = {
-                    "netherlands": "Europe/Amsterdam",
-                    "amsterdam": "Europe/Amsterdam", 
-                    "london": "Europe/London",
-                    "uk": "Europe/London",
-                    "new york": "America/New_York",
-                    "tokyo": "Asia/Tokyo",
-                    "paris": "Europe/Paris",
-                    "berlin": "Europe/Berlin",
-                    "moscow": "Europe/Moscow",
-                    "sydney": "Australia/Sydney"
-                }
-                
                 tz = country_timezones.get(country.lower(), None)
                 if tz:
-                    return get_current_time(tz) + f" (timezone: {tz})", "geo_timezone"
+                    return (
+                        get_current_time(tz) + f" (timezone: {tz})",
+                        "geo_timezone",
+                    )
                 else:
                     from utils.ai_tools import get_time_from_timeanddate
-                    return get_time_from_timeanddate(country), "timeanddate.com"
-            
+
+                    return (
+                        get_time_from_timeanddate(country),
+                        "timeanddate.com",
+                    )
+
             result = safe_execute(
                 get_timezone_time,
-                fallback_value=(ToolErrorHandler.handle_tool_error(Exception("Time lookup failed"), "time", user_id, country, request_id), "error"),
-                error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "time", user_id, country, request_id)
+                fallback_value=(
+                    ToolErrorHandler.handle_tool_error(
+                        Exception("Time lookup failed"),
+                        "time",
+                        user_id,
+                        country,
+                        request_id,
+                    ),
+                    "error",
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "time", user_id, country, request_id
+                ),
             )
-            
+
             user_response, tool_name = result
             tool_used = True
             debug_info.append(f"[TOOL] Used {tool_name} for {country}")
-            
+
         elif "weather" in user_message.lower():
             system_msg = f"[TOOL] Weather lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"weather in ([a-zA-Z ]+)", user_message, re.IGNORECASE)
             city = match.group(1).strip() if match else "London"
-            
+
             user_response = safe_execute(
                 get_weather,
                 city,
-                fallback_value=ToolErrorHandler.handle_tool_error(Exception("Weather lookup failed"), "weather", user_id, city, request_id),
-                error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, city, request_id)
+                fallback_value=ToolErrorHandler.handle_tool_error(
+                    Exception("Weather lookup failed"),
+                    "weather",
+                    user_id,
+                    city,
+                    request_id,
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "weather", user_id, city, request_id
+                ),
             )
             tool_used = True
             tool_name = "weather"
-            
-        elif "time" in user_message.lower():
+
+        elif (
+            re.search(
+                r"\b(what|current|show|tell|me).*time\s+(in|for|at)\s+\w+",
+                user_message,
+                re.IGNORECASE,
+            )
+            or re.search(r"\btime\s+(in|for|at)\s+\w+", user_message, re.IGNORECASE)
+            or re.search(r"\b(current|what).*time\b", user_message, re.IGNORECASE)
+        ):
             system_msg = f"[TOOL] Time lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"time in ([a-zA-Z ]+)", user_message, re.IGNORECASE)
             city = match.group(1).strip() if match else None
-            city_timezone = {"netherlands": "Europe/Amsterdam", "amsterdam": "Europe/Amsterdam"}
+            city_timezone = {
+                "netherlands": "Europe/Amsterdam",
+                "amsterdam": "Europe/Amsterdam",
+            }
             tz = city_timezone.get(city.lower(), None) if city else None
-            
+
             user_response = safe_execute(
-                get_current_time,                tz,
-                fallback_value=ToolErrorHandler.handle_tool_error(Exception("Time lookup failed"), "time", user_id, str(city), request_id),
-                error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "time", user_id, str(city), request_id)
+                get_current_time,
+                tz,
+                fallback_value=ToolErrorHandler.handle_tool_error(
+                    Exception("Time lookup failed"),
+                    "time",
+                    user_id,
+                    str(city),
+                    request_id,
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "time", user_id, str(city), request_id
+                ),
             )
             tool_used = True
             tool_name = "time"
-            
+
         elif "convert" in user_message.lower() and "to" in user_message.lower():
             system_msg = f"[TOOL] Unit conversion triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
-            match = re.search(r"convert ([\d\.]+) ([a-zA-Z]+) to ([a-zA-Z]+)", user_message, re.IGNORECASE)
+            match = re.search(
+                r"convert ([\d\.]+) ([a-zA-Z]+) to ([a-zA-Z]+)",
+                user_message,
+                re.IGNORECASE,
+            )
             if match:
-                value, from_unit, to_unit = float(match.group(1)), match.group(2), match.group(3)
+                value, from_unit, to_unit = (
+                    float(match.group(1)),
+                    match.group(2),
+                    match.group(3),
+                )
                 user_response = safe_execute(
                     convert_units,
-                    value, from_unit, to_unit,
-                    fallback_value=ToolErrorHandler.handle_tool_error(Exception("Unit conversion failed"), "unit_conversion", user_id, f"{value} {from_unit} to {to_unit}", request_id),
-                    error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "unit_conversion", user_id, f"{value} {from_unit} to {to_unit}", request_id)
+                    value,
+                    from_unit,
+                    to_unit,
+                    fallback_value=ToolErrorHandler.handle_tool_error(
+                        Exception("Unit conversion failed"),
+                        "unit_conversion",
+                        user_id,
+                        f"{value} {from_unit} to {to_unit}",
+                        request_id,
+                    ),
+                    error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                        e,
+                        "unit_conversion",
+                        user_id,
+                        f"{value} {from_unit} to {to_unit}",
+                        request_id,
+                    ),
                 )
             else:
                 user_response = "Please specify conversion like 'convert 10 km to m'."
             tool_used = True
             tool_name = "unit_conversion"
-            
+
         elif "news" in user_message.lower():
             system_msg = f"[TOOL] News lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
-            
             user_response = "News lookup is currently unavailable."
             tool_used = True
             tool_name = "news"
-            
-        elif "search" in user_message.lower():
+
+        elif re.search(
+            r"\b(web\s+search|search\s+for|search\s+the|google)\b",
+            user_message,
+            re.IGNORECASE,
+        ):
             system_msg = f"[TOOL] Web search triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"search (.+)", user_message, re.IGNORECASE)
             query = match.group(1) if match else user_message
-            
+
             def web_search_safe():
                 results = []
                 return results[0] if results else "No results found.", results
-            
+
             result = safe_execute(
                 web_search_safe,
-                fallback_value=(ToolErrorHandler.handle_tool_error(Exception("Web search failed"), "web_search", user_id, query, request_id), []),
-                error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "web_search", user_id, query, request_id)
+                fallback_value=(
+                    ToolErrorHandler.handle_tool_error(
+                        Exception("Web search failed"),
+                        "web_search",
+                        user_id,
+                        query,
+                        request_id,
+                    ),
+                    [],
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "web_search", user_id, query, request_id
+                ),
             )
-            
+
             if isinstance(result, tuple):
                 user_response, results = result
             else:
                 user_response = result
                 results = []
-                
+
             tool_used = True
             tool_name = "web_search"
-            
+
         elif "exchange rate" in user_message.lower():
             system_msg = f"[TOOL] Exchange rate lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
-            match = re.search(r"exchange rate ([a-zA-Z]{3}) to ([a-zA-Z]{3})", user_message, re.IGNORECASE)
+            match = re.search(
+                r"exchange rate ([a-zA-Z]{3}) to ([a-zA-Z]{3})",
+                user_message,
+                re.IGNORECASE,
+            )
             if match:
                 from_cur, to_cur = match.group(1), match.group(2)
                 # user_response = safe_execute(
@@ -619,11 +850,11 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 user_response = "Exchange rate lookup is currently unavailable."
             tool_used = True
             tool_name = "exchange_rate"
-            
+
         elif "system info" in user_message.lower():
             system_msg = f"[TOOL] System info lookup triggered for user {user_id}"
             logging.debug(system_msg)
-            debug_info.append(system_msg)            
+            debug_info.append(system_msg)
             # user_response = safe_execute(
             #     get_system_info,
             #     fallback_value=ToolErrorHandler.handle_tool_error(Exception("System info lookup failed"), "system_info", user_id, "", request_id),
@@ -632,8 +863,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             user_response = "System info lookup is currently unavailable."
             tool_used = True
             tool_name = "system_info"
-            
-        elif "run python" in user_message.lower() or user_message.lower().startswith("python ") or "python code" in user_message.lower():
+
+        elif (
+            "run python" in user_message.lower()
+            or user_message.lower().startswith("python ")
+            or "python code" in user_message.lower()
+        ):
             system_msg = f"[TOOL] Python code execution triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
@@ -642,15 +877,19 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 # Extract code from code blocks
                 code_start = user_message.find("```python") + 9
                 code_end = user_message.find("```", code_start)
-                code = user_message[code_start:code_end].strip() if code_end != -1 else user_message[code_start:].strip()
+                code = (
+                    user_message[code_start:code_end].strip()
+                    if code_end != -1
+                    else user_message[code_start:].strip()
+                )
             elif "run python" in user_message.lower():
-                code = user_message.split("run python",1)[-1].strip()
+                code = user_message.split("run python", 1)[-1].strip()
             elif user_message.lower().startswith("python "):
-                code = user_message.split("python ",1)[-1].strip()
+                code = user_message.split("python ", 1)[-1].strip()
             else:
                 # Try to extract any code-like text
                 code = user_message.strip()
-            
+
             if not code:
                 user_response = "Please provide Python code to execute."
             else:
@@ -663,17 +902,22 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 user_response = "Python code execution is currently unavailable."
             tool_used = True
             tool_name = "python_code_execution"
-            
+
         elif "wikipedia" in user_message.lower() or "wiki" in user_message.lower():
             system_msg = f"[TOOL] Wikipedia search triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             # Extract search query
-            query = user_message.lower().replace("wikipedia", "").replace("wiki", "").replace("search", "").strip()
+            query = (
+                user_message.lower()
+                .replace("wikipedia", "")
+                .replace("wiki", "")
+                .replace("search", "")
+                .strip()
+            )
             if not query:
                 query = "artificial intelligence"  # default
-                
-            # user_response = safe_execute(
+                # user_response = safe_execute(
             #     wikipedia_search,
             #     query,
             #     fallback_value=ToolErrorHandler.handle_tool_error(Exception("Wikipedia search failed"), "wikipedia", user_id, query, request_id),
@@ -682,93 +926,167 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             user_response = "Wikipedia search is currently unavailable."
             tool_used = True
             tool_name = "wikipedia"
-            
-        # --- If no tool matched, use LLM with memory/context ---
+            # --- If no tool matched, use LLM with memory/context ---
         if not tool_used:
-            def llm_query():
-                # Embed user query and retrieve relevant memory
-                query_emb = get_embedding(db_manager, user_message, request_id)
-                memory_chunks = retrieve_user_memory(db_manager, user_id, query_emb, n_results=3, request_id=request_id) if query_emb is not None else []
-                
-                # Compose LLM context with explicit instructions for plain text responses
-                system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
-                  # Check for system prompt changes and invalidate cache if needed
-                from core.database import get_cache_manager
-                cache_manager = get_cache_manager()
-                if cache_manager:
-                    cache_manager.check_system_prompt_change(system_prompt)
-                
-                # Ensure all memory_chunks and history_msgs are strings and handle None values
-                memory_chunks = memory_chunks or []
-                current_history_msgs = history_msgs or []
-                context = "\n".join([str(m) for m in memory_chunks] + [str(m) for m in current_history_msgs])
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    *[{"role": "user", "content": m} for m in current_history_msgs],
-                    {"role": "user", "content": user_message},
-                    {"role": "system", "content": f"Relevant memory: {context}"} if context else None
-                ]
-                messages = [m for m in messages if m]
-                return call_llm(messages)
-            
-            user_response = safe_execute(
-                llm_query,
-                fallback_value="I apologize, but I'm having trouble processing your request right now. Please try again.",
-                error_handler=lambda e: log_error(e, "LLM query", user_id, request_id)
+            logging.info("[DEBUG] Entering LLM code path - no tool was used")
+
+            # Embed user query and retrieve relevant memory
+            query_emb = get_embedding(db_manager, user_message, request_id)
+            memory_chunks = (
+                retrieve_user_memory(
+                    db_manager,
+                    user_id,
+                    query_emb,
+                    n_results=3,
+                    request_id=request_id,
+                )
+                if query_emb is not None
+                else []
             )
+
+            # Compose LLM context with explicit instructions for plain text responses
+            system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
+
+            # Check for system prompt changes and invalidate cache if needed
+            from core.database import get_cache_manager
+
+            cache_manager = get_cache_manager()
+            if cache_manager:
+                cache_manager.check_system_prompt_change(system_prompt)
+
+            # Ensure all memory_chunks and history_msgs are strings and handle None values
+            memory_chunks = memory_chunks or []
+            current_history_msgs = history_msgs or []
+            context = "\n".join(
+                [str(m) for m in memory_chunks] + [str(m) for m in current_history_msgs]
+            )
+            messages = [
+                {"role": "system", "content": system_prompt},
+                *[{"role": "user", "content": m} for m in current_history_msgs],
+                {"role": "user", "content": user_message},
+                (
+                    {
+                        "role": "system",
+                        "content": f"Relevant memory: {context}",
+                    }
+                    if context
+                    else None
+                ),
+            ]
+            messages = [m for m in messages if m]
+
+            logging.info("[DEBUG] About to call LLM directly")
+            try:
+                user_response = await call_llm(messages)
+                logging.info(f"[DEBUG] user_response type: {type(user_response)}")
+                logging.info(
+                    f"[DEBUG] user_response content: {str(user_response)[:100]}..."
+                )
+            except Exception as e:
+                log_error(e, "LLM query", user_id, request_id)
+                user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."
             logging.debug(f"[RESPONSE] LLM response returned for user {user_id}")
             debug_info.append("[TOOL] Used LLM fallback")
         else:
-            logging.debug(f"[RESPONSE] Tool '{tool_name}' response returned for user {user_id}")
+            logging.debug(
+                f"[RESPONSE] Tool '{tool_name}' response returned for user {user_id}"
+            )
             debug_info.append(f"[TOOL] Tool '{tool_name}' response returned")
-            
+
         # --- Store chat in Redis ---
         def store_chat():
-            store_chat_history(db_manager, user_id, {"message": user_message, "response": user_response}, request_id=request_id)
-        
+            store_chat_history(
+                db_manager,
+                user_id,
+                {"message": user_message, "response": user_response},
+                request_id=request_id,
+            )
+
         safe_execute(
             store_chat,
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(e, "store_chat", f"chat:{user_id}", user_id, request_id)
+            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                e, "store_chat", f"chat:{user_id}", user_id, request_id
+            ),
         )
-        
+
         # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query:
-                set_cache(db_manager, cache_key, str(user_response), ttl=600, user_id=user_id, request_id=request_id)
-                logging.debug(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
+                set_cache(
+                    db_manager,
+                    cache_key,
+                    str(user_response),
+                    ttl=600,
+                    user_id=user_id,
+                    request_id=request_id,
+                )
+                logging.debug(
+                    f"[CACHE] Response cached for user {user_id} (key: {cache_key})"
+                )
                 debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
             else:
                 logging.debug("[CACHE] Skipping cache for time-sensitive query")
-        
+
         safe_execute(
             cache_response,
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(e, "set", cache_key, user_id, request_id)
+            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                e, "set", cache_key, user_id, request_id
+            ),
         )
-          # --- Automatic knowledge storage: store web search results in ChromaDB ---
-        if tool_used and tool_name == "web_search" and user_response and 'results' in locals():
+        # --- Automatic knowledge storage: store web search results in ChromaDB ---
+        if (
+            tool_used
+            and tool_name == "web_search"
+            and user_response
+            and "results" in locals()
+        ):
+
             def store_knowledge():
                 # Store the top web result as a new document in ChromaDB for this user
                 doc_id = f"web:{user_id}:{abs(hash(query))}"
                 name = f"Web search: {query}"
                 text = user_response
-                chunks_stored = index_user_document(db_manager, user_id, doc_id, name, text, request_id=request_id)
-                logging.debug(f"[KNOWLEDGE] Stored web search result ({chunks_stored} chunks) in ChromaDB for user {user_id}, query '{query}'")
-            
+                chunks_stored = index_user_document(
+                    db_manager,
+                    user_id,
+                    doc_id,
+                    name,
+                    text,
+                    request_id=request_id,
+                )
+                logging.debug(
+                    f"[KNOWLEDGE] Stored web search result ({chunks_stored} chunks) in ChromaDB for user {user_id}, query '{query}'"
+                )
+
             safe_execute(
                 store_knowledge,
-                error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "store", user_id, request_id)
+                error_handler=lambda e: MemoryErrorHandler.handle_memory_error(
+                    e, "store", user_id, request_id
+                ),
             )
-            
-        # Always log debug info, but do not include in user-facing response
+            # Always log debug info, but do not include in user-facing response
         logging.debug(f"[DEBUG INFO] {' | '.join(debug_info)}")
-        logging.debug(f"[REQUEST {request_id}] Successfully processed chat request for user {user_id}")
-        
-        return ChatResponse(response=str(user_response) if user_response is not None else "")
-        
+        logging.debug(
+            f"[REQUEST {request_id}] Successfully processed chat request for user {user_id}"
+        )
+
+        logging.info(
+            f"[DEBUG] Final state: tool_used={tool_used}, tool_name={tool_name}"
+        )
+        logging.info(f"[DEBUG] user_response type: {type(user_response)}")
+        logging.info(f"[DEBUG] user_response preview: {str(user_response)[:100]}...")
+
+        return ChatResponse(
+            response=str(user_response) if user_response is not None else ""
+        )
+
     except Exception as e:
         # Use the specialized chat error handler
-        error_response = ChatErrorHandler.handle_chat_error(e, user_id, user_message, request_id)
+        error_response = ChatErrorHandler.handle_chat_error(
+            e, user_id, user_message, request_id
+        )
         return ChatResponse(response=error_response["response"])
+
 
 @app.get("/v1/models")
 async def list_models():
@@ -781,43 +1099,56 @@ async def list_models():
     if current_time - _model_cache["last_updated"] > _model_cache["ttl"]:
         # Cache expired, refresh
         await refresh_model_cache()
-      # Temporary workaround: ensure Mistral model is included if it exists in Ollama
+    # Temporary workaround: ensure Mistral model is included if it exists in Ollama
     models_data = _model_cache["data"].copy()
-    mistral_exists = any(model["id"] == "mistral:7b-instruct-v0.3-q4_k_m" for model in models_data)
-    
-    logging.info(f"[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}")
+    mistral_exists = any(
+        model["id"] == "mistral:7b-instruct-v0.3-q4_k_m" for model in models_data
+    )
+
+    logging.info(
+        f"[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}"
+    )
     logging.info(f"[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
-    
+
     if not mistral_exists:
         # Check if Mistral model exists in Ollama directly
         try:
             import httpx
-            logging.info(f"[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags")
+
+            logging.info(
+                f"[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags"
+            )
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-                logging.info(f"[MODELS DEBUG] Ollama response status: {resp.status_code}")
+                logging.info(
+                    f"[MODELS DEBUG] Ollama response status: {resp.status_code}"
+                )
                 if resp.status_code == 200:
                     ollama_models = resp.json().get("models", [])
-                    logging.info(f"[MODELS DEBUG] Found {len(ollama_models)} models in Ollama")
+                    logging.info(
+                        f"[MODELS DEBUG] Found {len(ollama_models)} models in Ollama"
+                    )
                     for model in ollama_models:
                         logging.info(f"[MODELS DEBUG] Ollama model: {model['name']}")
                         if model["name"] == "mistral:7b-instruct-v0.3-q4_k_m":
-                            models_data.append({
-                                "id": "mistral:7b-instruct-v0.3-q4_k_m",
-                                "object": "model", 
-                                "created": int(time.time()),
-                                "owned_by": "ollama",
-                                "permission": []
-                            })
-                            logging.info("[MODELS DEBUG] Added Mistral model to response")
+                            models_data.append(
+                                {
+                                    "id": "mistral:7b-instruct-v0.3-q4_k_m",
+                                    "object": "model",
+                                    "created": int(time.time()),
+                                    "owned_by": "ollama",
+                                    "permission": [],
+                                }
+                            )
+                            logging.info(
+                                "[MODELS DEBUG] Added Mistral model to response"
+                            )
                             break
         except Exception as e:
             logging.warning(f"Failed to check Ollama for Mistral model: {e}")
-    
-    return {
-        "object": "list",
-        "data": models_data
-    }
+
+    return {"object": "list", "data": models_data}
+
 
 @app.post("/v1/chat/completions")
 async def openai_chat_completions(request: Request, body: dict = Body(...)):
@@ -826,8 +1157,9 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     Requires authentication via API key.
     """
     import time
+
     start_time = time.time()
-    
+
     # Extract user_id and message from OpenAI-style request
     user_id = body.get("user", "openwebui")
     messages = body.get("messages", [])
@@ -844,15 +1176,19 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     if stream:
         session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}"
         STREAM_SESSION_STOP[session_id] = False
-        
+
         async def event_stream():
             logging.debug("[STREAM] Streaming response triggered.")
-            llm_streamer = call_llm_stream(messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id)
+            llm_streamer = call_llm_stream(
+                messages,
+                model=body.get("model", DEFAULT_MODEL),
+                session_id=session_id,
+            )
             async for token in llm_streamer:
                 if not token:
                     continue
                 data = {
-                    "id": f"chatcmpl-1",
+                    "id": "chatcmpl-1",
                     "object": "chat.completion.chunk",
                     "created": 0,
                     "model": body.get("model", DEFAULT_MODEL),
@@ -860,9 +1196,9 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         {
                             "index": 0,
                             "delta": {"content": token},
-                            "finish_reason": None
+                            "finish_reason": None,
                         }
-                    ]
+                    ],
                 }
                 logging.debug(f"[STREAM] Sending chunk: {token}")
                 yield f"data: {json.dumps(data)}\n\n"
@@ -870,7 +1206,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             logging.debug("[STREAM] Streaming complete.")
             yield "data: [DONE]\n\n"
             STREAM_SESSION_STOP.pop(session_id, None)
-        
+
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
     else:
@@ -880,7 +1216,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         response_time = (end_time - start_time) * 1000
         log_api_request("POST", "/v1/chat/completions", 200, response_time)
         return {
-            "id": f"chatcmpl-1",
+            "id": "chatcmpl-1",
             "object": "chat.completion",
             "created": int(time.time()),
             "model": body.get("model", DEFAULT_MODEL),
@@ -889,13 +1225,14 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     "index": 0,
                     "message": {
                         "role": "assistant",
-                        "content": chat_resp.response
+                        "content": chat_resp.response,
                     },
-                    "finish_reason": "stop"
+                    "finish_reason": "stop",
                 }
-            ]
+            ],
         }
 
+
 # All additional endpoints now handled by missing_endpoints.py router
-# This includes: /config, /persona, /learning/*, /session/*, /upload, /rag/query, 
+# This includes: /config, /persona, /learning/*, /session/*, /upload, /rag/query,
 # /adaptive/stats, /cache/*, /storage/*, /database/health

@@ -1,0 +1,4 @@
+{
+    "user_id": "debug_user",
+    "message": "Debug test: what is 2+2? This should show debug info."
+}
