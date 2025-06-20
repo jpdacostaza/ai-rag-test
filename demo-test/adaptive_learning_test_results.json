@@ -1,0 +1,123 @@
+{
+  "test_run": {
+    "timestamp": "2025-06-20T19:27:01.484155",
+    "total_tests": 16,
+    "passed": 16,
+    "failed": 0,
+    "success": true
+  },
+  "results": [
+    {
+      "test": "Feedback Classification: 'That was perfect, thank you!...'",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Feedback Classification: 'That's wrong, it should be dif...'",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Feedback Classification: 'I don't understand, can you ex...'",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Feedback Classification: 'That was unhelpful and terribl...'",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Feedback Classification: 'Hello there...'",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Topic Extraction",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Found topics: ['programming', 'python', 'machine learning']",
+      "timestamp": "2025-06-20T19:27:00.833957"
+    },
+    {
+      "test": "Full Interaction Analysis",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Metrics: FeedbackType.POSITIVE, Topics: ['python']",
+      "timestamp": "2025-06-20T19:27:00.909302"
+    },
+    {
+      "test": "Process Interaction",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Result: {\n  \"status\": \"success\",\n  \"feedback_type\": \"neutral\",\n  \"context_relevance\": 0.5,\n  \"topics\": [\n    \"programming\",\n    \"python\"\n  ],\n  \"learning_applied\": true\n}",
+      "timestamp": "2025-06-20T19:27:00.992068"
+    },
+    {
+      "test": "Process Positive Feedback",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Feedback type: positive",
+      "timestamp": "2025-06-20T19:27:01.070706"
+    },
+    {
+      "test": "Process Correction",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Feedback type: correction",
+      "timestamp": "2025-06-20T19:27:01.155337"
+    },
+    {
+      "test": "Get User Insights",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Interactions: 3",
+      "timestamp": "2025-06-20T19:27:01.156850"
+    },
+    {
+      "test": "Knowledge Expansion Queuing",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Queue length: 1",
+      "timestamp": "2025-06-20T19:27:01.235785"
+    },
+    {
+      "test": "Knowledge Expansion Processing",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Queue processed without errors",
+      "timestamp": "2025-06-20T19:27:01.347486"
+    },
+    {
+      "test": "Invalid Input Handling",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Result status: success",
+      "timestamp": "2025-06-20T19:27:01.415145"
+    },
+    {
+      "test": "Non-existent User Handling",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Status: no_data",
+      "timestamp": "2025-06-20T19:27:01.415145"
+    },
+    {
+      "test": "Global Instance Functionality",
+      "status": "\u2705 PASS",
+      "passed": true,
+      "details": "Status: success",
+      "timestamp": "2025-06-20T19:27:01.484155"
+    }
+  ]
+}

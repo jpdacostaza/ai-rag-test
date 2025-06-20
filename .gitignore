@@ -134,5 +134,3 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
-# Test Results (generated)
-test_results/*.json

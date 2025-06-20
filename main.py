@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request, Body, Response, Depends, status, HTTPException
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi import FastAPI, Request, Body, Response, Depends, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import logging
 import time
@@ -32,10 +32,6 @@ from typing import Optional, AsyncGenerator, Dict
 
 import httpx
 
-# Import authentication and middleware
-from authentication import auth_manager, validate_api_key, extract_api_key_from_request, create_auth_exception
-from middleware_new import setup_middleware
-
 # Import and include upload router
 from upload import upload_router
 # Import and include enhanced router
@@ -43,33 +39,8 @@ from enhanced_integration import enhanced_router, start_enhanced_background_task
 from feedback_router import feedback_router
 from model_manager import router as model_manager_router, refresh_model_cache, ensure_model_available, _model_cache
 
-# Import and include missing endpoints router
-from missing_endpoints import missing_router
-
 app = FastAPI()
-
-# Directly add the authentication middleware for debugging
-from middleware_new import AuthenticationMiddleware
-app.add_middleware(AuthenticationMiddleware)
-
-# Log middleware setup completion
-from human_logging import log_service_status
-log_service_status("MIDDLEWARE", "ready", "Authentication middleware directly added to app")
-
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Middleware to log API requests and responses."""
-    print("DEBUG: Function-based middleware log_requests() called")
-    print(f"📊 LOG MIDDLEWARE: Processing {request.method} {request.url.path}")
-    start_time = time.time()
-    response = await call_next(request)
-    end_time = time.time()
-    response_time_ms = (end_time - start_time) * 1000
-    log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
-    return response
-
 app.include_router(model_manager_router)
-app.include_router(missing_router)
 
 # Include upload router
 app.include_router(upload_router)
@@ -158,14 +129,15 @@ async def startup_event():
       # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
     await refresh_model_cache()
-      # Initialize cache management system with health check
-    log_service_status("STARTUP", "starting", "Initializing cache management and memory systems...")
-    from startup_memory_health import initialize_memory_systems
-    memory_init_success = initialize_memory_systems()
-    if memory_init_success:
-        log_service_status("MEMORY", "ready", "Memory and cache systems initialized successfully")
+    
+    # Initialize cache management system
+    log_service_status("STARTUP", "starting", "Initializing cache management...")
+    from init_cache import initialize_cache_management
+    cache_init_success = initialize_cache_management()
+    if cache_init_success:
+        log_service_status("CACHE", "ready", "Cache management system initialized successfully")
     else:
-        log_service_status("MEMORY", "warning", "Memory and cache systems initialization had issues")
+        log_service_status("CACHE", "warning", "Cache management initialization had issues")
     
     # Background services
     log_service_status("STARTUP", "starting", "Initializing background services...")
@@ -1013,7 +985,6 @@ async def list_models():
 async def openai_chat_completions(request: Request, body: dict = Body(...)):
     """
     OpenAI-compatible chat completions endpoint for OpenWebUI, with streaming support.
-    Requires authentication via API key.
     """
     import time
     start_time = time.time()
@@ -1068,6 +1039,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         end_time = time.time()
         response_time = (end_time - start_time) * 1000
         log_api_request("POST", "/v1/chat/completions", 200, response_time)
+        
         return {
             "id": f"chatcmpl-1",
             "object": "chat.completion",
@@ -1085,6 +1057,54 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             ]
         }
 
-# All additional endpoints now handled by missing_endpoints.py router
-# This includes: /config, /persona, /learning/*, /session/*, /upload, /rag/query, 
-# /adaptive/stats, /cache/*, /storage/*, /database/health
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Middleware to log API requests and responses."""
+    start_time = time.time()
+    response = await call_next(request)
+    end_time = time.time()
+    response_time_ms = (end_time - start_time) * 1000
+    log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
+    return response
+
+# Cache Management Endpoints
+@app.get("/admin/cache/status")
+async def get_cache_status():
+    """Get cache status and statistics."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if cache_manager:
+        stats = cache_manager.get_cache_stats()
+        return {"status": "ok", "cache_stats": stats}
+    else:
+        return {"status": "error", "message": "Cache manager not available"}
+
+@app.post("/admin/cache/invalidate")
+async def invalidate_cache(cache_type: str = "chat"):
+    """Invalidate cache entries."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if not cache_manager:
+        return {"status": "error", "message": "Cache manager not available"}
+    
+    if cache_type == "chat":
+        cache_manager.invalidate_chat_cache()
+        return {"status": "ok", "message": "Chat cache invalidated"}
+    elif cache_type == "all":
+        cache_manager.invalidate_all_cache()
+        return {"status": "ok", "message": "All cache invalidated"}
+    else:
+        return {"status": "error", "message": "Invalid cache_type. Use 'chat' or 'all'"}
+
+@app.post("/admin/cache/check-prompt")
+async def check_system_prompt():
+    """Force check system prompt and invalidate cache if needed."""
+    from database import get_cache_manager
+    cache_manager = get_cache_manager()
+    if not cache_manager:
+        return {"status": "error", "message": "Cache manager not available"}
+    
+    # Use the current system prompt
+    current_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
+    cache_manager.check_system_prompt_change(current_prompt)
+    return {"status": "ok", "message": "System prompt check completed"}

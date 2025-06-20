@@ -9,6 +9,10 @@ Demonstrates cache functionality in realistic scenarios including:
 - Cache statistics and monitoring
 """
 
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import redis
 import json
 import time

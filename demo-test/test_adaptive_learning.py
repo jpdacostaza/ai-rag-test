@@ -14,6 +14,10 @@ Comprehensive tests for the adaptive learning functionality including:
 import asyncio
 import sys
 import os
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import os
 import json
 from datetime import datetime, timedelta
 from typing import Dict, Any

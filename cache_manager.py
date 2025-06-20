@@ -91,7 +91,8 @@ class CacheManager:
                 log_service_status("CACHE", "ready", f"Invalidated all cache: {deleted} entries deleted")
             else:
                 log_service_status("CACHE", "ready", "No cache entries to invalidate")
-        except Exception as e:            log_service_status("CACHE", "error", f"Failed to invalidate all cache: {e}")
+        except Exception as e:
+            log_service_status("CACHE", "error", f"Failed to invalidate all cache: {e}")
     
     def validate_response_format(self, response: str) -> bool:
         """Validate that response is plain text, not JSON."""
@@ -128,11 +129,6 @@ class CacheManager:
             }
             
             self.redis_client.setex(key, ttl, json.dumps(cache_data))
-            
-            # Log cache set operation
-            value_preview = value[:50] + "..." if len(value) > 50 else value
-            log_service_status("CACHE", "ready", f"CACHE SET - Key: {key}, TTL: {ttl}s, Value: {value_preview}")
-            
             return True
         except Exception as e:
             log_service_status("CACHE", "error", f"Failed to set cache for key {key}: {e}")
@@ -143,8 +139,6 @@ class CacheManager:
         try:
             cached_data = self.redis_client.get(key)
             if not cached_data:
-                # Log cache miss
-                log_service_status("CACHE", "ready", f"CACHE MISS - Key: {key}")
                 return None
             
             # Try to parse as new format with metadata
@@ -156,12 +150,6 @@ class CacheManager:
                         log_service_status("CACHE", "warning", f"Invalidating cache key {key} - bad format")
                         self.redis_client.delete(key)
                         return None
-                    
-                    # Log successful cache hit with metadata
-                    value_preview = data["value"][:50] + "..." if len(data["value"]) > 50 else data["value"]
-                    cached_at = data.get("cached_at", "unknown")
-                    log_service_status("CACHE", "ready", f"CACHE HIT - Key: {key}, Cached: {cached_at}, Value: {value_preview}")
-                    
                     return data["value"]
                 else:
                     # Old format, validate and migrate or invalidate
@@ -169,11 +157,6 @@ class CacheManager:
                         log_service_status("CACHE", "warning", f"Invalidating old format cache key {key}")
                         self.redis_client.delete(key)
                         return None
-                    
-                    # Log cache hit for old format
-                    value_preview = cached_data[:50] + "..." if len(cached_data) > 50 else cached_data
-                    log_service_status("CACHE", "ready", f"CACHE HIT (legacy) - Key: {key}, Value: {value_preview}")
-                    
                     return cached_data
             except json.JSONDecodeError:
                 # Plain string, validate format
@@ -181,11 +164,6 @@ class CacheManager:
                     log_service_status("CACHE", "warning", f"Invalidating cache key {key} - bad format")
                     self.redis_client.delete(key)
                     return None
-                
-                # Log cache hit for plain string
-                value_preview = cached_data[:50] + "..." if len(cached_data) > 50 else cached_data
-                log_service_status("CACHE", "ready", f"CACHE HIT (string) - Key: {key}, Value: {value_preview}")
-                
                 return cached_data
                 
         except Exception as e:
