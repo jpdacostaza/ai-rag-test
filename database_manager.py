@@ -16,6 +16,9 @@ from error_handler import RedisConnectionHandler
 from human_logging import log_service_status
 
 
+import json
+
+
 class DatabaseManager:
     """Central database manager for Redis and ChromaDB operations."""
 
@@ -282,13 +285,49 @@ def set_cache(db_manager_instance, cache_key: str, value: str, expire: int = 360
 
 
 def get_chat_history(user_id: str, limit: int = 10):
-    """Get chat history for user."""
-    return []
+    """Get chat history for user from Redis."""
+    def get_operation(redis_client):
+        chat_key = f"chat_history:{user_id}"
+        history_entries = redis_client.lrange(chat_key, 0, limit - 1)
+        
+        # Parse entries back to dict format
+        history = []
+        if history_entries:
+            for entry_str in history_entries:
+                try:
+                    history.append(json.loads(entry_str))
+                except json.JSONDecodeError:
+                    continue
+                
+        return history
+    
+    result = db_manager.execute_redis_operation(get_operation, "get_chat_history")
+    return result if result is not None else []
 
 
 def store_chat_history(user_id: str, message: str, response: str):
-    """Store chat history."""
-    pass
+    """Store chat history in Redis."""
+    def store_operation(redis_client):
+        # Create chat history entry
+        chat_entry = {
+            "timestamp": time.time(),
+            "message": message,
+            "response": response
+        }
+        
+        # Store in Redis list for this user
+        chat_key = f"chat_history:{user_id}"
+        redis_client.lpush(chat_key, json.dumps(chat_entry))
+        
+        # Keep only last 100 messages per user
+        redis_client.ltrim(chat_key, 0, 99)
+        
+        # Set expiration (30 days)
+        redis_client.expire(chat_key, 2592000)
+        
+        return True
+    
+    return db_manager.execute_redis_operation(store_operation, "store_chat_history") is not None
 
 
 def get_embedding(text: str):
@@ -302,12 +341,82 @@ def get_embedding(text: str):
 
 
 def index_user_document(user_id: str, content: str, metadata: Optional[dict] = None):
-    """Index user document."""
-    if metadata is None:
-        metadata = {}
-    pass
+    """Index user document in ChromaDB."""
+    try:
+        if not db_manager.chroma_collection:
+            log_service_status("CHROMADB", "warning", "ChromaDB collection not available")
+            return False
+            
+        if metadata is None:
+            metadata = {}
+            
+        # Add user_id to metadata
+        metadata.update({
+            "user_id": user_id,
+            "timestamp": time.time(),
+            "type": "user_document"
+        })
+        
+        # Generate embedding using our embedding model
+        embedding = get_embedding(content)
+        if embedding is None:
+            log_service_status("EMBEDDINGS", "warning", "Could not generate embedding for document")
+            return False
+            
+        # Create unique document ID
+        doc_id = f"user_{user_id}_{int(time.time())}"
+        
+        # Add to ChromaDB
+        db_manager.chroma_collection.add(
+            documents=[content],
+            embeddings=[embedding.tolist()],
+            metadatas=[metadata],
+            ids=[doc_id]
+        )
+        
+        log_service_status("CHROMADB", "info", f"Indexed document for user {user_id}")
+        return True
+        
+    except Exception as e:
+        log_service_status("CHROMADB", "warning", f"Failed to index document: {e}")
+        return False
 
 
 def retrieve_user_memory(user_id: str, query: str, limit: int = 5):
-    """Retrieve user memory."""
-    return []
+    """Retrieve user memory from ChromaDB based on semantic similarity."""
+    try:
+        if not db_manager.chroma_collection:
+            log_service_status("CHROMADB", "warning", "ChromaDB collection not available")
+            return []
+            
+        # Generate embedding for the query
+        query_embedding = get_embedding(query)
+        if query_embedding is None:
+            log_service_status("EMBEDDINGS", "warning", "Could not generate embedding for query")
+            return []
+            
+        # Search ChromaDB for similar documents
+        results = db_manager.chroma_collection.query(
+            query_embeddings=[query_embedding.tolist()],
+            n_results=limit,
+            where={"user_id": user_id}  # Filter by user_id
+        )
+        
+        # Format results
+        memories = []
+        if results and results['documents']:
+            for i, doc in enumerate(results['documents'][0]):
+                memory = {
+                    "content": doc,
+                    "metadata": results['metadatas'][0][i] if results['metadatas'] else {},
+                    "similarity": 1 - results['distances'][0][i] if results['distances'] else 0.0,
+                    "id": results['ids'][0][i] if results['ids'] else f"mem_{i}"
+                }
+                memories.append(memory)
+        
+        log_service_status("CHROMADB", "info", f"Retrieved {len(memories)} memories for user {user_id}")
+        return memories
+        
+    except Exception as e:
+        log_service_status("CHROMADB", "warning", f"Failed to retrieve user memory: {e}")
+        return []

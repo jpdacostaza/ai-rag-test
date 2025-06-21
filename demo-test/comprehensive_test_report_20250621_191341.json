@@ -1,0 +1,20 @@
+{
+  "summary": {
+    "total_tests": 1,
+    "passed": 1,
+    "failed": 0,
+    "success_rate": "100.0%",
+    "total_duration": "3.01s",
+    "average_test_duration": "0.01s"
+  },
+  "test_results": [
+    {
+      "name": "Health Endpoints",
+      "success": true,
+      "message": "\u2705 /health; \u2705 /health/simple; \u2705 /health/detailed; \u2705 /health/redis; \u2705 /health/chromadb",
+      "duration": "0.01s",
+      "timestamp": "2025-06-21T19:13:41.066159"
+    }
+  ],
+  "failed_tests": []
+}

@@ -1,0 +1,262 @@
+{
+  "summary": {
+    "total_tests": 24,
+    "passed": 17,
+    "failed": 7,
+    "warnings": 0,
+    "success_rate": "70.8%"
+  },
+  "results": [
+    {
+      "test": "Valid X-API-Key",
+      "endpoint": "/health/simple",
+      "expected_status": 200,
+      "actual_status": 200,
+      "success": true,
+      "duration": "0.01s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.049665"
+    },
+    {
+      "test": "Valid Authorization Bearer",
+      "endpoint": "/health/simple",
+      "expected_status": 200,
+      "actual_status": 200,
+      "success": true,
+      "duration": "0.00s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.052252"
+    },
+    {
+      "test": "Invalid API Key",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.00s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.054893",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.0551217,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Malformed Bearer Token",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.00s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.058065",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.0579727,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Empty API Key",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.00s",
+      "response_size": 85,
+      "timestamp": "2025-06-21T19:16:01.060162",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.060495,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Missing Authentication",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.01s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.073892",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.0740159,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Wrong Header Name",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.01s",
+      "response_size": 85,
+      "timestamp": "2025-06-21T19:16:01.089022",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.089142,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Case Sensitive Test",
+      "endpoint": "/health/simple",
+      "expected_status": 401,
+      "actual_status": 200,
+      "success": false,
+      "duration": "0.00s",
+      "response_size": 86,
+      "timestamp": "2025-06-21T19:16:01.091897",
+      "response_preview": "{\"status\":\"ok\",\"timestamp\":1750526161.0920126,\"message\":\"Simple health check working\"}"
+    },
+    {
+      "test": "Query Parameter Auth",
+      "success": true,
+      "status": 200,
+      "timestamp": "2025-06-21T19:16:01.105416"
+    },
+    {
+      "test": "Invalid Query Parameter Auth",
+      "success": false,
+      "status": 200,
+      "timestamp": "2025-06-21T19:16:01.121005"
+    },
+    {
+      "test": "Input Validation - SQL Injection",
+      "input_type": "SQL Injection",
+      "success": true,
+      "status": 200,
+      "duration": "0.00s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.124712"
+    },
+    {
+      "test": "Input Validation - XSS Attempt",
+      "input_type": "XSS Attempt",
+      "success": true,
+      "status": 200,
+      "duration": "0.03s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.151300"
+    },
+    {
+      "test": "Input Validation - Command Injection",
+      "input_type": "Command Injection",
+      "success": true,
+      "status": 200,
+      "duration": "0.02s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.167242"
+    },
+    {
+      "test": "Input Validation - Path Traversal",
+      "input_type": "Path Traversal",
+      "success": true,
+      "status": 200,
+      "duration": "0.02s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.183504"
+    },
+    {
+      "test": "Input Validation - NoSQL Injection",
+      "input_type": "NoSQL Injection",
+      "success": true,
+      "status": 200,
+      "duration": "0.00s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.187314"
+    },
+    {
+      "test": "Input Validation - LDAP Injection",
+      "input_type": "LDAP Injection",
+      "success": true,
+      "status": 200,
+      "duration": "0.00s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.190977"
+    },
+    {
+      "test": "Input Validation - XML External Entity",
+      "input_type": "XML External Entity",
+      "success": true,
+      "status": 200,
+      "duration": "0.00s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.193588"
+    },
+    {
+      "test": "Input Validation - Extremely Long Input",
+      "input_type": "Extremely Long Input",
+      "success": true,
+      "status": 200,
+      "duration": "0.02s",
+      "response_length": 83,
+      "timestamp": "2025-06-21T19:16:01.214609"
+    },
+    {
+      "test": "Rate Limiting",
+      "total_requests": 20,
+      "successful_requests": 20,
+      "rate_limited": false,
+      "total_duration": "0.30s",
+      "requests_per_second": "67.1",
+      "response_codes": [
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200,
+        200
+      ],
+      "timestamp": "2025-06-21T19:16:01.512547"
+    },
+    {
+      "test": "Security Headers",
+      "options_status": 405,
+      "get_status": 200,
+      "security_headers_found": [],
+      "cors_headers_found": [],
+      "total_security_headers": 0,
+      "total_cors_headers": 0,
+      "timestamp": "2025-06-21T19:16:01.542731"
+    },
+    {
+      "test": "Error Disclosure - Invalid JSON",
+      "method": "POST",
+      "endpoint": "/chat",
+      "status": 422,
+      "sensitive_patterns_found": [],
+      "response_length": 124,
+      "potential_disclosure": false,
+      "timestamp": "2025-06-21T19:16:01.546325"
+    },
+    {
+      "test": "Error Disclosure - Missing Fields",
+      "method": "POST",
+      "endpoint": "/chat",
+      "status": 422,
+      "sensitive_patterns_found": [],
+      "response_length": 168,
+      "potential_disclosure": false,
+      "timestamp": "2025-06-21T19:16:01.559316"
+    },
+    {
+      "test": "Error Disclosure - Non-existent Endpoint",
+      "method": "GET",
+      "endpoint": "/nonexistent",
+      "status": 404,
+      "sensitive_patterns_found": [],
+      "response_length": 22,
+      "potential_disclosure": false,
+      "timestamp": "2025-06-21T19:16:01.562007"
+    },
+    {
+      "test": "Error Disclosure - Invalid Method",
+      "method": "DELETE",
+      "endpoint": "/health",
+      "status": 405,
+      "sensitive_patterns_found": [],
+      "response_length": 31,
+      "potential_disclosure": false,
+      "timestamp": "2025-06-21T19:16:01.565678"
+    }
+  ]
+}

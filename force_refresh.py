@@ -13,9 +13,9 @@ sys.path.append(".")
 async def force_refresh_and_show():
     print("Starting forced refresh...")
     await refresh_model_cache(force=True)
-    print('Models found: {len(_model_cache["data"])}')
+    print(f'Models found: {len(_model_cache["data"])}')
     for model in _model_cache["data"]:
-        print('  - {model["id"]}')
+        print(f'  - {model["id"]}')
 
 
 asyncio.run(force_refresh_and_show())

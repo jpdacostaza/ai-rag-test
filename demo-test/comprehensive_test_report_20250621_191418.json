@@ -1,0 +1,99 @@
+{
+  "summary": {
+    "total_tests": 11,
+    "passed": 9,
+    "failed": 2,
+    "success_rate": "81.8%",
+    "total_duration": "31.80s",
+    "average_test_duration": "1.71s"
+  },
+  "test_results": [
+    {
+      "name": "Health Endpoints",
+      "success": true,
+      "message": "\u2705 /health; \u2705 /health/simple; \u2705 /health/detailed; \u2705 /health/redis; \u2705 /health/chromadb",
+      "duration": "0.01s",
+      "timestamp": "2025-06-21T19:13:49.506372"
+    },
+    {
+      "name": "Authentication Scenarios",
+      "success": false,
+      "message": "Test suite error: not enough values to unpack (expected 4, got 3)",
+      "duration": "0.00s",
+      "timestamp": "2025-06-21T19:13:50.506961"
+    },
+    {
+      "name": "Chat Functionality",
+      "success": true,
+      "message": "\u2705 Message 1: What is the weather in London?...; \u2705 Message 2: What time is it in Tokyo?...; \u2705 Message 3: Calculate 15 + 25 * 3...; \u2705 Message 4: Convert 100 km to miles...; \u2705 Message 5: Search for artificial intellig...; \u2705 Message 6: Tell me about machine learning...; \u2705 Message 7: Run Python: print('Hello World...; \u2705 Message 8: What is 2+2?...; \u2705 Message 9: What's the current time?...; \u2705 Message 10: Hello, how are you?...",
+      "duration": "5.50s",
+      "timestamp": "2025-06-21T19:13:56.002503"
+    },
+    {
+      "name": "AI Tools",
+      "success": true,
+      "message": "\u2705 Weather Tool; \u2705 Time Tool; \u2705 Math Tool; \u2705 Conversion Tool; \u2705 Web Search; \u2705 Wikipedia; \u2705 Calculator",
+      "duration": "7.35s",
+      "timestamp": "2025-06-21T19:14:04.351840"
+    },
+    {
+      "name": "OpenAI Compatibility",
+      "success": true,
+      "message": "\u2705 Models endpoint: 0 models; \u2705 Chat completions endpoint",
+      "duration": "0.07s",
+      "timestamp": "2025-06-21T19:14:05.420637"
+    },
+    {
+      "name": "Document Upload & RAG",
+      "success": false,
+      "message": "\u2705 Document upload; \u274c RAG query: No relevant content found",
+      "duration": "2.74s",
+      "timestamp": "2025-06-21T19:14:09.161788"
+    },
+    {
+      "name": "Enhanced Endpoints",
+      "success": true,
+      "message": "\u23ed\ufe0f  GET /config (Not implemented); \u23ed\ufe0f  GET /persona (Not implemented); \u23ed\ufe0f  GET /cache/stats (Not implemented); \u23ed\ufe0f  GET /storage/health (Not implemented); \u23ed\ufe0f  GET /adaptive/stats (Not implemented); \u23ed\ufe0f  GET /learning/health (Not implemented)",
+      "duration": "0.01s",
+      "timestamp": "2025-06-21T19:14:10.170652"
+    },
+    {
+      "name": "Error Handling",
+      "success": true,
+      "message": "\u2705 Invalid JSON: Proper error response; \u2705 Missing required field: Proper error response; \u2705 Non-existent endpoint: Proper error response; \u2705 Invalid method: Proper error response",
+      "duration": "0.07s",
+      "timestamp": "2025-06-21T19:14:11.244268"
+    },
+    {
+      "name": "Performance & Stress Test",
+      "success": true,
+      "message": "Avg response time: 0.05s; Max response time: 0.05s; \u2705 Response times acceptable",
+      "duration": "0.25s",
+      "timestamp": "2025-06-21T19:14:12.490565"
+    },
+    {
+      "name": "Cache Functionality",
+      "success": true,
+      "message": "\u2705 Cache consistency; \u26a0\ufe0f  No significant cache speedup",
+      "duration": "1.10s",
+      "timestamp": "2025-06-21T19:14:14.590741"
+    },
+    {
+      "name": "Session Management",
+      "success": true,
+      "message": "\u2705 Session for session_user_1; \u2705 Session for session_user_2; \u2705 Session for session_user_3; \u2705 Session persistence",
+      "duration": "1.70s",
+      "timestamp": "2025-06-21T19:14:17.290357"
+    }
+  ],
+  "failed_tests": [
+    {
+      "name": "Authentication Scenarios",
+      "message": "Test suite error: not enough values to unpack (expected 4, got 3)"
+    },
+    {
+      "name": "Document Upload & RAG",
+      "message": "\u2705 Document upload; \u274c RAG query: No relevant content found"
+    }
+  ]
+}

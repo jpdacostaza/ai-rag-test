@@ -51,6 +51,7 @@ from model_manager import router as model_manager_router
 from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
+from v1_models_fix import v1_router
 
 # Create stub functions for missing imports
 def initialize_storage():
@@ -107,15 +108,75 @@ class StorageManager:
 _model_cache = {"data": [], "last_updated": 0, "ttl": 300}
 
 async def refresh_model_cache(force: bool = False):
-    """Stub function for model cache refresh."""
-    pass
+    """Refresh the model cache from Ollama."""
+    global _model_cache
+    
+    current_time = time.time()
+    # Check if refresh is needed
+    if not force and (current_time - _model_cache["last_updated"]) < _model_cache["ttl"]:
+        log_service_status("MODELS", "info", "Model cache is still fresh, skipping refresh")
+        return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
+    
+    try:
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(f"{ollama_url}/api/tags")
+            
+            if response.status_code == 200:
+                data = response.json()
+                raw_models = data.get("models", [])
+                
+                # Transform models to OpenAI-compatible format
+                models = []
+                for model in raw_models:
+                    openai_model = {
+                        "id": model.get("name", "unknown"),
+                        "object": "model",
+                        "created": int(time.time()),
+                        "owned_by": "ollama",
+                        "permission": [],
+                        "root": model.get("name", "unknown"),
+                        "parent": None,
+                        # Store original Ollama data for internal use
+                        "_ollama_data": model                    }
+                    models.append(openai_model)
+                
+                # Update cache
+                _model_cache["data"] = models
+                _model_cache["last_updated"] = current_time
+                
+                log_service_status("MODELS", "ready", f"Refreshed model cache with {len(models)} models")
+                return [model["id"] for model in models]  # Return just the model names for compatibility
+            else:
+                log_service_status("MODELS", "warning", f"Failed to fetch models: HTTP {response.status_code}")
+                return [model["id"] for model in _model_cache["data"]]  # Return cached data on failure
+    except Exception as e:
+        log_service_status("MODELS", "warning", f"Error refreshing model cache: {e}")
+        return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
 
 async def ensure_model_available(model_name: str) -> bool:
-    """Stub function for model availability check."""
-    return True
+    """Check if a model is available in Ollama."""
+    try:
+        # Refresh cache to get latest models
+        await refresh_model_cache()
+        
+        # Check if model exists in the cache
+        for model in _model_cache["data"]:
+            if model.get("id") == model_name:
+                log_service_status("MODELS", "ready", f"Model {model_name} is available")
+                return True
+        
+        log_service_status("MODELS", "warning", f"Model {model_name} not found in available models")
+        return False
+        
+    except Exception as e:
+        log_service_status("MODELS", "warning", f"Error checking model availability: {e}")
+        return False
 
 app = FastAPI()
 app.include_router(model_manager_router)
+app.include_router(v1_router)  # Working /v1/models endpoint
 
 # Include upload router
 app.include_router(upload_router)
@@ -180,7 +241,9 @@ async def startup_event():
         app.state.redis_pool = None
         log_service_status(
             "STARTUP", "degraded", "Redis pool not available - some features may be degraded"
-        )    # Model preload
+        )
+    
+    # Model preload
     log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
     await _spinner_log(f"[MODEL] Preloading {DEFAULT_MODEL}", 2)
     try:
@@ -252,12 +315,12 @@ async def startup_event():
 def _print_startup_summary():
     """Print a visually distinct summary banner with health status of all services."""
 
-    ___health = get_database_health()
+    health = get_database_health()
     lines = [
         "\n================= SERVICE STATUS SUMMARY =================",
-        "Redis:      {'✅' if health['redis']['available'] else '❌'}",
-        "ChromaDB:   {'✅' if health['chromadb']['available'] else '❌'}",
-        "Embeddings: {'✅' if health['embeddings']['available'] else '❌'}",
+        f"Redis:      {'✅' if health['redis']['available'] else '❌'}",
+        f"ChromaDB:   {'✅' if health['chromadb']['available'] else '❌'}",
+        f"Embeddings: {'✅' if health['embeddings']['available'] else '❌'}",
         "========================================================\n",
     ]
     for line in lines:
@@ -509,51 +572,30 @@ async def call_ollama_llm(messages, model=None):
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                "{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=timeout
+                f"{OLLAMA_BASE_URL}/api/chat", json=payload, timeout=timeout
             )
             response.raise_for_status()
             data = response.json()
             return data.get("message", {}).get("content", "")
     except httpx.RequestError as e:
         log_service_status(
-            "OLLAMA", "failed", "Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}"
+            "OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}"
         )
-        raise Exception("Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
-    except httpx.HTTPStatusError:
+        raise Exception(f"Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
+    except httpx.HTTPStatusError as e:
         log_service_status(
             "OLLAMA",
             "failed",
-            "Ollama API returned an error: {e.response.status_code} - {e.response.text}",
-        )
-        raise
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout
-            )
-            response.raise_for_status()
-            data = response.json()
-            return data.get("response", "")
-    except httpx.RequestError as e:
-        log_service_status(
-            "OLLAMA", "failed", "Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}"
-        )
-        raise Exception("Cannot connect to Ollama service at {OLLAMA_BASE_URL}") from e
-    except httpx.HTTPStatusError:
-        log_service_status(
-            "OLLAMA",
-            "failed",
-            "Ollama API returned an error: {e.response.status_code} - {e.response.text}",
+            f"Ollama API returned an error: {e.response.status_code} - {e.response.text}",
         )
         raise
 
 
 async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
-    model = model or DEFAULT_MODEL
     """
     Asynchronously calls an OpenAI-compatible API.
     """
+    model = model or DEFAULT_MODEL
     api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
     api_key = api_key or os.getenv("OPENAI_API_KEY")
 
@@ -577,13 +619,13 @@ async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
             data = resp.json()
             return data.get("choices", [{}])[0].get("message", {}).get("content", "")
     except httpx.RequestError as e:
-        log_service_status("OPENAI", "failed", "Connection to OpenAI API at {api_url} failed: {e}")
-        raise Exception("Cannot connect to OpenAI service at {api_url}") from e
-    except httpx.HTTPStatusError:
+        log_service_status("OPENAI", "failed", f"Connection to OpenAI API at {api_url} failed: {e}")
+        raise Exception(f"Cannot connect to OpenAI service at {api_url}") from e
+    except httpx.HTTPStatusError as e:
         log_service_status(
             "OPENAI",
             "failed",
-            "OpenAI API returned an error: {e.response.status_code} - {e.response.text}",
+            f"OpenAI API returned an error: {e.response.status_code} - {e.response.text}",
         )
         raise
 
@@ -591,10 +633,10 @@ async def call_openai_llm(messages, model=None, api_url=None, api_key=None):
 async def call_llm_stream(
     messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None
 ):
-    model = model or DEFAULT_MODEL
     """
     Streams tokens from an LLM API (Ollama or OpenAI) in real time.
     """
+    model = model or DEFAULT_MODEL
     if USE_OLLAMA:
         return call_ollama_llm_stream(messages, model, stop_event, session_id)
     else:
@@ -617,7 +659,7 @@ async def call_ollama_llm_stream(
     try:
         async with httpx.AsyncClient() as client:
             async with client.stream(
-                "POST", "{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout
+                "POST", f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout
             ) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
@@ -635,12 +677,12 @@ async def call_ollama_llm_stream(
                             break
                     except json.JSONDecodeError:
                         continue
-    except httpx.RequestError:
-        log_service_status("OLLAMA", "failed", "Streaming connection to Ollama failed: {e}")
+    except httpx.RequestError as e:
+        log_service_status("OLLAMA", "failed", f"Streaming connection to Ollama failed: {e}")
         yield "Error: Cannot connect to Ollama service"
-    except Exception:
-        log_service_status("OLLAMA", "failed", "Ollama streaming failed: {e}")
-        yield "Error: {str(e)}"
+    except Exception as e:
+        log_service_status("OLLAMA", "failed", f"Ollama streaming failed: {e}")
+        yield f"Error: {str(e)}"
 
 
 async def call_openai_llm_stream(
@@ -689,16 +731,15 @@ async def call_openai_llm_stream(
                         if (
                             (choices := data.get("choices"))
                             and (delta := choices[0].get("delta"))
-                            and (content := delta.get("content"))
-                        ):
+                            and (content := delta.get("content"))                        ):
                             yield content
                     except json.JSONDecodeError:
                         continue
-    except httpx.RequestError:
-        log_service_status("OPENAI", "failed", "Streaming connection to OpenAI API failed: {e}")
+    except httpx.RequestError as e:
+        log_service_status("OPENAI", "failed", f"Streaming connection to OpenAI API failed: {e}")
         yield "Error: Cannot connect to OpenAI API"
     except Exception as e:
-        log_service_status("OPENAI", "failed", "OpenAI streaming failed: {e}")
+        log_service_status("OPENAI", "failed", f"OpenAI streaming failed: {e}")
         yield f"Error: {str(e)}"
 
 
@@ -731,13 +772,13 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         user_response = None
 
         logging.debug(
-            "[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}..."
+            f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}..."
         )
 
         # --- Check cache before tool/LLM logic ---
-        cache_key = "chat:{user_id}:{user_message}"
+        cache_key = f"chat:{user_id}:{user_message}"
         cached = None
-        logging.debug("[CACHE] Checking cache for key: {cache_key}")
+        logging.debug(f"[CACHE] Checking cache for key: {cache_key}")
         # Bypass cache for time queries to ensure real-time lookup
         is_time_query = False
         timeanddate_pattern = re.compile(
@@ -765,13 +806,13 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             is_time_query = True
 
         if not is_time_query:
-            cached = get_cache(db_manager, cache_key, user_id=user_id, request_id=request_id)
+            cached = get_cache(db_manager, cache_key)
             if cached:
-                return ChatResponse(response=cached)
+                return ChatResponse(response=str(cached))
 
         # --- Retrieve chat history and memory ---
         def get_history():
-            return get_chat_history(db_manager, user_id, max_history=10, request_id=request_id)
+            return get_chat_history(user_id, limit=10)
 
         history = safe_execute(
             get_history,
@@ -809,7 +850,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 break
 
         if time_query or "timeanddate.com" in user_message.lower():
-            system_msg = "[TOOL] Robust time lookup (geo+timezone, fallback to timeanddate.com) triggered for user {user_id}"
+            system_msg = f"[TOOL] Robust time lookup (geo+timezone, fallback to timeanddate.com) triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             country = match.group(1).strip() if match else "netherlands"
@@ -861,10 +902,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 
             user_response, tool_name = result
             tool_used = True
-            debug_info.append("[TOOL] Used {tool_name} for {country}")
+            debug_info.append(f"[TOOL] Used {tool_name} for {country}")
 
         elif "weather" in user_message.lower():
-            system_msg = "[TOOL] Weather lookup triggered for user {user_id}"
+            system_msg = f"[TOOL] Weather lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"weather in ([a-zA-Z ]+)", user_message, re.IGNORECASE)
@@ -884,7 +925,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "weather"
 
         elif "time" in user_message.lower():
-            system_msg = "[TOOL] Time lookup triggered for user {user_id}"
+            system_msg = f"[TOOL] Time lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"time in ([a-zA-Z ]+)", user_message, re.IGNORECASE)
@@ -906,7 +947,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "time"
 
         elif "convert" in user_message.lower() and "to" in user_message.lower():
-            system_msg = "[TOOL] Unit conversion triggered for user {user_id}"
+            system_msg = f"[TOOL] Unit conversion triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(
@@ -923,14 +964,14 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                         Exception("Unit conversion failed"),
                         "unit_conversion",
                         user_id,
-                        "{value} {from_unit} to {to_unit}",
+                        f"{value} {from_unit} to {to_unit}",
                         request_id,
                     ),
                     error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                         e,
                         "unit_conversion",
                         user_id,
-                        "{value} {from_unit} to {to_unit}",
+                        f"{value} {from_unit} to {to_unit}",
                         request_id,
                     ),
                 )
@@ -940,7 +981,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "unit_conversion"
 
         elif "news" in user_message.lower():
-            system_msg = "[TOOL] News lookup triggered for user {user_id}"
+            system_msg = f"[TOOL] News lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
 
@@ -949,7 +990,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "news"
 
         elif "search" in user_message.lower():
-            system_msg = "[TOOL] Web search triggered for user {user_id}"
+            system_msg = f"[TOOL] Web search triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(r"search (.+)", user_message, re.IGNORECASE)
@@ -982,7 +1023,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "web_search"
 
         elif "exchange rate" in user_message.lower():
-            system_msg = "[TOOL] Exchange rate lookup triggered for user {user_id}"
+            system_msg = f"[TOOL] Exchange rate lookup triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(
@@ -1011,7 +1052,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             or user_message.lower().startswith("python ")
             or "python code" in user_message.lower()
         ):
-            system_msg = "[TOOL] Python code execution triggered for user {user_id}"
+            system_msg = f"[TOOL] Python code execution triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             # Extract code after 'run python' or after 'python ' or find code in the message
@@ -1040,7 +1081,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             tool_name = "python_code_execution"
 
         elif "wikipedia" in user_message.lower() or "wiki" in user_message.lower():
-            system_msg = "[TOOL] Wikipedia search triggered for user {user_id}"
+            system_msg = f"[TOOL] Wikipedia search triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
             # Extract search query
@@ -1052,20 +1093,19 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 .strip()
             )
             if not query:
-                query = "artificial intelligence"  # default            user_response = "Wikipedia search is currently unavailable."
+                query = "artificial intelligence"  # default
+            user_response = "Wikipedia search is currently unavailable."
             tool_used = True
             tool_name = "wikipedia"
 
         # If no tool matched, use LLM with memory/context
         if not tool_used:
 
-            def llm_query():
+            async def llm_query():
                 # Embed user query and retrieve relevant memory
-                query_emb = get_embedding(db_manager, user_message, request_id)
+                query_emb = get_embedding(user_message)
                 memory_chunks = (
-                    retrieve_user_memory(
-                        db_manager, user_id, query_emb, n_results=3, request_id=request_id
-                    )
+                    retrieve_user_memory(user_id, user_message, limit=3)
                     if query_emb is not None
                     else []
                 )
@@ -1091,55 +1131,49 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     *[{"role": "user", "content": m} for m in current_history_msgs],
                     {"role": "user", "content": user_message},
                     (
-                        {"role": "system", "content": "Relevant memory: {context}"}
+                        {"role": "system", "content": f"Relevant memory: {context}"}
                         if context
                         else None
                     ),
                 ]
                 messages = [m for m in messages if m]
-                return call_llm(messages)
+                return await call_llm(messages)
 
-            user_response = safe_execute(
-                llm_query,
-                fallback_value="I apologize, but I'm having trouble processing your request right now. Please try \
-                    again.",
-                error_handler=lambda e: log_error(e, "LLM query", user_id, request_id),
-            )
-            logging.debug("[RESPONSE] LLM response returned for user {user_id}")
+            try:
+                user_response = await llm_query()
+            except Exception as e:
+                log_error(e, "LLM query", user_id, request_id)
+                user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."
+            logging.debug(f"[RESPONSE] LLM response returned for user {user_id}")
             debug_info.append("[TOOL] Used LLM fallback")
         else:
-            logging.debug("[RESPONSE] Tool '{tool_name}' response returned for user {user_id}")
+            logging.debug(f"[RESPONSE] Tool '{tool_name}' response returned for user {user_id}")
             debug_info.append(
                 f"[TOOL] Tool '{tool_name}' response returned"
-            )  # --- Store chat in Redis ---
-
-        def store_chat():
-            store_chat_history(
-                db_manager,
-                user_id,
-                {"message": user_message, "response": user_response},
-                request_id=request_id,
             )
+            
+        # --- Store chat in Redis ---
+        def store_chat():
+            store_chat_history(user_id, user_message, str(user_response))
 
         safe_execute(
             store_chat,
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
                 e, "store_chat", "chat:{user_id}", user_id, request_id
             ),
-        )  # --- Cache the response (after generating user_response) ---
-
+        )
+        
+        # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query:
                 set_cache(
                     db_manager,
                     cache_key,
                     str(user_response),
-                    ttl=600,
-                    user_id=user_id,
-                    request_id=request_id,
+                    expire=600
                 )
-                logging.debug("[CACHE] Response cached for user {user_id} (key: {cache_key})")
-                debug_info.append("[CACHE] Response cached (key: {cache_key})")
+                logging.debug(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
+                debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
             else:
                 logging.debug("[CACHE] Skipping cache for time-sensitive query")
 
@@ -1153,16 +1187,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         if tool_used and tool_name == "web_search" and user_response and "results" in locals():
 
             def store_knowledge():
-                # Store the top web result as a new document in ChromaDB for this user
-                doc_id = "web:{user_id}:{abs(hash(query))}"
-                name = "Web search: {query}"
-                text = user_response
-                ___chunks_stored = index_user_document(
-                    db_manager, user_id, doc_id, name, text, request_id=request_id
-                )
+                # Store the top web result as a new document in ChromaDB for this user                doc_id = f"web:{user_id}:{abs(hash(query))}"
+                name = f"Web search: {query}"
+                text = str(user_response)
+                chunks_stored = index_user_document(user_id, text)
                 logging.debug(
-                    "[KNOWLEDGE] Stored web search result ({chunks_stored} chunks) in ChromaDB for user {user_id}, \
-                        query '{query}'"
+                    f"[KNOWLEDGE] Stored web search result ({chunks_stored} chunks) in ChromaDB for user {user_id}, query '{query}'"
                 )
 
             safe_execute(
@@ -1173,9 +1203,9 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             )
 
         # Always log debug info, but do not include in user-facing response
-        logging.debug("[DEBUG INFO] {' | '.join(debug_info)}")
+        logging.debug(f"[DEBUG INFO] {' | '.join(debug_info)}")
         logging.debug(
-            "[REQUEST {request_id}] Successfully processed chat request for user {user_id}"
+            f"[REQUEST {request_id}] Successfully processed chat request for user {user_id}"
         )
 
         return ChatResponse(response=str(user_response) if user_response is not None else "")
@@ -1199,25 +1229,23 @@ async def list_models():
     # Temporary workaround: ensure Mistral model is included if it exists in Ollama
     models_data = _model_cache["data"].copy()
     mistral_exists = any(model["id"] == "mistral:7b-instruct-v0.3-q4_k_m" for model in models_data)
-
     logging.info(
-        "[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}"
+        f"[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}"
     )
-    logging.info("[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
+    logging.info(f"[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
 
     if not mistral_exists:
         # Check if Mistral model exists in Ollama directly
         try:
-
-            logging.info("[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags")
+            logging.info(f"[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags")
             async with httpx.AsyncClient() as client:
-                resp = await client.get("{OLLAMA_BASE_URL}/api/tags")
-                logging.info("[MODELS DEBUG] Ollama response status: {resp.status_code}")
+                resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+                logging.info(f"[MODELS DEBUG] Ollama response status: {resp.status_code}")
                 if resp.status_code == 200:
                     ollama_models = resp.json().get("models", [])
-                    logging.info("[MODELS DEBUG] Found {len(ollama_models)} models in Ollama")
+                    logging.info(f"[MODELS DEBUG] Found {len(ollama_models)} models in Ollama")
                     for model in ollama_models:
-                        logging.info("[MODELS DEBUG] Ollama model: {model['name']}")
+                        logging.info(f"[MODELS DEBUG] Ollama model: {model['name']}")
                         if model["name"] == "mistral:7b-instruct-v0.3-q4_k_m":
                             models_data.append(
                                 {
@@ -1225,8 +1253,7 @@ async def list_models():
                                     "object": "model",
                                     "created": int(time.time()),
                                     "owned_by": "ollama",
-                                    "permission": [],
-                                }
+                                    "permission": [],                                }
                             )
                             logging.info("[MODELS DEBUG] Added Mistral model to response")
                             break
@@ -1258,7 +1285,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     chat_req = ChatRequest(user_id=user_id, message=user_message)
     # Streaming support
     if stream:
-        session_id = "{user_id}:{body.get('model', DEFAULT_MODEL)}"
+        session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}"
         STREAM_SESSION_STOP[session_id] = False
 
         async def event_stream():
@@ -1269,15 +1296,15 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             async for token in llm_streamer:
                 if not token:
                     continue
-                ___data = {
+                data = {
                     "id": "chatcmpl-1",
                     "object": "chat.completion.chunk",
                     "created": 0,
                     "model": body.get("model", DEFAULT_MODEL),
                     "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}],
                 }
-                logging.debug("[STREAM] Sending chunk: {token}")
-                yield "data: {json.dumps(data)}\n\n"
+                logging.debug(f"[STREAM] Sending chunk: {token}")
+                yield f"data: {json.dumps(data)}\n\n"
             # End of stream
             logging.debug("[STREAM] Streaming complete.")
             yield "data: [DONE]\n\n"
@@ -1362,3 +1389,63 @@ async def check_system_prompt():
         with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
     cache_manager.check_system_prompt_change(current_prompt)
     return {"status": "ok", "message": "System prompt check completed"}
+
+
+# Model cache testing endpoints
+@app.post("/test/refresh_models")
+async def test_refresh_models():
+    """Test endpoint for refreshing model cache."""
+    try:
+        models = await refresh_model_cache(force=True)
+        return {
+            "status": "success",
+            "models_cached": len(models),
+            "models": models,
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+@app.post("/test/check_model")
+async def test_check_model(request: dict):
+    """Test endpoint for checking model availability."""
+    try:
+        model_name = request.get("model")
+        if not model_name:
+            return {"status": "error", "error": "Model name required"}
+        
+        available = await ensure_model_available(model_name)
+        return {
+            "status": "success",
+            "model": model_name,
+            "available": available,
+            "timestamp": time.time()
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "model": request.get("model", "unknown"),
+            "error": str(e),
+            "timestamp": time.time()
+        }
+
+
+@app.get("/test/model_cache_status")
+async def test_model_cache_status():
+    """Get current model cache status."""
+    return {
+        "status": "success",
+        "cache": {
+            "data": _model_cache["data"],
+            "last_updated": _model_cache["last_updated"],
+            "ttl": _model_cache["ttl"],
+            "age": time.time() - _model_cache["last_updated"],
+            "valid": time.time() - _model_cache["last_updated"] < _model_cache["ttl"]
+        },
+        "timestamp": time.time()
+    }
