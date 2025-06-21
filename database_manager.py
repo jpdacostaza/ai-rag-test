@@ -334,9 +334,12 @@ def get_embedding(text: str):
     """Get embedding for text."""
     try:
         if db_manager.embedding_model:
-            return db_manager.embedding_model.encode([text])[0]
+            # Get the embedding and ensure it's a proper array
+            embedding = db_manager.embedding_model.encode([text])[0]
+            return embedding
         return None
-    except Exception:
+    except Exception as e:
+        log_service_status("EMBEDDINGS", "warning", f"Failed to generate embedding: {e}")
         return None
 
 
@@ -387,17 +390,22 @@ def retrieve_user_memory(user_id: str, query: str, limit: int = 5):
     try:
         if not db_manager.chroma_collection:
             log_service_status("CHROMADB", "warning", "ChromaDB collection not available")
+            return []        # Generate embedding for the query
+        query_embedding = get_embedding(query)
+        if query_embedding is None or (hasattr(query_embedding, 'size') and query_embedding.size == 0):
+            log_service_status("EMBEDDINGS", "warning", "Could not generate embedding for query")
             return []
             
-        # Generate embedding for the query
-        query_embedding = get_embedding(query)
-        if query_embedding is None:
-            log_service_status("EMBEDDINGS", "warning", "Could not generate embedding for query")
+        # Ensure embedding is properly formatted for ChromaDB
+        try:
+            embedding_list = query_embedding.tolist() if hasattr(query_embedding, 'tolist') else list(query_embedding)
+        except Exception as e:
+            log_service_status("EMBEDDINGS", "warning", f"Failed to convert embedding to list: {e}")
             return []
             
         # Search ChromaDB for similar documents
         results = db_manager.chroma_collection.query(
-            query_embeddings=[query_embedding.tolist()],
+            query_embeddings=[embedding_list],
             n_results=limit,
             where={"user_id": user_id}  # Filter by user_id
         )

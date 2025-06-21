@@ -37,7 +37,8 @@ class CacheManager:
                 self.invalidate_all_cache()
                 self.redis_client.set(self.VERSION_KEY, self.CACHE_VERSION)
                 log_service_status(
-                    "CACHE", "ready", f"Cache upgraded to version {self.CACHE_VERSION}"                )
+                    "CACHE", "ready", f"Cache upgraded to version {self.CACHE_VERSION}"
+                )
         except Exception as e:
             log_service_status("CACHE", "warning", f"Cache version check failed: {e}")
 
@@ -58,7 +59,8 @@ class CacheManager:
                 self.invalidate_chat_cache()
                 self.redis_client.set(self.SYSTEM_PROMPT_HASH_KEY, current_hash)
                 log_service_status(
-                    "CACHE", "ready", "Chat cache invalidated due to system prompt change"                )
+                    "CACHE", "ready", "Chat cache invalidated due to system prompt change"
+                )
         except Exception as e:
             log_service_status("CACHE", "warning", f"System prompt check failed: {e}")
 
@@ -77,7 +79,8 @@ class CacheManager:
             if chat_keys:
                 deleted = self.redis_client.delete(*chat_keys)
                 log_service_status("CACHE", "ready", f"Invalidated {deleted} chat cache entries")
-            else:                log_service_status("CACHE", "ready", "No chat cache entries to invalidate")
+            else:
+                log_service_status("CACHE", "ready", "No chat cache entries to invalidate")
         except Exception as e:
             log_service_status("CACHE", "error", f"Failed to invalidate chat cache: {e}")
 
@@ -100,9 +103,10 @@ class CacheManager:
             if all_keys:
                 self.redis_client.delete(*all_keys)
                 log_service_status(
-                    "CACHE", "ready", "Invalidated all cache: {deleted} entries deleted"
+                    "CACHE", "ready", f"Invalidated all cache: {len(all_keys)} entries deleted"
                 )
-            else:                log_service_status("CACHE", "ready", "No cache entries to invalidate")
+            else:
+                log_service_status("CACHE", "ready", "No cache entries to invalidate")
         except Exception as e:
             log_service_status("CACHE", "error", f"Failed to invalidate all cache: {e}")
 
@@ -161,11 +165,10 @@ class CacheManager:
             # Try to parse as new format with metadata
             try:
                 data = json.loads(cached_data)
-                if isinstance(data, dict) and "value" in data:
-                    # Validate format
+                if isinstance(data, dict) and "value" in data:                    # Validate format
                     if not self.validate_response_format(data["value"]):
                         log_service_status(
-                            "CACHE", "warning", "Invalidating cache key {key} - bad format"
+                            "CACHE", "warning", f"Invalidating cache key {key} - bad format"
                         )
                         self.redis_client.delete(key)
                         return None
@@ -179,11 +182,10 @@ class CacheManager:
                         self.redis_client.delete(key)
                         return None
                     return cached_data
-            except json.JSONDecodeError:
-                # Plain string, validate format
+            except json.JSONDecodeError:                # Plain string, validate format
                 if not self.validate_response_format(cached_data):
                     log_service_status(
-                        "CACHE", "warning", "Invalidating cache key {key} - bad format"
+                        "CACHE", "warning", f"Invalidating cache key {key} - bad format"
                     )
                     self.redis_client.delete(key)
                     return None

@@ -65,10 +65,10 @@ def get_weather_weatherapi(city: str = "London") -> str:
 # --- Tool: Weather (Open-Meteo or WeatherAPI.com) ---
 def get_weather(city: str = "London") -> str:
     api_key = os.getenv("WEATHERAPI_KEY", "")
-    logging.debug("[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
+    logging.debug(f"[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
     if api_key:
         result = get_weather_weatherapi(city)
-        logging.debug("[WeatherTool] WeatherAPI.com result: {result}")
+        logging.debug(f"[WeatherTool] WeatherAPI.com result: {result}")
         if result and not result.startswith("WeatherAPI.com API key not set"):
             return result
 
@@ -115,10 +115,10 @@ def chunk_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> L
             separators=["\n\n", "\n", " ", ""],
         )
         chunks = text_splitter.split_text(text)
-        logging.debug("[CHUNKING] Created {len(chunks)} chunks from text of length {len(text)}")
+        logging.debug(f"[CHUNKING] Created {len(chunks)} chunks from text of length {len(text)}")
         return chunks
-    except Exception:
-        logging.error("[CHUNKING] Error chunking text: {e}")
+    except Exception as e:
+        logging.error(f"[CHUNKING] Error chunking text: {e}")
         return [text]  # Return original text as single chunk if splitting fails
 
 
@@ -164,7 +164,9 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
             ("lb", "kg"): 0.453592,
             ("g", "oz"): 0.035274,
             ("oz", "g"): 28.3495,
-        }        # Temperature conversions (special handling)
+        }
+
+        # Temperature conversions (special handling)
         if from_unit in ["celsius", "c"] and to_unit in ["fahrenheit", "f"]:
             result = (value * 9 / 5) + 32
             return f"{value}°C = {result:.2f}°F"
@@ -176,7 +178,9 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
             return f"{value}°C = {result:.2f}K"
         elif from_unit in ["kelvin", "k"] and to_unit in ["celsius", "c"]:
             result = value - 273.15
-            return f"{value}K = {result:.2f}°C"        # Check conversions dictionaries
+            return f"{value}K = {result:.2f}°C"
+
+        # Check conversions dictionaries
         conversion_key = (from_unit, to_unit)
         reverse_key = (to_unit, from_unit)
         
@@ -186,7 +190,9 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
                 return f"{value} {from_unit} = {result:.4f} {to_unit}"
             elif reverse_key in conversions:
                 result = value / conversions[reverse_key]
-                return f"{value} {from_unit} = {result:.4f} {to_unit}"        # If no conversion found
+                return f"{value} {from_unit} = {result:.4f} {to_unit}"
+
+        # If no conversion found
         return f"Conversion from {from_unit} to {to_unit} is not supported yet."
 
     except Exception as e:
@@ -222,12 +228,11 @@ def get_time_from_timeanddate(location: str) -> str:
             "sydney": "australia/sydney",
         }
 
-        location_url = location_mappings.get(location_clean, "world/{location_clean}")
+        location_url = location_mappings.get(location_clean, f"world/{location_clean}")
         url = f"https://www.timeanddate.com/worldclock/{location_url}"
 
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
-                Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
         with httpx.Client(timeout=10) as client:
@@ -241,13 +246,13 @@ def get_time_from_timeanddate(location: str) -> str:
         time_element = soup.find("span", {"id": "ct"}) or soup.find("span", class_="h1")
 
         if time_element:
-            time_element.get_text().strip()
-            return "Current time in {location}: {current_time} (via timeanddate.com)"
+            current_time = time_element.get_text().strip()
+            return f"Current time in {location}: {current_time} (via timeanddate.com)"
         else:
             # Fallback: look for any time-like text
             time_patterns = [
-                r"\d{1, 2}:\d{2}:\d{2}",
-                r"\d{1, 2}:\d{2}\s*(AM|PM)",
+                r"\d{1,2}:\d{2}:\d{2}",
+                r"\d{1,2}:\d{2}\s*(AM|PM)",
             ]
 
             page_text = soup.get_text()
@@ -283,26 +288,26 @@ def wikipedia_search(query: str, sentences: int = 3) -> str:
         search_results = wikipedia.search(query, results=3)
 
         if not search_results:
-            return "No Wikipedia results found for '{query}'"
+            return f"No Wikipedia results found for '{query}'"
 
         # Get summary of the first result
         page_title = search_results[0]
-        ________summary = wikipedia.summary(page_title, sentences=sentences)
+        summary = wikipedia.summary(page_title, sentences=sentences)
 
-        return "Wikipedia summary for '{page_title}':\n{summary}"
+        return f"Wikipedia summary for '{page_title}':\n{summary}"
 
     except wikipedia.exceptions.DisambiguationError as e:
         # Handle disambiguation pages
         try:
-            _________summary = wikipedia.summary(e.options[0], sentences=sentences)
-            return "Wikipedia summary for '{e.options[0]}':\n{summary}"
+            summary = wikipedia.summary(e.options[0], sentences=sentences)
+            return f"Wikipedia summary for '{e.options[0]}':\n{summary}"
         except Exception:
-            return "Multiple results found for '{query}'. Be more specific."
+            return f"Multiple results found for '{query}'. Be more specific."
     except wikipedia.exceptions.PageError:
-        return "No Wikipedia page found for '{query}'"
-    except Exception:
-        logging.error("[WIKIPEDIA] Error searching for {query}: {e}")
-        return "Error searching Wikipedia for '{query}': {e}"
+        return f"No Wikipedia page found for '{query}'"
+    except Exception as e:
+        logging.error(f"[WIKIPEDIA] Error searching for {query}: {e}")
+        return f"Error searching Wikipedia for '{query}': {e}"
 
 
 # --- Tool: Python Code Execution (Safe) ---

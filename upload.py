@@ -24,7 +24,7 @@ upload_router = APIRouter(prefix="/upload", tags=["upload"])
 
 ALLOWED_MIME_TYPES = [
     "text/plain",
-    "application/pd",
+    "application/pdf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "text/markdown",
@@ -57,9 +57,8 @@ async def upload_document(
             )
 
         # Validate file type
-        if not is_file_type_allowed(file):
-            raise HTTPException(
-                status_code=415, detail="File type ''{file.content_type}'' not supported."
+        if not is_file_type_allowed(file):            raise HTTPException(
+                status_code=415, detail=f"File type '{file.content_type}' not supported."
             )
 
         # Process document with RAG system

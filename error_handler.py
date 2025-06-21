@@ -37,7 +37,7 @@ def get_user_friendly_message(error: Exception, context: str = "") -> str:
     if isinstance(error, redis.RedisError):
         return "I'm having trouble with the caching service. Your request might be slower."
     if isinstance(error, HTTPException):
-        return "Web server issue (status code: {error.status_code}). Please check your request."
+        return f"Web server issue (status code: {error.status_code}). Please check your request."
 
     if "chroma" in error_str or "memory" in context.lower():
         return "I'm having trouble with my long-term memory. I can still help, but I might not remember our conversation."
@@ -101,16 +101,16 @@ class ErrorHandler:
 
 class ChatErrorHandler:
     """Specialized error handler for chat endpoints."""
-
+    
     @staticmethod
     def handle_chat_error(
         error: Exception, user_id: str, user_message: str = "", request_id: str = ""
     ) -> Dict[str, Any]:
         """Handle errors specifically in chat endpoints."""
-        context = "Chat endpoint for user {user_id}"
+        context = f"Chat endpoint for user {user_id}"
         if user_message:
             context += (
-                " with message: '{user_message[:100]}...'"
+                f" with message: '{user_message[:100]}...'"
                 if len(user_message) > 100
                 else f" with message: '{user_message}'"
             )
@@ -138,12 +138,12 @@ class ToolErrorHandler:
         request_id: str = "",
     ) -> str:
         """Handle errors in tool operations and return fallback message."""
-        context = "Tool '{tool_name}' execution"
+        context = f"Tool '{tool_name}' execution"
         if user_id:
-            context += " for user {user_id}"
+            context += f" for user {user_id}"
         if input_data:
             context += (
-                " with input: '{input_data[:50]}...'"
+                f" with input: '{input_data[:50]}...'"
                 if len(input_data) > 50
                 else f" with input: '{input_data}'"
             )
@@ -154,7 +154,7 @@ class ToolErrorHandler:
             "web_search": "I couldn't perform the web search right now.",
             "calculator": "I couldn't perform the calculation. Please check your input.",
         }
-        return tool_fallbacks.get(tool_name, "The {tool_name} tool encountered an issue.")
+        return tool_fallbacks.get(tool_name, f"The {tool_name} tool encountered an issue.")
 
 
 class CacheErrorHandler:
@@ -169,9 +169,9 @@ class CacheErrorHandler:
         request_id: str = "",
     ) -> None:
         """Handle cache errors gracefully without disrupting the main flow."""
-        context = "Cache {operation} operation for key: {cache_key}"
+        context = f"Cache {operation} operation for key: {cache_key}"
         log_error(error, context, user_id, request_id)
-        logging.warning("[CACHE] Cache operation failed - continuing without cache: {error}")
+        logging.warning(f"[CACHE] Cache operation failed - continuing without cache: {error}")
 
 
 class MemoryErrorHandler:
@@ -185,10 +185,10 @@ class MemoryErrorHandler:
         request_id: str = "",  # "store", "retrieve", "index"
     ) -> None:
         """Handle memory storage errors gracefully."""
-        context = "Memory {operation} operation for user: {user_id}"
+        context = f"Memory {operation} operation for user: {user_id}"
         log_error(error, context, user_id, request_id)
         logging.warning(
-            "[MEMORY] Memory operation failed - continuing without persistent memory: {error}"
+            f"[MEMORY] Memory operation failed - continuing without persistent memory: {error}"
         )
 
 
@@ -250,7 +250,7 @@ def safe_execute(func, *args, fallback_value=None, error_handler=None, **kwargs)
         if error_handler:
             error_handler(e)
         else:
-            log_error(e, "Error in safe_execute wrapper for {func.__name__}")
+            log_error(e, f"Error in safe_execute wrapper for {func.__name__}")
         return fallback_value
 
 
@@ -262,7 +262,7 @@ def with_error_handling(error_message="An error occurred"):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                log_error(e, "Error in decorator for {func.__name__}")
+                log_error(e, f"Error in decorator for {func.__name__}")
                 return error_message
 
         return wrapper

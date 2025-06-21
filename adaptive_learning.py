@@ -156,8 +156,8 @@ class ConversationAnalyzer:
 
             return metrics
 
-        except Exception:
-            log_service_status("LEARNING", "error", "Interaction analysis failed: {e}")
+        except Exception as e:
+            log_service_status("LEARNING", "error", f"Interaction analysis failed: {e}")
             return None
 
     def _classify_feedback(self, message: str) -> FeedbackType:

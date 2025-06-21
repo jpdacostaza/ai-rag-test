@@ -2,6 +2,12 @@
 FastAPI backend for the AI-powered application.
 """
 
+# CRITICAL: Import and enforce CPU-only mode BEFORE any ML libraries
+from cpu_enforcer import enforce_cpu_only_mode, verify_cpu_only_setup, log_cpu_verification_results
+
+# Enforce CPU-only mode immediately
+enforce_cpu_only_mode()
+
 import asyncio
 import itertools
 import json
@@ -21,8 +27,12 @@ import httpx
 from fastapi import Body
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ai_tools import convert_units
 from ai_tools import get_current_time
@@ -48,6 +58,7 @@ from human_logging import log_service_status
 
 # Import routers
 from model_manager import router as model_manager_router
+from model_manager import ensure_model_available
 from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
@@ -155,26 +166,62 @@ async def refresh_model_cache(force: bool = False):
         log_service_status("MODELS", "warning", f"Error refreshing model cache: {e}")
         return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
 
-async def ensure_model_available(model_name: str) -> bool:
-    """Check if a model is available in Ollama."""
-    try:
-        # Refresh cache to get latest models
-        await refresh_model_cache()
-        
-        # Check if model exists in the cache
-        for model in _model_cache["data"]:
-            if model.get("id") == model_name:
-                log_service_status("MODELS", "ready", f"Model {model_name} is available")
-                return True
-        
-        log_service_status("MODELS", "warning", f"Model {model_name} not found in available models")
-        return False
-        
-    except Exception as e:
-        log_service_status("MODELS", "warning", f"Error checking model availability: {e}")
-        return False
-
 app = FastAPI()
+
+# Global Exception Handlers (FastAPI Best Practice)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Handle HTTP exceptions with structured responses."""
+    log_service_status("HTTP_ERROR", "warning", f"HTTP {exc.status_code}: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "type": "http_error",
+                "code": exc.status_code,
+                "message": exc.detail,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """Handle request validation errors with detailed information."""
+    request_id = getattr(request.state, 'request_id', str(uuid.uuid4()))
+    log_service_status("VALIDATION_ERROR", "warning", f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "type": "validation_error",
+                "code": 422,
+                "message": "Request validation failed",
+                "details": exc.errors(),
+                "request_id": request_id,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle unexpected errors with proper logging."""
+    request_id = getattr(request.state, 'request_id', str(uuid.uuid4()))
+    log_service_status("INTERNAL_ERROR", "error", f"Unhandled exception [{request_id}]: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "type": "internal_error",
+                "code": 500,
+                "message": "An internal server error occurred",
+                "request_id": request_id,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+    )
+
 app.include_router(model_manager_router)
 app.include_router(v1_router)  # Working /v1/models endpoint
 
@@ -191,6 +238,9 @@ USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
 
 # Global variable to store watchdog thread
 watchdog_thread = None
+
+# Track application startup time
+_app_start_time = time.time()
 
 
 async def _spinner_log(message, duration=2, interval=0.2):
@@ -212,6 +262,19 @@ async def startup_event():
 
     # Enhanced startup logging
     log_service_status("STARTUP", "starting", "🚀 FastAPI LLM Backend Starting...")
+    
+    # CPU-only mode verification
+    log_service_status("STARTUP", "starting", "Verifying CPU-only mode...")
+    cpu_results = verify_cpu_only_setup()
+    log_cpu_verification_results(cpu_results)
+    
+    if cpu_results["status"] == "warning":
+        log_service_status("STARTUP", "warning", "CPU-only mode verification has warnings - check logs")
+    elif cpu_results["status"] == "cpu_only_verified":
+        log_service_status("STARTUP", "ready", "✅ CPU-only mode verified successfully")
+    else:
+        log_service_status("STARTUP", "degraded", "CPU-only mode verification incomplete")
+    
     _log_system_info()
     _log_environment_variables()
 
@@ -242,12 +305,11 @@ async def startup_event():
         log_service_status(
             "STARTUP", "degraded", "Redis pool not available - some features may be degraded"
         )
-    
-    # Model preload
-    log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
-    await _spinner_log(f"[MODEL] Preloading {DEFAULT_MODEL}", 2)
+      # Model verification and auto-pull
+    log_service_status("STARTUP", "starting", f"Ensuring model availability: {DEFAULT_MODEL}")
+    await _spinner_log(f"[MODEL] Checking/downloading {DEFAULT_MODEL}", 2)
     try:
-        model_available = await ensure_model_available(DEFAULT_MODEL)
+        model_available = await ensure_model_available(DEFAULT_MODEL, auto_pull=True)
         if model_available:
             log_service_status("MODEL", "ready", f"Default model {DEFAULT_MODEL} is available")
             # Preload model into memory by running a dummy inference
@@ -275,7 +337,7 @@ async def startup_event():
             )
     except Exception as e:
         log_service_status(
-            "MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}"
+            "MODEL", "error", f"Error ensuring default model {DEFAULT_MODEL}: {str(e)}"
         )
     # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
@@ -405,8 +467,12 @@ async def health_check():
 @app.get("/health/simple")
 async def simple_health():
     """Simple health check without any dependencies."""
-
-    return {"status": "ok", "timestamp": time.time(), "message": "Simple health check working"}
+    return {
+        "status": "ok", 
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": time.time() - _app_start_time,
+        "message": "Simple health check working"
+    }
 
 
 @app.get("/health/detailed")
@@ -647,7 +713,7 @@ async def call_ollama_llm_stream(
     messages, model=None, stop_event=None, session_id=None
 ) -> AsyncGenerator[str, None]:
     """
-    Asynchronously streams tokens from the Ollama API.
+    Asynchronously streams tokens from the Ollama API with proper resource management.
     """
     model = model or DEFAULT_MODEL
     prompt = "\n".join(
@@ -656,40 +722,53 @@ async def call_ollama_llm_stream(
     payload = {"model": model, "prompt": prompt, "stream": True}
     timeout = int(os.getenv("LLM_TIMEOUT", "180"))
 
+    client = None
     try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST", f"{OLLAMA_BASE_URL}/api/generate", json=payload, timeout=timeout
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if (stop_event and stop_event.is_set()) or (
-                        session_id and STREAM_SESSION_STOP.get(session_id)
-                    ):
+        client = httpx.AsyncClient(timeout=timeout)
+        async with client.stream(
+            "POST", f"{OLLAMA_BASE_URL}/api/generate", json=payload
+        ) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                # Check stop conditions
+                if (stop_event and stop_event.is_set()) or (
+                    session_id and STREAM_SESSION_STOP.get(session_id)
+                ):
+                    log_service_status("OLLAMA", "info", f"Stream stopped for session {session_id}")
+                    break
+                    
+                if not line:
+                    continue
+                    
+                try:
+                    data = json.loads(line)
+                    if "response" in data:
+                        yield data["response"]
+                    if data.get("done"):
+                        log_service_status("OLLAMA", "info", "Stream completed successfully")
                         break
-                    if not line:
-                        continue
-                    try:
-                        data = json.loads(line)
-                        if "response" in data:
-                            yield data["response"]
-                        if data.get("done"):
-                            break
-                    except json.JSONDecodeError:
-                        continue
+                except json.JSONDecodeError:
+                    continue
+                    
     except httpx.RequestError as e:
         log_service_status("OLLAMA", "failed", f"Streaming connection to Ollama failed: {e}")
         yield "Error: Cannot connect to Ollama service"
     except Exception as e:
         log_service_status("OLLAMA", "failed", f"Ollama streaming failed: {e}")
         yield f"Error: {str(e)}"
+    finally:
+        # Ensure proper cleanup
+        if client:
+            await client.aclose()
+        if session_id and session_id in STREAM_SESSION_STOP:
+            STREAM_SESSION_STOP.pop(session_id, None)
 
 
 async def call_openai_llm_stream(
     messages, model=None, api_url=None, api_key=None, stop_event=None, session_id=None
 ) -> AsyncGenerator[str, None]:
     """
-    Asynchronously streams tokens from an OpenAI-compatible API.
+    Asynchronously streams tokens from an OpenAI-compatible API with proper resource management.
     """
     model = model or DEFAULT_MODEL
     api_url = api_url or os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
@@ -708,47 +787,81 @@ async def call_openai_llm_stream(
     }
     timeout = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
 
+    client = None
     try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST", api_url, headers=headers, json=payload, timeout=timeout
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if (stop_event and stop_event.is_set()) or (
-                        session_id and STREAM_SESSION_STOP.get(session_id)
+        client = httpx.AsyncClient(timeout=timeout)
+        async with client.stream(
+            "POST", api_url, headers=headers, json=payload
+        ) as resp:
+            resp.raise_for_status()
+            async for line in resp.aiter_lines():
+                # Check stop conditions
+                if (stop_event and stop_event.is_set()) or (
+                    session_id and STREAM_SESSION_STOP.get(session_id)
+                ):
+                    log_service_status("OPENAI", "info", f"Stream stopped for session {session_id}")
+                    break
+                    
+                if not line or not line.startswith("data: "):
+                    continue
+
+                line_text = line[6:]
+                if line_text.strip() == "[DONE]":
+                    log_service_status("OPENAI", "info", "Stream completed successfully")
+                    break
+
+                try:
+                    data = json.loads(line_text)
+                    if (
+                        (choices := data.get("choices"))
+                        and (delta := choices[0].get("delta"))
+                        and (content := delta.get("content"))
                     ):
-                        break
-                    if not line or not line.startswith("data: "):
-                        continue
-
-                    line_text = line[6:]
-                    if line_text.strip() == "[DONE]":
-                        break
-
-                    try:
-                        data = json.loads(line_text)
-                        if (
-                            (choices := data.get("choices"))
-                            and (delta := choices[0].get("delta"))
-                            and (content := delta.get("content"))                        ):
-                            yield content
-                    except json.JSONDecodeError:
-                        continue
+                        yield content
+                except json.JSONDecodeError:
+                    continue
+                    
     except httpx.RequestError as e:
         log_service_status("OPENAI", "failed", f"Streaming connection to OpenAI API failed: {e}")
         yield "Error: Cannot connect to OpenAI API"
     except Exception as e:
         log_service_status("OPENAI", "failed", f"OpenAI streaming failed: {e}")
         yield f"Error: {str(e)}"
+    finally:
+        # Ensure proper cleanup
+        if client:
+            await client.aclose()
+        if session_id and session_id in STREAM_SESSION_STOP:
+            STREAM_SESSION_STOP.pop(session_id, None)
 
 
-# Global dict to track streaming sessions
+# Global dict to track streaming sessions with enhanced management
 STREAM_SESSION_STOP: Dict[str, bool] = {}
+STREAM_SESSION_METADATA: Dict[str, dict] = {}
 
 
 def stop_streaming_session(session_id: str):
+    """Stop a streaming session and cleanup metadata."""
     STREAM_SESSION_STOP[session_id] = True
+    if session_id in STREAM_SESSION_METADATA:
+        STREAM_SESSION_METADATA[session_id]["stopped_at"] = time.time()
+
+
+def cleanup_old_sessions(max_age_seconds: int = 3600):
+    """Clean up old streaming sessions to prevent memory leaks."""
+    current_time = time.time()
+    sessions_to_remove = []
+    
+    for session_id, metadata in STREAM_SESSION_METADATA.items():
+        if current_time - metadata.get("created_at", 0) > max_age_seconds:
+            sessions_to_remove.append(session_id)
+    
+    for session_id in sessions_to_remove:
+        STREAM_SESSION_STOP.pop(session_id, None)
+        STREAM_SESSION_METADATA.pop(session_id, None)
+    
+    if sessions_to_remove:
+        log_service_status("SESSION_CLEANUP", "info", f"Cleaned up {len(sessions_to_remove)} old streaming sessions")
 
 
 # --- Chat Endpoint ---
@@ -763,13 +876,20 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(chat: ChatRequest, request: Request):
-    # Generate a unique request ID for tracking
-    request_id = str(uuid.uuid4())
+    # Use request ID from middleware
+    request_id = getattr(request.state, 'request_id', str(uuid.uuid4()))
 
     try:
         user_message = chat.message
         user_id = chat.user_id
         user_response = None
+
+        # Validate input
+        if not user_message.strip():
+            raise HTTPException(
+                status_code=400, 
+                detail="Message cannot be empty"
+            )
 
         logging.debug(
             f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}..."
@@ -808,9 +928,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         if not is_time_query:
             cached = get_cache(db_manager, cache_key)
             if cached:
-                return ChatResponse(response=str(cached))
-
-        # --- Retrieve chat history and memory ---
+                return ChatResponse(response=str(cached))        # --- Retrieve chat history and memory ---
         def get_history():
             return get_chat_history(user_id, limit=10)
 
@@ -818,7 +936,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             get_history,
             fallback_value=[],
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                e, "get_history", "history:{user_id}", user_id, request_id
+                e, "get_history", f"history:{user_id}", user_id, request_id
             ),
         )
 
@@ -830,9 +948,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         # --- Intent/tool detection (tool results take precedence) ---
         tool_used = False
         tool_name = None
-        debug_info = []
-
-        # --- Robust time query detection ---
+        debug_info = []        # --- Robust time query detection ---
         time_query = False
         match = None
         # Match phrases like "time in", "current time in", "what is the time in", etc.
@@ -882,9 +998,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 
                 tz = country_timezones.get(country.lower(), None)
                 if tz:
-                    return get_current_time(tz) + " (timezone: {tz})", "geo_timezone"
+                    return get_current_time(tz) + f" (timezone: {tz})", "geo_timezone"
                 else:
-
                     return get_time_from_timeanddate(country), "timeanddate.com"
 
             result = safe_execute(
@@ -901,6 +1016,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             )
 
             user_response, tool_name = result
+            tool_used = True
+            debug_info.append(f"[TOOL] Used {tool_name} for {country}")
             tool_used = True
             debug_info.append(f"[TOOL] Used {tool_name} for {country}")
 
@@ -1151,15 +1268,14 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             debug_info.append(
                 f"[TOOL] Tool '{tool_name}' response returned"
             )
-            
-        # --- Store chat in Redis ---
+              # --- Store chat in Redis ---
         def store_chat():
             store_chat_history(user_id, user_message, str(user_response))
 
         safe_execute(
             store_chat,
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                e, "store_chat", "chat:{user_id}", user_id, request_id
+                e, "store_chat", f"chat:{user_id}", user_id, request_id
             ),
         )
         
@@ -1182,12 +1298,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
                 e, "set", cache_key, user_id, request_id
             ),
-        )
-        # --- Automatic knowledge storage: store web search results in ChromaDB ---
+        )        # --- Automatic knowledge storage: store web search results in ChromaDB ---
         if tool_used and tool_name == "web_search" and user_response and "results" in locals():
 
             def store_knowledge():
-                # Store the top web result as a new document in ChromaDB for this user                doc_id = f"web:{user_id}:{abs(hash(query))}"
+                # Store the top web result as a new document in ChromaDB for this user
+                doc_id = f"web:{user_id}:{abs(hash(query))}"
                 name = f"Web search: {query}"
                 text = str(user_response)
                 chunks_stored = index_user_document(user_id, text)
@@ -1271,6 +1387,20 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
 
     start_time = time.time()
 
+    # Validate required fields
+    if "model" not in body or not body["model"]:
+        raise HTTPException(status_code=400, detail="Missing required field: 'model'")
+    
+    if "messages" not in body or not isinstance(body["messages"], list) or len(body["messages"]) == 0:
+        raise HTTPException(status_code=400, detail="Missing or invalid required field: 'messages' (must be a non-empty list)")
+    
+    # Validate messages structure
+    for i, message in enumerate(body["messages"]):
+        if not isinstance(message, dict):
+            raise HTTPException(status_code=400, detail=f"Message at index {i} must be an object")
+        if "role" not in message or "content" not in message:
+            raise HTTPException(status_code=400, detail=f"Message at index {i} must have 'role' and 'content' fields")
+
     # Extract user_id and message from OpenAI-style request
     user_id = body.get("user", "openwebui")
     messages = body.get("messages", [])
@@ -1281,36 +1411,93 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         if m.get("role") == "user":
             user_message = m.get("content", "")
             break
+    
+    if not user_message:
+        raise HTTPException(status_code=400, detail="No user message found in the messages list")
+    
     # Call the existing chat logic
-    chat_req = ChatRequest(user_id=user_id, message=user_message)
-    # Streaming support
+    chat_req = ChatRequest(user_id=user_id, message=user_message)# Streaming support
     if stream:
-        session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}"
+        session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}:{int(time.time())}"
         STREAM_SESSION_STOP[session_id] = False
+        STREAM_SESSION_METADATA[session_id] = {
+            "created_at": time.time(),
+            "user_id": user_id,
+            "model": body.get('model', DEFAULT_MODEL)
+        }
 
         async def event_stream():
-            logging.debug("[STREAM] Streaming response triggered.")
-            llm_streamer = await call_llm_stream(
-                messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
-            )
-            async for token in llm_streamer:
-                if not token:
-                    continue
-                data = {
-                    "id": "chatcmpl-1",
+            """Enhanced event stream with proper error handling and cleanup."""
+            try:
+                logging.debug(f"[STREAM] Starting stream for session {session_id}")
+                llm_streamer = await call_llm_stream(
+                    messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
+                )
+                
+                token_count = 0
+                async for token in llm_streamer:
+                    if not token:
+                        continue
+                        
+                    # Check if stream was stopped
+                    if STREAM_SESSION_STOP.get(session_id, False):
+                        logging.debug(f"[STREAM] Stream {session_id} stopped by client")
+                        break
+                        
+                    token_count += 1
+                    data = {
+                        "id": f"chatcmpl-{session_id}",
+                        "object": "chat.completion.chunk",
+                        "created": int(time.time()),
+                        "model": body.get("model", DEFAULT_MODEL),
+                        "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}],
+                    }
+                    
+                    try:
+                        yield f"data: {json.dumps(data)}\n\n"
+                    except Exception as e:
+                        logging.error(f"[STREAM] Error yielding token: {e}")
+                        break
+                
+                # End of stream
+                final_data = {
+                    "id": f"chatcmpl-{session_id}",
                     "object": "chat.completion.chunk",
-                    "created": 0,
+                    "created": int(time.time()),
                     "model": body.get("model", DEFAULT_MODEL),
-                    "choices": [{"index": 0, "delta": {"content": token}, "finish_reason": None}],
+                    "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}],
                 }
-                logging.debug(f"[STREAM] Sending chunk: {token}")
-                yield f"data: {json.dumps(data)}\n\n"
-            # End of stream
-            logging.debug("[STREAM] Streaming complete.")
-            yield "data: [DONE]\n\n"
-            STREAM_SESSION_STOP.pop(session_id, None)
+                yield f"data: {json.dumps(final_data)}\n\n"
+                yield "data: [DONE]\n\n"
+                
+                logging.debug(f"[STREAM] Stream {session_id} completed with {token_count} tokens")
+                
+            except Exception as e:
+                logging.error(f"[STREAM] Stream {session_id} failed: {e}")
+                # Send error in SSE format
+                error_data = {
+                    "id": f"chatcmpl-{session_id}",
+                    "object": "chat.completion.chunk",
+                    "created": int(time.time()),
+                    "model": body.get("model", DEFAULT_MODEL),
+                    "choices": [{"index": 0, "delta": {"content": f"Error: {str(e)}"}, "finish_reason": "stop"}],
+                }
+                yield f"data: {json.dumps(error_data)}\n\n"
+                yield "data: [DONE]\n\n"
+            finally:
+                # Cleanup
+                STREAM_SESSION_STOP.pop(session_id, None)
+                logging.debug(f"[STREAM] Cleaned up session {session_id}")
 
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
+        return StreamingResponse(
+            event_stream(), 
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Session-ID": session_id
+            }
+        )
 
     else:
         chat_resp = await chat_endpoint(chat_req, request)
@@ -1335,14 +1522,62 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
-    """Middleware to log API requests and responses."""
+async def request_middleware(request: Request, call_next):
+    """Enhanced middleware with request tracking and timing."""
+    # Generate unique request ID
+    request_id = str(uuid.uuid4())
+    request.state.request_id = request_id
+    
+    # Start timing
     start_time = time.time()
-    response = await call_next(request)
-    end_time = time.time()
-    response_time_ms = (end_time - start_time) * 1000
-    log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
-    return response
+    
+    # Log request start
+    log_service_status(
+        "REQUEST", 
+        "info", 
+        f"[{request_id}] {request.method} {request.url.path} - Started"
+    )
+    
+    try:
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate timing
+        end_time = time.time()
+        response_time_ms = (end_time - start_time) * 1000
+        
+        # Log successful completion
+        log_service_status(
+            "REQUEST", 
+            "info", 
+            f"[{request_id}] {request.method} {request.url.path} - "
+            f"Completed {response.status_code} in {response_time_ms:.2f}ms"
+        )
+        
+        # Add timing headers
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Process-Time"] = f"{response_time_ms:.2f}ms"
+        
+        # Log API request for monitoring
+        log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
+        
+        return response
+        
+    except Exception as e:
+        # Calculate timing for failed requests
+        end_time = time.time()
+        response_time_ms = (end_time - start_time) * 1000
+        
+        # Log error
+        log_service_status(
+            "REQUEST", 
+            "error", 
+            f"[{request_id}] {request.method} {request.url.path} - "
+            f"Failed after {response_time_ms:.2f}ms: {str(e)}"
+        )
+        
+        # Re-raise to let exception handlers deal with it
+        raise
 
 
 # Cache Management Endpoints
@@ -1391,6 +1626,46 @@ async def check_system_prompt():
     return {"status": "ok", "message": "System prompt check completed"}
 
 
+@app.post("/admin/sessions/cleanup")
+async def cleanup_streaming_sessions():
+    """Clean up old streaming sessions."""
+    before_count = len(STREAM_SESSION_METADATA)
+    cleanup_old_sessions()
+    after_count = len(STREAM_SESSION_METADATA)
+    cleaned_count = before_count - after_count
+    
+    return {
+        "status": "ok",
+        "message": f"Cleaned up {cleaned_count} old sessions",
+        "active_sessions": after_count,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/admin/sessions/status")
+async def get_streaming_sessions_status():
+    """Get status of active streaming sessions."""
+    current_time = time.time()
+    active_sessions = []
+    
+    for session_id, metadata in STREAM_SESSION_METADATA.items():
+        session_info = {
+            "session_id": session_id,
+            "created_at": metadata.get("created_at"),
+            "age_seconds": current_time - metadata.get("created_at", current_time),
+            "is_stopped": STREAM_SESSION_STOP.get(session_id, False),
+            "stopped_at": metadata.get("stopped_at")
+        }
+        active_sessions.append(session_info)
+    
+    return {
+        "status": "ok",
+        "total_sessions": len(active_sessions),
+        "active_sessions": active_sessions,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
 # Model cache testing endpoints
 @app.post("/test/refresh_models")
 async def test_refresh_models():
@@ -1419,7 +1694,7 @@ async def test_check_model(request: dict):
         if not model_name:
             return {"status": "error", "error": "Model name required"}
         
-        available = await ensure_model_available(model_name)
+        available = await ensure_model_available(model_name, auto_pull=False)
         return {
             "status": "success",
             "model": model_name,

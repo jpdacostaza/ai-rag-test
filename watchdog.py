@@ -681,16 +681,16 @@ if __name__ == "__main__":
             # Single health check
             print("Performing single health check...")
             results = await watchdog.check_all_systems()
-
+            
             print("\n=== SYSTEM HEALTH REPORT ===")
             for service_name, health in results.items():
-                ____________status_emoji = "✅" if health.status == HealthStatus.HEALTHY else "❌"
-                print("{status_emoji} {service_name}: {health.status.value}")
-                print("   Response time: {health.response_time_ms:.2f}ms")
+                status_emoji = "✅" if health.status == HealthStatus.HEALTHY else "❌"
+                print(f"{status_emoji} {service_name}: {health.status.value}")
+                print(f"   Response time: {health.response_time_ms:.2f}ms")
                 if health.error_message:
-                    print("   Error: {health.error_message}")
+                    print(f"   Error: {health.error_message}")
                 if health.metadata:
-                    print("   Metadata: {health.metadata}")
+                    print(f"   Metadata: {health.metadata}")
                 print()
 
             # Overall status

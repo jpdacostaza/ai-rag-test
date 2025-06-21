@@ -216,14 +216,23 @@ def index_user_document(
 
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from ChromaDB."""
-
+    
     def _retrieve_memory():
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] ChromaDB not available, returning empty memory")
             return []
 
+        # Ensure query_embedding is properly formatted
+        if hasattr(query_embedding, 'tolist'):
+            embedding_list = query_embedding.tolist()
+        elif hasattr(query_embedding, '__iter__'):
+            embedding_list = list(query_embedding)
+        else:
+            logging.error("[CHROMADB] Invalid embedding format")
+            return []
+
         results = db_manager.chroma_collection.query(
-            query_embeddings=query_embedding,
+            query_embeddings=[embedding_list],
             n_results=n_results,
             where={"user_id": user_id},
             include=["documents", "metadatas", "distances"],
@@ -255,9 +264,9 @@ def get_embedding(db_manager, text, request_id=""):
     def _get_embedding():
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")
-            return None
-
-        return db_manager.embedding_model.encode([text])
+            return None        # Get the embedding and return the first element (single text input)
+        embedding = db_manager.embedding_model.encode([text])
+        return embedding[0] if embedding is not None and len(embedding) > 0 else None
 
     return safe_execute(
         _get_embedding,

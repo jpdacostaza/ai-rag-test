@@ -65,40 +65,37 @@ class ColoredFormatter(logging.Formatter):
         """Formats a log record with colors, emojis, and contextual icons."""
         level_name = record.levelname
         message = record.getMessage()
-
+        
         if self.use_colors:
-            COLORS.get(level_name, "")
-            ___________reset, ___________bold, ___________dim = (
+            level_color = COLORS.get(level_name, "")
+            reset, bold, dim = (
                 COLORS["RESET"],
                 COLORS["BOLD"],
                 COLORS["DIM"],
             )
         else:
-            ____________level_color = ____________reset = ____________bold = ____________dim = ""
+            level_color = reset = bold = dim = ""
 
-        EMOJIS.get(level_name, "📝")
-        ____________timestamp = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
+        emoji = EMOJIS.get(level_name, "📝")
+        timestamp = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
 
         # Extract service icon from message (e.g., "[REDIS]")
+        service_icon = ""
         for service, icon in SERVICE_ICONS.items():
-            if "[{service}]" in message:
-                message = message.replace("[{service}]", "").strip()
-                break
-
-        # Define format based on log level
+            if f"[{service}]" in message:
+                message = message.replace(f"[{service}]", "").strip()
+                service_icon = f"{icon} "
+                break        # Define format based on log level
         log_formats = {
-            "ERROR": "{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ \
-                {service_icon}{bold}{message}{reset}",
-            "CRITICAL": "{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ \
-                {service_icon}{bold}{message}{reset}",
-            "WARNING": "{emoji} {level_color}{timestamp}{reset} │ {level_color}{level_name:<8}{reset} │ \
-                {service_icon}{message}",
-            "INFO": "{emoji} {timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
-            "DEBUG": "{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}",
+            "ERROR": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
+            "CRITICAL": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
+            "WARNING": f"{emoji} {level_color}{timestamp}{reset} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
+            "INFO": f"{emoji} {timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
+            "DEBUG": f"{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}",
         }
 
         return log_formats.get(
-            level_name, "{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}"
+            level_name, f"{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}"
         )
 
 
@@ -155,7 +152,8 @@ def log_service_status(service: str, status: str, details: str = ""):
         "degraded": "⚠️",
         "failed": "❌",
         "connecting": "🔗",
-        "reconnecting": "🔄",    }
+        "reconnecting": "🔄",
+    }
     icon = status_icons.get(status.lower(), "📝")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
@@ -188,10 +186,10 @@ def log_chat_interaction(
     request_id: Optional[str] = None,
 ):
     """Log key details of a chat interaction."""
-    ____________tools_info = " (tools: {', '.join(tools_used)})" if tools_used else ""
-    ____________req_id_info = " [ReqID: {request_id}]" if request_id else ""
+    tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ""
+    req_id_info = f" [ReqID: {request_id}]" if request_id else ""
     logger.info(
-        "[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}"
+        f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}"
     )
 
 

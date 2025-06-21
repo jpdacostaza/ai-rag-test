@@ -56,12 +56,56 @@ async def refresh_model_cache(force: bool = False) -> None:
     _model_cache["last_updated"] = time.time()
 
 
-async def ensure_model_available(model_name: str) -> bool:
+async def pull_model(model_name: str) -> bool:
+    """
+    Pull a model from Ollama registry if it's not available locally.
+    Returns True if model is successfully pulled or already available.
+    """
+    try:
+        logging.info(f"[MODELS] Pulling model {model_name} from Ollama registry...")
+        async with httpx.AsyncClient(timeout=300.0) as client:  # 5 minute timeout for model downloads
+            resp = await client.post(
+                f"{OLLAMA_BASE_URL}/api/pull", 
+                json={"name": model_name},
+                timeout=300.0
+            )
+            resp.raise_for_status()
+            logging.info(f"[MODELS] Successfully pulled model {model_name}")
+            return True
+    except httpx.RequestError as e:
+        logging.error(f"[MODELS] Failed to connect to Ollama for model pull: {e}")
+        return False
+    except httpx.HTTPStatusError as e:
+        logging.error(f"[MODELS] Model pull failed with HTTP {e.response.status_code}: {e.response.text}")
+        return False
+    except Exception as e:
+        logging.error(f"[MODELS] Unexpected error during model pull: {e}")
+        return False
+
+
+async def ensure_model_available(model_name: str, auto_pull: bool = True) -> bool:
     """
     Checks if a model is available in the cache. Refreshes if cache is stale.
+    If auto_pull is True and the model is not found, attempts to pull it from Ollama registry.
     """
     await refresh_model_cache()  # Refresh if stale
-    return any(model["id"] == model_name for model in _model_cache["data"])
+    model_exists = any(model["id"] == model_name for model in _model_cache["data"])
+    
+    if not model_exists and auto_pull:
+        logging.info(f"[MODELS] Model {model_name} not found locally, attempting to pull...")
+        pull_success = await pull_model(model_name)
+        if pull_success:
+            # Refresh cache after successful pull
+            await refresh_model_cache(force=True)
+            model_exists = any(model["id"] == model_name for model in _model_cache["data"])
+            if model_exists:
+                logging.info(f"[MODELS] Model {model_name} is now available after pull")
+            else:
+                logging.warning(f"[MODELS] Model {model_name} pull completed but model not found in cache")
+        else:
+            logging.error(f"[MODELS] Failed to pull model {model_name}")
+    
+    return model_exists
 
 
 # --- API Endpoints ---
@@ -119,3 +163,48 @@ async def delete_model(model_name: str):
             )
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"Failed to connect to Ollama: {e}")
+
+
+@router.post("/models/{model_name}/pull")
+async def pull_model_endpoint(model_name: str):
+    """Manually pull a model from Ollama registry."""
+    try:
+        success = await pull_model(model_name)
+        if success:
+            await refresh_model_cache(force=True)  # Refresh cache after pull
+            return {
+                "status": "success", 
+                "message": f"Model {model_name} pulled successfully",
+                "model": model_name
+            }
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to pull model {model_name} from Ollama registry"
+            )
+    except Exception as e:
+        logging.error(f"[MODELS] Error in pull endpoint: {e}")
+        raise HTTPException(status_code=500, detail=f"Error pulling model: {str(e)}")
+
+
+@router.post("/models/ensure-default")
+async def ensure_default_model():
+    """Ensure the default model is available, pulling it if necessary."""
+    default_model = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
+    try:
+        is_available = await ensure_model_available(default_model, auto_pull=True)
+        if is_available:
+            return {
+                "status": "success",
+                "message": f"Default model {default_model} is available",
+                "model": default_model,
+                "pulled": True
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to ensure default model {default_model} is available"
+            )
+    except Exception as e:
+        logging.error(f"[MODELS] Error ensuring default model: {e}")
+        raise HTTPException(status_code=500, detail=f"Error ensuring default model: {str(e)}")
