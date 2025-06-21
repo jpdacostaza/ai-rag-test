@@ -74,17 +74,13 @@ class StorageManager:
             Dict mapping directory names to creation success status
         """
         results = {}
-        base_path = Path(cls.STORAGE_ROOT)
-
-        # Create base storage directory
+        base_path = Path(cls.STORAGE_ROOT)        # Create base storage directory
         if not base_path.exists():
             log_service_status(
-                "STORAGE", "starting", "Creating base storage directory: {base_path.absolute()}"
+                "STORAGE", "starting", f"Creating base storage directory: {base_path.absolute()}"
             )
             base_path.mkdir(parents=True, exist_ok=True)
-            os.chmod(base_path, 0o755)
-
-        # Create each storage component
+            os.chmod(base_path, 0o755)        # Create each storage component
         for name, config in cls.STORAGE_STRUCTURE.items():
             dir_path = base_path / config["path"]
 
@@ -93,7 +89,7 @@ class StorageManager:
                 if not dir_path.exists():
                     dir_path.mkdir(parents=True, exist_ok=True)
                     log_service_status(
-                        "STORAGE", "ready", "Created {name}: {config['description']}"
+                        "STORAGE", "ready", f"Created {name}: {config['description']}"
                     )
 
                 # Set permissions
@@ -111,8 +107,8 @@ class StorageManager:
 
                 results[name] = True
 
-            except Exception:
-                log_service_status("STORAGE", "error", "Failed to create {name}: {str(e)}")
+            except Exception as e:
+                log_service_status("STORAGE", "error", f"Failed to create {name}: {str(e)}")
                 results[name] = False
 
         return results
@@ -187,16 +183,15 @@ class StorageManager:
                 results[name] = False
                 continue
 
-            try:
-                # Test write access
+            try:                # Test write access
                 test_file = dir_path / ".write_test"
                 test_file.write_text("test")
                 test_file.unlink()
                 results[name] = True
 
-            except Exception:
+            except Exception as e:
                 log_service_status(
-                    "STORAGE", "degraded", "Write permission issue in {name}: {str(e)}"
+                    "STORAGE", "degraded", f"Write permission issue in {name}: {str(e)}"
                 )
                 results[name] = False
 
@@ -214,27 +209,24 @@ def initialize_storage() -> bool:
         log_service_status("STORAGE", "starting", "Initializing storage structure...")
 
         # Ensure storage structure exists
-        results = StorageManager.ensure_storage_structure()
-
-        # Check results
+        results = StorageManager.ensure_storage_structure()        # Check results
         success_count = sum(1 for success in results.values() if success)
         total_count = len(results)
 
         if success_count == total_count:
             log_service_status(
-                "STORAGE", "ready", "All {total_count} storage directories initialized successfully"
-            )
+                "STORAGE", "ready", f"All {total_count} storage directories initialized successfully"            )
             return True
         else:
             log_service_status(
                 "STORAGE",
                 "degraded",
-                "Storage partially initialized: {success_count}/{total_count} directories created",
+                f"Storage partially initialized: {success_count}/{total_count} directories created",
             )
             return False
 
-    except Exception:
-        log_service_status("STORAGE", "error", "Storage initialization failed: {str(e)}")
+    except Exception as e:
+        log_service_status("STORAGE", "error", f"Storage initialization failed: {str(e)}")
         return False
 
 
@@ -244,26 +236,26 @@ if __name__ == "__main__":
 
     # Initialize storage
     success = initialize_storage()
-    print("Storage initialization: {'SUCCESS' if success else 'FAILED'}")
+    print(f"Storage initialization: {'SUCCESS' if success else 'FAILED'}")
 
     # Show storage info
     info = StorageManager.get_storage_info()
-    print("\nBase storage path: {info['base_path']}")
-    print("Base directory exists: {info['exists']}")
+    print(f"\nBase storage path: {info['base_path']}")
+    print(f"Base directory exists: {info['exists']}")
 
     print("\nStorage directories:")
     for name, dir_info in info["directories"].items():
         status = "✅" if dir_info["exists"] else "❌"
         size_info = (
-            " ({dir_info['size_mb']} MB, {dir_info['file_count']} files)"
+            f" ({dir_info['size_mb']} MB, {dir_info['file_count']} files)"
             if dir_info["exists"]
             else ""
         )
-        print("{status} {name}: {dir_info['description']}{size_info}")
+        print(f"{status} {name}: {dir_info['description']}{size_info}")
 
     # Validate permissions
     permissions = StorageManager.validate_permissions()
     print("\nPermission validation:")
     for name, valid in permissions.items():
         status = "✅" if valid else "❌"
-        print("{status} {name}: {'Write access OK' if valid else 'Write access FAILED'}")
+        print(f"{status} {name}: {'Write access OK' if valid else 'Write access FAILED'}")

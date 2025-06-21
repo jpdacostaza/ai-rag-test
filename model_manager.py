@@ -27,13 +27,11 @@ async def refresh_model_cache(force: bool = False) -> None:
     global _model_cache
     current_time = time.time()
     if not force and (current_time - _model_cache["last_updated"] < _model_cache["ttl"]):
-        return
-
-    logging.info("[MODELS] Refreshing model cache...")
+        return    logging.info("[MODELS] Refreshing model cache...")
     ollama_models = []
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get("{OLLAMA_BASE_URL}/api/tags")
+            resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
             resp.raise_for_status()
             models_data = resp.json().get("models", [])
             ollama_models = [
@@ -45,11 +43,11 @@ async def refresh_model_cache(force: bool = False) -> None:
                 }
                 for model in models_data
             ]
-        logging.info("[MODELS] Successfully fetched {len(ollama_models)} models from Ollama.")
-    except httpx.RequestError:
-        logging.error("[MODELS] Failed to connect to Ollama to refresh models: {e}")
-    except Exception:
-        logging.error("[MODELS] An unexpected error occurred while fetching Ollama models: {e}")
+        logging.info(f"[MODELS] Successfully fetched {len(ollama_models)} models from Ollama.")
+    except httpx.RequestError as e:
+        logging.error(f"[MODELS] Failed to connect to Ollama to refresh models: {e}")
+    except Exception as e:
+        logging.error(f"[MODELS] An unexpected error occurred while fetching Ollama models: {e}")
 
     # Combine with local models (if any)
     # custom_models = list_models_in_dir(CUSTOM_MODEL_DIR) # You can extend this
@@ -98,7 +96,7 @@ async def get_model_details(model_name: str):
     await refresh_model_cache()
     model_info = next((m for m in _model_cache["data"] if m["id"] == model_name), None)
     if not model_info:
-        raise HTTPException(status_code=404, detail="Model '{model_name}' not found.")
+        raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found.")
     return model_info
 
 
@@ -108,17 +106,16 @@ async def delete_model(model_name: str):
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.request(
-                "DELETE", f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name}
-            )
+                "DELETE", f"{OLLAMA_BASE_URL}/api/delete", json={"name": model_name}            )
             resp.raise_for_status()
         await refresh_model_cache(force=True)  # Refresh cache after deletion
         return {"status": "deleted", "model": model_name}
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 404:
-            raise HTTPException(status_code=404, detail="Model '{model_name}' not found in Ollama.")
+            raise HTTPException(status_code=404, detail=f"Model '{model_name}' not found in Ollama.")
         else:
             raise HTTPException(
-                status_code=500, detail="Failed to delete model from Ollama: {e.response.text}"
+                status_code=500, detail=f"Failed to delete model from Ollama: {e.response.text}"
             )
-    except httpx.RequestError:
-        raise HTTPException(status_code=500, detail="Failed to connect to Ollama: {e}")
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect to Ollama: {e}")

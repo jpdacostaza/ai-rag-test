@@ -169,6 +169,43 @@ def check_requirements():
         return False
 
 
+def check_demo_test_suite():
+    """Check if demo-test suite is properly set up."""
+    logger.info("🧪 Checking demo-test suite...")
+
+    demo_test_dir = "demo-test"
+    required_files = [
+        "master_test_runner.py",
+        "comprehensive_test_suite_v2.py",
+        "tool_integration_tests.py",
+        "security_tests.py",
+        "performance_tests.py",
+        "setup_and_run.py",
+        "README.md",
+    ]
+
+    issues_found = []
+
+    if not os.path.exists(demo_test_dir):
+        issues_found.append(f"Demo-test directory not found: {demo_test_dir}")
+        return False
+
+    for required_file in required_files:
+        file_path = os.path.join(demo_test_dir, required_file)
+        if not os.path.exists(file_path):
+            issues_found.append(f"Missing demo-test file: {required_file}")
+
+    if issues_found:
+        logger.warning("Demo-test suite issues found:")
+        for issue in issues_found:
+            logger.warning(f"  - {issue}")
+        return False
+    else:
+        logger.info("✅ Demo-test suite is properly configured")
+        logger.info(f"  Found {len(required_files)} test files")
+        return True
+
+
 def main():
     """Main cleanup function."""
     logger.info("🚀 Starting Backend Project Cleanup and Validation")
@@ -194,7 +231,11 @@ def main():
     if not check_requirements():
         success = False
 
-    # Step 6: Final summary
+    # Step 6: Check demo-test suite
+    if not check_demo_test_suite():
+        success = False
+
+    # Step 7: Final summary
     if success:
         logger.info("🎉 All checks passed! Project is clean and consistent.")
     else:

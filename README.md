@@ -1,6 +1,6 @@
 # Advanced LLM Backend with Tool-Augmented Intelligence & Enhanced Human Logging
 
-> **📚 Note**: This README contains all project documentation, including setup guides, troubleshooting, and technical details. All separate .md files have been merged into this unified documentation.
+> **📚 Documentation**: For comprehensive project documentation, reports, and technical details, see the [readme/](readme/) directory which contains all project documentation organized by category.
 
 ## 🚀 Project Overview
 
@@ -659,7 +659,7 @@ Your backend is currently **fully operational** with the following configuration
 
 ### Prerequisites
 - **Docker & Docker Compose**: Latest versions with container support
-- **System Requirements**: 8GB+ RAM recommended, GPU optional for faster inference
+- **System Requirements**: 8GB+ RAM recommended (CPU-only deployment)
 - **Network**: Stable internet connection for model downloads and external API calls
 
 ### 1. Clone and Setup
@@ -871,6 +871,19 @@ save 60 1000
 - `GET /health/detailed` - Detailed system monitoring
 - Service-specific health monitoring
 
+## 📚 Documentation
+
+For comprehensive project documentation, visit the [readme/](readme/) directory which contains:
+
+- **Project Status Reports** - Final achievements and completion summaries
+- **Code Review Reports** - Detailed code analysis and quality metrics
+- **Testing Documentation** - Comprehensive test reports and results
+- **System Health Reports** - Service monitoring and health verification
+- **Cleanup & Maintenance** - Code cleanup and optimization reports
+- **Technical Analysis** - Duplicate code analysis and refactoring plans
+
+See [readme/README.md](readme/README.md) for a complete documentation index.
+
 ---
 
-*All documentation has been consolidated into this README for easy reference and maintenance.*
+*Project Status: **COMPLETED** ✅ - All tests passing, services healthy, code quality optimized*

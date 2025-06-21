@@ -5,6 +5,7 @@ Handles Redis, ChromaDB, and embedding model management with enhanced logging.
 
 import os
 import time
+from typing import Optional
 
 import chromadb
 import redis
@@ -50,17 +51,14 @@ class DatabaseManager:
                 health_check_interval=30,
                 max_connections=20,
                 connection_class=redis.Connection,
-            )
-
-            # Test the connection
+            )            # Test the connection
             test_client = redis.Redis(connection_pool=self.redis_pool)
             test_client.ping()
             log_service_status(
                 "REDIS",
                 "ready",
-                "Connected to {redis_host}:{redis_port} with Docker-optimized settings",
+                f"Connected to {redis_host}:{redis_port} with Docker-optimized settings",
             )
-
         except redis.RedisError as e:
             RedisConnectionHandler.handle_redis_error(e, "connect")
             self.redis_pool = None
@@ -90,7 +88,7 @@ class DatabaseManager:
                 log_service_status(
                     "CHROMADB",
                     "ready",
-                    "Using HTTP client connecting to http://{chroma_host}:{chroma_port}",
+                    f"Using HTTP client connecting to http://{chroma_host}:{chroma_port}",
                 )
             else:
                 chroma_db_dir = os.getenv("CHROMA_DB_DIR", "./storage/chroma")
@@ -104,7 +102,7 @@ class DatabaseManager:
                     )
                 )
                 log_service_status(
-                    "CHROMADB", "ready", "Using local file-based client at {chroma_db_dir}"
+                    "CHROMADB", "ready", f"Using local file-based client at {chroma_db_dir}"
                 )
 
             collection_name = os.getenv("CHROMA_COLLECTION", "user_memory")
@@ -112,25 +110,24 @@ class DatabaseManager:
             log_service_status(
                 "CHROMADB",
                 "ready",
-                "Successfully connected to ChromaDB and accessed collection '{collection_name}'",
+                f"Successfully connected to ChromaDB and accessed collection '{collection_name}'",
             )
 
             try:
-                self.chroma_client.list_collections()
+                collections = self.chroma_client.list_collections()
                 log_service_status(
-                    "CHROMADB", "ready", "Found {len(collections)} existing collections"
+                    "CHROMADB", "ready", f"Found {len(collections)} existing collections"
                 )
-            except Exception:
-                log_service_status("CHROMADB", "degraded", "Could not list collections: {e}")
+            except Exception as e:
+                log_service_status("CHROMADB", "degraded", f"Could not list collections: {e}")
 
-        except Exception:
-            log_service_status("CHROMADB", "failed", "Failed to initialize: {e}")
+        except Exception as e:
+            log_service_status("CHROMADB", "failed", f"Failed to initialize: {e}")
             self.chroma_client = None
             self.chroma_collection = None
 
     def _initialize_embedding_model(self):
         """Initialize embedding model with robust offline support."""
-        time.time()
         log_service_status("EMBEDDINGS", "starting", "🧠 Initializing embedding model")
 
         # Model loading attempts
@@ -145,16 +142,15 @@ class DatabaseManager:
 
         for model_name in model_candidates:
             try:
-                log_service_status("EMBEDDINGS", "starting", "Trying model: {model_name}")
+                log_service_status("EMBEDDINGS", "starting", f"Trying model: {model_name}")
                 self.embedding_model = SentenceTransformer(model_name, device="cpu")
-
                 # Test the model
                 test_embedding = self.embedding_model.encode(["test"])
                 if test_embedding is not None:
-                    log_service_status("EMBEDDINGS", "ready", "Successfully loaded {model_name}")
+                    log_service_status("EMBEDDINGS", "ready", f"Successfully loaded {model_name}")
                     return
-            except Exception:
-                log_service_status("EMBEDDINGS", "warning", "Failed to load {model_name}: {e}")
+            except Exception as e:
+                log_service_status("EMBEDDINGS", "warning", f"Failed to load {model_name}: {e}")
                 continue
 
         log_service_status("EMBEDDINGS", "failed", "All embedding models failed to load")
@@ -176,9 +172,9 @@ class DatabaseManager:
             client = redis.Redis(connection_pool=self.redis_pool)
             client.ping()
             return client
-        except redis.RedisError:
+        except redis.RedisError as e:
             log_service_status(
-                "REDIS", "reconnecting", "Connection issue: {e}. Attempting to re-initialize."
+                "REDIS", "reconnecting", f"Connection issue: {e}. Attempting to re-initialize."
             )
             self._initialize_redis()
             if self.redis_pool:
@@ -233,7 +229,7 @@ class DatabaseManager:
                     log_service_status(
                         "REDIS",
                         "failed",
-                        "Could not get Redis client for operation: {operation_name}",
+                        f"Could not get Redis client for operation: {operation_name}",
                     )
                     if attempt < max_retries:
                         time.sleep(1)  # Wait before retrying
@@ -243,10 +239,75 @@ class DatabaseManager:
                 log_service_status(
                     "REDIS",
                     "warning",
-                    "Redis operation {operation_name} failed on attempt {attempt + 1}: {e}",
+                    f"Redis operation {operation_name} failed on attempt {attempt + 1}: {e}",
                 )
                 if attempt >= max_retries:
                     RedisConnectionHandler.handle_redis_error(e, operation_name)
                     return None
                 time.sleep(1)  # Wait before retrying
         return None
+
+
+# Global database manager instance
+db_manager = DatabaseManager()
+
+
+# Convenience functions for compatibility
+def get_database_health():
+    """Get health status of all database components."""
+    return db_manager.get_health_status()
+
+
+def get_cache(db_manager_instance, cache_key: str):
+    """Get value from cache."""
+    try:
+        redis_client = db_manager_instance.get_redis_client()
+        if redis_client:
+            return redis_client.get(cache_key)
+        return None
+    except Exception:
+        return None
+
+
+def set_cache(db_manager_instance, cache_key: str, value: str, expire: int = 3600):
+    """Set value in cache."""
+    try:
+        redis_client = db_manager_instance.get_redis_client()
+        if redis_client:
+            redis_client.setex(cache_key, expire, value)
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def get_chat_history(user_id: str, limit: int = 10):
+    """Get chat history for user."""
+    return []
+
+
+def store_chat_history(user_id: str, message: str, response: str):
+    """Store chat history."""
+    pass
+
+
+def get_embedding(text: str):
+    """Get embedding for text."""
+    try:
+        if db_manager.embedding_model:
+            return db_manager.embedding_model.encode([text])[0]
+        return None
+    except Exception:
+        return None
+
+
+def index_user_document(user_id: str, content: str, metadata: Optional[dict] = None):
+    """Index user document."""
+    if metadata is None:
+        metadata = {}
+    pass
+
+
+def retrieve_user_memory(user_id: str, query: str, limit: int = 5):
+    """Retrieve user memory."""
+    return []

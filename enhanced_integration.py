@@ -67,7 +67,7 @@ async def upload_document_advanced(
             except ValueError:
                 raise HTTPException(
                     status_code=400,
-                    detail="Invalid chunking strategy. Options: {[s.value for s in ChunkingStrategy]}",
+                    detail=f"Invalid chunking strategy. Options: {[s.value for s in ChunkingStrategy]}",
                 )
         # Process document with enhanced chunker
         processed_chunks = await enhanced_chunker.process_document(
@@ -79,7 +79,7 @@ async def upload_document_advanced(
 
         # Store chunks in database using a single batch operation
         chunk_texts = [chunk.text for chunk in processed_chunks]
-        doc_id = "{user_id}_{file.filename}_{hash(text)}"
+        doc_id = f"{user_id}_{file.filename}_{hash(text)}"
 
         success = index_document_chunks(
             db_manager=db_manager,
@@ -146,7 +146,7 @@ async def upload_document_advanced(
         raise
     except Exception as e:
         log_error(e, "enhanced_upload")
-        raise HTTPException(status_code=500, detail="Document processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
 
 
 @enhanced_router.post("/feedback/interaction")
@@ -202,7 +202,7 @@ async def submit_interaction_feedback(
         raise
     except Exception as e:
         log_error(e, "feedback_processing")
-        raise HTTPException(status_code=500, detail="Feedback processing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Feedback processing failed: {str(e)}")
 
 
 @enhanced_router.get("/insights/user/{user_id}")
@@ -215,7 +215,7 @@ async def get_user_insights(user_id: str):
 
     except Exception as e:
         log_error(e, "insights_retrieval")
-        raise HTTPException(status_code=500, detail="Failed to retrieve insights: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve insights: {str(e)}")
 
 
 @enhanced_router.get("/document/strategies")
@@ -323,11 +323,11 @@ async def enhanced_chat_endpoint(
         # response_customization)
 
         # For demonstration, we'll create a mock response
-        mock_response = "Enhanced response for user {user_id}: {message[:50]}..."
+        mock_response = f"Enhanced response for user {user_id}: {message[:50]}..."
         response_time = time.time() - start_time
 
         # 4. Process interaction for learning (in background)
-        conversation_id = conversation_id or "conv_{user_id}_{int(time.time())}"
+        conversation_id = conversation_id or f"conv_{user_id}_{int(time.time())}"
 
         asyncio.create_task(
             adaptive_learning_system.process_interaction(
@@ -350,7 +350,7 @@ async def enhanced_chat_endpoint(
 
     except Exception as e:
         log_error(e, "enhanced_chat")
-        raise HTTPException(status_code=500, detail="Enhanced chat failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Enhanced chat failed: {str(e)}")
 
 
 # Background task to start learning system
@@ -364,10 +364,8 @@ async def start_enhanced_background_tasks():
         log_service_status(
             "ENHANCED_SYSTEM",
             "ready",
-            "Enhanced learning and document processing systems initialized",
-        )
-
-    except Exception:
+            "Enhanced learning and document processing systems initialized",        )
+    except Exception as e:
         log_service_status(
-            "ENHANCED_SYSTEM", "error", "Failed to start enhanced background tasks: {e}"
+            "ENHANCED_SYSTEM", "error", f"Failed to start enhanced background tasks: {e}"
         )

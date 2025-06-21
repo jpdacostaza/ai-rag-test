@@ -625,11 +625,7 @@ class EnhancedChunker:
         user_id: str,
     ) -> ProcessedChunk:
         """Create a ProcessedChunk with full metadata."""
-        chunk_id = f"{user_id}_{
-            hashlib.md5(
-                (filename +
-                 str(index)).encode()).hexdigest()[
-                :8]}"
+        chunk_id = f"{user_id}_{hashlib.md5((filename + str(index)).encode()).hexdigest()[:8]}"
 
         # Calculate chunk quality score
         quality = self._assess_chunk_quality(text, strategy)
@@ -686,14 +682,10 @@ class EnhancedChunker:
     ) -> List[ProcessedChunk]:
         """Fallback to simple processing if enhanced processing fails."""
         chunks = self.recursive_splitter.split_text(content)
-
+        
         processed_chunks = []
         for i, chunk_text in enumerate(chunks):
-            chunk_id = f"{user_id}_{
-                hashlib.md5(
-                    (filename +
-                     str(i)).encode()).hexdigest()[
-                    :8]}"
+            chunk_id = f"{user_id}_{hashlib.md5((filename + str(i)).encode()).hexdigest()[:8]}"
 
             processed_chunk = ProcessedChunk(
                 chunk_id=chunk_id,

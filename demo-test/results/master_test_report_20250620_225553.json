@@ -1,0 +1,27 @@
+{
+  "summary": {
+    "timestamp": "2025-06-20T22:55:53.686835",
+    "total_modules": 1,
+    "successful_modules": 0,
+    "failed_modules": 1,
+    "success_rate": "0.0%",
+    "total_duration_minutes": "0.0"
+  },
+  "module_results": {
+    "quick": {
+      "module": "comprehensive",
+      "description": "Quick Integration Tests",
+      "success": false,
+      "return_code": 1,
+      "duration": "0.59s",
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\demo-test\\comprehensive_test_suite_v2.py\", line 253, in main\n    success = suite.run_all_tests()\n              ^^^^^^^^^^^^^^^^^^^^^\n  File \"E:\\Projects\\opt\\backend\\demo-test\\comprehensive_test_suite_v2.py\", line 199, in run_all_tests\n    print(\"\\U0001f680 Starting Comprehensive Real-Life Simulation Test Suite\")\n  File \"C:\\Users\\jdaco\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\U0001f680' in position 0: character maps to <undefined>\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\demo-test\\comprehensive_test_suite_v2.py\", line 264, in <module>\n    exit(main())\n         ^^^^^^\n  File \"E:\\Projects\\opt\\backend\\demo-test\\comprehensive_test_suite_v2.py\", line 259, in main\n    print(f\"\\n\\n\\u274c Test suite failed with error: {e}\")\n  File \"C:\\Users\\jdaco\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\u274c' in position 4: character maps to <undefined>\n",
+      "timestamp": "2025-06-20T22:55:53.686835"
+    }
+  },
+  "report_files": [
+    "adaptive_learning_test_results.json",
+    "cache_manager_demo_results.json",
+    "cache_test_results.json"
+  ]
+}

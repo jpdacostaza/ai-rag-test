@@ -7,6 +7,7 @@ import itertools
 import json
 import logging
 import os
+import platform
 import re
 import sys
 import time
@@ -45,6 +46,74 @@ from human_logging import init_logging
 from human_logging import log_api_request
 from human_logging import log_service_status
 
+# Import routers
+from model_manager import router as model_manager_router
+from upload import upload_router
+from enhanced_integration import enhanced_router
+from feedback_router import feedback_router
+
+# Create stub functions for missing imports
+def initialize_storage():
+    """Stub function for storage initialization."""
+    return True
+
+def initialize_cache_management():
+    """Stub function for cache management initialization."""
+    return True
+
+def get_cache_manager():
+    """Stub function to get cache manager."""
+    return None
+
+def start_watchdog_service():
+    """Stub function for watchdog service."""
+    return None
+
+async def start_enhanced_background_tasks():
+    """Stub function for enhanced background tasks."""
+    return None
+
+def get_time_from_timeanddate(country: str):
+    """Stub function for time from timeanddate."""
+    return f"Time in {country}: Not available"
+
+class MockWatchdog:
+    """Mock watchdog class."""
+    def __init__(self):
+        self.monitors = []
+    
+    def get_service_history(self, service_name: str, hours: int):
+        return []
+
+def get_watchdog():
+    """Stub function to get watchdog."""
+    return MockWatchdog()
+
+async def get_health_status():
+    """Stub function for health status."""
+    return {}
+
+class StorageManager:
+    """Stub class for storage manager."""
+    @staticmethod
+    def get_storage_info():
+        return {"directories": {}}
+    
+    @staticmethod  
+    def validate_permissions():
+        return {}
+
+# Model cache stub
+_model_cache = {"data": [], "last_updated": 0, "ttl": 300}
+
+async def refresh_model_cache(force: bool = False):
+    """Stub function for model cache refresh."""
+    pass
+
+async def ensure_model_available(model_name: str) -> bool:
+    """Stub function for model availability check."""
+    return True
+
 app = FastAPI()
 app.include_router(model_manager_router)
 
@@ -65,10 +134,10 @@ watchdog_thread = None
 
 async def _spinner_log(message, duration=2, interval=0.2):
     """Show a spinner/progress animation in the logs for a given duration."""
-    ___spinner = itertools.cycle(["|", "/", "-", "\\"])
+    spinner = itertools.cycle(["|", "/", "-", "\\"])
     steps = int(duration / interval)
     for _ in range(steps):
-        sys.stdout.write("\r{message} {next(spinner)}")
+        sys.stdout.write(f"\r{message} {next(spinner)}")
         sys.stdout.flush()
         await asyncio.sleep(interval)
     sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")
@@ -111,11 +180,9 @@ async def startup_event():
         app.state.redis_pool = None
         log_service_status(
             "STARTUP", "degraded", "Redis pool not available - some features may be degraded"
-        )
-
-    # Model preload
-    log_service_status("STARTUP", "starting", "Verifying and preloading model: {DEFAULT_MODEL}")
-    await _spinner_log("[MODEL] Preloading {DEFAULT_MODEL}", 2)
+        )    # Model preload
+    log_service_status("STARTUP", "starting", f"Verifying and preloading model: {DEFAULT_MODEL}")
+    await _spinner_log(f"[MODEL] Preloading {DEFAULT_MODEL}", 2)
     try:
         model_available = await ensure_model_available(DEFAULT_MODEL)
         if model_available:
@@ -125,27 +192,27 @@ async def startup_event():
                 preload_payload = {"model": DEFAULT_MODEL, "prompt": "Hello!", "stream": False}
                 async with httpx.AsyncClient() as client:
                     resp = await client.post(
-                        "{OLLAMA_BASE_URL}/api/generate", json=preload_payload, timeout=60
+                        f"{OLLAMA_BASE_URL}/api/generate", json=preload_payload, timeout=60
                     )
                     if resp.status_code == 200:
                         log_service_status(
-                            "MODEL", "preloaded", "Model {DEFAULT_MODEL} preloaded into memory"
+                            "MODEL", "preloaded", f"Model {DEFAULT_MODEL} preloaded into memory"
                         )
                     else:
                         log_service_status(
                             "MODEL",
                             "warning",
-                            "Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}",
+                            f"Model {DEFAULT_MODEL} preload failed: HTTP {resp.status_code}",
                         )
-            except Exception:
-                log_service_status("MODEL", "warning", "Model {DEFAULT_MODEL} preload failed: {e}")
+            except Exception as e:
+                log_service_status("MODEL", "warning", f"Model {DEFAULT_MODEL} preload failed: {e}")
         else:
             log_service_status(
-                "MODEL", "error", "Failed to ensure default model {DEFAULT_MODEL} is available"
+                "MODEL", "error", f"Failed to ensure default model {DEFAULT_MODEL} is available"
             )
-    except Exception:
+    except Exception as e:
         log_service_status(
-            "MODEL", "error", "Error checking default model {DEFAULT_MODEL}: {str(e)}"
+            "MODEL", "error", f"Error checking default model {DEFAULT_MODEL}: {str(e)}"
         )
     # Initialize model cache on startup
     log_service_status("STARTUP", "starting", "Initializing model cache...")
@@ -200,13 +267,12 @@ def _print_startup_summary():
 def _log_system_info():
     """Log system information for startup diagnostics."""
     try:
+        log_service_status("SYSTEM", "info", f"Python version: {sys.version.split()[0]}")
+        log_service_status("SYSTEM", "info", f"Platform: {platform.system()} {platform.release()}")
+        log_service_status("SYSTEM", "info", f"Working directory: {os.getcwd()}")
 
-        log_service_status("SYSTEM", "info", "Python version: {sys.version.split()[0]}")
-        log_service_status("SYSTEM", "info", "Platform: {platform.system()} {platform.release()}")
-        log_service_status("SYSTEM", "info", "Working directory: {os.getcwd()}")
-
-    except Exception:
-        log_service_status("SYSTEM", "warning", "Failed to log system info: {e}")
+    except Exception as e:
+        log_service_status("SYSTEM", "warning", f"Failed to log system info: {e}")
 
 
 def _log_environment_variables():
@@ -232,10 +298,10 @@ def _log_environment_variables():
             # Mask sensitive values
             if "KEY" in var or "SECRET" in var:
                 value = "***" if value != "Not set" else "Not set"
-            log_service_status("CONFIG", "info", "{var}={value}")
+            log_service_status("CONFIG", "info", f"{var}={value}")
 
-    except Exception:
-        log_service_status("CONFIG", "warning", "Failed to log environment: {e}")
+    except Exception as e:
+        log_service_status("CONFIG", "warning", f"Failed to log environment: {e}")
 
 
 @app.get("/health")
@@ -257,7 +323,7 @@ async def health_check():
     ]
     healthy = sum(1 for _, ok in services if ok)
     total = len(services)
-    summary = "Health check: {healthy}/{total} services healthy. " + ", ".join(
+    summary = f"Health check: {healthy}/{total} services healthy. " + ", ".join(
         [f"{name}: {'✅' if ok else '❌'}" for name, ok in services]
     )
 

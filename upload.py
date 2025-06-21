@@ -53,7 +53,7 @@ async def upload_document(
         if file.size and file.size > MAX_FILE_SIZE:
             raise HTTPException(
                 status_code=413,
-                detail="File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
             )
 
         # Validate file type
@@ -112,7 +112,7 @@ async def search_documents(
         results = await rag_processor.semantic_search(query, user_id, limit)
 
         log_service_status(
-            "API", "ready", f"Document search: ''{query}'' returned {len(results)} results"
+            "API", "ready", f"Document search: '{query}' returned {len(results)} results"
         )
 
         return JSONResponse(

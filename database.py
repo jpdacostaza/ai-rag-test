@@ -9,7 +9,6 @@ from error_handler import RedisConnectionHandler
 from error_handler import safe_execute
 
 """
-
 Database management module for the FastAPI LLM backend.
 Handles Redis (caching & chat history) and ChromaDB (semantic memory) operations.
 """
@@ -67,14 +66,14 @@ def get_cache(db_manager, cache_key, user_id="", request_id=""):
     def _get_cache_operation(redis_client):
         cached = redis_client.get(cache_key)
         if cached:
-            logging.debug("[CACHE] HIT for key: {cache_key}")
+            logging.debug(f"[CACHE] HIT for key: {cache_key}")
             return str(cached)
         else:
-            logging.debug("[CACHE] MISS for key: {cache_key}")
+            logging.debug(f"[CACHE] MISS for key: {cache_key}")
             return None
 
     return safe_execute(
-        lambda: db_manager.execute_redis_operation(_get_cache_operation, "get_cache({cache_key})"),
+        lambda: db_manager.execute_redis_operation(_get_cache_operation, f"get_cache({cache_key})"),
         fallback_value=None,
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
             e, "get", cache_key, user_id, request_id
@@ -91,11 +90,11 @@ def set_cache(db_manager, cache_key, value, ttl=600, user_id="", request_id=""):
     # Fallback to direct Redis if cache manager unavailable
     def _set_cache_operation(redis_client):
         redis_client.setex(cache_key, ttl, value)
-        logging.debug("[CACHE] SET for key: {cache_key}")
+        logging.debug(f"[CACHE] SET for key: {cache_key}")
         return True
 
     return safe_execute(
-        lambda: db_manager.execute_redis_operation(_set_cache_operation, "set_cache({cache_key})"),
+        lambda: db_manager.execute_redis_operation(_set_cache_operation, f"set_cache({cache_key})"),
         fallback_value=False,
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
             e, "set", cache_key, user_id, request_id
@@ -107,19 +106,19 @@ def store_chat_history(db_manager, user_id, message, max_history=20, request_id=
     """Store a chat message in Redis for a user (as a capped list) with automatic retry."""
 
     def _store_chat_operation(redis_client):
-        key = "chat_history:{user_id}"
+        key = f"chat_history:{user_id}"
         redis_client.rpush(key, json.dumps(message))
         redis_client.ltrim(key, -max_history, -1)
-        logging.debug("[MEMORY] Stored chat message for user {user_id}")
+        logging.debug(f"[MEMORY] Stored chat message for user {user_id}")
         return True
 
     return safe_execute(
         lambda: db_manager.execute_redis_operation(
-            _store_chat_operation, "store_chat_history({user_id})"
+            _store_chat_operation, f"store_chat_history({user_id})"
         ),
         fallback_value=False,
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
-            e, "store_chat", "chat_history:{user_id}", user_id, request_id
+            e, "store_chat", f"chat_history:{user_id}", user_id, request_id
         ),
     )
 
@@ -128,19 +127,19 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
     """Retrieve recent chat history for a user from Redis with automatic retry."""
 
     def _get_chat_operation(redis_client):
-        key = "chat_history:{user_id}"
+        key = f"chat_history:{user_id}"
         history = redis_client.lrange(key, -max_history, -1)
         parsed_history = [json.loads(m) for m in history]
-        logging.debug("[MEMORY] Retrieved {len(parsed_history)} chat messages for user {user_id}")
+        logging.debug(f"[MEMORY] Retrieved {len(parsed_history)} chat messages for user {user_id}")
         return parsed_history
 
     return safe_execute(
         lambda: db_manager.execute_redis_operation(
-            _get_chat_operation, "get_chat_history({user_id})"
+            _get_chat_operation, f"get_chat_history({user_id})"
         ),
         fallback_value=[],
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
-            e, "get_chat", "chat_history:{user_id}", user_id, request_id
+            e, "get_chat", f"chat_history:{user_id}", user_id, request_id
         ),
     )
 
@@ -162,9 +161,9 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
         try:
             # Set show_progress_bar to False for cleaner logs
             embeddings = db_manager.embedding_model.encode(chunks, show_progress_bar=False).tolist()
-            logging.info("Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
+            logging.info(f"Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
         except Exception as e:
-            logging.error("Failed to generate embeddings for doc_id={doc_id}: {e}")
+            logging.error(f"Failed to generate embeddings for doc_id={doc_id}: {e}")
             raise e
 
         chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
@@ -178,11 +177,11 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
                 embeddings=embeddings, ids=chunk_ids, metadatas=metadatas, documents=chunks
             )
             logging.info(
-                "Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}"
+                f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}"
             )
             return True
         except Exception as e:
-            logging.error("Failed to store chunks in ChromaDB for doc_id={doc_id}: {e}")
+            logging.error(f"Failed to store chunks in ChromaDB for doc_id={doc_id}: {e}")
             raise e
 
     return safe_execute(
@@ -200,6 +199,7 @@ def index_user_document(
     """
     Chunk, embed, and index a document for a specific user in ChromaDB.
     Note: This is a convenience wrapper. For pre-chunked data, use index_document_chunks."""
+    
     try:
         pass  # Placeholder for try block content
     except ImportError:
@@ -208,7 +208,7 @@ def index_user_document(
 
     chunks = chunk_text(text, chunk_size, chunk_overlap)
     if not chunks:
-        logging.warning("No chunks created for doc_id={doc_id}, user_id={user_id}")
+        logging.warning(f"No chunks created for doc_id={doc_id}, user_id={user_id}")
         return False
 
     return index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id)
@@ -230,13 +230,13 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         )
 
         docs = results.get("documents", [[]])[0] if results else []
-        logging.debug("Retrieved {len(docs)} memory chunks for user_id={user_id}")
+        logging.debug(f"Retrieved {len(docs)} memory chunks for user_id={user_id}")
 
         if docs:
             for i, doc in enumerate(docs):
-                logging.debug("Chunk {i+1}: {doc[:100]}...")
+                logging.debug(f"Chunk {i+1}: {doc[:100]}...")
         else:
-            logging.debug("No relevant memory found for user_id={user_id}")
+            logging.debug(f"No relevant memory found for user_id={user_id}")
 
         return docs
 
@@ -262,5 +262,5 @@ def get_embedding(db_manager, text, request_id=""):
     return safe_execute(
         _get_embedding,
         fallback_value=None,
-        error_handler=lambda e: logging.error("[EMBEDDINGS] Failed to generate embedding: {e}"),
+        error_handler=lambda e: logging.error(f"[EMBEDDINGS] Failed to generate embedding: {e}"),
     )

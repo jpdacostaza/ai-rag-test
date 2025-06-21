@@ -43,23 +43,23 @@ def get_weather_weatherapi(city: str = "London") -> str:
         logging.warning("[WeatherAPI] API key not set.")
         return "WeatherAPI.com API key not set."
     try:
-        url = "http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
-        logging.debug("[WeatherAPI] Requesting: {url}")
+        url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
+        logging.debug(f"[WeatherAPI] Requesting: {url}")
         with httpx.Client(timeout=10) as client:
             resp = client.get(url)
             data = resp.json()
-        logging.debug("[WeatherAPI] Response: {data}")
+        logging.debug(f"[WeatherAPI] Response: {data}")
         if resp.status_code != 200 or "error" in data:
-            return "WeatherAPI.com error: {data.get('error', {}).get('message', 'Unknown error')}"
-        data["current"]
-        data["location"]
+            return f"WeatherAPI.com error: {data.get('error', {}).get('message', 'Unknown error')}"
+        c = data["current"]
+        loc = data["location"]
         return (
-            "Weather in {loc['name']}, {loc['country']}: {c['temp_c']}°C, "
-            "{c['condition']['text']}, wind {c['wind_kph']} kph, humidity {c['humidity']}%"
+            f"Weather in {loc['name']}, {loc['country']}: {c['temp_c']}°C, "
+            f"{c['condition']['text']}, wind {c['wind_kph']} kph, humidity {c['humidity']}%"
         )
-    except Exception:
-        logging.error("[WeatherAPI] Exception: {e}")
-        return "WeatherAPI.com lookup failed: {e}"
+    except Exception as e:
+        logging.error(f"[WeatherAPI] Exception: {e}")
+        return f"WeatherAPI.com lookup failed: {e}"
 
 
 # --- Tool: Weather (Open-Meteo or WeatherAPI.com) ---
@@ -88,13 +88,7 @@ def get_weather(city: str = "London") -> str:
             weather = weather_resp.json()
         logging.debug(f"[WeatherTool] Open-Meteo weather response: {weather}")
         w = weather.get("current_weather", {})
-        return f"Weather in {city}: {w.get(
-                                           'temperature',
-                                           '?')}°C,
-                                           wind {w.get('windspeed',
-                                           '?')} km/h,
-                                           code {w.get('weathercode',
-                                           '?')}"
+        return f"Weather in {city}: {w.get('temperature', '?')}°C, wind {w.get('windspeed', '?')} km/h, code {w.get('weathercode', '?')}"
     except Exception as e:
         logging.error(f"[WeatherTool] Error fetching weather for {city}: {e}")
         return f"Error fetching weather for {city}: {e}"
@@ -170,40 +164,34 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
             ("lb", "kg"): 0.453592,
             ("g", "oz"): 0.035274,
             ("oz", "g"): 28.3495,
-        }
-
-        # Temperature conversions (special handling)
+        }        # Temperature conversions (special handling)
         if from_unit in ["celsius", "c"] and to_unit in ["fahrenheit", "f"]:
-            (value * 9 / 5) + 32
-            return "{value}°C = {result:.2f}°F"
-        elif from_unit in ["fahrenheit", ""] and to_unit in ["celsius", "c"]:
-            (value - 32) * 5 / 9
-            return "{value}°F = {result:.2f}°C"
+            result = (value * 9 / 5) + 32
+            return f"{value}°C = {result:.2f}°F"
+        elif from_unit in ["fahrenheit", "f"] and to_unit in ["celsius", "c"]:
+            result = (value - 32) * 5 / 9
+            return f"{value}°F = {result:.2f}°C"
         elif from_unit in ["celsius", "c"] and to_unit in ["kelvin", "k"]:
-            value + 273.15
-            return "{value}°C = {result:.2f}K"
+            result = value + 273.15
+            return f"{value}°C = {result:.2f}K"
         elif from_unit in ["kelvin", "k"] and to_unit in ["celsius", "c"]:
-            value - 273.15
-            return "{value}K = {result:.2f}°C"
-
-        # Check conversions dictionaries
+            result = value - 273.15
+            return f"{value}K = {result:.2f}°C"        # Check conversions dictionaries
         conversion_key = (from_unit, to_unit)
         reverse_key = (to_unit, from_unit)
-
+        
         for conversions in [length_conversions, weight_conversions]:
             if conversion_key in conversions:
-                value * conversions[conversion_key]
-                return "{value} {from_unit} = {result:.4f} {to_unit}"
+                result = value * conversions[conversion_key]
+                return f"{value} {from_unit} = {result:.4f} {to_unit}"
             elif reverse_key in conversions:
-                value / conversions[reverse_key]
-                return "{value} {from_unit} = {result:.4f} {to_unit}"
+                result = value / conversions[reverse_key]
+                return f"{value} {from_unit} = {result:.4f} {to_unit}"        # If no conversion found
+        return f"Conversion from {from_unit} to {to_unit} is not supported yet."
 
-        # If no conversion found
-        return "Conversion from {from_unit} to {to_unit} is not supported yet."
-
-    except Exception:
-        logging.error("[CONVERSION] Error converting {value} {from_unit} to {to_unit}: {e}")
-        return "Error performing unit conversion: {e}"
+    except Exception as e:
+        logging.error(f"[CONVERSION] Error converting {value} {from_unit} to {to_unit}: {e}")
+        return f"Error performing unit conversion: {e}"
 
 
 # --- Tool: Time from timeanddate.com ---
@@ -499,22 +487,21 @@ def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0)
           Returns:
         Exchange rate information or error message
     """
-    try:
-        # Use a free exchange rate API
-        url = "https://api.exchangerate-api.com/v4/latest/{from_currency.upper()}"
+    try:        # Use a free exchange rate API
+        url = f"https://api.exchangerate-api.com/v4/latest/{from_currency.upper()}"
         with httpx.Client(timeout=10) as client:
             response = client.get(url)
             data = response.json()
 
         if to_currency.upper() in data["rates"]:
             rate = data["rates"][to_currency.upper()]
-            amount * rate
-            return "{amount} {from_currency.upper()} = {converted_amount:.2f} {to_currency.upper()} (Rate: {rate:.4f})"
+            converted_amount = amount * rate
+            return f"{amount} {from_currency.upper()} = {converted_amount:.2f} {to_currency.upper()} (Rate: {rate:.4f})"
         else:
-            return "Currency {to_currency.upper()} not found"
+            return f"Currency {to_currency.upper()} not found"
 
-    except Exception:
-        return "Exchange rate lookup failed: {str(e)}"
+    except Exception as e:
+        return f"Exchange rate lookup failed: {str(e)}"
 
 
 def get_system_info() -> str:

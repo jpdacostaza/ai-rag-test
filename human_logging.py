@@ -141,7 +141,7 @@ class HumanLogger:
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
-        logger.info("[STARTUP] 🎨 Enhanced logging initialized at level {level.upper()}")
+        logger.info(f"[STARTUP] 🎨 Enhanced logging initialized at level {level.upper()}")
 
 
 # --- Convenience Functions ---
@@ -155,10 +155,9 @@ def log_service_status(service: str, status: str, details: str = ""):
         "degraded": "⚠️",
         "failed": "❌",
         "connecting": "🔗",
-        "reconnecting": "🔄",
-    }
-    status_icons.get(status.lower(), "📝")
-    message = "[{service.upper()}] {icon} {status.title()}{' - {details}' if details else ''}"
+        "reconnecting": "🔄",    }
+    icon = status_icons.get(status.lower(), "📝")
+    message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
     log_level = (
         "error"
@@ -171,13 +170,13 @@ def log_service_status(service: str, status: str, details: str = ""):
 def log_api_request(method: str, endpoint: str, status_code: int, response_time_ms: float):
     """Log API requests with color-coded status and timing."""
     if status_code < 400:
-        pass
+        status_emoji = "✅"
     elif 400 <= status_code < 500:
-        pass
+        status_emoji = "⚠️"
     else:
-        pass
+        status_emoji = "❌"
     logger.info(
-        "[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)"
+        f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)"
     )
 
 

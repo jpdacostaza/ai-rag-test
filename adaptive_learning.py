@@ -325,16 +325,14 @@ class AdaptiveLearningSystem:
             # Check for knowledge expansion opportunities
             await self._check_knowledge_expansion(
                 user_id, metrics, user_message, assistant_response
-            )
-
-            # Update user preference models
+            )            # Update user preference models
             await self._update_user_preferences(user_id, metrics)
 
             log_service_status(
                 "LEARNING",
                 "ready",
-                f"Processed interaction for {user_id}: {
-                    metrics.feedback_type.value if metrics.feedback_type else 'neutral'}",
+                f"Processed interaction for {user_id}: "
+                f"{metrics.feedback_type.value if metrics.feedback_type else 'neutral'}",
             )
 
             return {

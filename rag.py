@@ -46,13 +46,12 @@ class RAGProcessor:
                     "document_id": None,
                     "filename": file.filename,
                     "chunks_processed": 0,
-                    "total_chunks": 0,
-                    "status": "failed",
+                    "total_chunks": 0,                    "status": "failed",
                     "error": "No chunks created from document",
                 }
 
             # Store chunks with embeddings in a single batch operation
-            document_id = "{user_id}_{file.filename}_{hash(text)}"
+            document_id = f"{user_id}_{file.filename}_{hash(text)}"
 
             success = index_document_chunks(
                 db_manager=db_manager,
@@ -79,9 +78,9 @@ class RAGProcessor:
             }
 
         except Exception as e:
-            log_service_status("RAG", "error", "Document processing error: {str(e)}")
+            log_service_status("RAG", "error", f"Document processing error: {str(e)}")
             MemoryErrorHandler.handle_memory_error(e, "document_processing", user_id)
-            raise HTTPException(status_code=500, detail="Document processing failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
 
     async def semantic_search(
         self, query: str, user_id: str, limit: int = 5
@@ -91,13 +90,11 @@ class RAGProcessor:
             # Get query embedding
             query_embedding = get_embedding(db_manager, query)
             if not query_embedding:
-                return []
-
-            # Retrieve similar documents
+                return []            # Retrieve similar documents
             results = retrieve_user_memory(db_manager, user_id, query_embedding, limit)
 
             log_service_status(
-                "RAG", "ready", "Found {len(results)} relevant documents for query: {query[:50]}..."
+                "RAG", "ready", f"Found {len(results)} relevant documents for query: {query[:50]}..."
             )
 
             return results
