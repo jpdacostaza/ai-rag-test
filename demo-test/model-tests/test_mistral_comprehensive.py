@@ -82,11 +82,11 @@ class MistralTestSuite:
                     "status_code": response.status_code,
                     "response": response.text
                 })
-                return False
-        except Exception as e:
+                return False        except Exception as e:
             self.log_test("Model Listing", "ERROR", {"error": str(e)})
             return False
-      def test_simple_chat(self):
+
+    def test_simple_chat(self):
         """Test simple chat completion"""
         try:
             start_time = time.time()

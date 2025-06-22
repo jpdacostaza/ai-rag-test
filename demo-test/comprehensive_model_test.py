@@ -29,7 +29,7 @@ def test_endpoint(url: str, payload: Dict[str, Any], test_name: str) -> bool:
         
         if response.text:
             print(f"📝 Response Text: {response.text}")
-              if response.headers.get('content-type', '').startswith('application/json'):
+            if response.headers.get('content-type', '').startswith('application/json'):
                 try:
                     response_json = response.json()
                     print(f"🎯 Response JSON: {json.dumps(response_json, indent=2)}")

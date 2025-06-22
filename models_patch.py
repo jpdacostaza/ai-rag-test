@@ -9,11 +9,10 @@ import logging
 
 def patch_v1_models_endpoint(app: FastAPI):
     """Replace the broken /v1/models endpoint with a working one."""
-    
-    # Remove the existing broken endpoint
+      # Remove the existing broken endpoint
     routes_to_remove = []
     for route in app.routes:
-        if hasattr(route, 'path') and route.path == '/v1/models':
+        if hasattr(route, 'path') and getattr(route, 'path', None) == '/v1/models':
             routes_to_remove.append(route)
     
     for route in routes_to_remove:

@@ -168,6 +168,12 @@ async def refresh_model_cache(force: bool = False):
 
 app = FastAPI()
 
+# Add root endpoint for basic connectivity test
+@app.get("/")
+async def root():
+    """Root endpoint to verify API is accessible."""
+    return {"message": "FastAPI LLM Backend is running", "status": "ok"}
+
 # Global Exception Handlers (FastAPI Best Practice)
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -898,8 +904,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         # --- Check cache before tool/LLM logic ---
         cache_key = f"chat:{user_id}:{user_message}"
         cached = None
-        logging.debug(f"[CACHE] Checking cache for key: {cache_key}")
-        # Bypass cache for time queries to ensure real-time lookup
+        logging.debug(f"[CACHE] Checking cache for key: {cache_key}")        # Bypass cache for time queries to ensure real-time lookup
         is_time_query = False
         timeanddate_pattern = re.compile(
             r"time(?:\\s*(?:in|for|at))?\\s+([a-zA-Z ]+)", re.IGNORECASE
@@ -921,14 +926,14 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     ]
                 )
             )
-            or "time" in user_message.lower()        ):
+            or "time" in user_message.lower()
+        ):
             is_time_query = True
 
         if not is_time_query:
             cached = get_cache(db_manager, cache_key)
             if cached:
-                logging.info(f"[CACHE] 🚀 Returning cached response for user {user_id}")
-                print(f"[CACHE] 🚀 Returning cached response for user {user_id}")  # Console output for visibility
+                logging.info(f"[CACHE] Returning cached response for user {user_id}")
                 return ChatResponse(response=str(cached))
 
         # --- Retrieve chat history and memory ---
@@ -942,16 +947,17 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 e, "get_history", f"history:{user_id}", user_id, request_id
             ),
         )
-
-        history_msgs = [
-            m["message"] if isinstance(m, dict) and "message" in m else str(m)
-            for m in (history or [])
-        ]
-
+        
+        logging.debug(f"[CHAT_HISTORY] Retrieved {len(history or [])} history entries for user {user_id}")
+        
         # --- Intent/tool detection (tool results take precedence) ---
         tool_used = False
         tool_name = None
-        debug_info = []        # --- Robust time query detection ---
+        debug_info = []
+        
+        # Debug logging for tool detection
+        logging.debug(f"[TOOL_DEBUG] Analyzing message: '{user_message}'")
+          # --- Robust time query detection ---
         time_query = False
         match = None
         # Match phrases like "time in", "current time in", "what is the time in", etc.
@@ -967,8 +973,9 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 match = m
                 time_query = True
                 break
-
+                
         if time_query or "timeanddate.com" in user_message.lower():
+            logging.debug(f"[TOOL_DEBUG] Time query detected!")
             system_msg = f"[TOOL] Robust time lookup (geo+timezone, fallback to timeanddate.com) triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
@@ -1216,9 +1223,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 query = "artificial intelligence"  # default
             user_response = "Wikipedia search is currently unavailable."
             tool_used = True
-            tool_name = "wikipedia"
-
-        # If no tool matched, use LLM with memory/context
+            tool_name = "wikipedia"        # If no tool matched, use LLM with memory/context
+        logging.info(f"[DEBUG] Tool detection complete: tool_used={tool_used}")
         if not tool_used:
 
             async def llm_query():
@@ -1235,42 +1241,67 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     Always respond with plain text only - never use JSON formatting, structured responses, or any special formatting. Just provide direct, natural language answers."
 
                 # Check for system prompt changes and invalidate cache if needed
-
                 cache_manager = get_cache_manager()
                 if cache_manager:
                     cache_manager.check_system_prompt_change(system_prompt)
 
-                # Ensure all memory_chunks and history_msgs are strings and handle None values
+                # Ensure memory_chunks is a list and handle None values
                 memory_chunks = memory_chunks or []
-                current_history_msgs = history_msgs or []
-                context = "\n".join(
-                    [str(m) for m in memory_chunks] + [str(m) for m in current_history_msgs]
-                )
+                  # Build conversation context from history
+                conversation_context = ""
+                if history:
+                    # Format chat history as conversation for context
+                    for entry in history[-5:]:  # Last 5 entries
+                        if isinstance(entry, dict):
+                            user_msg = entry.get("message", "")
+                            assistant_msg = entry.get("response", "")
+                            if user_msg:
+                                conversation_context += f"User: {user_msg}\n"
+                            if assistant_msg:
+                                conversation_context += f"Assistant: {assistant_msg}\n"
+                            assistant_msg = entry.get("response", "")
+                            if user_msg:
+                                conversation_context += f"User: {user_msg}\n"
+                            if assistant_msg:
+                                conversation_context += f"Assistant: {assistant_msg}\n"
+                
+                # Combine memory and conversation context
+                full_context = ""
+                if memory_chunks:
+                    full_context += "Relevant memories:\n" + "\n".join([str(m) for m in memory_chunks]) + "\n\n"
+                if conversation_context:
+                    full_context += "Previous conversation:\n" + conversation_context + "\n"
+                
+                # Build messages for LLM
                 messages = [
-                    {"role": "system", "content": system_prompt},
-                    *[{"role": "user", "content": m} for m in current_history_msgs],
-                    {"role": "user", "content": user_message},
-                    (
-                        {"role": "system", "content": f"Relevant memory: {context}"}
-                        if context
-                        else None
-                    ),
+                    {"role": "system", "content": system_prompt}
                 ]
-                messages = [m for m in messages if m]
+                
+                # Add context as system message if we have any
+                if full_context:
+                    messages.append({"role": "system", "content": full_context})
+                
+                # Add current user message
+                messages.append({"role": "user", "content": user_message})
+                
+                # Debug logging
+                logging.debug(f"[LLM] Calling LLM with {len(messages)} messages for user {user_id}")
+                if full_context:
+                    logging.debug(f"[LLM] Including context: memory_chunks={len(memory_chunks)}, conversation_entries={len(history) if history else 0}")
+                
                 return await call_llm(messages)
 
             try:
                 user_response = await llm_query()
+                logging.debug(f"[LLM] Received response for user {user_id}: {len(str(user_response)) if user_response else 0} chars")
             except Exception as e:
                 log_error(e, "LLM query", user_id, request_id)
                 user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."
-            logging.debug(f"[RESPONSE] LLM response returned for user {user_id}")
-            debug_info.append("[TOOL] Used LLM fallback")
+            
+            debug_info.append("[LLM] Used LLM with memory and conversation context")
         else:
-            logging.debug(f"[RESPONSE] Tool '{tool_name}' response returned for user {user_id}")
-            debug_info.append(
-                f"[TOOL] Tool '{tool_name}' response returned"
-            )
+            logging.debug(f"[TOOL] Tool '{tool_name}' returned response for user {user_id}")
+            debug_info.append(f"[TOOL] Used {tool_name} tool")
               # --- Store chat in Redis ---
         def store_chat():
             store_chat_history(user_id, user_message, str(user_response))
@@ -1280,8 +1311,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
                 e, "store_chat", f"chat:{user_id}", user_id, request_id
             ),
-        )
-          # --- Cache the response (after generating user_response) ---
+        )        # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query:
                 set_cache(
@@ -1290,19 +1320,17 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     str(user_response),
                     expire=600
                 )
-                logging.info(f"[CACHE] 💾 Response cached for user {user_id} (key: {cache_key})")
-                print(f"[CACHE] 💾 Response cached for user {user_id} (key: {cache_key})")  # Console output for visibility
+                logging.info(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
                 debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
             else:
-                logging.info("[CACHE] ⏰ Skipping cache for time-sensitive query")
-                print("[CACHE] ⏰ Skipping cache for time-sensitive query")  # Console output for visibility
+                logging.info("[CACHE] Skipping cache for time-sensitive query")
 
         safe_execute(
             cache_response,
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
                 e, "set", cache_key, user_id, request_id
             ),
-        )        # --- Automatic knowledge storage: store web search results in ChromaDB ---
+        )# --- Automatic knowledge storage: store web search results in ChromaDB ---
         if tool_used and tool_name == "web_search" and user_response and "results" in locals():
 
             def store_knowledge():
@@ -1474,11 +1502,61 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             """Enhanced event stream with proper error handling and cleanup."""
             try:
                 logging.debug(f"[STREAM] Starting stream for session {session_id}")
+                
+                # --- Retrieve chat history and memory for streaming ---
+                def get_history():
+                    return get_chat_history(user_id, limit=10)
+
+                history = safe_execute(
+                    get_history,
+                    fallback_value=[],
+                    error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                        e, "get_history", f"history:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
+                    ),
+                )
+
+                # Build enhanced message format with chat history for streaming
+                stream_messages = []
+                
+                # Add system message first (if any)
+                system_messages = [m for m in messages if m.get("role") == "system"]
+                if system_messages:
+                    stream_messages.extend(system_messages)
+                else:
+                    # Add default persona system message if none provided
+                    try:
+                        with open("persona.json", "r", encoding="utf-8") as f:
+                            persona = json.load(f)
+                            system_prompt = persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
+                    except Exception:
+                        system_prompt = "You are a helpful AI assistant with access to tools and memory."
+                        
+                    stream_messages.append({
+                        "role": "system", 
+                        "content": system_prompt
+                    })
+                
+                # Add historical chat messages (maintain conversation context)
+                if history:
+                    # Convert history to proper chat format
+                    for entry in history[-5:]:  # Last 5 conversations for context
+                        if isinstance(entry, dict):
+                            user_msg = entry.get("user_message", "")
+                            assistant_msg = entry.get("assistant_response", "")
+                            if user_msg:
+                                stream_messages.append({"role": "user", "content": str(user_msg)})
+                            if assistant_msg:
+                                stream_messages.append({"role": "assistant", "content": str(assistant_msg)})
+                  # Add current conversation messages (excluding system messages already added)
+                current_messages = [m for m in messages if m.get("role") != "system"]
+                stream_messages.extend(current_messages)
+                
                 llm_streamer = await call_llm_stream(
-                    messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
+                    stream_messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
                 )
                 
                 token_count = 0
+                full_response = ""  # Collect the full response for storage
                 async for token in llm_streamer:
                     if not token:
                         continue
@@ -1489,6 +1567,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         break
                         
                     token_count += 1
+                    full_response += token  # Accumulate the full response
                     data = {
                         "id": f"chatcmpl-{session_id}",
                         "object": "chat.completion.chunk",
@@ -1502,6 +1581,19 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     except Exception as e:
                         logging.error(f"[STREAM] Error yielding token: {e}")
                         break
+                
+                # Store the complete streaming response in chat history
+                if full_response:
+                    def store_streaming_chat():
+                        store_chat_history(user_id, user_message, str(full_response))
+                    
+                    safe_execute(
+                        store_streaming_chat,
+                        error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                            e, "store_streaming_chat", f"chat:{user_id}", user_id, session_id
+                        ),
+                    )
+                    logging.debug(f"[STREAM] Stored streaming response for user {user_id}: {len(full_response)} chars")
                 
                 # End of stream
                 final_data = {
@@ -1540,13 +1632,58 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Session-ID": session_id
-            }
-        )
+            }        )
 
-    else:        # Non-streaming response - call LLM directly with specified model
+    else:
+        # Non-streaming response - call LLM directly with specified model
         try:
-            # Build proper message format for LLM
-            llm_messages = messages  # Use the messages as-is since they're already in the correct format
+            # --- Retrieve chat history and memory for OpenWebUI integration ---
+            def get_history():
+                return get_chat_history(user_id, limit=10)
+
+            history = safe_execute(
+                get_history,
+                fallback_value=[],
+                error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                    e, "get_history", f"history:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
+                ),
+            )
+
+            # Build enhanced message format with chat history
+            llm_messages = []
+            
+            # Add system message first (if any)
+            system_messages = [m for m in messages if m.get("role") == "system"]
+            if system_messages:
+                llm_messages.extend(system_messages)
+            else:
+                # Add default persona system message if none provided
+                try:
+                    with open("persona.json", "r", encoding="utf-8") as f:
+                        persona = json.load(f)
+                        system_prompt = persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
+                except Exception:
+                    system_prompt = "You are a helpful AI assistant with access to tools and memory."
+                    
+                llm_messages.append({
+                    "role": "system", 
+                    "content": system_prompt
+                })
+              # Add historical chat messages (maintain conversation context)
+            if history:
+                # Convert history to proper chat format
+                for entry in history[-5:]:  # Last 5 conversations for context
+                    if isinstance(entry, dict):
+                        user_msg = entry.get("message", "")
+                        assistant_msg = entry.get("response", "")
+                        if user_msg:
+                            llm_messages.append({"role": "user", "content": str(user_msg)})
+                        if assistant_msg:
+                            llm_messages.append({"role": "assistant", "content": str(assistant_msg)})
+            
+            # Add current conversation messages (excluding system messages already added)
+            current_messages = [m for m in messages if m.get("role") != "system"]
+            llm_messages.extend(current_messages)
             
             # Debug logging
             model_to_use = body.get("model", DEFAULT_MODEL)

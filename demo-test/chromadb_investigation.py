@@ -27,15 +27,19 @@ def check_chromadb_contents():
         if count == 0:
             print("⚠️ No documents found in ChromaDB")
             return
-        
-        # Get all documents (limit to 10 for readability)
+          # Get all documents (limit to 10 for readability)
         all_docs = db_manager.chroma_collection.get(limit=10)
         
-        print(f"📝 Retrieved {len(all_docs.get('ids', []))} documents:")
+        # Safely extract data with null checks
+        ids = all_docs.get('ids', []) if all_docs else []
+        metadatas = all_docs.get('metadatas', []) if all_docs else []
+        documents = all_docs.get('documents', []) if all_docs else []
         
-        for i, doc_id in enumerate(all_docs.get('ids', [])):
-            metadata = all_docs.get('metadatas', [{}])[i] if i < len(all_docs.get('metadatas', [])) else {}
-            document = all_docs.get('documents', [''])[i] if i < len(all_docs.get('documents', [])) else ''
+        print(f"📝 Retrieved {len(ids)} documents:")
+        
+        for i, doc_id in enumerate(ids):
+            metadata = metadatas[i] if metadatas and i < len(metadatas) else {}
+            document = documents[i] if documents and i < len(documents) else ''
             
             print(f"   {i+1}. ID: {doc_id}")
             print(f"      User: {metadata.get('user_id', 'N/A')}")
@@ -91,19 +95,30 @@ def test_search_functionality():
             return
         
         print(f"✅ Generated query embedding (shape: {query_embedding.shape})")
-        
-        # Search without user filter first
+          # Search without user filter first
         print("\n🔍 Search without user filter:")
+        
+        if not db_manager.chroma_collection:
+            print("❌ ChromaDB collection not available")
+            return
+            
         results = db_manager.chroma_collection.query(
             query_embeddings=[query_embedding.tolist()],
             n_results=5
         )
         
-        print(f"Results found: {len(results.get('documents', [[]])[0])}")
-        for i, doc in enumerate(results.get('documents', [[]])[0]):
-            distance = results.get('distances', [[]])[0][i] if results.get('distances') else 'N/A'
-            print(f"   {i+1}. Distance: {distance}")
-            print(f"      Content: {doc[:100]}...")
+        # Safely handle query results
+        documents = results.get('documents', [[]]) if results else [[]]
+        distances = results.get('distances', [[]]) if results else [[]]
+        
+        if documents and documents[0]:
+            print(f"Results found: {len(documents[0])}")
+            for i, doc in enumerate(documents[0]):
+                distance = distances[0][i] if distances and distances[0] and i < len(distances[0]) else 'N/A'
+                print(f"   {i+1}. Distance: {distance}")
+                print(f"      Content: {doc[:100]}...")
+        else:
+            print("No results found")
         
         # Search with user filter
         print("\n🔍 Search with user filter:")
@@ -113,13 +128,21 @@ def test_search_functionality():
             where={"user_id": "search_test_user"}
         )
         
-        print(f"Filtered results found: {len(results_filtered.get('documents', [[]])[0])}")
-        for i, doc in enumerate(results_filtered.get('documents', [[]])[0]):
-            distance = results_filtered.get('distances', [[]])[0][i] if results_filtered.get('distances') else 'N/A'
-            metadata = results_filtered.get('metadatas', [[]])[0][i] if results_filtered.get('metadatas') else {}
-            print(f"   {i+1}. Distance: {distance}")
-            print(f"      User ID: {metadata.get('user_id', 'N/A')}")
-            print(f"      Content: {doc[:100]}...")
+        # Safely handle filtered query results
+        filtered_documents = results_filtered.get('documents', [[]]) if results_filtered else [[]]
+        filtered_distances = results_filtered.get('distances', [[]]) if results_filtered else [[]]
+        filtered_metadatas = results_filtered.get('metadatas', [[]]) if results_filtered else [[]]
+        
+        if filtered_documents and filtered_documents[0]:
+            print(f"Filtered results found: {len(filtered_documents[0])}")
+            for i, doc in enumerate(filtered_documents[0]):
+                distance = filtered_distances[0][i] if filtered_distances and filtered_distances[0] and i < len(filtered_distances[0]) else 'N/A'
+                metadata = filtered_metadatas[0][i] if filtered_metadatas and filtered_metadatas[0] and i < len(filtered_metadatas[0]) else {}
+                print(f"   {i+1}. Distance: {distance}")
+                print(f"      User ID: {metadata.get('user_id', 'N/A') if isinstance(metadata, dict) else 'N/A'}")
+                print(f"      Content: {doc[:100]}...")
+        else:
+            print("No filtered results found")
         
     except Exception as e:
         print(f"❌ Error in search test: {e}")
