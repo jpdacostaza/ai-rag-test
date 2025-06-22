@@ -104,16 +104,41 @@ async def search_documents(
     limit: int = Form(5, ge=1, le=50),  # Add validation for limit
 ):
     """Search through uploaded documents using semantic search."""
+    
+    # CRITICAL DEBUG: Add at the very start
+    import sys
+    sys.stderr.write(f"🚨🚨🚨 [UPLOAD] search_documents ENDPOINT CALLED with query='{query}'\n")
+    sys.stderr.flush()
+    
     request_id = os.urandom(8).hex()
     log_api_request("POST", "/upload/search", 202, 0)
 
-    try:
-        results = await rag_processor.semantic_search(query, user_id, limit)
+    # Add debug logging at the upload endpoint level
+    import logging
+    with open('/tmp/upload_debug.log', 'a') as f:
+        f.write(f"🔍 [UPLOAD] search_documents called with query='{query}', user_id='{user_id}', limit={limit}\n")
+        f.write(f"🔍 [UPLOAD] rag_processor type: {type(rag_processor)}\n")
+        f.write(f"🔍 [UPLOAD] About to call rag_processor.semantic_search...\n")
+        f.flush()
+    
+    logging.critical(f"🔍 [UPLOAD] search_documents called with query='{query}', user_id='{user_id}', limit={limit}")
+    logging.critical(f"🔍 [UPLOAD] rag_processor type: {type(rag_processor)}")
 
+    try:
+        with open('/tmp/upload_debug.log', 'a') as f:
+            f.write(f"🔍 [UPLOAD] Calling semantic_search...\n")
+            f.flush()
+        
+        results = await rag_processor.semantic_search(query, user_id, limit)
+        
+        with open('/tmp/upload_debug.log', 'a') as f:
+            f.write(f"🔍 [UPLOAD] semantic_search returned {len(results)} results\n")
+            f.flush()
+        
         log_service_status(
             "API", "ready", f"Document search: '{query}' returned {len(results)} results"
         )
-
+        
         return JSONResponse(
             status_code=200,
             content={
@@ -121,9 +146,14 @@ async def search_documents(
                 "query": query,
                 "results_count": len(results),
                 "results": results,
+                "debug_message": "THIS IS FROM MY MODIFIED UPLOAD.PY",
             },
         )
 
     except Exception as e:
+        with open('/tmp/upload_debug.log', 'a') as f:
+            f.write(f"❌ [UPLOAD] Exception in search_documents: {type(e).__name__}: {e}\n")
+            f.flush()
+        
         log_error(e, "search_documents", request_id)
         raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "search"))

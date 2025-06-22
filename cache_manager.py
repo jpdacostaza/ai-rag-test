@@ -160,7 +160,12 @@ class CacheManager:
         try:
             cached_data = self.redis_client.get(key)
             if not cached_data:
+                print(f"🔍 [CACHE] MISS for key: {key}")
+                log_service_status("CACHE", "debug", f"Cache miss for key: {key}")
                 return None
+
+            print(f"🔍 [CACHE] HIT for key: {key}")
+            log_service_status("CACHE", "debug", f"Cache hit for key: {key}")
 
             # Try to parse as new format with metadata
             try:

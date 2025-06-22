@@ -217,19 +217,30 @@ def index_user_document(
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from ChromaDB."""
     
+    # Add immediate logging to see if function is called
+    print(f"🔍 [DEBUG] retrieve_user_memory called with user_id={user_id}")
+    logging.critical(f"🔍 [DEBUG] retrieve_user_memory called with user_id={user_id}")
+    
     def _retrieve_memory():
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] ChromaDB not available, returning empty memory")
             return []
 
+        # Enhanced logging for debugging
+        logging.info(f"[MEMORY] 🔍 Starting memory retrieval for user_id={user_id}, n_results={n_results}")
+        
         # Ensure query_embedding is properly formatted
         if hasattr(query_embedding, 'tolist'):
             embedding_list = query_embedding.tolist()
+            logging.debug(f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}")
         elif hasattr(query_embedding, '__iter__'):
             embedding_list = list(query_embedding)
+            logging.debug(f"[MEMORY] 📊 Converted iterable to list, length: {len(embedding_list)}")
         else:
-            logging.error("[CHROMADB] Invalid embedding format")
+            logging.error("[MEMORY] ❌ Invalid embedding format")
             return []
+
+        logging.debug(f"[MEMORY] 📐 Query embedding dimension: {len(embedding_list)}")
 
         results = db_manager.chroma_collection.query(
             query_embeddings=[embedding_list],
@@ -238,16 +249,37 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
             include=["documents", "metadatas", "distances"],
         )
 
+        logging.info(f"[MEMORY] 📊 ChromaDB query results: {results}")
+
         docs = results.get("documents", [[]])[0] if results else []
-        logging.debug(f"Retrieved {len(docs)} memory chunks for user_id={user_id}")
+        metadatas = results.get("metadatas", [[]])[0] if results else []
+        distances = results.get("distances", [[]])[0] if results else []
+        
+        logging.info(f"[MEMORY] ✅ Retrieved {len(docs)} memory chunks for user_id={user_id}")
 
-        if docs:
-            for i, doc in enumerate(docs):
-                logging.debug(f"Chunk {i+1}: {doc[:100]}...")
+        # Use len() check instead of boolean check to avoid numpy array truth value error
+        if len(docs) > 0:
+            for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
+                similarity = 1 - distance if distance is not None else 0.0
+                logging.info(f"[MEMORY] 📄 Chunk {i+1}: similarity={similarity:.4f}, metadata={metadata}")
+                logging.debug(f"[MEMORY] 📄 Content: {doc[:100]}...")
         else:
-            logging.debug(f"No relevant memory found for user_id={user_id}")
+            logging.warning(f"[MEMORY] ⚠️ No relevant memory found for user_id={user_id}")
 
-        return docs
+        # Return formatted results for semantic search
+        formatted_results = []
+        for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
+            similarity = 1 - distance if distance is not None else 0.0
+            formatted_results.append({
+                "content": doc,
+                "metadata": metadata,
+                "similarity": similarity,
+                "distance": distance,
+                "rank": i + 1
+            })
+
+        logging.info(f"[MEMORY] 📋 Returning {len(formatted_results)} formatted results")
+        return formatted_results
 
     return safe_execute(
         _retrieve_memory,
@@ -260,16 +292,38 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
 
 def get_embedding(db_manager, text, request_id=""):
     """Get embedding for text."""
+    import logging
+    logging.critical(f"🔍 [DATABASE] get_embedding called with text: '{text[:50]}...'")
 
     def _get_embedding():
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")
-            return None        # Get the embedding and return the first element (single text input)
+            logging.critical(f"❌ [DATABASE] Embedding model not available")
+            return None
+            
+        logging.critical(f"🔍 [DATABASE] Generating embedding using model: {type(db_manager.embedding_model)}")
+        # Get the embedding and return the first element (single text input)
         embedding = db_manager.embedding_model.encode([text])
-        return embedding[0] if embedding is not None and len(embedding) > 0 else None
+        logging.critical(f"🔍 [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}")
+        
+        if embedding is not None:
+            logging.critical(f"🔍 [DATABASE] Embedding is not None, length check: {len(embedding) if hasattr(embedding, '__len__') else 'no len'}")
+            if hasattr(embedding, '__len__') and len(embedding) > 0:
+                result = embedding[0]
+                logging.critical(f"🔍 [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}")
+                return result
+            else:
+                logging.critical(f"❌ [DATABASE] Embedding has no length or is empty")
+                return None
+        else:
+            logging.critical(f"❌ [DATABASE] Embedding is None")
+            return None
 
     return safe_execute(
         _get_embedding,
         fallback_value=None,
-        error_handler=lambda e: logging.error(f"[EMBEDDINGS] Failed to generate embedding: {e}"),
+        error_handler=lambda e: (
+            logging.error(f"[EMBEDDINGS] Failed to generate embedding: {e}"),
+            logging.critical(f"❌ [DATABASE] safe_execute caught error: {e}")
+        )[0],  # Use first element to avoid tuple return
     )

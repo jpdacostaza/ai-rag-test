@@ -921,14 +921,17 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     ]
                 )
             )
-            or "time" in user_message.lower()
-        ):
+            or "time" in user_message.lower()        ):
             is_time_query = True
 
         if not is_time_query:
             cached = get_cache(db_manager, cache_key)
             if cached:
-                return ChatResponse(response=str(cached))        # --- Retrieve chat history and memory ---
+                logging.info(f"[CACHE] 🚀 Returning cached response for user {user_id}")
+                print(f"[CACHE] 🚀 Returning cached response for user {user_id}")  # Console output for visibility
+                return ChatResponse(response=str(cached))
+
+        # --- Retrieve chat history and memory ---
         def get_history():
             return get_chat_history(user_id, limit=10)
 
@@ -1278,8 +1281,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 e, "store_chat", f"chat:{user_id}", user_id, request_id
             ),
         )
-        
-        # --- Cache the response (after generating user_response) ---
+          # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query:
                 set_cache(
@@ -1288,10 +1290,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     str(user_response),
                     expire=600
                 )
-                logging.debug(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
+                logging.info(f"[CACHE] 💾 Response cached for user {user_id} (key: {cache_key})")
+                print(f"[CACHE] 💾 Response cached for user {user_id} (key: {cache_key})")  # Console output for visibility
                 debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
             else:
-                logging.debug("[CACHE] Skipping cache for time-sensitive query")
+                logging.info("[CACHE] ⏰ Skipping cache for time-sensitive query")
+                print("[CACHE] ⏰ Skipping cache for time-sensitive query")  # Console output for visibility
 
         safe_execute(
             cache_response,
@@ -1405,18 +1409,58 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     user_id = body.get("user", "openwebui")
     messages = body.get("messages", [])
     stream = body.get("stream", False)
+    
     # Use the last user message as the prompt
     user_message = ""
     for m in reversed(messages):
         if m.get("role") == "user":
-            user_message = m.get("content", "")
+            content = m.get("content", "")
+            
+            # Handle multi-modal content (list format)
+            if isinstance(content, list):
+                # Extract text from multi-modal content
+                text_parts = []
+                has_non_text_content = False
+                has_any_content = False
+                
+                for part in content:
+                    if isinstance(part, dict):
+                        has_any_content = True
+                        if part.get("type") == "text":
+                            text_content = part.get("text", "").strip()
+                            if text_content:  # Only add non-empty text
+                                text_parts.append(text_content)
+                        elif part.get("type") in ["image_url", "image"]:
+                            has_non_text_content = True
+                
+                user_message = " ".join(text_parts).strip()
+                
+                # Handle empty text cases
+                if not user_message:
+                    if has_non_text_content:
+                        # Has images but no text
+                        user_message = "Please analyze this image."
+                    elif has_any_content:
+                        # Has content parts but all text is empty - provide generic fallback
+                        user_message = "Please respond to this message."
+                        
+            elif isinstance(content, str):
+                # Handle simple string content
+                user_message = content.strip()
+                # Provide fallback for empty string
+                if not user_message:
+                    user_message = "Please respond to this message."
+            else:                # Handle other content types by converting to string
+                user_message = str(content).strip()
+                # Provide fallback for empty content
+                if not user_message:
+                    user_message = "Please respond to this message."
             break
     
     if not user_message:
         raise HTTPException(status_code=400, detail="No user message found in the messages list")
     
-    # Call the existing chat logic
-    chat_req = ChatRequest(user_id=user_id, message=user_message)# Streaming support
+    # Streaming support
     if stream:
         session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}:{int(time.time())}"
         STREAM_SESSION_STOP[session_id] = False
@@ -1499,26 +1543,57 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             }
         )
 
-    else:
-        chat_resp = await chat_endpoint(chat_req, request)
-        # Non-streaming response
-        end_time = time.time()
-        response_time = (end_time - start_time) * 1000
-        log_api_request("POST", "/v1/chat/completions", 200, response_time)
+    else:        # Non-streaming response - call LLM directly with specified model
+        try:
+            # Build proper message format for LLM
+            llm_messages = messages  # Use the messages as-is since they're already in the correct format
+            
+            # Debug logging
+            model_to_use = body.get("model", DEFAULT_MODEL)
+            logging.info(f"[DEBUG] v1/chat/completions calling LLM with model: {model_to_use}")
+            logging.info(f"[DEBUG] v1/chat/completions messages count: {len(llm_messages)}")
+            
+            # Call LLM directly with the specified model
+            llm_response = await call_llm(llm_messages, model=model_to_use)
+            
+            # Debug logging for response
+            logging.info(f"[DEBUG] v1/chat/completions LLM response: '{llm_response}'")
+            logging.info(f"[DEBUG] v1/chat/completions LLM response type: {type(llm_response)}")
+            logging.info(f"[DEBUG] v1/chat/completions LLM response length: {len(llm_response) if llm_response else 0}")
+            
+            # Store chat history using the existing logic but with the actual response
+            if llm_response:
+                def store_chat():
+                    store_chat_history(user_id, user_message, str(llm_response))
+                
+                safe_execute(
+                    store_chat,
+                    error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                        e, "store_chat", f"chat:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
+                    ),
+                )
+            
+            end_time = time.time()
+            response_time = (end_time - start_time) * 1000
+            log_api_request("POST", "/v1/chat/completions", 200, response_time)
 
-        return {
-            "id": "chatcmpl-1",
-            "object": "chat.completion",
-            "created": int(time.time()),
-            "model": body.get("model", DEFAULT_MODEL),
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {"role": "assistant", "content": chat_resp.response},
-                    "finish_reason": "stop",
-                }
-            ],
-        }
+            return {
+                "id": "chatcmpl-1",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": body.get("model", DEFAULT_MODEL),
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": llm_response or ""},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        except Exception as e:
+            # Log the error and return a proper error response
+            log_error(e, "OpenAI chat completions", user_id, getattr(request.state, 'request_id', 'unknown'))
+            raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 
 @app.middleware("http")
