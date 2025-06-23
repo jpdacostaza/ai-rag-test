@@ -112,13 +112,13 @@ def generate_project_summary():
         + len(glob.glob("*.json"))
         + len(glob.glob("*.env*")),
         "documentation": len(glob.glob("*.md")) + len(glob.glob("readme/*.md")),
-        "total_size_mb": 0,
+        "total_size_mb": 0.0,
     }
 
     # Calculate total size of main files
     main_files = glob.glob("*.py") + glob.glob("*.sh") + glob.glob("*.yml") + glob.glob("*.md")
     total_size = sum(os.path.getsize(f) for f in main_files if os.path.exists(f))
-    summary["total_size_mb"] = total_size / (1024 * 1024)
+    summary["total_size_mb"] = round(total_size / (1024 * 1024), 2)
 
     logger.info("📊 Project summary:")
     logger.info("  - Python files: {summary['python_files']}")
