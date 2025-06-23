@@ -148,9 +148,9 @@ async def refresh_model_cache(force: bool = False):
                         "owned_by": "ollama",
                         "permission": [],
                         "root": model.get("name", "unknown"),
-                        "parent": None,
-                        # Store original Ollama data for internal use
-                        "_ollama_data": model                    }
+                        "parent": None,                        # Store original Ollama data for internal use
+                        "_ollama_data": model
+                    }
                     models.append(openai_model)
                 
                 # Update cache
@@ -438,6 +438,7 @@ def _log_environment_variables():
 @app.get("/health")
 async def health_check():
     """Health check endpoint that includes database status and a human-readable summary."""
+    print("[CONSOLE DEBUG] Health endpoint called!")
     health_status = get_database_health()
 
     # Add cache information
@@ -627,10 +628,10 @@ async def call_ollama_llm(messages, model=None):
     """
     Asynchronously calls the Ollama API using the chat endpoint for better control.
     """
-    model = model or DEFAULT_MODEL
-
-    # Debug logging to see what messages are being sent
+    model = model or DEFAULT_MODEL    # Debug logging to see what messages are being sent
     logging.info(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
+    for i, msg in enumerate(messages):
+        logging.info(f"[DEBUG] Message {i}: role='{msg.get('role')}', content='{msg.get('content', '')[:100]}...'")
 
     # Use Ollama's chat endpoint which provides better control over system prompts
     payload = {
@@ -648,7 +649,10 @@ async def call_ollama_llm(messages, model=None):
             )
             response.raise_for_status()
             data = response.json()
-            return data.get("message", {}).get("content", "")
+            llm_response = data.get("message", {}).get("content", "")
+            logging.info(f"[DEBUG] Ollama response length: {len(llm_response)} chars")
+            logging.info(f"[DEBUG] Ollama response content: '{llm_response[:200]}...'")
+            return llm_response
     except httpx.RequestError as e:
         log_service_status(
             "OLLAMA", "failed", f"Connection to Ollama at {OLLAMA_BASE_URL} failed: {e}"
@@ -884,6 +888,8 @@ class ChatResponse(BaseModel):
 async def chat_endpoint(chat: ChatRequest, request: Request):
     # Use request ID from middleware
     request_id = getattr(request.state, 'request_id', str(uuid.uuid4()))
+    print(f"[CONSOLE DEBUG] Chat endpoint called for user {chat.user_id}, message: {chat.message[:50]}...")
+    logging.info(f"[DEBUG] Chat endpoint called for user {chat.user_id}")
 
     try:
         user_message = chat.message
@@ -929,10 +935,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             or "time" in user_message.lower()
         ):
             is_time_query = True
-
+        
         if not is_time_query:
             cached = get_cache(db_manager, cache_key)
-            if cached:
+            if cached and str(cached).strip():  # Only return non-empty cached responses
                 logging.info(f"[CACHE] Returning cached response for user {user_id}")
                 return ChatResponse(response=str(cached))
 
@@ -1223,18 +1229,27 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 query = "artificial intelligence"  # default
             user_response = "Wikipedia search is currently unavailable."
             tool_used = True
-            tool_name = "wikipedia"        # If no tool matched, use LLM with memory/context
+            tool_name = "wikipedia"        
+        # If no tool matched, use LLM with memory/context
+        print(f"[CONSOLE DEBUG] About to check tool_used: {tool_used}")  # This will show in console
         logging.info(f"[DEBUG] Tool detection complete: tool_used={tool_used}")
+        logging.info(f"[DEBUG] About to check if tool_used is False to call LLM")
         if not tool_used:
+            logging.info(f"[DEBUG] No tool used, proceeding with LLM query for user {user_id}")
 
             async def llm_query():
+                print(f"[CONSOLE DEBUG] LLM query function called for user {user_id}")
+                logging.info(f"[DEBUG] LLM query function called for user {user_id}")
                 # Embed user query and retrieve relevant memory
                 query_emb = get_embedding(user_message)
+                print(f"[CONSOLE DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
+                logging.info(f"[DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
                 memory_chunks = (
                     retrieve_user_memory(user_id, user_message, limit=3)
                     if query_emb is not None
                     else []
                 )
+                logging.info(f"[DEBUG] Retrieved {len(memory_chunks) if memory_chunks else 0} memory chunks for user {user_id}")
 
                 # Compose LLM context with explicit instructions for plain text responses
                 system_prompt = "You are a helpful assistant. Use the following memory and chat history to answer. \
@@ -1243,22 +1258,16 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 # Check for system prompt changes and invalidate cache if needed
                 cache_manager = get_cache_manager()
                 if cache_manager:
-                    cache_manager.check_system_prompt_change(system_prompt)
-
-                # Ensure memory_chunks is a list and handle None values
+                    cache_manager.check_system_prompt_change(system_prompt)                # Ensure memory_chunks is a list and handle None values
                 memory_chunks = memory_chunks or []
-                  # Build conversation context from history
+                
+                # Build conversation context from history
                 conversation_context = ""
                 if history:
                     # Format chat history as conversation for context
                     for entry in history[-5:]:  # Last 5 entries
                         if isinstance(entry, dict):
                             user_msg = entry.get("message", "")
-                            assistant_msg = entry.get("response", "")
-                            if user_msg:
-                                conversation_context += f"User: {user_msg}\n"
-                            if assistant_msg:
-                                conversation_context += f"Assistant: {assistant_msg}\n"
                             assistant_msg = entry.get("response", "")
                             if user_msg:
                                 conversation_context += f"User: {user_msg}\n"
@@ -1280,29 +1289,29 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 # Add context as system message if we have any
                 if full_context:
                     messages.append({"role": "system", "content": full_context})
-                
-                # Add current user message
+                  # Add current user message
                 messages.append({"role": "user", "content": user_message})
                 
                 # Debug logging
                 logging.debug(f"[LLM] Calling LLM with {len(messages)} messages for user {user_id}")
                 if full_context:
                     logging.debug(f"[LLM] Including context: memory_chunks={len(memory_chunks)}, conversation_entries={len(history) if history else 0}")
-                
                 return await call_llm(messages)
 
             try:
+                logging.info(f"[DEBUG] Calling LLM query function for user {user_id}")
                 user_response = await llm_query()
+                logging.info(f"[DEBUG] LLM returned response for user {user_id}: {repr(user_response)}")
                 logging.debug(f"[LLM] Received response for user {user_id}: {len(str(user_response)) if user_response else 0} chars")
             except Exception as e:
+                logging.error(f"[DEBUG] LLM query failed for user {user_id}: {e}")
                 log_error(e, "LLM query", user_id, request_id)
-                user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."
-            
+                user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."            
             debug_info.append("[LLM] Used LLM with memory and conversation context")
         else:
             logging.debug(f"[TOOL] Tool '{tool_name}' returned response for user {user_id}")
             debug_info.append(f"[TOOL] Used {tool_name} tool")
-              # --- Store chat in Redis ---
+          # --- Store chat in Redis ---
         def store_chat():
             store_chat_history(user_id, user_message, str(user_response))
 
@@ -1311,9 +1320,52 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             error_handler=lambda e: CacheErrorHandler.handle_cache_error(
                 e, "store_chat", f"chat:{user_id}", user_id, request_id
             ),
-        )        # --- Cache the response (after generating user_response) ---
+        )
+        
+        # --- Automatic memory storage for important conversations ---
+        print(f"[CONSOLE DEBUG] Checking if conversation should be stored as memory...")
+        def should_store_as_memory(message, response):
+            """Determine if a conversation should be stored as long-term memory."""
+            memory_keywords = [
+                "my name is", "i am", "i'm", "call me", 
+                "i live in", "i work", "i study", "my job",
+                "my favorite", "i like", "i love", "i hate",
+                "i prefer", "remember that", "don't forget",
+                "important:", "note:", "my birthday",
+                "my age", "years old", "from", "born in"
+            ]
+            
+            # Check if user is sharing personal information
+            message_lower = message.lower()
+            for keyword in memory_keywords:
+                if keyword in message_lower:
+                    return True
+                    
+            # Store responses to "who am i" or "what do you know about me" type questions
+            if any(phrase in message_lower for phrase in ["who am i", "about me", "know about me"]):
+                return True
+                
+            return False
+        
+        if should_store_as_memory(user_message, str(user_response)):
+            print(f"[CONSOLE DEBUG] Storing conversation as long-term memory for user {user_id}")
+            def store_memory():
+                # Create a memory document from the conversation
+                memory_text = f"User: {user_message}\nAssistant: {str(user_response)}"
+                chunks_stored = index_user_document(user_id, memory_text)
+                logging.info(f"[MEMORY] Stored conversation as memory ({chunks_stored} chunks) for user {user_id}")
+                debug_info.append(f"[MEMORY] Stored as long-term memory ({chunks_stored} chunks)")
+
+            safe_execute(
+                store_memory,
+                error_handler=lambda e: MemoryErrorHandler.handle_memory_error(
+                    e, "store_conversation", user_id, request_id
+                ),
+            )
+        else:
+            print(f"[CONSOLE DEBUG] Conversation not stored as memory (no personal info detected)")# --- Cache the response (after generating user_response) ---
         def cache_response():
-            if not is_time_query:
+            if not is_time_query and user_response and str(user_response).strip():  # Only cache non-empty responses
                 set_cache(
                     db_manager,
                     cache_key,
@@ -1323,7 +1375,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 logging.info(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
                 debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
             else:
-                logging.info("[CACHE] Skipping cache for time-sensitive query")
+                if is_time_query:
+                    logging.info("[CACHE] Skipping cache for time-sensitive query")
+                else:
+                    logging.info("[CACHE] Skipping cache for empty response")
 
         safe_execute(
             cache_response,
