@@ -136,9 +136,31 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         String with conversion result
     """
     try:
-        # Normalize unit names to lowercase
+        # Normalize unit names to lowercase and handle variations
         from_unit = from_unit.lower().strip()
         to_unit = to_unit.lower().strip()
+        
+        # Handle common variations
+        unit_variations = {
+            'kilometers': 'km',
+            'kilometer': 'km',
+            'metres': 'm',
+            'meters': 'm',
+            'meter': 'm',
+            'miles': 'mile',
+            'pounds': 'lb',
+            'pound': 'lb',
+            'kilograms': 'kg',
+            'kilogram': 'kg',
+            'grams': 'g',
+            'gram': 'g',
+            'celsius': 'c',
+            'fahrenheit': 'f',
+            'kelvin': 'k'
+        }
+        
+        from_unit = unit_variations.get(from_unit, from_unit)
+        to_unit = unit_variations.get(to_unit, to_unit)
 
         # Length conversions
         length_conversions = {
@@ -151,9 +173,10 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
             ("ft", "m"): 0.3048,
             ("m", "ft"): 3.28084,
             ("in", "cm"): 2.54,
-            ("cm", "in"): 0.393701,
-            ("mile", "km"): 1.60934,
+            ("cm", "in"): 0.393701,            ("mile", "km"): 1.60934,
             ("km", "mile"): 0.621371,
+            ("miles", "km"): 1.60934,
+            ("km", "miles"): 0.621371,
         }
 
         # Weight conversions

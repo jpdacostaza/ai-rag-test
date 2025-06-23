@@ -985,14 +985,18 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             system_msg = f"[TOOL] Robust time lookup (geo+timezone, fallback to timeanddate.com) triggered for user {user_id}"
             logging.debug(system_msg)
             debug_info.append(system_msg)
-            country = match.group(1).strip() if match else "netherlands"
-            # Clean up extracted location string
+            country = match.group(1).strip() if match else "netherlands"            # Clean up extracted location string - avoid removing "to" from middle of words like "Tokyo"
+            logging.debug(f"[TIME_DEBUG] Original country: '{country}'")
+            # Only remove words at word boundaries, not parts of words
             country = re.sub(
-                r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|to|of|about|time|current time|the time|\s)+",
+                r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|of|about|time|current time|the time)\s+",
                 "",
                 country,
                 flags=re.IGNORECASE,
             )
+            # Remove leading/trailing whitespace
+            country = country.strip()
+            logging.debug(f"[TIME_DEBUG] After cleaning: '{country}'")
             country = re.sub(r"\?$", "", country).strip()
             if not country:
                 country = "netherlands"
@@ -1073,8 +1077,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     Exception("Time lookup failed"), "time", user_id, str(city), request_id
                 ),
                 error_handler=lambda e: ToolErrorHandler.handle_tool_error(
-                    e, "time", user_id, str(city), request_id
-                ),
+                    e, "time", user_id, str(city), request_id                ),
             )
             tool_used = True
             tool_name = "time"
@@ -1084,7 +1087,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             logging.debug(system_msg)
             debug_info.append(system_msg)
             match = re.search(
-                r"convert ([\d\.]+) ([a-zA-Z]+) to ([a-zA-Z]+)", user_message, re.IGNORECASE
+                r"convert ([\d\.]+) ([a-zA-Z]+(?:s)?) to ([a-zA-Z]+(?:s)?)", user_message, re.IGNORECASE
             )
             if match:
                 value, from_unit, to_unit = float(match.group(1)), match.group(2), match.group(3)
