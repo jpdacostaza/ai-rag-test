@@ -437,412 +437,46 @@ curl http://localhost:8001/health/detailed
 - **unhealthy**: Service is not responding or has critical errors
 - **unknown**: Unable to determine service status
 
-## 📁 Project Structure
+## 📂 Project Organization
+
+This project follows a clean, organized structure that separates concerns and makes development efficient:
 
 ```
-opt/backend/
-├── main.py                     # Core FastAPI application with tool integration
-├── ai_tools.py                 # Tool implementations (web search, calc, Python execution)
-├── database.py                 # Database management with connection pooling
-├── database_manager.py         # Centralized database operations (Redis + ChromaDB)
-├── error_handler.py            # Enterprise error handling & recovery systems
-├── watchdog.py                 # System health monitoring & alerting
-├── app.py                      # ASGI entrypoint for production deployment
-├── rag.py                      # RAG (Retrieval-Augmented Generation) implementation
-├── upload.py                   # File upload and document processing
-├── adaptive_learning.py        # Self-learning system with feedback loops
-├── enhanced_integration.py     # Enhanced endpoints for advanced features
-├── enhanced_document_processing.py  # Advanced document chunking & analysis
-├── model_manager.py            # LLM model management and optimization
-├── feedback_router.py          # User feedback collection & processing
-├── storage_manager.py          # File storage and management
-├── human_logging.py            # Beautiful console logging with emojis
-├── requirements.txt            # Python dependencies with version pinning
-├── Dockerfile                  # Optimized container build configuration
-├── docker-compose.yml          # Multi-service orchestration with health checks
-├── startup.sh                  # Container initialization and health verification
-├── fix-permissions.sh          # Linux permissions setup script
-├── manage-models.sh            # Model management utilities
-├── test-model.sh               # Model testing script
-├── add-model.sh                # Add new models to Ollama
-├── enhanced-add-model.sh       # Enhanced model addition script
-├── debug-openwebui-models.sh   # OpenWebUI model debugging
-├── setup-github.sh             # GitHub repository setup
-├── refresh-models.py           # Python model refresh utility
-├── persona.json               # AI personality configuration
-└── README.md                   # This comprehensive documentation
+📁 Root Directory - Core Application
+├── main.py                 # FastAPI backend entry point  
+├── ai_tools.py            # AI tool implementations
+├── database_manager.py    # Database operations
+├── cache_manager.py       # Redis cache operations  
+├── human_logging.py       # Enhanced logging system
+├── README.md              # Project documentation
+└── requirements.txt       # Dependencies
+
+📁 demo-tests/ - Development & Testing
+├── cache-tests/           # Cache system tests
+├── debug-tools/          # Debugging utilities
+├── integration-tests/    # Full system tests
+├── model-tests/         # AI model tests
+├── results/             # Test result files
+└── *.py                 # Test and demo scripts
+
+📁 readme/ - Documentation
+├── ORGANIZATION_SUMMARY.md    # This organization guide
+├── ai_tools_test_report.md   # AI tools test results
+├── CURRENT_STATUS.md         # Project status
+└── *.md                      # Technical reports & guides
+
+📁 utils/ - Shared Utilities
+└── Shared utility functions
+
+📁 storage/ - Data Storage  
+└── Runtime data storage (created automatically)
 ```
 
-## 🔧 Core Components
-
-### **main.py** - FastAPI Application Core
-- **Async FastAPI Framework**: High-performance async endpoints with streaming support
-- **Tool Orchestration**: Intelligent tool detection, selection, and execution logic
-- **API Compatibility**: Full OpenAI API compatibility with extensions for tool usage
-- **Request Management**: Unique request tracking, session management, and concurrent handling
-- **Integration Layer**: Seamless integration with database, error handling, and monitoring systems
-
-### **ai_tools.py** - Advanced Tool Engine
-- **Secure Python Execution**: RestrictedPython sandbox with timeout protection and result capture
-- **Web Intelligence**: DuckDuckGo search with automatic knowledge storage and semantic indexing
-- **Wikipedia Integration**: Smart article retrieval with summary extraction and caching
-- **Mathematical Computing**: Safe expression evaluation with comprehensive operator support
-- **Real-time Data**: Weather, time zones, currency exchange, and news with API key management
-- **System Monitoring**: Resource usage, performance metrics, and system status reporting
-
-### **database.py** - Centralized Data Management  
-- **Redis Operations**: Connection pooling, automatic retry, broken pipe recovery, and health monitoring
-- **ChromaDB Integration**: Vector storage, semantic search, document indexing, and collection management
-- **Embedding Management**: Sentence transformer model loading, caching, and vector generation
-- **Health Monitoring**: Database connectivity checks, performance metrics, and failover logic
-- **Operation Wrappers**: Safe execution with retry logic for all database operations
-
-### **database_manager.py** - Database Operations Coordination
-- **Unified Interface**: Centralized database operations for Redis and ChromaDB
-- **Transaction Management**: Coordinated operations across multiple database systems
-- **Connection Management**: Pooled connections with health monitoring and recovery
-- **Data Consistency**: Ensures data integrity across Redis cache and ChromaDB vectors
-
-### **error_handler.py** - Enterprise Error Management
-- **Specialized Handlers**: Chat, tool, cache, memory, and Redis-specific error handling strategies
-- **Graceful Degradation**: System continues operating when subsystems fail with user notification
-- **User Experience**: Technical errors converted to helpful, actionable user messages
-- **Request Tracking**: Correlation IDs for debugging, audit trails, and performance analysis
-- **Recovery Logic**: Automatic retry mechanisms for transient failures and connection issues
-- **Context Preservation**: Detailed error context including user state, operation type, and system status
-
-### **watchdog.py** - System Health & Monitoring
-- **Multi-Service Monitoring**: Redis, ChromaDB, and Ollama health tracking with performance metrics
-- **Health History**: 24-hour rolling history with timestamps, response times, and error tracking
-- **Intelligent Alerting**: Configurable thresholds with escalation and automatic recovery attempts
-- **Background Processing**: Async monitoring loops with configurable intervals and timeout handling
-- **API Integration**: RESTful health endpoints for external monitoring and dashboard integration
-- **Performance Analytics**: Response time trending, error rate analysis, and capacity planning data
-- **ChromaDB for semantic long-term storage
-- **Automatic knowledge indexing from web searches and interactions
-- **Context-aware retrieval with semantic similarity matching
-- **Persistent storage with Docker volume management
-## 🚀 Quick Start & Deployment
-
-## 🚀 Quick Start & Deployment
-
-### 🎯 **Performance-Optimized Quick Start** (Recommended)
-
-**Quick Start:**
-```bash
-# 1. Start all services with Docker Compose
-docker-compose up --build -d
-
-# 2. The system will automatically:
-#    - Download llama3.2:3b model (~2GB) if not available
-#    - Configure all services (Redis, ChromaDB, Ollama, Backend)
-#    - Set up OpenWebUI at http://localhost:3000
-#    - Start backend API at http://localhost:8001
-
-# 3. Monitor startup progress
-docker logs -f backend-llm-backend
-
-# 4. Verify services are ready
-curl http://localhost:8001/health
-```
-
-**For other systems:**
-```bash
-# 1. Start all services with Docker Compose
-docker-compose up --build -d
-
-# 2-5. Same as above
-```
-
-### 🚀 **What Happens on First Run**
-
-The system automatically handles everything:
-
-1. **Model Download**: Downloads llama3.2:3b (2GB) from Ollama registry
-2. **Service Initialization**: Starts Redis, ChromaDB, and backend services  
-3. **Health Verification**: Ensures all services are operational
-4. **Ready to Use**: OpenWebUI available at http://localhost:3000
-
-**Expected Startup Logs:**
-```
-[MODEL] 📝 Missing - Model llama3.2:3b not found in Ollama
-[MODEL] 📝 Downloading - Downloading model llama3.2:3b to Ollama
-[MODEL] ✅ Ready - Model llama3.2:3b downloaded successfully
-[MODEL] ✅ Ready - Default model llama3.2:3b is available
-```
-
-### 🔧 **Alternative Deployment Methods**
-
-```bash
-# Option A: Development Mode (with live reload)
-python -m uvicorn app:app --reload --host 0.0.0.0 --port 8001
-
-# Option B: Direct Python startup
-python app.py
-
-# Option C: Docker development mode
-docker-compose -f docker-compose.yml up --build
-```
-
-### 📊 **Service Overview**
-
-| Service | Port | Description | Status Check |
-|---------|------|-------------|--------------|
-| **OpenWebUI** | 3000 | Web interface | http://localhost:3000 |
-| **Backend API** | 8001 | FastAPI with tools/RAG | http://localhost:8001/health |
-| **Ollama** | 11434 | llama3.2:3b model | Internal only |
-| **ChromaDB** | 8002 | Vector database | Internal only |
-| **Redis** | 6379 | Cache & sessions | Internal only |
-
-### 🤖 **Model Configuration**
-
-| Setting | Value | Description |
-|---------|-------|-------------|
-| **Default Model** | llama3.2:3b | 2GB local model |
-| **Auto-Download** | ✅ Enabled | Downloads on first run |
-| **Verification** | ✅ Enabled | Checks availability on startup |
-| **Fallback** | OpenAI API | If Ollama unavailable |
-
-### 🐳 **Docker Deployment with Persistent Volumes**
-
-The performance-optimized Docker configuration includes:
-
-- ✅ **Automatic model download** - llama3.2:3b downloaded on first startup
-- ✅ **Persistent model storage** - No re-download between restarts
-- ✅ **Optimized health checks** - Adaptive intervals based on stability
-- ✅ **Complete isolation** - All services in isolated network
-- ✅ **Resource limits** - Production-ready constraints
-- ✅ **Automatic restarts** - Unless explicitly stopped
-
-**Persistent Volumes:**
-```yaml
-volumes:  - ./storage/ollama:/home/ollama/.ollama               # Ollama models (llama3.2:3b)
-  - ./storage/models:/home/models/.cache/torch         # Embedding models
-  - ./storage/chroma:/chroma                          # Vector database
-  - ./storage/redis:/data                             # Redis persistence
-  - ./storage/backend:/opt/backend/data               # Backend data
-```
-
-## 🔧 Manual Installation & Configuration Guide
-
-## 🚦 Current System Status
-
-### ✅ **System Ready** (As of June 18, 2025)
-
-Your backend is currently **fully operational** with the following configuration:
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| **LLM Model** | ✅ Ready | llama3.2:3b (2.02GB) downloaded and available |
-| **Backend API** | ✅ Running | Port 8001, all endpoints operational |
-| **OpenWebUI** | ✅ Running | Port 3000, configured to use backend |
-| **Ollama** | ✅ Running | Port 11434, model verified |
-| **Redis** | ✅ Healthy | Cache and sessions working |
-| **ChromaDB** | ✅ Healthy | Vector database ready |
-| **File Upload** | ✅ Ready | RAG pipeline operational |
-
-### 🧪 **Verified Features**
-- ✅ Model automatic download and verification
-- ✅ OpenAI-compatible API endpoints
-- ✅ Request flow through backend (no direct Ollama access)
-- ✅ Health monitoring and logging
-- ✅ File upload and document search
-- ✅ All services communicating properly
-
-### 🔗 **Access URLs**
-- **OpenWebUI**: http://localhost:3000
-- **Backend API**: http://localhost:8001
-- **API Documentation**: http://localhost:8001/docs
-- **Health Check**: http://localhost:8001/health
-
-## 🔧 Manual Installation & Configuration Guide
-
-### Prerequisites
-- **Docker & Docker Compose**: Latest versions with container support
-- **System Requirements**: 8GB+ RAM recommended (CPU-only deployment)
-- **Network**: Stable internet connection for model downloads and external API calls
-
-### 1. Clone and Setup
-```bash
-cd /opt/backend
-# All configuration files are already optimized for production use
-```
-
-### 2. Start All Services
-```bash
-# Start all services with health checks and dependency management
-docker-compose up --build -d
-
-# Monitor startup progress
-docker-compose logs -f
-```
-
-### Startup Sequence
-The services start in the following order for optimal reliability:
-1. **Redis & ChromaDB**: Core data services initialize first
-2. **Ollama**: LLM service starts with model loading
-3. **Backend API**: FastAPI app starts with database connections
-4. **OpenWebUI**: Web interface connects to backend
-5. **Watchdog Monitoring**: Health monitoring begins after 10-second delay
-
-This sequence ensures all dependencies are ready before monitoring begins.
-
-### 3. Access Services
-- **🎯 Backend API**: http://localhost:8001 (Main FastAPI backend with tools)
-- **🖥️ OpenWebUI**: http://localhost:3000 (User-friendly chat interface)
-- **🔍 ChromaDB**: http://localhost:8002 (Vector database management)
-- **⚡ Redis**: localhost:6379 (Cache and session storage)
-- **🤖 Ollama**: http://localhost:11434 (Local LLM inference engine)
-
-### 4. Health Verification
-```bash
-# Check overall system health
-curl http://localhost:8001/health
-
-# Verify individual services
-curl http://localhost:8001/health/redis
-curl http://localhost:8001/health/chromadb
-curl http://localhost:8001/health/ollama
-
-# Monitor system in real-time
-python test_watchdog.py continuous
-```
-
-### 5. Test Core Functionality
-```bash
-# Test Python code execution with security sandbox
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "test", "message": "run python: import numpy as np; print(np.array([1,2,3]).sum())"}'
-
-# Test intelligent web search with knowledge storage
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "test", "message": "search latest developments in machine learning 2025"}'
-
-# Test Wikipedia integration with semantic memory
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "test", "message": "wikipedia quantum computing"}'
-
-# Test mathematical calculations
-curl -X POST http://localhost:8001/chat \
-  -H "Content-Type: application/json" \
-  -d '{"user_id": "test", "message": "calculate sqrt(144) + 5^2"}'
-
-# Test streaming responses
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"messages": [{"role": "user", "content": "Explain quantum computing"}], "stream": true}'
-```
-
-## 🌐 OpenWebUI Connection Settings
-
-### Access OpenWebUI
-- **URL**: http://localhost:3000
-- **Container**: `backend-openwebui`
-
-### Connection Configuration
-
-#### 1. Ollama API (Local Models)
-```
-Settings → Connections → Ollama API
-URL: http://ollama:11434 (Docker) or http://localhost:11434 (Local)
-```
-
-#### 2. OpenAI API (Cloud Models)
-```
-Settings → Connections → OpenAI API
-URL: https://api.openai.com/v1
-API Key: Your OpenAI API key
-```
-
-#### 3. Custom Backend (Tool-Augmented Responses)
-```
-Settings → Connections → OpenAI API (Custom)
-URL: http://llm_backend:8001/v1 (Docker) or http://localhost:8001/v1 (Local)
-API Key: f2b985dd-219f-45b1-a90e-170962cc7082
-```
-
-### Environment Variables
-Add to your `.env` file:
-```env
-# LLM Configuration (Current)
-DEFAULT_MODEL=llama3.2:3b                   # Current default model
-USE_OLLAMA=true                              # Primary LLM provider
-OLLAMA_BASE_URL=http://ollama:11434              # Ollama service URL
-
-# Fallback Configuration
-OPENAI_API_KEY=sk-your_api_key_here         # Optional for OpenAI fallback
-OPENAI_API_BASE_URL=https://api.openai.com/v1
-
-# Backend Configuration
-BACKEND_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-```
-
-### Model Management
-```bash
-# Current model (automatically downloaded)
-llama3.2:3b - Ready and operational
-
-# Manual model management via API
-curl http://localhost:8001/v1/models/verify/llama3.2:3b
-
-# Pull additional Ollama models (if needed)
-docker exec backend-ollama ollama pull mistral:7b
-docker exec backend-ollama olloma pull codellama:7b
-
-# List available models
-docker exec backend-ollama ollama list
-```
-
-For detailed configuration, see the Environment Variables section below.
-
-## ⚙️ Configuration & Optimization
-
-### Environment Variables
-```bash
-# LLM Configuration (Updated)
-DEFAULT_MODEL=llama3.2:3b                   # Current default model (2GB)
-USE_OLLAMA=true                              # Primary LLM provider
-OLLAMA_BASE_URL=http://ollama:11434              # Ollama service URL
-LLM_TIMEOUT=180                             # Request timeout in seconds
-
-# Database Configuration  
-REDIS_HOST=redis                            # Redis container hostname
-REDIS_PORT=6379                             # Redis port
-CHROMA_HOST=chroma                          # ChromaDB hostname
-CHROMA_PORT=8000                            # ChromaDB port
-CHROMA_DB_DIR=./chroma_db                   # Persistent storage path
-EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B  # Current embedding model
-
-# Performance Tuning
-CACHE_TTL=604800                            # Cache time-to-live (7 days)
-SIMILARITY_THRESHOLD=0.92                   # Semantic similarity threshold
-LLM_TIMEOUT=180                             # LLM request timeout (seconds)
-MAX_REQUESTS_PER_MINUTE=60                  # Rate limiting
-POOL_SIZE=20                                # Connection pool size
-
-# Watchdog Configuration
-WATCHDOG_STARTUP_DELAY=10                   # Startup delay before monitoring begins (seconds)
-WATCHDOG_CHECK_INTERVAL=30                  # Health check interval (seconds)
-WATCHDOG_TIMEOUT=5                          # Health check timeout
-WATCHDOG_MAX_RETRIES=3                      # Retry attempts before failure
-WATCHDOG_ALERT_THRESHOLD=3                  # Consecutive failures before alert
-
-# Security & Authentication
-API_KEY=your-secure-api-key-here            # Backend API security
-JWT_SECRET=your-jwt-secret-for-tokens       # Session management
-ALLOWED_ORIGINS=["http://localhost:3000"]   # CORS configuration
-```
-
-### Production Redis Configuration
-Optimized for LRU caching with 1GB memory limit:
-```
-maxmemory 1gb
-maxmemory-policy allkeys-lru
-save 60 1000
-```
+**Benefits:**
+- 🎯 **Clear Separation**: Production code, tests, and docs are separated
+- 🔍 **Easy Navigation**: Developers know exactly where to find files
+- 🚀 **Clean Deployment**: Root contains only production-ready code
+- 📚 **Centralized Docs**: All documentation in one organized location
 
 ## 📡 API Endpoints
 
