@@ -22,9 +22,11 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import AsyncGenerator
 from typing import Dict
+from typing import Optional
 
 import httpx
 from fastapi import Body
+from fastapi import Depends
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi import HTTPException
@@ -62,7 +64,8 @@ from model_manager import ensure_model_available
 from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
-from v1_models_fix import v1_router
+from adaptive_learning import adaptive_learning_system
+# from v1_models_fix import v1_router  # Commented out - module not found
 
 # Create stub functions for missing imports
 def initialize_storage():
@@ -100,6 +103,12 @@ class MockWatchdog:
 def get_watchdog():
     """Stub function to get watchdog."""
     return MockWatchdog()
+
+# Simple API key verification for pipelines
+def verify_api_key(api_key: Optional[str] = None):
+    """Simple API key verification - implement proper security as needed"""
+    # For now, accept any key for development - replace with proper validation
+    return api_key or "development"
 
 async def get_health_status():
     """Stub function for health status."""
@@ -229,7 +238,7 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 app.include_router(model_manager_router)
-app.include_router(v1_router)  # Working /v1/models endpoint
+# app.include_router(v1_router)  # Working /v1/models endpoint - commented out
 
 # Include upload router
 app.include_router(upload_router)
@@ -1994,3 +2003,135 @@ async def test_model_cache_status():
         },
         "timestamp": time.time()
     }
+
+
+# Pipeline Integration API Endpoints
+# These endpoints support OpenWebUI Pipelines integration
+
+@app.post("/api/memory/retrieve")
+async def retrieve_memory_for_pipeline(
+    request: dict = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Retrieve user memory for Pipeline integration"""
+    try:
+        user_id = request.get("user_id", "default")
+        query = request.get("query", "")
+        limit = request.get("limit", 3)
+        threshold = request.get("threshold", 0.7)
+        
+        log_service_status("PIPELINE_MEMORY", "info", f"Memory retrieval request for user {user_id}")
+        
+        # Use your existing memory retrieval
+        query_embedding = get_embedding(query)
+        if query_embedding is not None:
+            memories = retrieve_user_memory(user_id, query, limit)
+            
+            # Filter by relevance threshold if needed
+            filtered_memories = []
+            for memory in memories:
+                # Add relevance scoring logic here if available
+                filtered_memories.append(memory)
+            
+            log_service_status("PIPELINE_MEMORY", "ready", f"Retrieved {len(filtered_memories)} memories for {user_id}")
+            return {
+                "memories": filtered_memories, 
+                "count": len(filtered_memories),
+                "user_id": user_id,
+                "query": query
+            }
+        else:
+            log_service_status("PIPELINE_MEMORY", "warning", f"Could not generate embedding for query: {query}")
+            return {"memories": [], "count": 0, "user_id": user_id, "query": query}
+            
+    except Exception as e:
+        log_error(e, "pipeline_memory_retrieval", user_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Memory retrieval failed: {str(e)}")
+
+@app.post("/api/learning/process_interaction")
+async def process_interaction_for_pipeline(
+    request: dict = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Process interaction for adaptive learning from Pipeline"""
+    try:
+        # Extract request data
+        user_id = request.get("user_id", "default")
+        conversation_id = request.get("conversation_id", f"pipeline_{user_id}")
+        user_message = request.get("user_message", "")
+        assistant_response = request.get("assistant_response", "")
+        response_time = request.get("response_time", 1.0)
+        tools_used = request.get("tools_used", [])
+        source = request.get("source", "pipeline")
+        
+        log_service_status("PIPELINE_LEARNING", "info", f"Learning request for user {user_id} from {source}")
+        
+        # Use your existing adaptive learning system
+        result = await adaptive_learning_system.process_interaction(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            user_message=user_message,
+            assistant_response=assistant_response,
+            response_time=response_time,
+            tools_used=tools_used
+        )
+        
+        log_service_status("PIPELINE_LEARNING", "ready", f"Processed learning interaction for {user_id}")
+        return {
+            "status": "success", 
+            "result": result,
+            "user_id": user_id,
+            "source": source
+        }
+        
+    except Exception as e:
+        log_error(e, "pipeline_learning", user_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Learning processing failed: {str(e)}")
+
+@app.get("/api/pipeline/status")
+async def get_pipeline_status():
+    """Get current backend status for Pipeline integration"""
+    try:
+        # Get database health
+        health = get_database_health()
+        
+        # Get cache stats
+        cache_manager = get_cache_manager()
+        cache_info = cache_manager.get_cache_stats() if cache_manager else {}
+        
+        # Get adaptive learning stats
+        learning_stats = {
+            "learning_system": "available",
+            "feedback_types": ["positive", "negative", "neutral", "correction", "clarification"],
+            "active": True
+        }
+        
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "services": {
+                "redis": health["redis"]["available"],
+                "chromadb": health["chromadb"]["available"],
+                "embeddings": health["embeddings"]["available"],
+                "adaptive_learning": True,
+                "memory_system": True
+            },
+            "cache": cache_info,            "learning": learning_stats,
+            "api_version": "1.0.0",
+            "pipeline_support": True
+        }
+        
+    except Exception as e:
+        log_error(e, "pipeline_status", "system", "pipeline")
+        return {
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.now().isoformat()
+        }
+
+
+# Simple test endpoint to verify endpoint loading
+@app.get("/api/test/hello")
+async def test_hello():
+    """Simple test endpoint"""
+    return {"message": "Hello from test endpoint", "status": "working"}

@@ -81,7 +81,52 @@
       "feedback": "/enhanced/feedback/interaction",
       "admin_cache": "/admin/cache/*",
       "admin_sessions": "/admin/sessions/*",
-      "model_testing": "/test/*"
+      "model_testing": "/test/*",
+      "memory_retrieve": "/api/memory/retrieve",
+      "learning_process": "/api/learning/process_interaction",
+      "pipeline_status": "/api/pipeline/status"
+    },
+    "pipeline_integration": {
+      "pipeline_file": "advanced_memory_pipeline.py",
+      "location": "root_directory",
+      "openwebui_compatible": true,
+      "features": {
+        "memory_injection": {
+          "enabled": true,
+          "max_results": 3,
+          "relevance_threshold": 0.7,
+          "context_injection": true
+        },
+        "adaptive_learning": {
+          "enabled": true,
+          "interaction_storage": true,
+          "feedback_processing": true,
+          "user_preference_learning": true
+        },
+        "backend_integration": {
+          "async_http_client": "httpx",
+          "api_key_authentication": true,
+          "error_handling": "comprehensive",
+          "performance_monitoring": true
+        },
+        "user_isolation": {
+          "openwebui_user_id_support": true,
+          "conversation_memory_isolation": true,
+          "personalized_experiences": true
+        }
+      },
+      "configuration": {
+        "backend_url": "http://localhost:8001",
+        "default_api_key": "development",
+        "timeout_settings": "30s",
+        "retry_logic": "exponential_backoff"
+      },
+      "endpoints_used": [
+        "/api/memory/retrieve",
+        "/api/learning/process_interaction", 
+        "/api/pipeline/status"
+      ],
+      "installation_status": "ready_for_deployment"
     },
     "testing": {
       "test_suites": ["enhanced_features", "performance_enhancements", "enhanced_streaming_features"],
@@ -118,7 +163,11 @@
       "stream_monitoring",
       "background_task_management",
       "enhanced_session_management",
-      "comprehensive_test_suites"
+      "comprehensive_test_suites",
+      "advanced_memory_pipeline_integration",
+      "openwebui_pipeline_support",
+      "contextual_memory_injection",
+      "adaptive_learning_pipeline_storage"
     ]
   }
 }

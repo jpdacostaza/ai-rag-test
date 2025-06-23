@@ -7,21 +7,36 @@ Tests if OpenWebUI memory persists across different chat sessions
 import requests
 import json
 import time
+import sys
+from pathlib import Path
 
-def test_memory_persistence():
+# Add parent directory to path to import API key manager
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from setup.api_key_manager import APIKeyManager
+
+
+def get_api_credentials(user=None, environment=None):
+    """Get API credentials with automatic fallback."""
+    key_manager = APIKeyManager(str(Path(__file__).parent.parent.parent / "setup" / "openwebui_api_keys.json"))
+    
+    # Try to get key with fallback logic
+    credentials = key_manager.get_key(user=user, environment=environment)
+    
+    if credentials:
+        print(f"🔑 Using API credentials from: {credentials.get('source', 'unknown')}")
+        return credentials["api_key"], credentials["base_url"]
+    
+    # Manual fallback
+    print("⚠️  No API keys found in config. Please enter manually:")
+    token = input("Enter your OpenWebUI API token: ").strip()
+    base_url = input("Enter base URL [http://localhost:3000]: ").strip() or "http://localhost:3000"
+    return token, base_url
+
+def test_memory_persistence(api_token, base_url):
     """Test memory across chat sessions"""
     
-    # Configuration - Update these for your setup
-    OPENWEBUI_URL = "http://localhost:3000"
-    API_TOKEN = None  # You'll need to get this from OpenWebUI
-    
-    if not API_TOKEN:
-        print("❌ Please set your OpenWebUI API token in the script")
-        print("💡 Get token from: OpenWebUI Settings → Account → API Keys")
-        return
-    
     headers = {
-        "Authorization": f"Bearer {API_TOKEN}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json"
     }
     
@@ -34,7 +49,7 @@ def test_memory_persistence():
     
     try:
         response = requests.post(
-            f"{OPENWEBUI_URL}/api/v1/memories/add",
+            f"{base_url}/api/v1/memories/add",
             headers=headers,
             json={"content": memory_content}
         )
@@ -51,7 +66,7 @@ def test_memory_persistence():
     print("\n2. Testing memory query...")
     try:
         response = requests.post(
-            f"{OPENWEBUI_URL}/api/v1/memories/query",
+            f"{base_url}/api/v1/memories/query",
             headers=headers,
             json={"content": "what do you remember about me", "k": 3}
         )
@@ -84,7 +99,7 @@ def test_memory_persistence():
     
     try:
         response = requests.post(
-            f"{OPENWEBUI_URL}/api/chat/completions",
+            f"{base_url}/api/chat/completions",
             headers=headers,
             json=chat_payload
         )
@@ -110,5 +125,29 @@ def test_memory_persistence():
     print("   - Verify embeddings model is loaded")
     print("3. Check backend logs: docker logs backend-llm-backend --tail 20")
 
+
 if __name__ == "__main__":
-    test_memory_persistence()
+    # Parse command line arguments for user/environment
+    user = None
+    environment = None
+    
+    if len(sys.argv) > 1:
+        if sys.argv[1].startswith("--user="):
+            user = sys.argv[1].split("=", 1)[1]
+        elif sys.argv[1].startswith("--env="):
+            environment = sys.argv[1].split("=", 1)[1]
+    
+    # Get API credentials automatically
+    try:
+        api_token, base_url = get_api_credentials(user=user, environment=environment)
+        
+        if not api_token:
+            print("❌ Please provide your OpenWebUI API token")
+            print("💡 Get token from: OpenWebUI Settings → Account → API Keys")
+        else:
+            test_memory_persistence(api_token, base_url)
+    except KeyboardInterrupt:
+        print("\n❌ Cancelled by user")
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        print("Usage: python test_memory_cross_chat.py [--user=username] [--env=environment]")

@@ -38,6 +38,13 @@ ENV/
 .env.performance
 *.env
 
+# API Keys and secrets (CRITICAL: Never commit these)
+openwebui_api_keys.json
+api_keys.json
+secrets.json
+*_api_keys.json
+*_secrets.json
+
 # Logs
 *.log
 logs/

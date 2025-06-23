@@ -1,0 +1,25 @@
+{
+  "default": {
+    "api_key": "YOUR_DEFAULT_API_KEY_HERE",
+    "base_url": "http://localhost:3000",
+    "description": "Default OpenWebUI instance"
+  },
+  "users": {
+    "example_user": {
+      "api_key": "sk-example-user-key-here",
+      "base_url": "http://localhost:3000",
+      "email": "user@example.com",
+      "description": "Example user configuration"
+    }
+  },
+  "environments": {
+    "development": {
+      "api_key": "sk-dev-key-here",
+      "base_url": "http://localhost:3000"
+    },
+    "production": {
+      "api_key": "sk-prod-key-here",
+      "base_url": "https://your-openwebui-domain.com"
+    }
+  }
+}
