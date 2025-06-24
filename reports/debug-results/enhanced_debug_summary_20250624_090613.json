@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-06-24T09:06:21.663927",
+  "service_status": {
+    "backend": "NOT_RUNNING",
+    "openwebui": "NOT_RUNNING"
+  },
+  "total_tools": 8,
+  "successful": 0,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 8,
+  "timeouts": 0,
+  "results": {
+    "Endpoint Validator": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "Debug Endpoints": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "Memory Pipeline Verifier": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "Comprehensive Memory Test": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "OpenWebUI Memory Test": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "OpenWebUI Memory Test (Fixed)": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "Memory Diagnostic Tool": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ],
+      "output": "",
+      "stderr": ""
+    },
+    "Cross-Chat Memory Test": {
+      "status": "SKIPPED",
+      "reason": "Backend service not available",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ],
+      "output": "",
+      "stderr": ""
+    }
+  }
+}

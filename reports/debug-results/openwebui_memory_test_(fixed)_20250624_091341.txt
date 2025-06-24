@@ -1,0 +1,38 @@
+Debug Tool Report: OpenWebUI Memory Test (Fixed)
+Timestamp: 2025-06-24T09:15:28.225140
+Tool Path: debug/memory-tests/test_openwebui_memory_fixed.py
+Description: Fixed OpenWebUI testing (needs OpenWebUI + backend)
+Requirements: backend, openwebui
+Status: FAILED
+================================================================================
+
+STDOUT:
+----------------------------------------
+=== OpenWebUI Memory Pipeline Integration Test ===
+Test started at: 2025-06-24 09:15:27.598281
+
+1. Testing OpenWebUI accessibility...
+[OK] OpenWebUI is accessible
+
+2. Testing backend accessibility...
+[OK] Backend is accessible
+
+3. Testing pipeline endpoints...
+
+3.1 Testing memory retrieval endpoint...
+[OK] Memory retrieval endpoint works
+   Retrieved 0 memories for user test_openwebui_user
+
+3.2 Testing learning endpoint...
+[OK] Learning endpoint works
+   Processing result: success
+
+3.3 Testing pipeline status endpoint...
+[OK] Pipeline status endpoint works
+   Backend status: healthy
+
+4. Testing chat with memory...
+[FAIL] Chat with memory failed: 500
+Response: {"error":{"type":"http_error","code":500,"message":"Error processing request: Client error '404 Not Found' for url 'http://ollama:11434/api/chat'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404","timestamp":"2025-06-24T07:15:28.211203"}}
+
+

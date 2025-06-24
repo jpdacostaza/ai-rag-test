@@ -1,0 +1,35 @@
+ENHANCED DEBUG TOOLS COMPREHENSIVE TEST REPORT
+============================================================
+Timestamp: 2025-06-24T09:06:21.663927
+Backend Status: NOT_RUNNING
+OpenWebUI Status: NOT_RUNNING
+Total Tools Tested: 8
+[OK] Successful: 0
+[FAIL] Failed: 0
+[ERROR] Errors: 0
+[SEARCH] Skipped: 8
+[TIMEOUT] Timeouts: 0
+
+============================================================
+
+DETAILED RESULTS BY CATEGORY:
+----------------------------------------
+Backend-Only Tools:
+  [SKIP] Endpoint Validator: SKIPPED
+      Reason: Backend service not available
+  [SKIP] Debug Endpoints: SKIPPED
+      Reason: Backend service not available
+  [SKIP] Memory Pipeline Verifier: SKIPPED
+      Reason: Backend service not available
+  [SKIP] Comprehensive Memory Test: SKIPPED
+      Reason: Backend service not available
+
+Full-Stack Tools:
+  [SKIP] OpenWebUI Memory Test: SKIPPED
+      Reason: Backend service not available
+  [SKIP] OpenWebUI Memory Test (Fixed): SKIPPED
+      Reason: Backend service not available
+  [SKIP] Memory Diagnostic Tool: SKIPPED
+      Reason: Backend service not available
+  [SKIP] Cross-Chat Memory Test: SKIPPED
+      Reason: Backend service not available

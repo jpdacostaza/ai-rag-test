@@ -27,8 +27,11 @@ import sys
 from pathlib import Path
 
 # Add parent directory to path to import API key manager
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from setup.api_key_manager import APIKeyManager
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+try:
+    from setup.api_key_manager import APIKeyManager
+except ImportError:
+    from api_key_manager import APIKeyManager
 
 
 def get_api_credentials(user=None, environment=None):

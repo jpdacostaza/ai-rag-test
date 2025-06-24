@@ -61,12 +61,11 @@ def test_openwebui_memory_integration():
     except Exception as e:
         print(f"[FAIL] Failed to connect to backend: {e}")
         return False
-    
-    # Test 3: Check memory endpoints
+      # Test 3: Check memory endpoints
     print("\n3. Testing memory endpoints...")
     api_key = "f2b985dd-219f-45b1-a90e-170962cc7082"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-      test_user = "test_openwebui_user"
+    test_user = "test_openwebui_user"
     test_memory = "My name is Alice and I love programming"
     
     # Test memory retrieval endpoint (this is what the pipeline uses)
@@ -162,8 +161,7 @@ def test_openwebui_memory_integration():
     print("1. Open OpenWebUI at: http://localhost:3000")
     print("2. Create an account or login")
     print("3. Start a chat and tell the AI your name")
-    print("4. In a new chat, ask 'What's my name?' to test memory persistence")
-    
+    print("4. In a new chat, ask 'What's my name?' to test memory persistence")    
     return True
 
 if __name__ == "__main__":

@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-06-24T09:04:26.490162",
+  "total_tools": 8,
+  "successful": 3,
+  "failed": 5,
+  "errors": 0,
+  "timeouts": 0,
+  "results": {
+    "Endpoint Validator": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": null,
+      "stderr": null,
+      "timestamp": "2025-06-24T09:03:30.378152"
+    },
+    "Debug Endpoints": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "Testing pipeline endpoint imports...\n1. Checking main.py syntax...\n[OK] Syntax is valid\n2. Testing imports...\n[FAIL] Error: No module named 'main'\n",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\debug_endpoints.py\", line 39, in <module>\n    from main import app\nModuleNotFoundError: No module named 'main'\n",
+      "timestamp": "2025-06-24T09:03:30.432287"
+    },
+    "Memory Pipeline Verifier": {
+      "status": "FAILED",
+      "return_code": 1,
+      "output": null,
+      "stderr": "",
+      "timestamp": "2025-06-24T09:03:51.210337"
+    },
+    "Comprehensive Memory Test": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": null,
+      "stderr": "",
+      "timestamp": "2025-06-24T09:04:16.977928"
+    },
+    "OpenWebUI Memory Test": {
+      "status": "FAILED",
+      "return_code": 1,
+      "output": "=== OpenWebUI Memory Pipeline Integration Test ===\nTest started at: 2025-06-24 09:04:17.303464\n\n1. Testing OpenWebUI accessibility...\n[FAIL] Failed to connect to OpenWebUI: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002858812EA50>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T09:04:21.400981"
+    },
+    "OpenWebUI Memory Test (Fixed)": {
+      "status": "FAILED",
+      "return_code": 1,
+      "output": "=== OpenWebUI Memory Pipeline Integration Test ===\nTest started at: 2025-06-24 09:04:21.719176\n\n1. Testing OpenWebUI accessibility...\n[FAIL] Failed to connect to OpenWebUI: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000001F815E86CC0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T09:04:25.828655"
+    },
+    "Memory Diagnostic Tool": {
+      "status": "FAILED",
+      "return_code": 1,
+      "output": "",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\archived\\demo-test\\debug-tools\\openwebui_memory_diagnostic.py\", line 31, in <module>\n    from setup.api_key_manager import APIKeyManager\nModuleNotFoundError: No module named 'setup'\n",
+      "timestamp": "2025-06-24T09:04:26.166194"
+    },
+    "Cross-Chat Memory Test": {
+      "status": "FAILED",
+      "return_code": 1,
+      "output": "",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\archived\\demo-test\\debug-tools\\test_memory_cross_chat.py\", line 31, in <module>\n    from setup.api_key_manager import APIKeyManager\nModuleNotFoundError: No module named 'setup'\n",
+      "timestamp": "2025-06-24T09:04:26.489162"
+    }
+  }
+}
