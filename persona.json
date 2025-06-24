@@ -87,7 +87,7 @@
       "pipeline_status": "/api/pipeline/status"
     },
     "pipeline_integration": {
-      "pipeline_file": "advanced_memory_pipeline.py",
+      "pipeline_file": "memory_pipeline.py",
       "location": "root_directory",
       "openwebui_compatible": true,
       "features": {
