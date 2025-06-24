@@ -1,7 +1,0 @@
-Debug Tool Report: Endpoint Validator
-Timestamp: 2025-06-24T09:03:30.378655
-Tool Path: debug/utilities/endpoint_validator.py
-Description: Validates backend API endpoints and connectivity
-Status: SUCCESS
-================================================================================
-
