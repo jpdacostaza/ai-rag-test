@@ -27,7 +27,9 @@ async def refresh_model_cache(force: bool = False) -> None:
     global _model_cache
     current_time = time.time()
     if not force and (current_time - _model_cache["last_updated"] < _model_cache["ttl"]):
-        return    logging.info("[MODELS] Refreshing model cache...")
+        return
+    
+    logging.info("[MODELS] Refreshing model cache...")
     ollama_models = []
     try:
         async with httpx.AsyncClient() as client:
@@ -110,10 +112,8 @@ async def ensure_model_available(model_name: str, auto_pull: bool = True) -> boo
 
 # --- API Endpoints ---
 
-
-@router.on_event("startup")
-async def on_startup():
-    """Initial model cache population on startup."""
+async def initialize_model_cache():
+    """Initialize model cache on startup. Called from application lifespan."""
     await refresh_model_cache(force=True)
 
 

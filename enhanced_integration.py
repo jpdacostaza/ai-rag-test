@@ -260,6 +260,7 @@ async def get_learning_system_status():
         }
 
     except Exception as e:
+        log_error(e, "enhanced_processing_info")
         return {"status": "error", "message": str(e)}
 
 

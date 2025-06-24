@@ -1,0 +1,3744 @@
+{
+  "timestamp": "2025-06-24T21:38:10.332924",
+  "summary": {
+    "total_files_analyzed": 81,
+    "total_issues": 528,
+    "critical_issues": 0,
+    "high_issues": 89,
+    "medium_issues": 172,
+    "low_issues": 267
+  },
+  "issues_by_category": {
+    "error_handling": {
+      "count": 62,
+      "issues": [
+        {
+          "severity": "high",
+          "file": "adaptive_learning.py",
+          "line": 346,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "adaptive_learning.py",
+          "line": 399,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "comprehensive_analysis.py",
+          "line": 32,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "comprehensive_analysis.py",
+          "line": 213,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "comprehensive_analysis.py",
+          "line": 245,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "config.py",
+          "line": 87,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "database_manager.py",
+          "line": 68,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_document_processing.py",
+          "line": 391,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_integration.py",
+          "line": 147,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_integration.py",
+          "line": 203,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_integration.py",
+          "line": 216,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_integration.py",
+          "line": 262,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_integration.py",
+          "line": 351,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "enhanced_streaming.py",
+          "line": 221,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "error_handler.py",
+          "line": 249,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "error_handler.py",
+          "line": 264,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 96,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 126,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 166,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 204,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 277,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "feedback_router.py",
+          "line": 64,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "main.py",
+          "line": 378,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 86,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 116,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 151,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 170,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 198,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 299,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 346,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "pipelines\\pipelines_v1_routes.py",
+          "line": 139,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "pipelines\\pipelines_v1_routes.py",
+          "line": 204,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "routes\\chat.py",
+          "line": 283,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "scripts\\refresh-models.py",
+          "line": 110,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "scripts\\refresh-models.py",
+          "line": 118,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "scripts\\refresh-models.py",
+          "line": 126,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "storage_manager.py",
+          "line": 157,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "tests\\simple_test_filter.py",
+          "line": 28,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "upload.py",
+          "line": 85,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "upload.py",
+          "line": 153,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 35,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 327,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 447,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 483,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 503,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 531,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 554,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 573,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 72,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 103,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 194,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 48,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\refresh-models.py",
+          "line": 110,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\refresh-models.py",
+          "line": 118,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\refresh-models.py",
+          "line": 126,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "validate_endpoints.py",
+          "line": 95,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "watchdog.py",
+          "line": 185,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "watchdog.py",
+          "line": 260,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "watchdog.py",
+          "line": 290,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "watchdog.py",
+          "line": 353,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "high",
+          "file": "watchdog.py",
+          "line": 413,
+          "message": "Exception caught but not logged",
+          "fix": "Add logging: log_service_status('SERVICE', 'error', f'Error: {e}')"
+        },
+        {
+          "severity": "medium",
+          "file": "main.py",
+          "line": 455,
+          "message": "Bare except clause catches all exceptions",
+          "fix": "Specify exception types: except (ValueError, TypeError):"
+        }
+      ]
+    },
+    "type_safety": {
+      "count": 254,
+      "issues": [
+        {
+          "severity": "low",
+          "file": "cache_manager.py",
+          "line": 23,
+          "message": "Parameter 'redis_client' in '__init__' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "cache_manager.py",
+          "line": 49,
+          "message": "Function 'check_system_prompt_change' missing return type annotation",
+          "fix": "Add return type: def check_system_prompt_change(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "cache_manager.py",
+          "line": 67,
+          "message": "Function 'invalidate_chat_cache' missing return type annotation",
+          "fix": "Add return type: def invalidate_chat_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "cache_manager.py",
+          "line": 87,
+          "message": "Function 'invalidate_all_cache' missing return type annotation",
+          "fix": "Add return type: def invalidate_all_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 23,
+          "message": "Function 'check_syntax' missing return type annotation",
+          "fix": "Add return type: def check_syntax(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 23,
+          "message": "Parameter 'filepath' in 'check_syntax' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 35,
+          "message": "Function 'extract_imports' missing return type annotation",
+          "fix": "Add return type: def extract_imports(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 35,
+          "message": "Parameter 'filepath' in 'extract_imports' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 56,
+          "message": "Function 'extract_functions' missing return type annotation",
+          "fix": "Add return type: def extract_functions(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 56,
+          "message": "Parameter 'filepath' in 'extract_functions' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 72,
+          "message": "Function 'find_duplicate_functions' missing return type annotation",
+          "fix": "Add return type: def find_duplicate_functions(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 92,
+          "message": "Function 'check_critical_files' missing return type annotation",
+          "fix": "Add return type: def check_critical_files(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 124,
+          "message": "Function 'validate_imports_comprehensive' missing return type annotation",
+          "fix": "Add return type: def validate_imports_comprehensive(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 184,
+          "message": "Function 'check_endpoint_completeness' missing return type annotation",
+          "fix": "Add return type: def check_endpoint_completeness(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 218,
+          "message": "Function 'analyze_code_quality' missing return type annotation",
+          "fix": "Add return type: def analyze_code_quality(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "comprehensive_analysis.py",
+          "line": 250,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "config.py",
+          "line": 46,
+          "message": "Function 'get_app_start_time' missing return type annotation",
+          "fix": "Add return type: def get_app_start_time(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "config.py",
+          "line": 50,
+          "message": "Function 'log_system_info' missing return type annotation",
+          "fix": "Add return type: def log_system_info(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "config.py",
+          "line": 59,
+          "message": "Function 'log_environment_variables' missing return type annotation",
+          "fix": "Add return type: def log_environment_variables(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "config.py",
+          "line": 80,
+          "message": "Function 'load_persona' missing return type annotation",
+          "fix": "Add return type: def load_persona(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 25,
+          "message": "Function 'get_cache_manager' missing return type annotation",
+          "fix": "Add return type: def get_cache_manager(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 36,
+          "message": "Function 'get_redis_client' missing return type annotation",
+          "fix": "Add return type: def get_redis_client(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 41,
+          "message": "Function 'get_chroma_collection' missing return type annotation",
+          "fix": "Add return type: def get_chroma_collection(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 46,
+          "message": "Function 'get_embedding_model' missing return type annotation",
+          "fix": "Add return type: def get_embedding_model(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 51,
+          "message": "Function 'get_database_health' missing return type annotation",
+          "fix": "Add return type: def get_database_health(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 59,
+          "message": "Function 'get_cache' missing return type annotation",
+          "fix": "Add return type: def get_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 59,
+          "message": "Parameter 'db_manager' in 'get_cache' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 59,
+          "message": "Parameter 'cache_key' in 'get_cache' missing type annotation",
+          "fix": "Add type hint: cache_key: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 59,
+          "message": "Parameter 'user_id' in 'get_cache' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 59,
+          "message": "Parameter 'request_id' in 'get_cache' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 66,
+          "message": "Parameter 'redis_client' in '_get_cache_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Function 'set_cache' missing return type annotation",
+          "fix": "Add return type: def set_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'db_manager' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'cache_key' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: cache_key: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'value' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: value: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'ttl' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: ttl: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'user_id' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 84,
+          "message": "Parameter 'request_id' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 91,
+          "message": "Parameter 'redis_client' in '_set_cache_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Function 'store_chat_history' missing return type annotation",
+          "fix": "Add return type: def store_chat_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Parameter 'db_manager' in 'store_chat_history' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Parameter 'user_id' in 'store_chat_history' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Parameter 'message' in 'store_chat_history' missing type annotation",
+          "fix": "Add type hint: message: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Parameter 'max_history' in 'store_chat_history' missing type annotation",
+          "fix": "Add type hint: max_history: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 105,
+          "message": "Parameter 'request_id' in 'store_chat_history' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 108,
+          "message": "Parameter 'redis_client' in '_store_chat_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 126,
+          "message": "Function 'get_chat_history' missing return type annotation",
+          "fix": "Add return type: def get_chat_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 126,
+          "message": "Parameter 'db_manager' in 'get_chat_history' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 126,
+          "message": "Parameter 'user_id' in 'get_chat_history' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 126,
+          "message": "Parameter 'max_history' in 'get_chat_history' missing type annotation",
+          "fix": "Add type hint: max_history: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 126,
+          "message": "Parameter 'request_id' in 'get_chat_history' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 129,
+          "message": "Parameter 'redis_client' in '_get_chat_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Function 'index_document_chunks' missing return type annotation",
+          "fix": "Add return type: def index_document_chunks(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'db_manager' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'user_id' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'doc_id' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: doc_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'name' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: name: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'chunks' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: chunks: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 147,
+          "message": "Parameter 'request_id' in 'index_document_chunks' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Function 'index_user_document' missing return type annotation",
+          "fix": "Add return type: def index_user_document(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'db_manager' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'user_id' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'doc_id' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: doc_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'name' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: name: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'text' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: text: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'chunk_size' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: chunk_size: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'chunk_overlap' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: chunk_overlap: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 196,
+          "message": "Parameter 'request_id' in 'index_user_document' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Function 'retrieve_user_memory' missing return type annotation",
+          "fix": "Add return type: def retrieve_user_memory(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Parameter 'db_manager' in 'retrieve_user_memory' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Parameter 'user_id' in 'retrieve_user_memory' missing type annotation",
+          "fix": "Add type hint: user_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Parameter 'query_embedding' in 'retrieve_user_memory' missing type annotation",
+          "fix": "Add type hint: query_embedding: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Parameter 'n_results' in 'retrieve_user_memory' missing type annotation",
+          "fix": "Add type hint: n_results: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 217,
+          "message": "Parameter 'request_id' in 'retrieve_user_memory' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 292,
+          "message": "Function 'get_embedding' missing return type annotation",
+          "fix": "Add return type: def get_embedding(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 292,
+          "message": "Parameter 'db_manager' in 'get_embedding' missing type annotation",
+          "fix": "Add type hint: db_manager: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 292,
+          "message": "Parameter 'text' in 'get_embedding' missing type annotation",
+          "fix": "Add type hint: text: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 292,
+          "message": "Parameter 'request_id' in 'get_embedding' missing type annotation",
+          "fix": "Add type hint: request_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 162,
+          "message": "Function 'get_redis_client' missing return type annotation",
+          "fix": "Add return type: def get_redis_client(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 194,
+          "message": "Function 'is_redis_available' missing return type annotation",
+          "fix": "Add return type: def is_redis_available(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 198,
+          "message": "Function 'is_chromadb_available' missing return type annotation",
+          "fix": "Add return type: def is_chromadb_available(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 202,
+          "message": "Function 'is_embeddings_available' missing return type annotation",
+          "fix": "Add return type: def is_embeddings_available(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 206,
+          "message": "Function 'get_health_status' missing return type annotation",
+          "fix": "Add return type: def get_health_status(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 224,
+          "message": "Function 'execute_redis_operation' missing return type annotation",
+          "fix": "Add return type: def execute_redis_operation(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 224,
+          "message": "Parameter 'operation_func' in 'execute_redis_operation' missing type annotation",
+          "fix": "Add type hint: operation_func: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 224,
+          "message": "Parameter 'operation_name' in 'execute_redis_operation' missing type annotation",
+          "fix": "Add type hint: operation_name: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 224,
+          "message": "Parameter 'max_retries' in 'execute_redis_operation' missing type annotation",
+          "fix": "Add type hint: max_retries: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 259,
+          "message": "Function 'get_database_health' missing return type annotation",
+          "fix": "Add return type: def get_database_health(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 264,
+          "message": "Function 'get_cache' missing return type annotation",
+          "fix": "Add return type: def get_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 264,
+          "message": "Parameter 'db_manager_instance' in 'get_cache' missing type annotation",
+          "fix": "Add type hint: db_manager_instance: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 285,
+          "message": "Function 'set_cache' missing return type annotation",
+          "fix": "Add return type: def set_cache(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 285,
+          "message": "Parameter 'db_manager_instance' in 'set_cache' missing type annotation",
+          "fix": "Add type hint: db_manager_instance: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 302,
+          "message": "Function 'get_chat_history' missing return type annotation",
+          "fix": "Add return type: def get_chat_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 304,
+          "message": "Function 'get_operation' missing return type annotation",
+          "fix": "Add return type: def get_operation(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 304,
+          "message": "Parameter 'redis_client' in 'get_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 323,
+          "message": "Function 'store_chat_history' missing return type annotation",
+          "fix": "Add return type: def store_chat_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 325,
+          "message": "Function 'store_operation' missing return type annotation",
+          "fix": "Add return type: def store_operation(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 325,
+          "message": "Parameter 'redis_client' in 'store_operation' missing type annotation",
+          "fix": "Add type hint: redis_client: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 348,
+          "message": "Function 'get_embedding' missing return type annotation",
+          "fix": "Add return type: def get_embedding(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 361,
+          "message": "Function 'index_user_document' missing return type annotation",
+          "fix": "Add return type: def index_user_document(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "database_manager.py",
+          "line": 403,
+          "message": "Function 'retrieve_user_memory' missing return type annotation",
+          "fix": "Add return type: def retrieve_user_memory(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "enhanced_streaming.py",
+          "line": 238,
+          "message": "Parameter 'background' in '__init__' missing type annotation",
+          "fix": "Add type hint: background: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "enhanced_streaming.py",
+          "line": 317,
+          "message": "Function 'setup_default_listeners' missing return type annotation",
+          "fix": "Add return type: def setup_default_listeners(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 242,
+          "message": "Function 'safe_execute' missing return type annotation",
+          "fix": "Add return type: def safe_execute(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 242,
+          "message": "Parameter 'func' in 'safe_execute' missing type annotation",
+          "fix": "Add type hint: func: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 257,
+          "message": "Function 'with_error_handling' missing return type annotation",
+          "fix": "Add return type: def with_error_handling(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 257,
+          "message": "Parameter 'error_message' in 'with_error_handling' missing type annotation",
+          "fix": "Add type hint: error_message: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 260,
+          "message": "Function 'decorator' missing return type annotation",
+          "fix": "Add return type: def decorator(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 260,
+          "message": "Parameter 'func' in 'decorator' missing type annotation",
+          "fix": "Add type hint: func: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "error_handler.py",
+          "line": 261,
+          "message": "Function 'wrapper' missing return type annotation",
+          "fix": "Add return type: def wrapper(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 31,
+          "message": "Parameter 'project_root' in '__init__' missing type annotation",
+          "fix": "Add type hint: project_root: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Function 'add_issue' missing return type annotation",
+          "fix": "Add return type: def add_issue(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'category' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: category: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'severity' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: severity: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'file' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: file: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'line' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: line: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'message' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: message: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 38,
+          "message": "Parameter 'fix_suggestion' in 'add_issue' missing type annotation",
+          "fix": "Add type hint: fix_suggestion: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 48,
+          "message": "Function 'scan_project' missing return type annotation",
+          "fix": "Add return type: def scan_project(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 65,
+          "message": "Function 'analyze_startup_py' missing return type annotation",
+          "fix": "Add return type: def analyze_startup_py(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 65,
+          "message": "Parameter 'filepath' in 'analyze_startup_py' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 99,
+          "message": "Function 'analyze_code_complexity' missing return type annotation",
+          "fix": "Add return type: def analyze_code_complexity(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 99,
+          "message": "Parameter 'filepath' in 'analyze_code_complexity' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 129,
+          "message": "Parameter 'node' in '_calculate_complexity' missing type annotation",
+          "fix": "Add type hint: node: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 139,
+          "message": "Function 'analyze_type_safety' missing return type annotation",
+          "fix": "Add return type: def analyze_type_safety(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 139,
+          "message": "Parameter 'filepath' in 'analyze_type_safety' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 169,
+          "message": "Function 'analyze_error_handling' missing return type annotation",
+          "fix": "Add return type: def analyze_error_handling(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 169,
+          "message": "Parameter 'filepath' in 'analyze_error_handling' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 207,
+          "message": "Function 'check_test_coverage' missing return type annotation",
+          "fix": "Add return type: def check_test_coverage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 243,
+          "message": "Function 'analyze_documentation' missing return type annotation",
+          "fix": "Add return type: def analyze_documentation(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 243,
+          "message": "Parameter 'filepath' in 'analyze_documentation' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 280,
+          "message": "Function 'generate_report' missing return type annotation",
+          "fix": "Add return type: def generate_report(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "extensive_code_review.py",
+          "line": 308,
+          "message": "Function 'run_analysis' missing return type annotation",
+          "fix": "Add return type: def run_analysis(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "human_logging.py",
+          "line": 147,
+          "message": "Function 'log_service_status' missing return type annotation",
+          "fix": "Add return type: def log_service_status(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "human_logging.py",
+          "line": 168,
+          "message": "Function 'log_api_request' missing return type annotation",
+          "fix": "Add return type: def log_api_request(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "human_logging.py",
+          "line": 181,
+          "message": "Function 'log_chat_interaction' missing return type annotation",
+          "fix": "Add return type: def log_chat_interaction(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "human_logging.py",
+          "line": 199,
+          "message": "Function 'init_logging' missing return type annotation",
+          "fix": "Add return type: def init_logging(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "main.py",
+          "line": 68,
+          "message": "Function 'verify_api_key' missing return type annotation",
+          "fix": "Add return type: def verify_api_key(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "main.py",
+          "line": 177,
+          "message": "Function 'get_history' missing return type annotation",
+          "fix": "Add return type: def get_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "main.py",
+          "line": 250,
+          "message": "Function 'store_streaming_chat' missing return type annotation",
+          "fix": "Add return type: def store_streaming_chat(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "main.py",
+          "line": 305,
+          "message": "Function 'get_history' missing return type annotation",
+          "fix": "Add return type: def get_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "main.py",
+          "line": 351,
+          "message": "Function 'store_chat' missing return type annotation",
+          "fix": "Add return type: def store_chat(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 102,
+          "message": "Function 'log' missing return type annotation",
+          "fix": "Add return type: def log(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 32,
+          "message": "Parameter 'user' in 'inlet' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 89,
+          "message": "Parameter 'user' in 'outlet' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 110,
+          "message": "Parameter 'user' in '_extract_user_id' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 110,
+          "message": "Parameter 'body' in '_extract_user_id' missing type annotation",
+          "fix": "Add type hint: body: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\memory_filter.py",
+          "line": 28,
+          "message": "Parameter 'user' in 'inlet' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\memory_filter.py",
+          "line": 75,
+          "message": "Parameter 'user' in 'outlet' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\openwebui_memory_pipeline.py",
+          "line": 30,
+          "message": "Function 'pipe' missing return type annotation",
+          "fix": "Add return type: def pipe(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "memory\\simple_memory_function.py",
+          "line": 18,
+          "message": "Function 'pipe' missing return type annotation",
+          "fix": "Add return type: def pipe(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "pipelines\\pipelines_v1_routes.py",
+          "line": 18,
+          "message": "Function 'verify_api_key' missing return type annotation",
+          "fix": "Add return type: def verify_api_key(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\chat.py",
+          "line": 25,
+          "message": "Function 'get_cache_manager' missing return type annotation",
+          "fix": "Add return type: def get_cache_manager(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\chat.py",
+          "line": 113,
+          "message": "Function 'get_history' missing return type annotation",
+          "fix": "Add return type: def get_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\chat.py",
+          "line": 219,
+          "message": "Function 'store_chat' missing return type annotation",
+          "fix": "Add return type: def store_chat(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\chat.py",
+          "line": 235,
+          "message": "Function 'store_memory' missing return type annotation",
+          "fix": "Add return type: def store_memory(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\chat.py",
+          "line": 252,
+          "message": "Function 'cache_response' missing return type annotation",
+          "fix": "Add return type: def cache_response(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\health.py",
+          "line": 19,
+          "message": "Function 'get_cache_manager' missing return type annotation",
+          "fix": "Add return type: def get_cache_manager(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\health.py",
+          "line": 28,
+          "message": "Function 'get_service_history' missing return type annotation",
+          "fix": "Add return type: def get_service_history(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\health.py",
+          "line": 31,
+          "message": "Function 'get_watchdog' missing return type annotation",
+          "fix": "Add return type: def get_watchdog(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\health.py",
+          "line": 42,
+          "message": "Function 'get_storage_info' missing return type annotation",
+          "fix": "Add return type: def get_storage_info(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "routes\\health.py",
+          "line": 46,
+          "message": "Function 'validate_permissions' missing return type annotation",
+          "fix": "Add return type: def validate_permissions(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "scripts\\refresh-models.py",
+          "line": 208,
+          "message": "Function 'sync_refresh' missing return type annotation",
+          "fix": "Add return type: def sync_refresh(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "services\\streaming_service.py",
+          "line": 18,
+          "message": "Function 'stop_streaming_session' missing return type annotation",
+          "fix": "Add return type: def stop_streaming_session(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "services\\streaming_service.py",
+          "line": 25,
+          "message": "Function 'cleanup_old_sessions' missing return type annotation",
+          "fix": "Add return type: def cleanup_old_sessions(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "services\\streaming_service.py",
+          "line": 42,
+          "message": "Function 'create_session' missing return type annotation",
+          "fix": "Add return type: def create_session(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "services\\streaming_service.py",
+          "line": 52,
+          "message": "Function 'get_session_status' missing return type annotation",
+          "fix": "Add return type: def get_session_status(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "services\\tool_service.py",
+          "line": 92,
+          "message": "Function 'get_timezone_time' missing return type annotation",
+          "fix": "Add return type: def get_timezone_time(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "startup.py",
+          "line": 21,
+          "message": "Function 'initialize_storage' missing return type annotation",
+          "fix": "Add return type: def initialize_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "startup.py",
+          "line": 25,
+          "message": "Function 'initialize_cache_management' missing return type annotation",
+          "fix": "Add return type: def initialize_cache_management(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\minimal_function.py",
+          "line": 2,
+          "message": "Function 'pipe' missing return type annotation",
+          "fix": "Add return type: def pipe(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\minimal_function.py",
+          "line": 2,
+          "message": "Parameter 'body' in 'pipe' missing type annotation",
+          "fix": "Add type hint: body: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\simple_memory_function.py",
+          "line": 18,
+          "message": "Function 'pipe' missing return type annotation",
+          "fix": "Add return type: def pipe(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\simple_test_filter.py",
+          "line": 12,
+          "message": "Parameter 'user' in 'inlet' missing type annotation",
+          "fix": "Add type hint: user: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_chat_endpoint.py",
+          "line": 9,
+          "message": "Function 'test_chat_endpoint' missing return type annotation",
+          "fix": "Add return type: def test_chat_endpoint(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_complete_pipeline.py",
+          "line": 14,
+          "message": "Function 'test_complete_memory_pipeline' missing return type annotation",
+          "fix": "Add return type: def test_complete_memory_pipeline(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 17,
+          "message": "Function 'test_memory_storage' missing return type annotation",
+          "fix": "Add return type: def test_memory_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 51,
+          "message": "Function 'test_memory_retrieval' missing return type annotation",
+          "fix": "Add return type: def test_memory_retrieval(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 88,
+          "message": "Function 'test_cross_chat_scenario' missing return type annotation",
+          "fix": "Add return type: def test_cross_chat_scenario(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 158,
+          "message": "Function 'test_backend_health' missing return type annotation",
+          "fix": "Add return type: def test_backend_health(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 174,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_chromadb.py",
+          "line": 14,
+          "message": "Function 'test_direct_chromadb_storage' missing return type annotation",
+          "fix": "Add return type: def test_direct_chromadb_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_memory.py",
+          "line": 17,
+          "message": "Function 'test_direct_document_storage' missing return type annotation",
+          "fix": "Add return type: def test_direct_document_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_memory.py",
+          "line": 49,
+          "message": "Function 'test_direct_memory_retrieval' missing return type annotation",
+          "fix": "Add return type: def test_direct_memory_retrieval(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_memory.py",
+          "line": 97,
+          "message": "Function 'test_learning_endpoint_directly' missing return type annotation",
+          "fix": "Add return type: def test_learning_endpoint_directly(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_memory.py",
+          "line": 132,
+          "message": "Function 'test_chromadb_health' missing return type annotation",
+          "fix": "Add return type: def test_chromadb_health(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_direct_memory.py",
+          "line": 149,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_final_pipeline.py",
+          "line": 301,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Function 'pipe' missing return type annotation",
+          "fix": "Add return type: def pipe(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Parameter 'user_message' in 'pipe' missing type annotation",
+          "fix": "Add type hint: user_message: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Parameter 'model_id' in 'pipe' missing type annotation",
+          "fix": "Add type hint: model_id: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Parameter 'messages' in 'pipe' missing type annotation",
+          "fix": "Add type hint: messages: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Parameter 'body' in 'pipe' missing type annotation",
+          "fix": "Add type hint: body: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_api.py",
+          "line": 13,
+          "message": "Function 'test_memory_retrieval_api' missing return type annotation",
+          "fix": "Add return type: def test_memory_retrieval_api(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_endpoints.py",
+          "line": 17,
+          "message": "Function 'test_health' missing return type annotation",
+          "fix": "Add return type: def test_health(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_endpoints.py",
+          "line": 32,
+          "message": "Function 'test_memory_storage' missing return type annotation",
+          "fix": "Add return type: def test_memory_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_endpoints.py",
+          "line": 69,
+          "message": "Function 'test_memory_retrieval' missing return type annotation",
+          "fix": "Add return type: def test_memory_retrieval(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_endpoints.py",
+          "line": 110,
+          "message": "Function 'test_pipeline_endpoints' missing return type annotation",
+          "fix": "Add return type: def test_pipeline_endpoints(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_endpoints.py",
+          "line": 136,
+          "message": "Function 'run_full_test' missing return type annotation",
+          "fix": "Add return type: def run_full_test(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_openwebui_memory.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' missing return type annotation",
+          "fix": "Add return type: def test_openwebui_memory_integration(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_openwebui_memory_fixed.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' missing return type annotation",
+          "fix": "Add return type: def test_openwebui_memory_integration(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 15,
+          "message": "Function 'test_backend_connection' missing return type annotation",
+          "fix": "Add return type: def test_backend_connection(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 30,
+          "message": "Function 'test_pipeline_discovery' missing return type annotation",
+          "fix": "Add return type: def test_pipeline_discovery(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 48,
+          "message": "Function 'test_memory_storage' missing return type annotation",
+          "fix": "Add return type: def test_memory_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 76,
+          "message": "Function 'test_memory_retrieval' missing return type annotation",
+          "fix": "Add return type: def test_memory_retrieval(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 104,
+          "message": "Function 'test_pipeline_inlet' missing return type annotation",
+          "fix": "Add return type: def test_pipeline_inlet(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 148,
+          "message": "Function 'test_pipeline_outlet' missing return type annotation",
+          "fix": "Add return type: def test_pipeline_outlet(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_comprehensive.py",
+          "line": 183,
+          "message": "Function 'run_comprehensive_test' missing return type annotation",
+          "fix": "Add return type: def run_comprehensive_test(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_e2e.py",
+          "line": 16,
+          "message": "Function 'simulate_openwebui_workflow' missing return type annotation",
+          "fix": "Add return type: def simulate_openwebui_workflow(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_e2e.py",
+          "line": 100,
+          "message": "Function 'test_cross_chat_memory' missing return type annotation",
+          "fix": "Add return type: def test_cross_chat_memory(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_pipeline_integration.py",
+          "line": 14,
+          "message": "Function 'test_pipeline_integration' missing return type annotation",
+          "fix": "Add return type: def test_pipeline_integration(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_simple_memory.py",
+          "line": 14,
+          "message": "Function 'test_simple_memory_storage' missing return type annotation",
+          "fix": "Add return type: def test_simple_memory_storage(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\api_key_manager.py",
+          "line": 268,
+          "message": "Function 'setup_api_keys_interactive' missing return type annotation",
+          "fix": "Add return type: def setup_api_keys_interactive(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 13,
+          "message": "Function 'enforce_cpu_only_mode' missing return type annotation",
+          "fix": "Add return type: def enforce_cpu_only_mode(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 31,
+          "message": "Function 'verify_cpu_only_setup' missing return type annotation",
+          "fix": "Add return type: def verify_cpu_only_setup(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 116,
+          "message": "Function 'log_cpu_verification_results' missing return type annotation",
+          "fix": "Add return type: def log_cpu_verification_results(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 116,
+          "message": "Parameter 'results' in 'log_cpu_verification_results' missing type annotation",
+          "fix": "Add type hint: results: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 34,
+          "message": "Function 'scan_project_files' missing return type annotation",
+          "fix": "Add return type: def scan_project_files(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 88,
+          "message": "Function 'extract_all_endpoints' missing return type annotation",
+          "fix": "Add return type: def extract_all_endpoints(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 104,
+          "message": "Function 'get_live_routes' missing return type annotation",
+          "fix": "Add return type: def get_live_routes(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 197,
+          "message": "Function 'cross_reference_endpoints' missing return type annotation",
+          "fix": "Add return type: def cross_reference_endpoints(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 232,
+          "message": "Function 'test_all_endpoints' missing return type annotation",
+          "fix": "Add return type: def test_all_endpoints(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 254,
+          "message": "Function 'generate_report' missing return type annotation",
+          "fix": "Add return type: def generate_report(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 338,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 23,
+          "message": "Function 'print_section' missing return type annotation",
+          "fix": "Add return type: def print_section(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 23,
+          "message": "Parameter 'title' in 'print_section' missing type annotation",
+          "fix": "Add type hint: title: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 28,
+          "message": "Function 'test_endpoint' missing return type annotation",
+          "fix": "Add return type: def test_endpoint(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 28,
+          "message": "Parameter 'method' in 'test_endpoint' missing type annotation",
+          "fix": "Add type hint: method: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 28,
+          "message": "Parameter 'path' in 'test_endpoint' missing type annotation",
+          "fix": "Add type hint: path: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 28,
+          "message": "Parameter 'data' in 'test_endpoint' missing type annotation",
+          "fix": "Add type hint: data: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 28,
+          "message": "Parameter 'description' in 'test_endpoint' missing type annotation",
+          "fix": "Add type hint: description: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 51,
+          "message": "Function 'get_routes_from_app' missing return type annotation",
+          "fix": "Add return type: def get_routes_from_app(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 71,
+          "message": "Function 'find_endpoint_definitions' missing return type annotation",
+          "fix": "Add return type: def find_endpoint_definitions(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 100,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\inspect_chromadb.py",
+          "line": 14,
+          "message": "Function 'inspect_chromadb_collection' missing return type annotation",
+          "fix": "Add return type: def inspect_chromadb_collection(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\refresh-models.py",
+          "line": 208,
+          "message": "Function 'sync_refresh' missing return type annotation",
+          "fix": "Add return type: def sync_refresh(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\setup_api_keys_demo.py",
+          "line": 16,
+          "message": "Function 'demo_api_key_setup' missing return type annotation",
+          "fix": "Add return type: def demo_api_key_setup(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\error_handling.py",
+          "line": 37,
+          "message": "Function 'wrapper' missing return type annotation",
+          "fix": "Add return type: def wrapper(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\error_handling.py",
+          "line": 66,
+          "message": "Function 'wrapper' missing return type annotation",
+          "fix": "Add return type: def wrapper(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\error_handling.py",
+          "line": 109,
+          "message": "Parameter 'exc_type' in '__exit__' missing type annotation",
+          "fix": "Add type hint: exc_type: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\error_handling.py",
+          "line": 109,
+          "message": "Parameter 'exc_val' in '__exit__' missing type annotation",
+          "fix": "Add type hint: exc_val: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\error_handling.py",
+          "line": 109,
+          "message": "Parameter 'exc_tb' in '__exit__' missing type annotation",
+          "fix": "Add type hint: exc_tb: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\logging_setup.py",
+          "line": 76,
+          "message": "Function 'log_service_status' missing return type annotation",
+          "fix": "Add return type: def log_service_status(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 15,
+          "message": "Function 'check_file_exists' missing return type annotation",
+          "fix": "Add return type: def check_file_exists(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 15,
+          "message": "Parameter 'filepath' in 'check_file_exists' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 19,
+          "message": "Function 'extract_endpoints_from_file' missing return type annotation",
+          "fix": "Add return type: def extract_endpoints_from_file(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 19,
+          "message": "Parameter 'filepath' in 'extract_endpoints_from_file' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 48,
+          "message": "Function 'validate_imports_in_file' missing return type annotation",
+          "fix": "Add return type: def validate_imports_in_file(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 48,
+          "message": "Parameter 'filepath' in 'validate_imports_in_file' missing type annotation",
+          "fix": "Add type hint: filepath: TypeName"
+        },
+        {
+          "severity": "low",
+          "file": "validate_endpoints.py",
+          "line": 98,
+          "message": "Function 'main' missing return type annotation",
+          "fix": "Add return type: def main(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "watchdog.py",
+          "line": 628,
+          "message": "Function 'start_background_monitoring' missing return type annotation",
+          "fix": "Add return type: def start_background_monitoring(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "watchdog.py",
+          "line": 631,
+          "message": "Function 'run_monitoring' missing return type annotation",
+          "fix": "Add return type: def run_monitoring(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "watchdog.py",
+          "line": 651,
+          "message": "Function 'start_watchdog_service' missing return type annotation",
+          "fix": "Add return type: def start_watchdog_service(...) -> ReturnType:"
+        },
+        {
+          "severity": "low",
+          "file": "watchdog.py",
+          "line": 664,
+          "message": "Function 'get_system_overview' missing return type annotation",
+          "fix": "Add return type: def get_system_overview(...) -> ReturnType:"
+        }
+      ]
+    },
+    "complexity": {
+      "count": 53,
+      "issues": [
+        {
+          "severity": "high",
+          "file": "comprehensive_analysis.py",
+          "line": 124,
+          "message": "Function 'validate_imports_comprehensive' has high cyclomatic complexity: 14",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "comprehensive_analysis.py",
+          "line": 250,
+          "message": "Function 'main' has high cyclomatic complexity: 22",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "database_manager.py",
+          "line": 403,
+          "message": "Function 'retrieve_user_memory' has high cyclomatic complexity: 23",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 169,
+          "message": "Function 'analyze_error_handling' has high cyclomatic complexity: 15",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "extensive_code_review.py",
+          "line": 207,
+          "message": "Function 'check_test_coverage' has high cyclomatic complexity: 12",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 32,
+          "message": "Function 'inlet' has high cyclomatic complexity: 23",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\memory_filter.py",
+          "line": 28,
+          "message": "Function 'inlet' has high cyclomatic complexity: 19",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 32,
+          "message": "Function 'pipe' has high cyclomatic complexity: 19",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 76,
+          "message": "Function '_inject_memory_context' has high cyclomatic complexity: 11",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "services\\tool_service.py",
+          "line": 18,
+          "message": "Function 'detect_and_execute_tool' has high cyclomatic complexity: 12",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "tests\\test_openwebui_memory.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' has high cyclomatic complexity: 13",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "tests\\test_openwebui_memory_fixed.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' has high cyclomatic complexity: 15",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "tests\\test_pipeline_integration.py",
+          "line": 14,
+          "message": "Function 'test_pipeline_integration' has high cyclomatic complexity: 12",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\ai_tools.py",
+          "line": 126,
+          "message": "Function 'convert_units' has high cyclomatic complexity: 13",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\api_key_manager.py",
+          "line": 268,
+          "message": "Function 'setup_api_keys_interactive' has high cyclomatic complexity: 23",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 31,
+          "message": "Function 'verify_cpu_only_setup' has high cyclomatic complexity: 15",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 49,
+          "message": "Function 'extract_endpoints_from_file' has high cyclomatic complexity: 11",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 135,
+          "message": "Function 'test_endpoint_response' has high cyclomatic complexity: 14",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 100,
+          "message": "Function 'main' has high cyclomatic complexity: 18",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "utilities\\setup_api_keys_demo.py",
+          "line": 16,
+          "message": "Function 'demo_api_key_setup' has high cyclomatic complexity: 14",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "high",
+          "file": "validate_endpoints.py",
+          "line": 98,
+          "message": "Function 'main' has high cyclomatic complexity: 18",
+          "fix": "Consider breaking this function into smaller, more focused functions"
+        },
+        {
+          "severity": "medium",
+          "file": "comprehensive_analysis.py",
+          "line": 124,
+          "message": "Function 'validate_imports_comprehensive' is too long: 58 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "comprehensive_analysis.py",
+          "line": 250,
+          "message": "Function 'main' is too long: 107 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "database.py",
+          "line": 217,
+          "message": "Function 'retrieve_user_memory' is too long: 72 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "database.py",
+          "line": 223,
+          "message": "Function '_retrieve_memory' is too long: 58 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "database_manager.py",
+          "line": 72,
+          "message": "Function '_initialize_chromadb' is too long: 58 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "database_manager.py",
+          "line": 403,
+          "message": "Function 'retrieve_user_memory' is too long: 98 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "handlers\\exceptions.py",
+          "line": 15,
+          "message": "Function 'create_exception_handlers' is too long: 57 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 32,
+          "message": "Function 'inlet' is too long: 55 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 76,
+          "message": "Function '_inject_memory_context' is too long: 58 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_chat_endpoint.py",
+          "line": 9,
+          "message": "Function 'test_chat_endpoint' is too long: 53 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_complete_pipeline.py",
+          "line": 14,
+          "message": "Function 'test_complete_memory_pipeline' is too long: 130 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_cross_chat_memory.py",
+          "line": 88,
+          "message": "Function 'test_cross_chat_scenario' is too long: 68 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_direct_chromadb.py",
+          "line": 14,
+          "message": "Function 'test_direct_chromadb_storage' is too long: 102 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_final_pipeline.py",
+          "line": 222,
+          "message": "Function 'run_complete_simulation' is too long: 77 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_memory_api.py",
+          "line": 13,
+          "message": "Function 'test_memory_retrieval_api' is too long: 79 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_openwebui_memory.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' is too long: 138 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_openwebui_memory_fixed.py",
+          "line": 13,
+          "message": "Function 'test_openwebui_memory_integration' is too long: 159 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_pipeline_e2e.py",
+          "line": 16,
+          "message": "Function 'simulate_openwebui_workflow' is too long: 82 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_pipeline_e2e.py",
+          "line": 100,
+          "message": "Function 'test_cross_chat_memory' is too long: 66 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_pipeline_integration.py",
+          "line": 14,
+          "message": "Function 'test_pipeline_integration' is too long: 148 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_simple_memory.py",
+          "line": 14,
+          "message": "Function 'test_simple_memory_storage' is too long: 82 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 126,
+          "message": "Function 'convert_units' is too long: 97 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 227,
+          "message": "Function 'get_time_from_timeanddate' is too long: 67 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 337,
+          "message": "Function 'run_python_code' is too long: 81 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\api_key_manager.py",
+          "line": 268,
+          "message": "Function 'setup_api_keys_interactive' is too long: 93 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 31,
+          "message": "Function 'verify_cpu_only_setup' is too long: 82 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 135,
+          "message": "Function 'test_endpoint_response' is too long: 60 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 254,
+          "message": "Function 'generate_report' is too long: 82 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 100,
+          "message": "Function 'main' is too long: 155 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\inspect_chromadb.py",
+          "line": 14,
+          "message": "Function 'inspect_chromadb_collection' is too long: 108 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\setup_api_keys_demo.py",
+          "line": 16,
+          "message": "Function 'demo_api_key_setup' is too long: 116 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        },
+        {
+          "severity": "medium",
+          "file": "validate_endpoints.py",
+          "line": 98,
+          "message": "Function 'main' is too long: 101 lines",
+          "fix": "Functions should ideally be under 50 lines. Consider refactoring"
+        }
+      ]
+    },
+    "documentation": {
+      "count": 103,
+      "issues": [
+        {
+          "severity": "low",
+          "file": "database.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "feedback_router.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "model_manager.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "pipelines\\__init__.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "pipelines\\pipelines_routes.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\minimal_function.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\pydantic_function.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\simple_test_pipeline.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "tests\\test_memory_flow.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\__init__.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\ai_tools.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "utilities\\force_refresh.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "low",
+          "file": "utils\\__init__.py",
+          "line": 1,
+          "message": "Missing module docstring",
+          "fix": "Add module docstring explaining the purpose and main functionality"
+        },
+        {
+          "severity": "medium",
+          "file": "database_manager.py",
+          "line": 304,
+          "message": "Function 'get_operation' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_operation.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "database_manager.py",
+          "line": 325,
+          "message": "Function 'store_operation' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of store_operation.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "error_handler.py",
+          "line": 260,
+          "message": "Function 'decorator' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of decorator.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "error_handler.py",
+          "line": 261,
+          "message": "Function 'wrapper' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of wrapper.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "extensive_code_review.py",
+          "line": 30,
+          "message": "Class 'ExtensiveCodeReview' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "main.py",
+          "line": 177,
+          "message": "Function 'get_history' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_history.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "main.py",
+          "line": 250,
+          "message": "Function 'store_streaming_chat' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of store_streaming_chat.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "main.py",
+          "line": 305,
+          "message": "Function 'get_history' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_history.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "main.py",
+          "line": 351,
+          "message": "Function 'store_chat' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of store_chat.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 36,
+          "message": "Class 'Pipeline' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 37,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\backend_memory_pipeline.py",
+          "line": 13,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 16,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 28,
+          "message": "Class 'Filter' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\memory_filter.py",
+          "line": 14,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\memory_filter.py",
+          "line": 24,
+          "message": "Class 'Filter' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\memory_pipeline.py",
+          "line": 44,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline.py",
+          "line": 15,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline.py",
+          "line": 26,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 17,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 28,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\simple_memory_function.py",
+          "line": 8,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\simple_memory_function.py",
+          "line": 14,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\simple_memory_function.py",
+          "line": 18,
+          "message": "Function 'pipe' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of pipe.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 9,
+          "message": "Class 'ChatRequest' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 13,
+          "message": "Class 'ChatResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 17,
+          "message": "Class 'OpenAIMessage' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 21,
+          "message": "Class 'OpenAIChatRequest' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 29,
+          "message": "Class 'OpenAIChoice' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 34,
+          "message": "Class 'OpenAIChatResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 42,
+          "message": "Class 'StreamChoice' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 47,
+          "message": "Class 'StreamResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 55,
+          "message": "Class 'ModelInfo' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 64,
+          "message": "Class 'ModelListResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 69,
+          "message": "Class 'MemoryRequest' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 75,
+          "message": "Class 'MemoryResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 81,
+          "message": "Class 'LearningRequest' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 90,
+          "message": "Class 'LearningResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 97,
+          "message": "Class 'PipelineInfo' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 111,
+          "message": "Class 'PipelineListResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 115,
+          "message": "Class 'ServiceHealth' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 121,
+          "message": "Class 'DatabaseHealth' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 126,
+          "message": "Class 'HealthResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 132,
+          "message": "Class 'DetailedHealthResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 140,
+          "message": "Class 'ErrorDetail' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 148,
+          "message": "Class 'ErrorResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 152,
+          "message": "Class 'CacheStatusResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 157,
+          "message": "Class 'SessionInfo' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 164,
+          "message": "Class 'SessionStatusResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 171,
+          "message": "Class 'ModelTestRequest' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 174,
+          "message": "Class 'ModelTestResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 181,
+          "message": "Class 'RefreshModelsResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 188,
+          "message": "Class 'ModelCacheStatusResponse' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\chat.py",
+          "line": 113,
+          "message": "Function 'get_history' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_history.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\chat.py",
+          "line": 219,
+          "message": "Function 'store_chat' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of store_chat.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\chat.py",
+          "line": 235,
+          "message": "Function 'store_memory' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of store_memory.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\chat.py",
+          "line": 252,
+          "message": "Function 'cache_response' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of cache_response.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\health.py",
+          "line": 28,
+          "message": "Function 'get_service_history' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_service_history.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\health.py",
+          "line": 42,
+          "message": "Function 'get_storage_info' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_storage_info.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\health.py",
+          "line": 46,
+          "message": "Function 'validate_permissions' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of validate_permissions.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "services\\tool_service.py",
+          "line": 92,
+          "message": "Function 'get_timezone_time' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_timezone_time.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\minimal_function.py",
+          "line": 1,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\minimal_function.py",
+          "line": 2,
+          "message": "Function 'pipe' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of pipe.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\pydantic_function.py",
+          "line": 4,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\pydantic_function.py",
+          "line": 5,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\pydantic_function.py",
+          "line": 11,
+          "message": "Function 'pipe' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of pipe.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\simple_memory_function.py",
+          "line": 8,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\simple_memory_function.py",
+          "line": 14,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\simple_memory_function.py",
+          "line": 18,
+          "message": "Function 'pipe' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of pipe.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\simple_test_filter.py",
+          "line": 8,
+          "message": "Class 'Filter' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_chat_endpoint.py",
+          "line": 9,
+          "message": "Function 'test_chat_endpoint' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of test_chat_endpoint.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_filter.py",
+          "line": 8,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_filter.py",
+          "line": 12,
+          "message": "Class 'Filter' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_filter.py",
+          "line": 16,
+          "message": "Function 'inlet' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of inlet.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_filter.py",
+          "line": 20,
+          "message": "Function 'outlet' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of outlet.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_function.py",
+          "line": 8,
+          "message": "Class 'Valves' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_function.py",
+          "line": 12,
+          "message": "Class 'Function' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "tests\\test_function.py",
+          "line": 16,
+          "message": "Function 'pipe' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of pipe.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 27,
+          "message": "Function 'get_current_time' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_current_time.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 40,
+          "message": "Function 'get_weather_weatherapi' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_weather_weatherapi.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 66,
+          "message": "Function 'get_weather' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of get_weather.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 26,
+          "message": "Class 'EndpointValidator' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 23,
+          "message": "Function 'print_section' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of print_section.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 100,
+          "message": "Function 'main' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of main.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\error_handling.py",
+          "line": 37,
+          "message": "Function 'wrapper' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of wrapper.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\error_handling.py",
+          "line": 64,
+          "message": "Function 'decorator' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of decorator.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\error_handling.py",
+          "line": 66,
+          "message": "Function 'wrapper' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of wrapper.\"\"\""
+        },
+        {
+          "severity": "medium",
+          "file": "watchdog.py",
+          "line": 31,
+          "message": "Class 'HealthStatus' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "watchdog.py",
+          "line": 39,
+          "message": "Class 'ServiceHealth' missing docstring",
+          "fix": "Add class docstring explaining purpose and usage"
+        },
+        {
+          "severity": "medium",
+          "file": "watchdog.py",
+          "line": 631,
+          "message": "Function 'run_monitoring' missing docstring",
+          "fix": "Add docstring: \"\"\"Brief description of run_monitoring.\"\"\""
+        }
+      ]
+    },
+    "startup": {
+      "count": 2,
+      "issues": [
+        {
+          "severity": "high",
+          "file": "startup.py",
+          "line": 0,
+          "message": "Global variable 'watchdog_thread' used but not declared",
+          "fix": "Add 'watchdog_thread = None' at module level or use app.state"
+        },
+        {
+          "severity": "medium",
+          "file": "startup.py",
+          "line": 0,
+          "message": "Unicode emojis in log messages may cause encoding issues",
+          "fix": "Replace with ASCII equivalents for better compatibility"
+        }
+      ]
+    },
+    "parsing": {
+      "count": 1,
+      "issues": [
+        {
+          "severity": "high",
+          "file": "storage\\openwebui\\cache\\embedding\\models\\models--sentence-transformers--all-MiniLM-L6-v2\\snapshots\\c9745ed1d9f207416be6d2e6f8de32d1f16199bf\\train_script.py",
+          "line": 0,
+          "message": "Failed to parse: [Errno 22] Invalid argument: 'storage\\\\openwebui\\\\cache\\\\embedding\\\\models\\\\models--sentence-transformers--all-MiniLM-L6-v2\\\\snapshots\\\\c9745ed1d9f207416be6d2e6f8de32d1f16199bf\\\\train_script.py'",
+          "fix": ""
+        }
+      ]
+    },
+    "testing": {
+      "count": 53,
+      "issues": [
+        {
+          "severity": "high",
+          "file": "database_manager.py",
+          "line": 0,
+          "message": "Critical module 'database_manager' has no tests",
+          "fix": "Create tests/test_database_manager.py with comprehensive test cases"
+        },
+        {
+          "severity": "high",
+          "file": "error_handler.py",
+          "line": 0,
+          "message": "Critical module 'error_handler' has no tests",
+          "fix": "Create tests/test_error_handler.py with comprehensive test cases"
+        },
+        {
+          "severity": "high",
+          "file": "main.py",
+          "line": 0,
+          "message": "Critical module 'main' has no tests",
+          "fix": "Create tests/test_main.py with comprehensive test cases"
+        },
+        {
+          "severity": "high",
+          "file": "model_manager.py",
+          "line": 0,
+          "message": "Critical module 'model_manager' has no tests",
+          "fix": "Create tests/test_model_manager.py with comprehensive test cases"
+        },
+        {
+          "severity": "high",
+          "file": "startup.py",
+          "line": 0,
+          "message": "Critical module 'startup' has no tests",
+          "fix": "Create tests/test_startup.py with comprehensive test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "adaptive_learning.py",
+          "line": 0,
+          "message": "No tests found for module 'adaptive_learning'",
+          "fix": "Create tests/test_adaptive_learning.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "cache_manager.py",
+          "line": 0,
+          "message": "No tests found for module 'cache_manager'",
+          "fix": "Create tests/test_cache_manager.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "comprehensive_analysis.py",
+          "line": 0,
+          "message": "No tests found for module 'comprehensive_analysis'",
+          "fix": "Create tests/test_comprehensive_analysis.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "config.py",
+          "line": 0,
+          "message": "No tests found for module 'config'",
+          "fix": "Create tests/test_config.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "database.py",
+          "line": 0,
+          "message": "No tests found for module 'database'",
+          "fix": "Create tests/test_database.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "enhanced_document_processing.py",
+          "line": 0,
+          "message": "No tests found for module 'enhanced_document_processing'",
+          "fix": "Create tests/test_enhanced_document_processing.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "enhanced_integration.py",
+          "line": 0,
+          "message": "No tests found for module 'enhanced_integration'",
+          "fix": "Create tests/test_enhanced_integration.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "enhanced_streaming.py",
+          "line": 0,
+          "message": "No tests found for module 'enhanced_streaming'",
+          "fix": "Create tests/test_enhanced_streaming.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "extensive_code_review.py",
+          "line": 0,
+          "message": "No tests found for module 'extensive_code_review'",
+          "fix": "Create tests/test_extensive_code_review.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "feedback_router.py",
+          "line": 0,
+          "message": "No tests found for module 'feedback_router'",
+          "fix": "Create tests/test_feedback_router.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "handlers\\exceptions.py",
+          "line": 0,
+          "message": "No tests found for module 'exceptions'",
+          "fix": "Create tests/test_exceptions.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "human_logging.py",
+          "line": 0,
+          "message": "No tests found for module 'human_logging'",
+          "fix": "Create tests/test_human_logging.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\advanced_memory_pipeline.py",
+          "line": 0,
+          "message": "No tests found for module 'advanced_memory_pipeline'",
+          "fix": "Create tests/test_advanced_memory_pipeline.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\backend_memory_pipeline.py",
+          "line": 0,
+          "message": "No tests found for module 'backend_memory_pipeline'",
+          "fix": "Create tests/test_backend_memory_pipeline.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\cross_chat_memory_filter.py",
+          "line": 0,
+          "message": "No tests found for module 'cross_chat_memory_filter'",
+          "fix": "Create tests/test_cross_chat_memory_filter.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\memory_filter.py",
+          "line": 0,
+          "message": "No tests found for module 'memory_filter'",
+          "fix": "Create tests/test_memory_filter.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\memory_pipeline.py",
+          "line": 0,
+          "message": "No tests found for module 'memory_pipeline'",
+          "fix": "Create tests/test_memory_pipeline.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline.py",
+          "line": 0,
+          "message": "No tests found for module 'openwebui_memory_pipeline'",
+          "fix": "Create tests/test_openwebui_memory_pipeline.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\openwebui_memory_pipeline_full.py",
+          "line": 0,
+          "message": "No tests found for module 'openwebui_memory_pipeline_full'",
+          "fix": "Create tests/test_openwebui_memory_pipeline_full.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "memory\\simple_memory_function.py",
+          "line": 0,
+          "message": "No tests found for module 'simple_memory_function'",
+          "fix": "Create tests/test_simple_memory_function.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "models.py",
+          "line": 0,
+          "message": "No tests found for module 'models'",
+          "fix": "Create tests/test_models.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "pipelines\\pipelines_routes.py",
+          "line": 0,
+          "message": "No tests found for module 'pipelines_routes'",
+          "fix": "Create tests/test_pipelines_routes.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "pipelines\\pipelines_v1_routes.py",
+          "line": 0,
+          "message": "No tests found for module 'pipelines_v1_routes'",
+          "fix": "Create tests/test_pipelines_v1_routes.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "rag.py",
+          "line": 0,
+          "message": "No tests found for module 'rag'",
+          "fix": "Create tests/test_rag.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\chat.py",
+          "line": 0,
+          "message": "No tests found for module 'chat'",
+          "fix": "Create tests/test_chat.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\health.py",
+          "line": 0,
+          "message": "No tests found for module 'health'",
+          "fix": "Create tests/test_health.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "routes\\models.py",
+          "line": 0,
+          "message": "No tests found for module 'models'",
+          "fix": "Create tests/test_models.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "scripts\\refresh-models.py",
+          "line": 0,
+          "message": "No tests found for module 'refresh-models'",
+          "fix": "Create tests/test_refresh-models.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "services\\llm_service.py",
+          "line": 0,
+          "message": "No tests found for module 'llm_service'",
+          "fix": "Create tests/test_llm_service.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "services\\streaming_service.py",
+          "line": 0,
+          "message": "No tests found for module 'streaming_service'",
+          "fix": "Create tests/test_streaming_service.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "services\\tool_service.py",
+          "line": 0,
+          "message": "No tests found for module 'tool_service'",
+          "fix": "Create tests/test_tool_service.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "storage\\openwebui\\cache\\embedding\\models\\models--sentence-transformers--all-MiniLM-L6-v2\\snapshots\\c9745ed1d9f207416be6d2e6f8de32d1f16199bf\\train_script.py",
+          "line": 0,
+          "message": "No tests found for module 'train_script'",
+          "fix": "Create tests/test_train_script.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "storage_manager.py",
+          "line": 0,
+          "message": "No tests found for module 'storage_manager'",
+          "fix": "Create tests/test_storage_manager.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "upload.py",
+          "line": 0,
+          "message": "No tests found for module 'upload'",
+          "fix": "Create tests/test_upload.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\ai_tools.py",
+          "line": 0,
+          "message": "No tests found for module 'ai_tools'",
+          "fix": "Create tests/test_ai_tools.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\api_key_manager.py",
+          "line": 0,
+          "message": "No tests found for module 'api_key_manager'",
+          "fix": "Create tests/test_api_key_manager.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\cpu_enforcer.py",
+          "line": 0,
+          "message": "No tests found for module 'cpu_enforcer'",
+          "fix": "Create tests/test_cpu_enforcer.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\endpoint_validator.py",
+          "line": 0,
+          "message": "No tests found for module 'endpoint_validator'",
+          "fix": "Create tests/test_endpoint_validator.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\focused_endpoint_validator.py",
+          "line": 0,
+          "message": "No tests found for module 'focused_endpoint_validator'",
+          "fix": "Create tests/test_focused_endpoint_validator.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\force_refresh.py",
+          "line": 0,
+          "message": "No tests found for module 'force_refresh'",
+          "fix": "Create tests/test_force_refresh.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\inspect_chromadb.py",
+          "line": 0,
+          "message": "No tests found for module 'inspect_chromadb'",
+          "fix": "Create tests/test_inspect_chromadb.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\refresh-models.py",
+          "line": 0,
+          "message": "No tests found for module 'refresh-models'",
+          "fix": "Create tests/test_refresh-models.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utilities\\setup_api_keys_demo.py",
+          "line": 0,
+          "message": "No tests found for module 'setup_api_keys_demo'",
+          "fix": "Create tests/test_setup_api_keys_demo.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\error_handling.py",
+          "line": 0,
+          "message": "No tests found for module 'error_handling'",
+          "fix": "Create tests/test_error_handling.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\file_validator.py",
+          "line": 0,
+          "message": "No tests found for module 'file_validator'",
+          "fix": "Create tests/test_file_validator.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "utils\\logging_setup.py",
+          "line": 0,
+          "message": "No tests found for module 'logging_setup'",
+          "fix": "Create tests/test_logging_setup.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "validate_endpoints.py",
+          "line": 0,
+          "message": "No tests found for module 'validate_endpoints'",
+          "fix": "Create tests/test_validate_endpoints.py with test cases"
+        },
+        {
+          "severity": "medium",
+          "file": "watchdog.py",
+          "line": 0,
+          "message": "No tests found for module 'watchdog'",
+          "fix": "Create tests/test_watchdog.py with test cases"
+        }
+      ]
+    }
+  }
+}

@@ -84,7 +84,9 @@ class Pipeline:
             else:
                 self.log("⚠️ Backend health check failed - pipeline will continue with degraded functionality")
         except Exception as e:
-            self.log(f"❌ Startup error: {e}")
+            self.log(f"❌ Startup error during backend health check: {e}")
+            # Log to console as well for better visibility
+            print(f"[MEMORY_PIPELINE_ERROR] Startup health check failed: {e}")
             
         self.log("🧠 Advanced Memory Pipeline ready!")
         
@@ -115,6 +117,7 @@ class Pipeline:
                 return response.status_code == 200
         except Exception as e:
             self.log(f"🔴 Health check failed: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Backend health check failed: {e}")
             return False
     
     async def get_user_memory(self, user_id: str, query: str) -> List[Dict[str, Any]]:
@@ -150,6 +153,7 @@ class Pipeline:
                     
         except Exception as e:
             self.log(f"❌ Memory retrieval error: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Memory retrieval failed: {e}")
             self.last_error = str(e)
             return []
     
@@ -169,6 +173,7 @@ class Pipeline:
                 
         except Exception as e:
             self.log(f"❌ Learning storage error: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Learning storage failed: {e}")
             self.last_error = str(e)
     
     async def _store_interaction_async(self, user_id: str, user_message: str, assistant_response: str, response_time: float):
@@ -197,6 +202,7 @@ class Pipeline:
                     
         except Exception as e:
             self.log(f"❌ Async learning storage error: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Async learning storage failed: {e}")
     
     def format_memory_context(self, memories: List[Dict[str, Any]]) -> str:
         """Format memories into context for injection"""
@@ -298,6 +304,7 @@ class Pipeline:
             
         except Exception as e:
             self.log(f"❌ Inlet processing error: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Inlet processing failed: {e}")
             self.last_error = str(e)
             self.errors.append({"time": datetime.now().isoformat(), "error": str(e), "stage": "inlet"})
             # Return original body on error
@@ -345,6 +352,7 @@ class Pipeline:
                 
         except Exception as e:
             self.log(f"❌ Outlet processing error: {e}")
+            print(f"[MEMORY_PIPELINE_ERROR] Outlet processing failed: {e}")
             self.last_error = str(e)
             self.errors.append({"time": datetime.now().isoformat(), "error": str(e), "stage": "outlet"})
         

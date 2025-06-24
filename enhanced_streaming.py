@@ -13,6 +13,8 @@ from fastapi.responses import StreamingResponse
 import logging
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
+from human_logging import log_service_status
+
 logger = logging.getLogger(__name__)
 
 # Global event listeners registry
@@ -219,6 +221,11 @@ async def robust_llm_call(
         return result
         
     except Exception as e:
+        log_service_status(
+            'STREAMING', 
+            'error', 
+            f'Error in LLM call {llm_function.__name__}: {e}'
+        )
         if session_id:
             await EventDispatcher.dispatch_custom_event(
                 "llm_call_failed",

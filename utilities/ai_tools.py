@@ -18,6 +18,8 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 import httpx
+
+from human_logging import log_service_status
 import wikipedia
 from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -32,7 +34,8 @@ def get_current_time(timezone: Optional[str] = None) -> str:
         else:
             now = datetime.now()
         return now.strftime("%Y-%m-%d %H:%M:%S %Z")
-    except Exception:
+    except Exception as e:
+        log_service_status('AI_TOOLS', 'error', f'Error getting current time: {e}')
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 

@@ -281,6 +281,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         return ChatResponse(response=str(user_response) if user_response is not None else "")
 
     except Exception as e:
+        # Log error with service status
+        log_service_status('CHAT', 'error', f'Error in chat endpoint: {e}')
         # Use the specialized chat error handler
         error_response = ChatErrorHandler.handle_chat_error(e, user_id, user_message, request_id)
         return ChatResponse(response=error_response["response"])

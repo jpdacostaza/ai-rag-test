@@ -11,6 +11,7 @@ This module implements self-learning capabilities including:
 """
 
 import asyncio
+import time
 from collections import defaultdict
 from collections import deque
 from dataclasses import dataclass
@@ -344,6 +345,7 @@ class AdaptiveLearningSystem:
             }
 
         except Exception as e:
+            log_service_status("LEARNING", "error", f"Interaction processing failed for user {user_id}: {e}")
             MemoryErrorHandler.handle_memory_error(e, "adaptive_learning", user_id)
             return {"status": "error", "reason": str(e)}
 
@@ -397,6 +399,7 @@ class AdaptiveLearningSystem:
             }
 
         except Exception as e:
+            log_service_status("LEARNING", "error", f"Failed to get insights for user {user_id}: {e}")
             return {"status": "error", "reason": str(e)}
 
     async def _update_learning_patterns(self, user_id: str, metrics: InteractionMetrics):

@@ -100,14 +100,12 @@ class RAGProcessor:
             f.flush()
         
         logging.critical(f"🔍 [RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}")
-        print(f"🔍 [RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}")
         try:
             with open('/tmp/rag_debug.log', 'a') as f:
                 f.write(f"🔍 [RAG] About to call get_embedding...\n")
                 f.flush()
             
             logging.critical(f"🔍 [RAG] About to call get_embedding...")
-            print(f"🔍 [RAG] About to call get_embedding...")
             # Get query embedding
             query_embedding = get_embedding(db_manager, query)
             
@@ -116,7 +114,6 @@ class RAGProcessor:
                 f.flush()
             
             logging.critical(f"🔍 [RAG] get_embedding returned: {type(query_embedding)}")
-            print(f"🔍 [RAG] get_embedding returned: {type(query_embedding)}")
             
             # Check if embedding is valid - avoid NumPy array truth value errors
             embedding_valid = True
@@ -140,7 +137,6 @@ class RAGProcessor:
                     f.write(f"❌ [RAG] Embedding is None or empty\n")
                     f.flush()
                 logging.critical(f"❌ [RAG] Embedding is None or empty")
-                print(f"❌ [RAG] Embedding is None or empty")
                 return []
 
             with open('/tmp/rag_debug.log', 'a') as f:
@@ -148,7 +144,6 @@ class RAGProcessor:
                 f.flush()
             
             logging.critical(f"🔍 [RAG] About to call retrieve_user_memory...")
-            print(f"🔍 [RAG] About to call retrieve_user_memory...")
             # Retrieve similar documents
             results = retrieve_user_memory(db_manager, user_id, query_embedding, limit)
             
@@ -157,7 +152,6 @@ class RAGProcessor:
                 f.flush()
             
             logging.critical(f"🔍 [RAG] retrieve_user_memory returned: {len(results)} results")
-            print(f"🔍 [RAG] retrieve_user_memory returned: {len(results)} results")
 
             log_service_status(
                 "RAG", "ready", f"Found {len(results)} relevant documents for query: {query[:50]}..."
@@ -177,8 +171,6 @@ class RAGProcessor:
             
             logging.critical(error_msg)
             logging.critical(f"❌ [RAG] Full traceback:\n{traceback_str}")
-            print(error_msg)
-            print(f"❌ [RAG] Full traceback:\n{traceback_str}")
             log_service_status("RAG", "error", f"{error_msg}\nTraceback: {traceback_str}")
             MemoryErrorHandler.handle_memory_error(e, "semantic_search", user_id)
             return []

@@ -50,7 +50,7 @@ def test_openwebui_memory_integration():
     print("\n3. Testing memory endpoints...")
     api_key = "f2b985dd-219f-45b1-a90e-170962cc7082"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-      test_user = "test_openwebui_user"
+    test_user = "test_openwebui_user"
     test_memory = "My name is Alice and I love programming"
     
     # Test memory retrieval endpoint (this is what the pipeline uses)

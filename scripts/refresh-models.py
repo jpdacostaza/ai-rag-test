@@ -17,6 +17,10 @@ from typing import List
 
 import httpx
 
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from human_logging import log_service_status
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -107,7 +111,8 @@ class ModelRefreshService:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get("{OLLAMA_URL}/api/tags")
                 health["ollama"] = response.status_code == 200
-        except Exception:
+        except Exception as e:
+            log_service_status('SCRIPT', 'error', f'Error checking Ollama health: {e}')
             health["ollama"] = False
 
         # Check Backend
@@ -115,7 +120,8 @@ class ModelRefreshService:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get("{BACKEND_URL}/health")
                 health["backend"] = response.status_code == 200
-        except Exception:
+        except Exception as e:
+            log_service_status('SCRIPT', 'error', f'Error checking backend health: {e}')
             health["backend"] = False
 
         # Check OpenWebUI
@@ -123,7 +129,8 @@ class ModelRefreshService:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get("{OPENWEBUI_URL}/health")
                 health["openwebui"] = response.status_code == 200
-        except Exception:
+        except Exception as e:
+            log_service_status('SCRIPT', 'error', f'Error checking OpenWebUI health: {e}')
             health["openwebui"] = False
 
         return health

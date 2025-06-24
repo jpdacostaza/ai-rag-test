@@ -4,6 +4,7 @@ Main FastAPI application with modular structure.
 import json
 import time
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict
 
@@ -20,14 +21,17 @@ enforce_cpu_only_mode()
 from config import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
 from human_logging import log_api_request, log_service_status
-from models import *
+from models import (
+    ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest,
+    ModelListResponse, ErrorResponse
+)
 from routes import health_router, chat_router, models_router
 from services.llm_service import call_llm, call_llm_stream
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
 
 # Import existing routers
-from model_manager import router as model_manager_router
+from model_manager import router as model_manager_router, initialize_model_cache
 from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
@@ -41,8 +45,32 @@ from database_manager import (
 )
 from error_handler import CacheErrorHandler, safe_execute, log_error
 
-# Create FastAPI app
-app = FastAPI(title="AI Backend API", description="Modular FastAPI backend for AI-powered application")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    # Startup
+    log_service_status('APP', 'info', 'Starting application lifespan')
+    try:
+        # Run the main startup event
+        await startup_event(app)
+        # Initialize model cache
+        await initialize_model_cache()
+        log_service_status('APP', 'ready', 'Application startup completed successfully')
+    except Exception as e:
+        log_service_status('APP', 'error', f'Error during application startup: {e}')
+        raise
+    
+    yield
+    
+    # Shutdown
+    log_service_status('APP', 'info', 'Application shutting down')
+
+# Create FastAPI app with lifespan
+app = FastAPI(
+    title="AI Backend API", 
+    description="Modular FastAPI backend for AI-powered application",
+    lifespan=lifespan
+)
 
 # Add exception handlers
 exception_handlers = create_exception_handlers()
@@ -374,6 +402,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             }
         except Exception as e:
             # Log the error and return a proper error response
+            log_service_status('OPENAI_CHAT', 'error', f'Error in OpenAI chat completions endpoint: {e}')
             log_error(e, "OpenAI chat completions", user_id, getattr(request.state, 'request_id', 'unknown'))
             raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
@@ -453,8 +482,4 @@ async def debug_routes():
             continue
     return {"total_routes": len(routes), "routes": sorted(routes, key=lambda x: x["path"])}
 
-# Startup event
-@app.on_event("startup")
-async def startup():
-    """Application startup event."""
-    await startup_event(app)
+# Application lifespan is now handled in the lifespan context manager above

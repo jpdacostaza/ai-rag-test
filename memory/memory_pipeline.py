@@ -279,7 +279,7 @@ class Pipeline:
             # Find the latest user and assistant messages
             user_message = ""
             assistant_message = ""
-              for msg in reversed(messages):
+            for msg in reversed(messages):
                 if msg.get("role") == "assistant" and not assistant_message:
                     assistant_message = msg.get("content", "")
                 elif msg.get("role") == "user" and not user_message:

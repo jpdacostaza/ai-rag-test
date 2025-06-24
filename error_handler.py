@@ -13,6 +13,8 @@ import redis
 from fastapi import HTTPException
 from pydantic import BaseModel
 
+from human_logging import log_service_status
+
 # --- Standalone Functions for Global Use ---
 
 
@@ -247,6 +249,7 @@ def safe_execute(func, *args, fallback_value=None, error_handler=None, **kwargs)
     try:
         return func(*args, **kwargs)
     except Exception as e:
+        log_service_status('ERROR_HANDLER', 'error', f'Error in safe_execute for {func.__name__}: {e}')
         if error_handler:
             error_handler(e)
         else:
@@ -262,6 +265,7 @@ def with_error_handling(error_message="An error occurred"):
             try:
                 return func(*args, **kwargs)
             except Exception as e:
+                log_service_status('ERROR_HANDLER', 'error', f'Error in decorator for {func.__name__}: {e}')
                 log_error(e, f"Error in decorator for {func.__name__}")
                 return error_message
 

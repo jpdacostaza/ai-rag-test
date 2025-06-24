@@ -84,7 +84,10 @@ def load_persona():
         with open("persona.json", "r", encoding="utf-8") as f:
             persona = json.load(f)
             return persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
-    except Exception:
+    except Exception as e:
+        # Log the error for debugging purposes
+        from human_logging import log_service_status
+        log_service_status("CONFIG", "warning", f"Failed to load persona.json: {e}")
         return "You are a helpful AI assistant with access to tools and memory."
 
 # Default system prompt

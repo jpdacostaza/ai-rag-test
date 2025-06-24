@@ -83,6 +83,7 @@ async def upload_document(
         log_error(http_exc, "upload_document", request_id)
         raise
     except Exception as e:
+        log_service_status('UPLOAD', 'error', f'Error in upload_document: {e}')
         log_error(e, "upload_document", request_id)
         raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "upload"))
 
@@ -151,6 +152,7 @@ async def search_documents(
         )
 
     except Exception as e:
+        log_service_status('UPLOAD', 'error', f'Error in search_documents: {e}')
         with open('/tmp/upload_debug.log', 'a') as f:
             f.write(f"❌ [UPLOAD] Exception in search_documents: {type(e).__name__}: {e}\n")
             f.flush()

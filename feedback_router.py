@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from enhanced_integration import submit_interaction_feedback
 from error_handler import log_error
+from human_logging import log_service_status
 
 feedback_router = APIRouter()
 
@@ -62,6 +63,7 @@ async def feedback_alias(request: Request):
         return result
 
     except Exception as e:
+        log_service_status('FEEDBACK', 'error', f'Error in feedback alias endpoint: {e}')
         log_error(e, "feedback_alias_endpoint")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

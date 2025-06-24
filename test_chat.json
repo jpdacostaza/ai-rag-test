@@ -1,0 +1,10 @@
+{
+  "model": "llama3.2:3b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, can you respond with just: System working correctly"
+    }
+  ],
+  "max_tokens": 10
+}

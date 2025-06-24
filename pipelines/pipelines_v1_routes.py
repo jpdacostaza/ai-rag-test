@@ -137,6 +137,7 @@ async def pipeline_inlet(
         
         return request        
     except Exception as e:
+        log_service_status("PIPELINE_INLET", "error", f"Error in pipeline inlet: {e}")
         log_error(e, "pipeline_inlet", user_id or "unknown", "pipeline")
         # Return original request if enhancement fails
         return request
@@ -202,6 +203,7 @@ async def pipeline_outlet(
         return request
         
     except Exception as e:
+        log_service_status("PIPELINE_OUTLET", "error", f"Error in pipeline outlet: {e}")
         log_error(e, "pipeline_outlet", user_id, "pipeline")
         return request
 

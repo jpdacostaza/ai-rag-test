@@ -217,9 +217,8 @@ def index_user_document(
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from ChromaDB."""
     
-    # Add immediate logging to see if function is called
-    print(f"🔍 [DEBUG] retrieve_user_memory called with user_id={user_id}")
-    logging.critical(f"🔍 [DEBUG] retrieve_user_memory called with user_id={user_id}")
+    # Add logging for memory retrieval
+    logging.debug(f"retrieve_user_memory called with user_id={user_id}")
     
     def _retrieve_memory():
         if not db_manager.is_chromadb_available():
