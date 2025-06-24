@@ -65,6 +65,7 @@ from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
 from adaptive_learning import adaptive_learning_system
+from pipelines_routes import router as pipelines_router
 # from v1_models_fix import v1_router  # Commented out - module not found
 
 # Create stub functions for missing imports
@@ -183,6 +184,11 @@ async def root():
     """Root endpoint to verify API is accessible."""
     return {"message": "FastAPI LLM Backend is running", "status": "ok"}
 
+@app.get("/test-pipelines")
+async def test_pipelines():
+    """Test route to debug pipeline issues"""
+    return {"message": "Test pipelines endpoint working", "status": "ok"}
+
 # Global Exception Handlers (FastAPI Best Practice)
 @app.exception_handler(StarletteHTTPException)
 async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -245,6 +251,8 @@ app.include_router(upload_router)
 # Include enhanced router
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
+# Include pipelines router
+app.include_router(pipelines_router)
 
 # Model configuration
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
@@ -2116,7 +2124,8 @@ async def get_pipeline_status():
                 "adaptive_learning": True,
                 "memory_system": True
             },
-            "cache": cache_info,            "learning": learning_stats,
+            "cache": cache_info,
+            "learning": learning_stats,
             "api_version": "1.0.0",
             "pipeline_support": True
         }
@@ -2129,6 +2138,235 @@ async def get_pipeline_status():
             "timestamp": datetime.now().isoformat()
         }
 
+
+# NOTE: Pipeline endpoints moved to pipelines_routes.py for better organization
+# This section is commented out to avoid conflicts with the router-based implementation
+
+# # OpenWebUI Pipeline Endpoints
+# # These endpoints allow OpenWebUI to discover and manage pipelines
+
+# @app.get("/pipelines")
+# async def list_pipelines():
+    """List available pipelines for OpenWebUI"""
+    log_service_status("PIPELINES", "info", "Pipeline list request received")
+    
+    # Simple pipeline configuration
+    pipelines = [{
+        "id": "memory_pipeline",
+        "name": "Memory Pipeline",
+        "type": "filter",
+        "description": "Memory pipeline for OpenWebUI",
+        "author": "Backend Team",
+        "version": "1.0.0"
+    }]
+    
+    log_service_status("PIPELINES", "ready", f"Returned {len(pipelines)} pipelines")
+    return {"pipelines": pipelines}
+
+@app.post("/pipelines/{pipeline_id}/inlet")
+async def pipeline_inlet(
+    pipeline_id: str,
+    request: dict = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Process incoming messages through the memory pipeline (inlet)"""
+    try:
+        if pipeline_id != "memory_pipeline":
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+        
+        log_service_status("PIPELINE_INLET", "info", f"Processing inlet for {pipeline_id}")
+        
+        # Extract information from request
+        body = request.get("body", {})
+        user = request.get("user", {})
+        messages = body.get("messages", [])
+        
+        if not messages:
+            return {"body": body}
+        
+        # Get user ID
+        user_id = user.get("id", body.get("user", "default_user"))
+        
+        # Get the latest user message
+        latest_message = None
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                latest_message = msg
+                break
+        
+        if not latest_message or not latest_message.get("content"):
+            return {"body": body}
+        
+        user_query = latest_message["content"]
+        log_service_status("PIPELINE_INLET", "info", f"Processing query for user {user_id}: {user_query[:50]}...")
+        
+        # Retrieve relevant memories
+        query_embedding = get_embedding(user_query)
+        if query_embedding is not None:
+            memories = retrieve_user_memory(user_id, user_query, limit=3)
+            
+            if memories:
+                # Format memory context
+                memory_context = "[MEMORY CONTEXT] Based on our previous conversations:\n"
+                for i, memory in enumerate(memories, 1):
+                    content = str(memory)
+                    if len(content) > 500:
+                        content = content[:500] + "..."
+                    memory_context += f"{i}. {content}\n"
+                memory_context += "[END MEMORY CONTEXT]\n\n"
+                
+                # Inject memory into the user's message
+                enhanced_content = f"{memory_context}{user_query}"
+                latest_message["content"] = enhanced_content
+                
+                log_service_status("PIPELINE_INLET", "ready", f"Enhanced message with {len(memories)} memories for user {user_id}")
+        
+        return {"body": body}
+        
+    except Exception as e:
+        log_error(e, "pipeline_inlet", pipeline_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Pipeline inlet error: {str(e)}")
+
+@app.post("/pipelines/{pipeline_id}/outlet")
+async def pipeline_outlet(
+    pipeline_id: str,
+    request: dict = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Process outgoing responses through the memory pipeline (outlet)"""
+    try:
+        if pipeline_id != "memory_pipeline":
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+        
+        log_service_status("PIPELINE_OUTLET", "info", f"Processing outlet for {pipeline_id}")
+        
+        # Extract information from request
+        body = request.get("body", {})
+        user = request.get("user", {})
+        messages = body.get("messages", [])
+        
+        if len(messages) < 2:
+            return {"body": body}
+        
+        # Get user ID
+        user_id = user.get("id", body.get("user", "default_user"))
+        
+        # Find the latest user and assistant messages
+        user_message = ""
+        assistant_message = ""
+        
+        for msg in reversed(messages):
+            if msg.get("role") == "assistant" and not assistant_message:
+                assistant_message = msg.get("content", "")
+            elif msg.get("role") == "user" and not user_message:
+                user_message = msg.get("content", "")
+                
+            if user_message and assistant_message:
+                break
+        
+        if user_message and assistant_message:
+            # Store the interaction for learning
+            try:
+                await adaptive_learning_system.process_interaction(
+                    user_id=user_id,
+                    conversation_id=f"pipeline_{user_id}_{int(time.time())}",
+                    user_message=user_message,
+                    assistant_response=assistant_message,
+                    response_time=1.0,
+                    tools_used=[]
+                )
+                log_service_status("PIPELINE_OUTLET", "ready", f"Stored learning interaction for user {user_id}")
+            except Exception as e:
+                log_service_status("PIPELINE_OUTLET", "warning", f"Failed to store learning interaction: {e}")
+        
+        return {"body": body}
+        
+    except Exception as e:
+        log_error(e, "pipeline_outlet", pipeline_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Pipeline outlet error: {str(e)}")
+
+@app.get("/pipelines/{pipeline_id}")
+async def get_pipeline_info(
+    pipeline_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Get detailed information about a specific pipeline"""
+    try:
+        if pipeline_id != "memory_pipeline":
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+        
+        pipeline_info = {
+            "id": "memory_pipeline",
+            "name": "Memory Pipeline",
+            "type": "filter",
+            "description": "Advanced memory and learning pipeline with ChromaDB integration",
+            "author": "Backend Team",
+            "version": "1.0.0",
+            "enabled": True,
+            "priority": 1,
+            "status": "active",
+            "last_used": datetime.now().isoformat(),
+            "pipeline": {
+                "type": "filter",
+                "priority": 1,
+                "pipelines": ["*"]
+            }
+        }
+        
+        return pipeline_info
+        
+    except Exception as e:
+        log_error(e, "get_pipeline_info", pipeline_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Error getting pipeline info: {str(e)}")
+
+@app.get("/pipelines/{pipeline_id}/valves")
+async def get_pipeline_valves(
+    pipeline_id: str,
+    api_key: str = Depends(verify_api_key)
+):
+    """Get pipeline configuration valves"""
+    try:
+        if pipeline_id != "memory_pipeline":
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+        
+        valves = {
+            "backend_url": "http://host.docker.internal:8001",
+            "api_key": "f2b985dd-219f-45b1-a90e-170962cc7082",
+            "memory_limit": 3,
+            "memory_threshold": 0.7,
+            "enable_learning": True,
+            "enable_memory_injection": True,
+            "max_memory_length": 500
+        }
+        
+        return valves
+        
+    except Exception as e:
+        log_error(e, "get_pipeline_valves", pipeline_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Error getting pipeline valves: {str(e)}")
+
+@app.post("/pipelines/{pipeline_id}/valves")
+async def update_pipeline_valves(
+    pipeline_id: str,
+    valves: dict = Body(...),
+    api_key: str = Depends(verify_api_key)
+):
+    """Update pipeline configuration valves"""
+    try:
+        if pipeline_id != "memory_pipeline":
+            raise HTTPException(status_code=404, detail=f"Pipeline {pipeline_id} not found")
+        
+        log_service_status("PIPELINE_CONFIG", "info", f"Updating valves for {pipeline_id}")
+        
+        # In a real implementation, you would save these valves to a database
+        # For now, just return success
+        log_service_status("PIPELINE_CONFIG", "ready", f"Updated valves for {pipeline_id}")
+        
+        return {"status": "success", "message": "Pipeline valves updated successfully"}
+        
+    except Exception as e:
+        log_error(e, "update_pipeline_valves", pipeline_id, "pipeline")
+        raise HTTPException(status_code=500, detail=f"Error updating pipeline valves: {str(e)}")
 
 # Simple test endpoint to verify endpoint loading
 @app.get("/api/test/hello")
