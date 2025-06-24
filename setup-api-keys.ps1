@@ -175,8 +175,8 @@ function Test-UpdatedTools {
     Write-Host "3. Checking updated diagnostic tools..."
     
     $tools = @(
-        "demo-tests\debug-tools\openwebui_memory_diagnostic.py",
-        "demo-tests\debug-tools\test_memory_cross_chat.py"
+        "debug\demo-tests\debug-tools\openwebui_memory_diagnostic.py",
+        "debug\demo-tests\debug-tools\test_memory_cross_chat.py"
     )
     
     foreach ($tool in $tools) {
@@ -216,19 +216,19 @@ function Show-UsageExamples {
     Write-Host ""
     Write-Host "5. Usage examples:"
     Write-ColorText "   $($Emojis.Info) Run diagnostic with auto-detected keys:" $Colors.White
-    Write-ColorText "      python demo-tests\debug-tools\openwebui_memory_diagnostic.py" $Colors.Cyan
+    Write-ColorText "      python debug\demo-tests\debug-tools\openwebui_memory_diagnostic.py" $Colors.Cyan
     
     Write-Host ""
     Write-ColorText "   $($Emojis.Info) Run with specific user:" $Colors.White
-    Write-ColorText "      python demo-tests\debug-tools\openwebui_memory_diagnostic.py --user=john" $Colors.Cyan
+    Write-ColorText "      python debug\demo-tests\debug-tools\openwebui_memory_diagnostic.py --user=john" $Colors.Cyan
     
     Write-Host ""
     Write-ColorText "   $($Emojis.Info) Run with specific environment:" $Colors.White
-    Write-ColorText "      python demo-tests\debug-tools\openwebui_memory_diagnostic.py --env=production" $Colors.Cyan
+    Write-ColorText "      python debug\demo-tests\debug-tools\openwebui_memory_diagnostic.py --env=production" $Colors.Cyan
     
     Write-Host ""
     Write-ColorText "   $($Emojis.Info) Test memory across chat sessions:" $Colors.White
-    Write-ColorText "      python demo-tests\debug-tools\test_memory_cross_chat.py" $Colors.Cyan
+    Write-ColorText "      python debug\demo-tests\debug-tools\test_memory_cross_chat.py" $Colors.Cyan
 }
 
 function Start-InteractiveSetup {
@@ -279,7 +279,7 @@ function Test-Setup {
     Write-Host ""
     Write-ColorText "$($Emojis.Rocket) Testing current setup..." $Colors.Blue
     
-    $diagnosticPath = Join-Path $ScriptDir "demo-tests\debug-tools\openwebui_memory_diagnostic.py"
+    $diagnosticPath = Join-Path $ScriptDir "debug\demo-tests\debug-tools\openwebui_memory_diagnostic.py"
     if (Test-Path $diagnosticPath) {
         Write-ColorText "$($Emojis.Info) Running diagnostic tool..." $Colors.White
         try {

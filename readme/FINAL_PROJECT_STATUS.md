@@ -141,7 +141,7 @@ The comprehensive rescan, sync, cleanup, and validation of the entire backend pr
 ## 🎯 Recommendations for Maintenance
 
 1. **Regular Health Checks**: Run `curl http://localhost:8001/health` weekly
-2. **Test Suite Execution**: Run `python test_adaptive_learning.py` after changes
+2. **Test Suite Execution**: Run `python debug/demo-test/test_adaptive_learning.py` after changes
 3. **Cache Monitoring**: Monitor Redis memory usage trends
 4. **Model Updates**: Check for new Ollama model versions monthly
 5. **Git Hygiene**: Continue regular commits with descriptive messages
@@ -154,7 +154,7 @@ The comprehensive rescan, sync, cleanup, and validation of the entire backend pr
 curl http://localhost:8001/health
 
 # Run tests
-python test_adaptive_learning.py
+python debug/demo-test/test_adaptive_learning.py
 
 # Check services
 docker-compose ps

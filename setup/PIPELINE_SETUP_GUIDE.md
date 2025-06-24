@@ -32,7 +32,7 @@ Run the test script to verify the backend is working:
 
 ```bash
 cd setup
-python test_pipeline.py
+python debug/setup/test_pipeline.py
 ```
 
 This will test all the pipeline endpoints and confirm they're working correctly.

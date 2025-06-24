@@ -22,7 +22,7 @@ python main.py
 
 ```bash
 # Infrastructure test
-cd demo-test/integration-tests
+cd debug/demo-test/integration-tests
 python test_infrastructure.py
 
 # Memory recall test  
@@ -39,7 +39,7 @@ python test_ollama_direct.py
 
 ## 📁 **PROJECT STATUS SUMMARY**
 
-- ✅ **121+ test files** organized in `demo-test/`
+- ✅ **121+ test files** organized in `debug/demo-test/`
 - ✅ **Clean root directory** with production code only
 - ✅ **Working memory system** (Redis + ChromaDB)
 - ✅ **Model cache implemented** (Ollama API integration)

@@ -182,7 +182,7 @@ def create_config_file():
 def test_current_setup():
     """Test the current configuration."""
     script_dir = Path(__file__).parent
-    diagnostic = script_dir / "demo-tests" / "debug-tools" / "openwebui_memory_diagnostic.py"
+    diagnostic = script_dir / "debug" / "demo-tests" / "debug-tools" / "openwebui_memory_diagnostic.py"
     
     if diagnostic.exists():
         print("\n🧪 Testing current setup...")

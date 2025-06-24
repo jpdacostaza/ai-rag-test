@@ -111,7 +111,7 @@ python main.py          # Start backend
 
 ### 2. **Continue Testing:**
 ```bash
-cd demo-test/integration-tests
+cd debug/demo-test/integration-tests
 python test_infrastructure.py    # Verify infrastructure
 cd ../cache-tests  
 python test_cache_comprehensive.py    # Test caching
