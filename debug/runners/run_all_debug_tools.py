@@ -29,7 +29,7 @@ from pathlib import Path
 
 class DebugToolsRunner:
     def __init__(self):
-        self.reports_dir = Path("reports/debug-results")
+        self.reports_dir = Path("../reports/debug-results")
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.results = {}
@@ -126,48 +126,47 @@ class DebugToolsRunner:
         """Run all available debug tools"""
         print(f"[START] Starting comprehensive debug tools test run at {datetime.now()}")
         print(f"[DATA] Results will be saved to: {self.reports_dir}")
-        
-        # Define all debug tools to run
+          # Define all debug tools to run
         tools = [
             {
-                "path": "debug/utilities/endpoint_validator.py",
+                "path": "../utilities/endpoint_validator.py",
                 "name": "Endpoint Validator",
                 "description": "Validates backend API endpoints and connectivity"
             },
             {
-                "path": "debug/utilities/debug_endpoints.py", 
+                "path": "../utilities/debug_endpoints.py", 
                 "name": "Debug Endpoints",
                 "description": "Debug endpoint testing and validation"
             },
             {
-                "path": "debug/utilities/verify_memory_pipeline.py",
+                "path": "../utilities/verify_memory_pipeline.py",
                 "name": "Memory Pipeline Verifier",
                 "description": "Verifies memory pipeline functionality"
             },
             {
-                "path": "debug/memory-tests/comprehensive_memory_test.py",
+                "path": "../memory-tests/comprehensive_memory_test.py",
                 "name": "Comprehensive Memory Test",
                 "description": "Comprehensive memory system testing"
             },
             {
-                "path": "debug/memory-tests/test_openwebui_memory.py",
+                "path": "../memory-tests/test_openwebui_memory.py",
                 "name": "OpenWebUI Memory Test",
                 "description": "OpenWebUI memory integration testing"
             },
             {
-                "path": "debug/memory-tests/test_openwebui_memory_fixed.py",
+                "path": "../memory-tests/test_openwebui_memory_fixed.py",
                 "name": "OpenWebUI Memory Test (Fixed)",
                 "description": "Fixed version of OpenWebUI memory testing"
             },
             {
-                "path": "debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py",
+                "path": "../archived/demo-test/debug-tools/simplified_memory_diagnostic.py",
                 "name": "Memory Diagnostic Tool",
-                "description": "Advanced memory diagnostic and troubleshooting"
+                "description": "Advanced memory diagnostic (simplified version)"
             },
             {
-                "path": "debug/archived/demo-test/debug-tools/test_memory_cross_chat.py",
+                "path": "../archived/demo-test/debug-tools/simplified_cross_chat_test.py",
                 "name": "Cross-Chat Memory Test",
-                "description": "Tests memory persistence across chat sessions"
+                "description": "Cross-session memory testing (simplified version)"
             }
         ]
         
