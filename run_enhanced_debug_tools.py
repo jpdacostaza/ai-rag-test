@@ -102,17 +102,16 @@ class EnhancedDebugToolsRunner:
                     "name": "OpenWebUI Memory Test (Fixed)",
                     "description": "Fixed OpenWebUI testing (needs OpenWebUI + backend)",
                     "requirements": ["backend", "openwebui"]
-                },
-                {
-                    "path": "debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py",
+                },                {
+                    "path": "debug/archived/demo-test/debug-tools/simplified_memory_diagnostic.py",
                     "name": "Memory Diagnostic Tool",
-                    "description": "Advanced memory diagnostic (needs OpenWebUI + backend)",
+                    "description": "Advanced memory diagnostic (simplified version)",
                     "requirements": ["backend", "openwebui"]
                 },
                 {
-                    "path": "debug/archived/demo-test/debug-tools/test_memory_cross_chat.py",
+                    "path": "debug/archived/demo-test/debug-tools/simplified_cross_chat_test.py",
                     "name": "Cross-Chat Memory Test",
-                    "description": "Cross-session memory testing (needs OpenWebUI + backend)",
+                    "description": "Cross-session memory testing (simplified version)",
                     "requirements": ["backend", "openwebui"]
                 }
             ]

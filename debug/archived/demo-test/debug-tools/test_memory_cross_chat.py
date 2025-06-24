@@ -28,15 +28,59 @@ from pathlib import Path
 
 # Add parent directory to path to import API key manager
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+
+# Create a simple APIKeyManager class if import fails
+class SimpleAPIKeyManager:
+    def __init__(self, config_path):
+        self.config_path = config_path
+    
+    def get_key(self, user=None, environment=None):
+        return {
+            "api_key": "f2b985dd-219f-45b1-a90e-170962cc7082",  # Default test key
+            "base_url": "http://localhost:3000",
+            "source": "fallback"
+        }
+
 try:
     from setup.api_key_manager import APIKeyManager
 except ImportError:
-    from api_key_manager import APIKeyManager
+    try:
+        from api_key_manager import APIKeyManager
+    except ImportError:
+        APIKeyManager = SimpleAPIKeyManager
 
 
 def get_api_credentials(user=None, environment=None):
     """Get API credentials with automatic fallback."""
-    key_manager = APIKeyManager(str(Path(__file__).parent.parent.parent / "setup" / "openwebui_api_keys.json"))
+    # Try multiple possible paths for the API keys file
+    possible_paths = [
+        Path(__file__).parent.parent.parent.parent / "setup" / "openwebui_api_keys.json",
+        Path(__file__).parent.parent.parent / "setup" / "openwebui_api_keys.json", 
+        Path(__file__).parent / "openwebui_api_keys.json",
+        Path("setup/openwebui_api_keys.json"),
+        Path("openwebui_api_keys.json")    ]
+    
+    key_manager = None
+    for path in possible_paths:
+        if path.exists():
+            key_manager = APIKeyManager(str(path))
+            break
+    
+    if not key_manager:
+        # Create a simple fallback if no API key manager file found
+        print("[SEARCH] No API key manager file found, using fallback credentials")
+        return "f2b985dd-219f-45b1-a90e-170962cc7082", "http://localhost:3000"
+    
+    # Try to get key with fallback logic
+    credentials = key_manager.get_key(user=user, environment=environment)
+    
+    if credentials and isinstance(credentials, dict):
+        print(f"[SEARCH] Using API credentials from: {credentials.get('source', 'unknown')}")
+        return credentials["api_key"], credentials["base_url"]
+    
+    # Manual fallback
+    print("[SEARCH] No API keys found in config, using default test credentials")
+    return "f2b985dd-219f-45b1-a90e-170962cc7082", "http://localhost:3000"
     
     # Try to get key with fallback logic
     credentials = key_manager.get_key(user=user, environment=environment)

@@ -1,0 +1,258 @@
+Debug Tool Report: Endpoint Validator
+Timestamp: 2025-06-24T09:46:46.747486
+Tool Path: debug/utilities/endpoint_validator.py
+Description: Validates backend API endpoints (backend only)
+Requirements: backend
+Status: SUCCESS
+================================================================================
+
+STDOUT:
+----------------------------------------
+[START] COMPREHENSIVE ENDPOINT CROSS-REFERENCE VALIDATOR
+[TARGET] Target: http://localhost:8001
+================================================================================
+[SEARCH] Scanning project files...
+[FOLDER] Found 73 Python files
+[SEARCH] Extracting endpoints from all files...
+⚠️ Error parsing setup\advanced_memory_pipeline_v2.py: invalid syntax (<unknown>, line 106)
+⚠️ Error parsing debug\pipelines\memory_pipeline_fixed.py: invalid syntax (<unknown>, line 118)
+⚠️ Error parsing storage\openwebui\cache\embedding\models\models--sentence-transformers--all-MiniLM-L6-v2\snapshots\c9745ed1d9f207416be6d2e6f8de32d1f16199bf\train_script.py: [Errno 22] Invalid argument: 'storage\\openwebui\\cache\\embedding\\models\\models--sentence-transformers--all-MiniLM-L6-v2\\snapshots\\c9745ed1d9f207416be6d2e6f8de32d1f16199bf\\train_script.py'
+[SATELLITE] Found 0 declared endpoints
+[REFRESH] Cross-referencing declared vs live endpoints...
+[GLOBE] Getting live routes from FastAPI app...
+09:46:08 │ INFO     │ [STARTUP] 🎨 Enhanced logging initialized at level INFO
+09:46:08 │ INFO     │ [REDIS] ✅ Ready - Connected to localhost:6379 with Docker-optimized settings
+09:46:12 │ ERROR    │ [CHROMADB] ❌ Failed - Failed to initialize: Could not connect to a Chroma server. Are you sure it is running?
+09:46:12 │ INFO     │ [EMBEDDINGS] 🟡 Starting - 🧠 Initializing embedding model
+09:46:12 │ INFO     │ [EMBEDDINGS] 🟡 Starting - Trying model: Qwen/Qwen3-Embedding-0.6B
+09:46:16 │ INFO     │ [EMBEDDINGS] ✅ Ready - Successfully loaded Qwen/Qwen3-Embedding-0.6B
+09:46:16 │ INFO     │ [REDIS] ✅ Ready - Connected to localhost:6379 with Docker-optimized settings
+09:46:21 │ ERROR    │ [CHROMADB] ❌ Failed - Failed to initialize: Could not connect to a Chroma server. Are you sure it is running?
+09:46:21 │ INFO     │ [EMBEDDINGS] 🟡 Starting - 🧠 Initializing embedding model
+09:46:21 │ INFO     │ [EMBEDDINGS] 🟡 Starting - Trying model: Qwen/Qwen3-Embedding-0.6B
+09:46:23 │ INFO     │ [EMBEDDINGS] ✅ Ready - Successfully loaded Qwen/Qwen3-Embedding-0.6B
+[START] Found 58 live routes
+[DATA] Cross-reference results:
+   Common endpoints: 0
+   Declared only: 0
+   Live only: 54
+
+⚠️ Live but not found in code:
+   GET /admin/sessions/status
+   GET /admin/cache/status
+   GET /models/{model_name}
+   HEAD /openapi.json
+   GET /health/history/{service_name}
+   GET /test/model_cache_status
+   POST /upload/document
+   GET /pipelines
+   POST /enhanced/chat/enhanced
+   GET /enhanced/system/learning-status
+   POST /enhanced/document/upload-advanced
+   POST /admin/sessions/cleanup
+   GET /openapi.json
+   POST /pipelines/{pipeline_id}/outlet
+   POST /upload/search
+   POST /models/{model_name}/pull
+   POST /v1/chat/completions
+   POST /enhanced/feedback/interaction
+   GET /enhanced/insights/user/{user_id}
+   GET /health/detailed
+   POST /api/learning/process_interaction
+   POST /pipelines/{pipeline_id}/valves
+   DELETE /models/{model_name}
+   GET /pipelines/{pipeline_id}
+   GET /health
+   GET /test-pipelines
+   HEAD /redoc
+   GET /health/simple
+   GET /redoc
+   POST /pipelines/{pipeline_id}/inlet
+   GET /health/redis
+   GET /v1/models
+   POST /admin/cache/invalidate
+   HEAD /docs/oauth2-redirect
+   HEAD /docs
+   GET /health/storage
+   GET /pipelines/{pipeline_id}/valves
+   POST /chat
+   POST /admin/cache/check-prompt
+   GET /
+   POST /test/refresh_models
+   GET /api/pipeline/status
+   GET /docs
+   GET /docs/oauth2-redirect
+   POST /models/refresh
+   GET /models
+   GET /enhanced/document/strategies
+   GET /health/chromadb
+   POST /models/ensure-default
+   POST /feedback
+   POST /api/memory/retrieve
+   GET /upload/formats
+   GET /api/test/hello
+   POST /test/check_model
+🧪 Testing all live endpoints...
+[REFRESH] [1/58] Testing HEAD /openapi.json...
+[REFRESH] [2/58] Testing GET /openapi.json...
+[REFRESH] [3/58] Testing HEAD /docs...
+[REFRESH] [4/58] Testing GET /docs...
+[REFRESH] [5/58] Testing HEAD /docs/oauth2-redirect...
+[REFRESH] [6/58] Testing GET /docs/oauth2-redirect...
+[REFRESH] [7/58] Testing HEAD /redoc...
+[REFRESH] [8/58] Testing GET /redoc...
+[REFRESH] [9/58] Testing GET /...
+[REFRESH] [10/58] Testing GET /test-pipelines...
+[REFRESH] [11/58] Testing GET /models...
+[REFRESH] [12/58] Testing POST /models/refresh...
+[REFRESH] [13/58] Testing GET /models/{model_name}...
+[REFRESH] [14/58] Testing DELETE /models/{model_name}...
+[REFRESH] [15/58] Testing POST /models/{model_name}/pull...
+[REFRESH] [16/58] Testing POST /models/ensure-default...
+[REFRESH] [17/58] Testing POST /upload/document...
+[REFRESH] [18/58] Testing GET /upload/formats...
+[REFRESH] [19/58] Testing POST /upload/search...
+[REFRESH] [20/58] Testing POST /enhanced/document/upload-advanced...
+[REFRESH] [21/58] Testing POST /enhanced/feedback/interaction...
+[REFRESH] [22/58] Testing GET /enhanced/insights/user/{user_id}...
+[REFRESH] [23/58] Testing GET /enhanced/document/strategies...
+[REFRESH] [24/58] Testing GET /enhanced/system/learning-status...
+[REFRESH] [25/58] Testing POST /enhanced/chat/enhanced...
+[REFRESH] [26/58] Testing POST /feedback...
+[REFRESH] [27/58] Testing GET /pipelines...
+[REFRESH] [28/58] Testing POST /pipelines/{pipeline_id}/inlet...
+[REFRESH] [29/58] Testing POST /pipelines/{pipeline_id}/outlet...
+[REFRESH] [30/58] Testing GET /pipelines/{pipeline_id}...
+[REFRESH] [31/58] Testing GET /pipelines/{pipeline_id}/valves...
+[REFRESH] [32/58] Testing GET /health...
+[REFRESH] [33/58] Testing GET /health/simple...
+[REFRESH] [34/58] Testing GET /health/detailed...
+[REFRESH] [35/58] Testing GET /health/redis...
+[REFRESH] [36/58] Testing GET /health/chromadb...
+[REFRESH] [37/58] Testing GET /health/history/{service_name}...
+[REFRESH] [38/58] Testing GET /health/storage...
+[REFRESH] [39/58] Testing POST /chat...
+[REFRESH] [40/58] Testing GET /v1/models...
+[REFRESH] [41/58] Testing POST /v1/chat/completions...
+[REFRESH] [42/58] Testing GET /admin/cache/status...
+[REFRESH] [43/58] Testing POST /admin/cache/invalidate...
+[REFRESH] [44/58] Testing POST /admin/cache/check-prompt...
+[REFRESH] [45/58] Testing POST /admin/sessions/cleanup...
+[REFRESH] [46/58] Testing GET /admin/sessions/status...
+[REFRESH] [47/58] Testing POST /test/refresh_models...
+[REFRESH] [48/58] Testing POST /test/check_model...
+[REFRESH] [49/58] Testing GET /test/model_cache_status...
+[REFRESH] [50/58] Testing POST /api/memory/retrieve...
+[REFRESH] [51/58] Testing POST /api/learning/process_interaction...
+[REFRESH] [52/58] Testing GET /api/pipeline/status...
+[REFRESH] [53/58] Testing POST /pipelines/{pipeline_id}/inlet...
+[REFRESH] [54/58] Testing POST /pipelines/{pipeline_id}/outlet...
+[REFRESH] [55/58] Testing GET /pipelines/{pipeline_id}...
+[REFRESH] [56/58] Testing GET /pipelines/{pipeline_id}/valves...
+[REFRESH] [57/58] Testing POST /pipelines/{pipeline_id}/valves...
+[REFRESH] [58/58] Testing GET /api/test/hello...
+
+================================================================================
+[CLIPBOARD] COMPREHENSIVE ENDPOINT VALIDATION REPORT
+================================================================================
+
+[FOLDER] PROJECT FILE ANALYSIS:
+   Total Python files scanned: 73
+   Files with endpoints: 0
+
+[SATELLITE] ENDPOINT INVENTORY:
+   Declared endpoints: 0
+   Live endpoints: 58
+   Common (declared + live): 0
+
+🧪 ENDPOINT TESTING RESULTS:
+   [OK] Successful: 27
+   [FAIL] Errors: 7
+   ⏭️ Skipped: 19
+   ⚠️ Other: 1
+   [DATA] Success rate: 50.0%
+
+[SEARCH] DETAILED TEST RESULTS:
+   ⏭️ HEAD /openapi.json → skipped (parameterized or docs path)
+   ⏭️ GET /openapi.json → skipped (parameterized or docs path)
+   ⏭️ HEAD /docs → skipped (parameterized or docs path)
+   ⏭️ GET /docs → skipped (parameterized or docs path)
+   ⏭️ HEAD /docs/oauth2-redirect → skipped (parameterized or docs path)
+   ⏭️ GET /docs/oauth2-redirect → skipped (parameterized or docs path)
+   ⏭️ HEAD /redoc → skipped (parameterized or docs path)
+   ⏭️ GET /redoc → skipped (parameterized or docs path)
+   [OK] GET / → HTTP 200 (3.9ms)
+   [OK] GET /test-pipelines → HTTP 200 (3.4ms)
+   [OK] GET /models → HTTP 200 (15.6ms)
+   [OK] POST /models/refresh → HTTP 200 (104.8ms)
+   ⏭️ GET /models/{model_name} → skipped (parameterized or docs path)
+   ⏭️ DELETE /models/{model_name} → skipped (parameterized or docs path)
+   ⏭️ POST /models/{model_name}/pull → skipped (parameterized or docs path)
+   [OK] POST /models/ensure-default → HTTP 200 (16.9ms)
+   ⏭️ POST /upload/document → skipped (file upload endpoint)
+   [OK] GET /upload/formats → HTTP 200 (3.7ms)
+   [FAIL] POST /upload/search → HTTP 422
+   [FAIL] POST /enhanced/document/upload-advanced → HTTP 422
+   [FAIL] POST /enhanced/feedback/interaction → HTTP 422
+   ⏭️ GET /enhanced/insights/user/{user_id} → skipped (parameterized or docs path)
+   [OK] GET /enhanced/document/strategies → HTTP 200 (3.8ms)
+   [OK] GET /enhanced/system/learning-status → HTTP 200 (3.2ms)
+   [FAIL] POST /enhanced/chat/enhanced → HTTP 422
+   [FAIL] POST /feedback → HTTP 400
+   [OK] GET /pipelines → HTTP 200 (22.0ms)
+   ⏭️ POST /pipelines/{pipeline_id}/inlet → skipped (parameterized or docs path)
+   ⏭️ POST /pipelines/{pipeline_id}/outlet → skipped (parameterized or docs path)
+   ⏭️ GET /pipelines/{pipeline_id} → skipped (parameterized or docs path)
+   ⏭️ GET /pipelines/{pipeline_id}/valves → skipped (parameterized or docs path)
+   [OK] GET /health → HTTP 200 (26.9ms)
+   [OK] GET /health/simple → HTTP 200 (22.3ms)
+   [OK] GET /health/detailed → HTTP 200 (23.8ms)
+   [OK] GET /health/redis → HTTP 200 (3.5ms)
+   [OK] GET /health/chromadb → HTTP 200 (3.2ms)
+   ⏭️ GET /health/history/{service_name} → skipped (parameterized or docs path)
+   [FAIL] GET /health/storage → HTTP 500
+   [FAIL] POST /chat → HTTP 422
+   [OK] GET /v1/models → HTTP 200 (3.6ms)
+   ⚠️ POST /v1/chat/completions → timeout
+   [OK] GET /admin/cache/status → HTTP 200 (25.2ms)
+   [OK] POST /admin/cache/invalidate → HTTP 200 (3.7ms)
+   [OK] POST /admin/cache/check-prompt → HTTP 200 (3.2ms)
+   [OK] POST /admin/sessions/cleanup → HTTP 200 (15.3ms)
+   [OK] GET /admin/sessions/status → HTTP 200 (4.1ms)
+   [OK] POST /test/refresh_models → HTTP 200 (81.4ms)
+   [OK] POST /test/check_model → HTTP 200 (3.8ms)
+   [OK] GET /test/model_cache_status → HTTP 200 (3.9ms)
+   [OK] POST /api/memory/retrieve → HTTP 200 (298.2ms)
+   [OK] POST /api/learning/process_interaction → HTTP 200 (211.1ms)
+   [OK] GET /api/pipeline/status → HTTP 200 (4.3ms)
+   ⏭️ POST /pipelines/{pipeline_id}/valves → skipped (parameterized or docs path)
+   [OK] GET /api/test/hello → HTTP 200 (5.2ms)
+
+📂 ENDPOINT DISTRIBUTION BY FILE:
+
+[TARGET] KEY MEMORY PIPELINE ENDPOINTS:
+   [OK] GET /api/pipeline/status
+   [OK] POST /api/memory/retrieve
+   [OK] POST /api/learning/process_interaction
+   [FAIL] POST /v1/chat/completions → timeout
+   [FAIL] POST /upload/document → skipped
+
+[FINISH] VALIDATION COMPLETE
+⚠️ VALIDATION CONCERNS: Multiple endpoint issues detected.
+
+
+STDERR:
+----------------------------------------
+INFO:human_logging:[STARTUP] 🎨 Enhanced logging initialized at level INFO
+INFO:human_logging:[REDIS] ✅ Ready - Connected to localhost:6379 with Docker-optimized settings
+ERROR:human_logging:[CHROMADB] ❌ Failed - Failed to initialize: Could not connect to a Chroma server. Are you sure it is running?
+INFO:human_logging:[EMBEDDINGS] 🟡 Starting - 🧠 Initializing embedding model
+INFO:human_logging:[EMBEDDINGS] 🟡 Starting - Trying model: Qwen/Qwen3-Embedding-0.6B
+INFO:human_logging:[EMBEDDINGS] ✅ Ready - Successfully loaded Qwen/Qwen3-Embedding-0.6B
+INFO:human_logging:[REDIS] ✅ Ready - Connected to localhost:6379 with Docker-optimized settings
+ERROR:human_logging:[CHROMADB] ❌ Failed - Failed to initialize: Could not connect to a Chroma server. Are you sure it is running?
+INFO:human_logging:[EMBEDDINGS] 🟡 Starting - 🧠 Initializing embedding model
+INFO:human_logging:[EMBEDDINGS] 🟡 Starting - Trying model: Qwen/Qwen3-Embedding-0.6B
+INFO:human_logging:[EMBEDDINGS] ✅ Ready - Successfully loaded Qwen/Qwen3-Embedding-0.6B
+
+

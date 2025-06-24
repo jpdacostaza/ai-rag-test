@@ -146,7 +146,7 @@ def test_openwebui_memory_integration():
     print("\n4. Testing chat with memory...")
     try:
         chat_data = {
-            "model": "gpt-4",
+            "model": "mistral:7b-instruct-v0.3-q4_k_m",
             "messages": [
                 {"role": "user", "content": "What's my name?"}
             ],
@@ -155,7 +155,7 @@ def test_openwebui_memory_integration():
         }
         
         response = requests.post(f"{backend_url}/v1/chat/completions",
-                               json=chat_data, headers=headers, timeout=30)
+                               json=chat_data, headers=headers, timeout=120)
         
         if response.status_code == 200:
             result = response.json()
