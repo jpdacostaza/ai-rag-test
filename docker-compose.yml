@@ -161,6 +161,9 @@ services:
       # File Upload Settings
       - ENABLE_FILE_UPLOAD=true
       - FILE_SIZE_LIMIT=100 # MB, must match backend config
+      # Pipeline Configuration
+      - ENABLE_PIPELINES=true
+      - PIPELINES_URLS=http://llm_backend:8001
     volumes:
       - ./storage/openwebui:/app/backend/data
     depends_on:

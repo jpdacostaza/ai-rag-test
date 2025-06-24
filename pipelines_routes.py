@@ -11,6 +11,33 @@ def verify_api_key(api_key: Optional[str] = None):
     """Simple API key verification"""
     return api_key or "development"
 
+@router.get("/")
+async def get_pipeline_manifest():
+    """Get pipeline manifest - OpenWebUI expects this at the root"""
+    log_service_status("PIPELINES", "info", "Pipeline manifest request received")
+    
+    manifest = {
+        "id": "memory_pipeline",
+        "name": "Memory Pipeline", 
+        "object": "pipeline",
+        "type": "filter",
+        "description": "Advanced memory pipeline for OpenWebUI with conversation persistence and context injection",
+        "author": "Backend Team",
+        "author_url": "http://localhost:8001",
+        "version": "1.0.0",
+        "license": "MIT",
+        "requirements": [],
+        "url": "http://localhost:8001",
+        "meta": {
+            "capabilities": ["memory", "context", "learning"],
+            "supported_models": ["*"],
+            "tags": ["memory", "context", "conversation"]
+        }
+    }
+    
+    log_service_status("PIPELINES", "ready", "Pipeline manifest returned")
+    return manifest
+
 @router.get("/pipelines")
 async def list_pipelines():
     """List available pipelines for OpenWebUI"""
@@ -20,14 +47,24 @@ async def list_pipelines():
     pipelines = [{
         "id": "memory_pipeline",
         "name": "Memory Pipeline",
+        "object": "pipeline", 
         "type": "filter",
-        "description": "Memory pipeline for OpenWebUI",
+        "description": "Advanced memory pipeline for OpenWebUI with conversation persistence and context injection",
         "author": "Backend Team",
-        "version": "1.0.0"
+        "author_url": "http://localhost:8001",
+        "version": "1.0.0",
+        "license": "MIT",
+        "requirements": [],
+        "url": "http://localhost:8001",
+        "meta": {
+            "capabilities": ["memory", "context", "learning"],
+            "supported_models": ["*"],
+            "tags": ["memory", "context", "conversation"]
+        }
     }]
     
     log_service_status("PIPELINES", "ready", f"Returned {len(pipelines)} pipelines")
-    return {"pipelines": pipelines}
+    return {"data": pipelines}
 
 @router.post("/pipelines/{pipeline_id}/inlet")
 async def pipeline_inlet(
@@ -110,16 +147,28 @@ async def get_pipeline(pipeline_id: str):
     return {
         "id": "memory_pipeline",
         "name": "Memory Pipeline",
-        "type": "filter",
-        "description": "Memory pipeline for OpenWebUI",
+        "object": "pipeline",
+        "type": "filter", 
+        "description": "Advanced memory pipeline for OpenWebUI with conversation persistence and context injection",
         "author": "Backend Team",
+        "author_url": "http://localhost:8001",
         "version": "1.0.0",
+        "license": "MIT",
+        "requirements": [],
+        "url": "http://localhost:8001",
         "enabled": True,
+        "meta": {
+            "capabilities": ["memory", "context", "learning"],
+            "supported_models": ["*"],
+            "tags": ["memory", "context", "conversation"]
+        },
         "valves": {
             "backend_url": "http://host.docker.internal:8001",
             "api_key": "development",
             "memory_limit": 3,
-            "enable_learning": True
+            "enable_learning": True,
+            "enable_memory_injection": True,
+            "max_memory_length": 500
         }
     }
 
