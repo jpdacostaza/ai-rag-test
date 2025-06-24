@@ -44,7 +44,7 @@ Successfully searched through all code files and updated all references to debug
 - **readme/END_OF_DAY_STATUS.md**
   - `cd demo-test/integration-tests` → `cd debug/demo-test/integration-tests`
 
-- **readme/PIPELINE_SETUP_GUIDE_SETUP.md**
+- **setup/PIPELINE_SETUP_GUIDE.md**
   - `python test_pipeline.py` → `python debug/setup/test_pipeline.py`
 
 ## Path Changes Summary

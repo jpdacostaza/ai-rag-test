@@ -35,5 +35,5 @@ chmod -R 777 ./storage/openwebui  # OpenWebUI data needs write access
 echo "Storage structure initialized successfully with proper permissions."
 
 # Start the FastAPI application
-echo "Starting FastAPI backend..."
-exec uvicorn app:app --host 0.0.0.0 --port 8001 --log-level debug --reload
+echo "Starting modular FastAPI backend..."
+exec uvicorn main:app --host 0.0.0.0 --port 9099 --log-level debug --reload

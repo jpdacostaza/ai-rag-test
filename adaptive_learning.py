@@ -488,39 +488,37 @@ class AdaptiveLearningSystem:
                         "timestamp": datetime.now().isoformat(),
                         "topics": metrics.topics,
                     }
-                )
-
-                # Immediately process high-priority expansions
+                )                # Immediately process high-priority expansions
                 if expansion_type in ["correction", "user_requested"]:
                     await self._process_knowledge_expansion(
                         user_id, expansion_content, expansion_type
                     )
 
-        except Exception:
-            log_service_status("LEARNING", "error", "Knowledge expansion check failed: {e}")
+        except Exception as e:
+            log_service_status("LEARNING", "error", f"Knowledge expansion check failed: {e}")
 
     async def _process_knowledge_expansion(self, user_id: str, content: str, expansion_type: str):
         """Process knowledge expansion by storing new information."""
         try:
-            doc_id = "learning_{expansion_type}_{user_id}_{int(time.time())}"
+            doc_id = f"learning_{expansion_type}_{user_id}_{int(time.time())}"
 
             # Use the more efficient batch indexing function
             success = index_document_chunks(
                 db_manager=db_manager,
                 user_id=user_id,
                 doc_id=doc_id,
-                name="Learned Knowledge - {expansion_type}",
+                name=f"Learned Knowledge - {expansion_type}",
                 chunks=[content],
                 # Wrap content in a list for the new function
             )
 
             if success:
                 log_service_status(
-                    "LEARNING", "ready", "Expanded knowledge base for {user_id}: {expansion_type}"
+                    "LEARNING", "ready", f"Expanded knowledge base for {user_id}: {expansion_type}"
                 )
             else:
                 log_service_status(
-                    "LEARNING", "error", "Failed to expand knowledge base for {user_id}"
+                    "LEARNING", "error", f"Failed to expand knowledge base for {user_id}"
                 )
 
         except Exception:

@@ -65,7 +65,7 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
     ports:
-      - "8001:8001"
+      - "9099:9099"
     restart: always
     depends_on:
       redis:
@@ -112,9 +112,9 @@ services:
       - HF_HOME=/opt/internal_cache/sentence_transformers
       # ChromaDB ONNX cache location
       - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models
-    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9099", "--log-level", "debug"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9099/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -122,7 +122,13 @@ services:
     volumes:
       - ./storage/backend:/opt/backend/data
       - ./storage/chroma/onnx_cache:/opt/cache/chroma/onnx_models
-      - ./app.py:/opt/backend/app.py
+      - ./main.py:/opt/backend/main.py
+      - ./config.py:/opt/backend/config.py
+      - ./models.py:/opt/backend/models.py
+      - ./startup.py:/opt/backend/startup.py
+      - ./services:/opt/backend/services
+      - ./routes:/opt/backend/routes
+      - ./handlers:/opt/backend/handlers
       - ./persona.json:/opt/backend/persona.json
       # For development only: mount the whole codebase for live reload (do not use in production)
       # - ./:/opt/backend
@@ -142,13 +148,12 @@ services:
       - ENABLE_OLLAMA_API=false
       # Custom OpenAPI Backend Configuration (Your LLM Backend) - PRIMARY MODE
       - OPENAI_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-      - OPENAI_API_BASE_URL=http://llm_backend:8001/v1
+      - OPENAI_API_BASE_URL=http://llm_backend:9099/v1
       - ENABLE_OPENAI_API=true
       - OPENAI_API_MODEL=gpt-4 # Frontend default; actual backend model is set via env (see .env)
       - OPENAI_API_TIMEOUT=180
       - OPENAI_API_MAX_TOKENS=4096
-      # Custom Backend Configuration
-      - BACKEND_API_URL=http://llm_backend:8001
+      - BACKEND_API_URL=http://llm_backend:9099
       - BACKEND_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
       # OpenWebUI Settings
       - POSTHOG_DISABLED=true
@@ -163,7 +168,7 @@ services:
       - FILE_SIZE_LIMIT=100 # MB, must match backend config
       # Pipeline Configuration
       - ENABLE_PIPELINES=true
-      - PIPELINES_URLS=http://llm_backend:8001
+      - PIPELINES_URLS=http://llm_backend:9099
     volumes:
       - ./storage/openwebui:/app/backend/data
     depends_on:

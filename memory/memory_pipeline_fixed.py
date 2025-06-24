@@ -1,29 +1,16 @@
 """
-Advanced Memory Pipeline for OpenWebUI
-=====================================
-
-This pipeline integrates with the backend's adaptive learning and ChromaDB memory systems
-to provide contextual memory injection and learning capabilities.
-
-Installation:
-1. Place this file in your OpenWebUI pipelines directory
-2. Configure the backend API URL and key
-3. Restart OpenWebUI
-
-Features:
-- Retrieves relevant user memories before processing prompts
-- Injects contextual memory into user prompts
-- Stores user/assistant interactions for adaptive learning
-- Supports both filter and pipe modes
-- Async HTTP communication with backend
+title: Memory Pipeline
+author: Backend Team
+description: Advanced memory and learning pipeline for OpenWebUI
+requirements: httpx
+version: 1.0.0
 """
 
 import asyncio
 import json
 import time
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from pydantic import BaseModel
-from datetime import datetime
 
 try:
     import httpx
@@ -33,16 +20,9 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx"])
     import httpx
 
+
 class Pipeline:
-    """
-    Advanced Memory Pipeline for OpenWebUI
-    
-    This pipeline connects to your backend's memory and adaptive learning systems
-    to provide intelligent memory injection and learning capabilities.
-    """
-    
     class Valves(BaseModel):
-        # Configuration values that can be set in the OpenWebUI admin panel
         backend_url: str = "http://host.docker.internal:8001"
         api_key: str = "f2b985dd-219f-45b1-a90e-170962cc7082"
         memory_limit: int = 3
@@ -50,12 +30,21 @@ class Pipeline:
         enable_learning: bool = True
         enable_memory_injection: bool = True
         max_memory_length: int = 500
-        pipeline_mode: str = "filter"  # "filter" or "pipe"
 
     def __init__(self):
+        self.name = "Memory Pipeline"
         self.valves = self.Valves()
         self.client = None
-        self.pipeline_mode = "filter"  # Can be "filter" or "pipe"
+        
+    async def on_startup(self):
+        """Called when the pipeline starts"""
+        print(f"🚀 {self.name} started successfully!")
+        
+    async def on_shutdown(self):
+        """Called when the pipeline shuts down"""
+        if self.client:
+            await self.client.aclose()
+        print(f"🛑 {self.name} shut down")
         
     async def _get_client(self):
         """Get or create HTTP client"""
@@ -74,7 +63,7 @@ class Pipeline:
                 "Authorization": f"Bearer {self.valves.api_key}"
             }
             
-            print(f"🔗 Calling backend: {url}")
+            print(f"🔗 Memory Pipeline: Calling {url}")
             
             response = await client.post(url, json=data, headers=headers)
             
@@ -116,44 +105,33 @@ class Pipeline:
         if not memories:
             return ""
         
-        context_parts = ["Based on our previous conversations:"]
+        context_parts = ["[MEMORY CONTEXT] Based on our previous conversations:"]
         
         for i, memory in enumerate(memories, 1):
-            content = memory.get("content", "")
+            content = memory.get("content", memory.get("text", ""))
             if len(content) > self.valves.max_memory_length:
                 content = content[:self.valves.max_memory_length] + "..."
             
             context_parts.append(f"{i}. {content}")
         
-        context_parts.append("\nConsidering this context, please respond to:")
-        return "\n".join(context_parts)
+        context_parts.append("[END MEMORY CONTEXT]\n")
+        return "\n".join(context_parts)    async def _get_user_id(self, body: dict, user: Optional[dict] = None) -> str:
+        """Extract user ID from request"""
+        if user and "id" in user:
+            return str(user["id"])
+        return body.get("user_id", body.get("user", "default_user"))
     
-    async def _get_user_id(self, body: dict) -> str:
-        """Extract user ID from request body"""
-        # Try different methods to get user ID
-        user_id = body.get("user_id") or body.get("user") or "default_user"
-        return str(user_id)
-    
-    async def _get_conversation_id(self, body: dict) -> str:
-        """Extract conversation ID from request body"""
-        conv_id = body.get("conversation_id") or f"conv_{int(time.time())}"
-        return str(conv_id)
-    
-    async def _store_interaction(self, user_id: str, conversation_id: str, 
-                               user_message: str, assistant_response: str, 
-                               response_time: float = 1.0, tools_used: Optional[List[str]] = None) -> bool:
-        """Store interaction for adaptive learning"""
+    async def _store_interaction(self, user_id: str, user_message: str, assistant_response: str) -> bool:
+        """Store interaction for learning"""
         if not self.valves.enable_learning:
             return False
             
         try:
             data = {
                 "user_id": user_id,
-                "conversation_id": conversation_id,
+                "conversation_id": f"conv_{int(time.time())}",
                 "user_message": user_message,
                 "assistant_response": assistant_response,
-                "response_time": response_time,
-                "tools_used": tools_used or [],
                 "source": "openwebui_pipeline"
             }
             
@@ -166,18 +144,14 @@ class Pipeline:
             print(f"⚠️ Learning storage failed: {e}")
             
         return False
-    
-    # FILTER MODE - Modifies messages before they go to the model
+
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
-        """
-        Filter mode: Process incoming messages and inject memory context
-        This runs before the message goes to the LLM
-        """
+        """Process incoming messages and inject memory context"""
         try:
-            print(f"🔄 Advanced Memory Pipeline (Filter Mode) - Processing request")
+            print(f"🔄 Memory Pipeline: Processing inlet request")
             
             # Extract user information
-            user_id = await self._get_user_id(body)
+            user_id = await self._get_user_id(body, user)
             messages = body.get("messages", [])
             
             if not messages:
@@ -194,7 +168,7 @@ class Pipeline:
                 return body
             
             user_query = latest_message["content"]
-            print(f"👤 User query: {user_query[:100]}...")
+            print(f"👤 User ({user_id}): {user_query[:100]}...")
             
             # Retrieve relevant memories
             memories = await self._retrieve_user_memory(user_id, user_query)
@@ -204,35 +178,24 @@ class Pipeline:
                 memory_context = self._format_memory_context(memories)
                 
                 # Inject memory into the user's message
-                enhanced_content = f"{memory_context}\n\n{user_query}"
+                enhanced_content = f"{memory_context}\n{user_query}"
                 latest_message["content"] = enhanced_content
                 
                 print(f"💡 Enhanced message with {len(memories)} memories")
-                
-                # Update the message in the body
-                for i, msg in enumerate(body["messages"]):
-                    if msg.get("role") == "user" and msg == latest_message:
-                        body["messages"][i] = latest_message
-                        break
             
             return body
             
         except Exception as e:
-            print(f"❌ Filter processing error: {e}")
+            print(f"❌ Inlet processing error: {e}")
             return body
-    
-    # OUTLET - Processes responses after the model
+
     async def outlet(self, body: dict, user: Optional[dict] = None) -> dict:
-        """
-        Process outgoing responses - store interactions for learning
-        This runs after the LLM generates a response
-        """
+        """Process outgoing responses for learning"""
         try:
-            print(f"📤 Advanced Memory Pipeline - Processing response for learning")
+            print(f"📤 Memory Pipeline: Processing outlet response")
             
             # Extract information
-            user_id = await self._get_user_id(body)
-            conversation_id = await self._get_conversation_id(body)
+            user_id = await self._get_user_id(body, user)
             messages = body.get("messages", [])
             
             if len(messages) < 2:
@@ -253,25 +216,10 @@ class Pipeline:
             
             if user_message and assistant_message:
                 # Store the interaction for learning
-                await self._store_interaction(
-                    user_id=user_id,
-                    conversation_id=conversation_id,
-                    user_message=user_message,
-                    assistant_response=assistant_message,
-                    response_time=1.0,
-                    tools_used=[]
-                )
-                
-                print(f"📚 Stored conversation for adaptive learning")
+                await self._store_interaction(user_id, user_message, assistant_message)
             
             return body
             
         except Exception as e:
             print(f"❌ Outlet processing error: {e}")
             return body
-    
-    async def cleanup(self):
-        """Cleanup resources"""
-        if self.client:
-            await self.client.aclose()
-            self.client = None
