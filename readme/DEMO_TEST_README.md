@@ -1,18 +1,22 @@
-# Backend Demo Test Suite
+> **📋 Historical Note**: This documentation was updated on June 24, 2025, following a comprehensive archive cleanup where 129 experimental files were removed. The current debug structure focuses on essential diagnostic tools only. For historical reference of removed files, see [ARCHIVE_CLEANUP_COMPLETE.md](ARCHIVE_CLEANUP_COMPLETE.md).
 
-This directory contains a comprehensive test suite for real-life simulation testing of the entire backend system. The tests cover all modules, APIs, tools, security features, and performance characteristics.
+# Debug Tools Documentation
 
-## 📁 Test Structure
+This document describes the essential diagnostic tools preserved in the debug folder after the comprehensive cleanup.
+
+## 📁 Current Debug Structure
 
 ```
-demo-test/
-├── master_test_runner.py              # Main orchestrator for all tests
-├── comprehensive_test_suite_v2.py     # Basic API and integration tests
-├── tool_integration_tests.py          # AI tools testing (weather, time, math, etc.)
-├── security_tests.py                  # Authentication, authorization, security
-├── performance_tests.py               # Load testing, performance, stress testing
-├── results/                           # Generated test reports and results
-└── README.md                          # This documentation
+debug/
+├── memory-tests/                       # Memory testing utilities
+├── pipelines/                          # Alternative pipeline implementations  
+├── utilities/                          # Core debugging and validation tools
+└── archived/
+    └── demo-test/
+        └── debug-tools/               # Essential diagnostic tools
+            ├── openwebui_memory_diagnostic.py    # Memory diagnostic tool
+            ├── test_memory_cross_chat.py         # Cross-chat memory testing
+            └── other debug utilities...
 ```
 
 ## 🚀 Quick Start
@@ -21,29 +25,28 @@ demo-test/
 1. Backend system must be running on `http://localhost:8001`
 2. All required dependencies installed (`pip install -r requirements.txt`)
 3. Redis and ChromaDB services available
-4. Valid API key configured
+4. Valid API key configured (see API_KEY_MANAGEMENT.md)
 
-### Running Tests
+### Using Essential Diagnostic Tools
 
 ```bash
 # Navigate to the backend directory
 cd /path/to/backend
 
-# Run all tests (comprehensive)
-python demo-test/master_test_runner.py --all
+# Memory diagnostic tests
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
 
-# Quick smoke tests (basic functionality)
-python demo-test/master_test_runner.py --quick
+# Cross-chat memory testing
+python debug/archived/demo-test/debug-tools/test_memory_cross_chat.py
 
-# Specific test suites
-python demo-test/master_test_runner.py --tools        # AI tools only
-python demo-test/master_test_runner.py --security     # Security tests only
-python demo-test/master_test_runner.py --performance  # Performance tests only
+# Memory testing utilities
+python debug/memory-tests/comprehensive_memory_test.py
+python debug/memory-tests/test_openwebui_memory.py
 
-# Individual test modules
-python demo-test/tool_integration_tests.py
-python demo-test/security_tests.py
-python demo-test/performance_tests.py
+# Debug utilities
+python debug/utilities/debug_endpoints.py
+python debug/utilities/endpoint_validator.py
+python debug/utilities/verify_memory_pipeline.py
 ```
 
 ## 🧪 Test Modules
