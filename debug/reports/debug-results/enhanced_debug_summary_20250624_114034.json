@@ -1,0 +1,99 @@
+{
+  "timestamp": "2025-06-24T11:44:05.090977",
+  "service_status": {
+    "backend": "RUNNING",
+    "openwebui": "RUNNING"
+  },
+  "total_tools": 8,
+  "successful": 8,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "timeouts": 0,
+  "results": {
+    "Endpoint Validator": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "[START] COMPREHENSIVE ENDPOINT CROSS-REFERENCE VALIDATOR\n[TARGET] Target: http://localhost:8001\n================================================================================\n[SEARCH] Scanning project files...\n[FOLDER] Found 2 Python files\n[SEARCH] Extracting endpoints from all files...\n[SATELLITE] Found 0 declared endpoints\n[REFRESH] Cross-referencing declared vs live endpoints...\n[GLOBE] Getting live routes from FastAPI app...\n[FAIL] Error getting live routes: No module named 'main'\n[DATA] Cross-reference results:\n   Common endpoints: 0\n   Declared only: 0\n   Live only: 0\n\ud83e\uddea Testing all live endpoints...\n\n================================================================================\n[CLIPBOARD] COMPREHENSIVE ENDPOINT VALIDATION REPORT\n================================================================================\n\n[FOLDER] PROJECT FILE ANALYSIS:\n   Total Python files scanned: 2\n   Files with endpoints: 0\n\n[SATELLITE] ENDPOINT INVENTORY:\n   Declared endpoints: 0\n   Live endpoints: 0\n   Common (declared + live): 0\n\n\ud83e\uddea ENDPOINT TESTING RESULTS:\n   [OK] Successful: 0\n   [FAIL] Errors: 0\n   \u23ed\ufe0f Skipped: 0\n   \u26a0\ufe0f Other: 0\n\n[FAIL] Validation failed: division by zero\n",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\endpoint_validator.py\", line 127, in get_live_routes\n    from main import app\nModuleNotFoundError: No module named 'main'\nTraceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\endpoint_validator.py\", line 381, in <module>\n    report = main()\n             ^^^^^^\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\endpoint_validator.py\", line 375, in main\n    final_report = validator.generate_report(cross_ref, test_results)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\endpoint_validator.py\", line 297, in generate_report\n    print(f\"   [DATA] Success rate: {success_count/len(test_results)*100:.1f}%\")\n                                     ~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nZeroDivisionError: division by zero\n",
+      "timestamp": "2025-06-24T11:40:34.952430",
+      "requirements": [
+        "backend"
+      ]
+    },
+    "Debug Endpoints": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "Testing pipeline endpoint imports...\n1. Checking main.py syntax...\n[FAIL] Error: [Errno 2] No such file or directory: 'main.py'\n",
+      "stderr": "Traceback (most recent call last):\n  File \"E:\\Projects\\opt\\backend\\debug\\utilities\\debug_endpoints.py\", line 31, in <module>\n    with open(\"main.py\", \"r\", encoding=\"utf-8\") as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: 'main.py'\n",
+      "timestamp": "2025-06-24T11:40:34.998637",
+      "requirements": [
+        "backend"
+      ]
+    },
+    "Memory Pipeline Verifier": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "[START] MEMORY PIPELINE INSTALLATION VERIFICATION\n============================================================\nStarted at: 2025-06-24 11:40:35.346073\n\n1\ufe0f\u20e3 Testing OpenWebUI accessibility...\n   [OK] OpenWebUI is running and accessible\n\n2\ufe0f\u20e3 Testing backend accessibility...\n   [OK] Backend is healthy and operational\n   [DATA] Status: ok\n\n3\ufe0f\u20e3 Checking pipeline file in OpenWebUI container...\n   [OK] Memory pipeline file exists in OpenWebUI container\n   [PAGE] File details: -rwxr-xr-x 1 root root 10655 Jun 23 20:55 /app/backend/data/pipelines/memory_pipeline.py\n\n4\ufe0f\u20e3 Testing memory retrieval endpoint...\n   [OK] Memory retrieval endpoint is functional\n   [DATA] Retrieved 0 memories\n\n5\ufe0f\u20e3 Testing learning endpoint...\n   [OK] Learning endpoint is functional\n   [DATA] Processing status: success\n\n6\ufe0f\u20e3 Testing pipeline status endpoint...\n   [OK] Pipeline status endpoint is functional\n   [DATA] Backend status: healthy\n\n============================================================\n[FINISH] INSTALLATION VERIFICATION RESULTS\n============================================================\n\n[DATA] TEST RESULTS SUMMARY:\n   [OK] Passed: 6/6 tests\n   [CHART] Success rate: 100.0%\n\n[CLIPBOARD] DETAILED RESULTS:\n   openwebui_accessible: [OK] PASS\n   backend_accessible: [OK] PASS\n   pipeline_file_exists: [OK] PASS\n   memory_endpoint: [OK] PASS\n   learning_endpoint: [OK] PASS\n   status_endpoint: [OK] PASS\n\n\ud83c\udf89 MEMORY PIPELINE INSTALLATION SUCCESSFUL!\n   The memory pipeline is installed and ready to use.\n\n\ud83d\udcd6 NEXT STEPS:\n   1. Open OpenWebUI at: http://localhost:3000\n   2. Create an account or sign in\n   3. Start a new chat\n   4. Tell the AI: 'My name is [YourName] and I like [hobby]'\n   5. In a new chat, ask: 'What do you remember about me?'\n   6. The AI should remember your name and preferences!\n\n[TOOL] MEMORY PIPELINE FEATURES:\n   \u2022 Automatic memory injection in conversations\n   \u2022 Persistent user information across sessions\n   \u2022 Adaptive learning from user interactions\n   \u2022 Context-aware memory retrieval\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:40:38.045247",
+      "requirements": [
+        "backend"
+      ]
+    },
+    "Comprehensive Memory Test": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "\ud83e\uddea COMPREHENSIVE MEMORY PIPELINE TEST\n[TARGET] Target: http://localhost:8001\n[TIMEOUT] Time: 2025-06-24 11:40:38\n\n======================================================================\n[BRAIN] BACKEND HEALTH CHECK\n======================================================================\n[OK] Backend is responding\n[OK] Pipeline status retrieved:\n   Status: healthy\n   redis: [OK]\n   chromadb: [OK]\n   embeddings: [OK]\n   adaptive_learning: [OK]\n   memory_system: [OK]\n\n======================================================================\n[BRAIN] MEMORY STORAGE & RETRIEVAL\n======================================================================\n[NOTE] Storing learning interaction...\n[OK] Learning interaction stored: success\n[SEARCH] Retrieving memories...\n[OK] Memory retrieval successful: 1 memories found\n[CLIPBOARD] Retrieved memory content:\n   1. User-requested learning: {user_message}... (score: N/A)\n\n======================================================================\n[BRAIN] CHAT WITH MEMORY CONTEXT\n======================================================================\n[CHAT] First conversation (setting context)...\n[FAIL] Chat with memory error: HTTPConnectionPool(host='localhost', port=8001): Read timed out. (read timeout=30)\n\n======================================================================\n[BRAIN] DOCUMENT RAG PIPELINE\n======================================================================\n[PAGE] Uploading test document...\n[OK] Document uploaded: 1 chunks\n[SEARCH] Testing RAG query...\n[OK] RAG query successful\n[NOTE] Response: There is no mention of CloudSync Pro in our conversation, nor was it discussed in my previous knowledge update. The information I provided earlier about my capabilities and features was general, but there were no specific performance tips mentioned for a product called CloudSync Pro. If you'd like to discuss performance optimization techniques for a different topic or application, I'm here to help!\n[TARGET] RAG SUCCESS! Found keywords: cloudsync\n\n======================================================================\n[BRAIN] CACHE PERFORMANCE\n======================================================================\n[REFRESH] First request (cache miss)...\n[OK] First response (5.22s): 10\n[REFRESH] Second request (cache hit expected)...\n[OK] Second response (7.12s): 10\n\u26a0\ufe0f Cache hit not clearly detected, but responses successful\n\n======================================================================\n[BRAIN] TEST RESULTS SUMMARY\n======================================================================\n   Backend Health                 [OK] PASS\n   Memory Storage & Retrieval     [OK] PASS\n   Chat with Memory               [FAIL] FAIL\n   Document RAG                   [OK] PASS\n   Cache Performance              [OK] PASS\n\n[DATA] Overall: 4/5 tests passed (80.0%)\n[OK] Most tests passed! Memory pipeline is largely functional.\n\n[FINISH] Test completed at 11:41:57\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:41:57.032659",
+      "requirements": [
+        "backend"
+      ]
+    },
+    "OpenWebUI Memory Test": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "=== OpenWebUI Memory Pipeline Integration Test ===\nTest started at: 2025-06-24 11:41:57.374507\n\n1. Testing OpenWebUI accessibility...\n[OK] OpenWebUI is accessible\n\n2. Testing backend accessibility...\n[OK] Backend is accessible\n\n3. Testing memory endpoints...\n[OK] Memory retrieval endpoint works\n   Retrieved 0 memories for user test_openwebui_user\n\n3.5 Testing learning endpoint...\n[OK] Learning endpoint works\n   Processing result: success\n\n4. Testing chat with memory...\n\u26a0\ufe0f  Memory injection may not be working - name not found in response\n   AI response:  My name is OpenAssistant, a versatile and advanced AI assistant designed to provide seamless integration with OpenWebUI. I remember our conversations, learn from them, and adapt to your communication...\n\n=== Memory Pipeline Integration Test Results ===\n[OK] All tests passed! The memory pipeline is working correctly.\n\nNext steps:\n1. Open OpenWebUI at: http://localhost:3000\n2. Create an account or login\n3. Start a chat and tell the AI your name\n4. In a new chat, ask 'What's my name?' to test memory persistence\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:43:15.116515",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ]
+    },
+    "OpenWebUI Memory Test (Fixed)": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "=== OpenWebUI Memory Pipeline Integration Test ===\nTest started at: 2025-06-24 11:43:15.469404\n\n1. Testing OpenWebUI accessibility...\n[OK] OpenWebUI is accessible\n\n2. Testing backend accessibility...\n[OK] Backend is accessible\n\n3. Testing pipeline endpoints...\n\n3.1 Testing memory retrieval endpoint...\n[OK] Memory retrieval endpoint works\n   Retrieved 0 memories for user test_openwebui_user\n\n3.2 Testing learning endpoint...\n[OK] Learning endpoint works\n   Processing result: success\n\n3.3 Testing pipeline status endpoint...\n[OK] Pipeline status endpoint works\n   Backend status: healthy\n\n4. Testing chat with memory...\n\u26a0\ufe0f  Memory injection may not be working - name not found in response\n   AI response:  My name is OpenAssistant, a versatile and advanced AI assistant designed to provide seamless integration with OpenWebUI. I remember our conversations, learn from them, and adapt to your communication...\n\n=== Memory Pipeline Integration Test Results ===\n[OK] All tests passed! The memory pipeline is working correctly.\n\nNext steps:\n1. Open OpenWebUI at: http://localhost:3000\n2. Create an account or login\n3. Start a chat and tell the AI your name\n4. In a new chat, ask 'What's my name?' to test memory persistence\n5. The memory pipeline will automatically inject relevant memories into conversations\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:44:01.083760",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ]
+    },
+    "Memory Diagnostic Tool": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "[START] Simplified Memory Diagnostic Tool\n============================================================\nStarted at: 2025-06-24 11:44:01.436591\n\n1. Testing OpenWebUI accessibility...\n[OK] OpenWebUI is accessible\n\n2. Testing backend accessibility...\n[OK] Backend is accessible\n\n3. Testing memory retrieval...\n[OK] Memory retrieval works - retrieved 4 memories\n\n4. Testing memory learning...\n[OK] Memory learning works - result: success\n\n============================================================\n[TARGET] MEMORY DIAGNOSTIC SUMMARY\n============================================================\n[DATA] Tests completed: 4/4\n[DATA] Success rate: 100.0%\n[OK] All memory diagnostic tests passed!\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:44:02.423912",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ]
+    },
+    "Cross-Chat Memory Test": {
+      "status": "SUCCESS",
+      "return_code": 0,
+      "output": "[START] Simplified Cross-Chat Memory Test\n============================================================\nStarted at: 2025-06-24 11:44:02.798485\n\n1. Clearing existing test memories...\n[OK] Test preparation complete\n\n2. Learning memory in first session...\n[OK] Memory learned in session 1: success\n\n3. Retrieving memory in second session...\n[OK] Retrieved 4 memories in session 2\n[FAIL] Test memory not found across sessions\n\n4. Testing specific query in third session...\n[OK] Specific query returned 4 memories\n\n5. Testing memory accumulation...\n[OK] Total memories accumulated: 4\n\n============================================================\n[TARGET] CROSS-CHAT MEMORY TEST SUMMARY\n============================================================\n[DATA] Tests completed: 4/5\n[DATA] Success rate: 80.0%\n[OK] Cross-chat memory functionality verified!\n",
+      "stderr": "",
+      "timestamp": "2025-06-24T11:44:05.089972",
+      "requirements": [
+        "backend",
+        "openwebui"
+      ]
+    }
+  }
+}

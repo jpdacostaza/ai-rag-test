@@ -1,0 +1,27 @@
+ENHANCED DEBUG TOOLS COMPREHENSIVE TEST REPORT
+============================================================
+Timestamp: 2025-06-24T11:44:05.092977
+Backend Status: RUNNING
+OpenWebUI Status: RUNNING
+Total Tools Tested: 8
+[OK] Successful: 8
+[FAIL] Failed: 0
+[ERROR] Errors: 0
+[SEARCH] Skipped: 0
+[TIMEOUT] Timeouts: 0
+
+============================================================
+
+DETAILED RESULTS BY CATEGORY:
+----------------------------------------
+Backend-Only Tools:
+  [OK] Endpoint Validator: SUCCESS
+  [OK] Debug Endpoints: SUCCESS
+  [OK] Memory Pipeline Verifier: SUCCESS
+  [OK] Comprehensive Memory Test: SUCCESS
+
+Full-Stack Tools:
+  [OK] OpenWebUI Memory Test: SUCCESS
+  [OK] OpenWebUI Memory Test (Fixed): SUCCESS
+  [OK] Memory Diagnostic Tool: SUCCESS
+  [OK] Cross-Chat Memory Test: SUCCESS
