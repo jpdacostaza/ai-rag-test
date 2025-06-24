@@ -122,9 +122,9 @@ class DatabaseManager:
         """Initialize ChromaDB client with proper error handling."""
         try:
             settings = Settings(
-                chroma_api_impl="rest",
                 chroma_server_host=os.getenv("CHROMA_HOST", "localhost"),
                 chroma_server_http_port=int(os.getenv("CHROMA_PORT", "8000")),
+                anonymized_telemetry=False
             )
             
             async with self._chroma_lock:
@@ -411,6 +411,14 @@ class DatabaseManager:
             log_service_status(f"Error querying ChromaDB: {str(e)}", "error")
             return None
 
+    def get_cache(self) -> CacheManager[Any]:
+        """Get the cache manager instance."""
+        return self.cache_manager
+
+    def clear_cache(self) -> None:
+        """Clear the cache manager."""
+        self.cache_manager.clear()
+
 
 # Global database manager instance
 db_manager = DatabaseManager()
@@ -535,3 +543,101 @@ async def query_similar(query_text: str, n_results: int = 5) -> QueryResponse:
         return {"matches": matches}
     except (IndexError, TypeError):
         return {"matches": []}
+
+async def get_cache() -> CacheManager[Any]:
+    """Get the global cache manager instance."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            raise RuntimeError("Database manager not initialized")
+    return db_manager.get_cache()
+
+async def set_cache(key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    """Set a value in the global cache manager."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            return False
+    
+    cache = db_manager.get_cache()
+    cache.set(key, value)
+    return True
+
+async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bool:
+    """Store complete chat history in Redis."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            return False
+    
+    def store_operation(redis_client: redis.Redis) -> bool:
+        chat_key = f"chat:{chat_id}"
+        # Clear existing history
+        redis_client.delete(chat_key)
+        # Store new history
+        for message in messages:
+            redis_client.lpush(chat_key, json.dumps(message))
+        return True
+        
+    return await db_manager.execute_redis_operation(store_operation, "store_chat_history") or False
+
+async def index_user_document(user_id: str, document_text: str, metadata: Dict[str, Any]) -> bool:
+    """Index a user document in the vector database."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            return False
+    
+    # Add user_id to metadata
+    metadata["user_id"] = user_id
+    metadata["timestamp"] = datetime.now().isoformat()
+    
+    return await store_vector_data(document_text, metadata)
+
+async def retrieve_user_memory(user_id: str, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
+    """Retrieve user-specific memory from the vector database."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            return []
+    
+    try:
+        # Query ChromaDB with user filter
+        if not db_manager.chroma_collection or not db_manager.embedding_model:
+            return []
+        
+        query_embedding = await db_manager.get_embedding(query)
+        if not query_embedding:
+            return []
+        
+        results = db_manager.chroma_collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results,
+            where={"user_id": user_id},
+            include=["documents", "metadatas", "distances"]
+        )
+        
+        if not results or not isinstance(results, dict):
+            return []
+        
+        memories = []
+        for doc, meta, dist in zip(
+            results.get("documents", [[]])[0],
+            results.get("metadatas", [[{}]])[0], 
+            results.get("distances", [[0.0]])[0]
+        ):
+            memories.append({
+                "document": doc,
+                "metadata": meta,
+                "distance": dist
+            })
+        
+        return memories
+    except Exception as e:
+        log_service_status(f"Error retrieving user memory: {str(e)}", "error")
+        return []
