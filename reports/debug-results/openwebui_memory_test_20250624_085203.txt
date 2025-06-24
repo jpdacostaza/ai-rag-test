@@ -1,0 +1,14 @@
+Debug Tool Report: OpenWebUI Memory Test
+Timestamp: 2025-06-24T08:55:47.416406
+Tool Path: debug/memory-tests/test_openwebui_memory.py
+Description: OpenWebUI memory integration testing
+Status: FAILED
+================================================================================
+
+STDERR:
+----------------------------------------
+  File "E:\Projects\opt\backend\debug\memory-tests\test_openwebui_memory.py", line 69
+    test_user = "test_openwebui_user"
+IndentationError: unexpected indent
+
+

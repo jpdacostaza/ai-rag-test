@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Windows-compatible debug tool with Unicode fixes applied
+"""
+import sys
+import os
+
+# Set UTF-8 encoding for Windows compatibility
+if sys.platform.startswith('win'):
+    import io
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except AttributeError:
+        pass  # Already wrapped or not available
+
 """
 Memory Pipeline Installation Verification
 ========================================
@@ -14,7 +30,7 @@ from datetime import datetime
 def verify_memory_pipeline_installation():
     """Verify the memory pipeline installation is complete and functional"""
     
-    print("🚀 MEMORY PIPELINE INSTALLATION VERIFICATION")
+    print("[START] MEMORY PIPELINE INSTALLATION VERIFICATION")
     print("="*60)
     print(f"Started at: {datetime.now()}")
     
@@ -38,12 +54,12 @@ def verify_memory_pipeline_installation():
     try:
         response = requests.get(openwebui_url, timeout=10)
         if response.status_code == 200:
-            print("   ✅ OpenWebUI is running and accessible")
+            print("   [OK] OpenWebUI is running and accessible")
             results["openwebui_accessible"] = True
         else:
-            print(f"   ❌ OpenWebUI returned status: {response.status_code}")
+            print(f"   [FAIL] OpenWebUI returned status: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ OpenWebUI connection failed: {e}")
+        print(f"   [FAIL] OpenWebUI connection failed: {e}")
     
     # Test 2: Backend accessibility
     print("\n2️⃣ Testing backend accessibility...")
@@ -51,13 +67,13 @@ def verify_memory_pipeline_installation():
         response = requests.get(f"{backend_url}/health", timeout=10)
         if response.status_code == 200:
             health_data = response.json()
-            print("   ✅ Backend is healthy and operational")
-            print(f"   📊 Status: {health_data.get('status', 'unknown')}")
+            print("   [OK] Backend is healthy and operational")
+            print(f"   [DATA] Status: {health_data.get('status', 'unknown')}")
             results["backend_accessible"] = True
         else:
-            print(f"   ❌ Backend returned status: {response.status_code}")
+            print(f"   [FAIL] Backend returned status: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Backend connection failed: {e}")
+        print(f"   [FAIL] Backend connection failed: {e}")
     
     # Test 3: Check pipeline file existence in container
     print("\n3️⃣ Checking pipeline file in OpenWebUI container...")
@@ -68,13 +84,13 @@ def verify_memory_pipeline_installation():
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("   ✅ Memory pipeline file exists in OpenWebUI container")
-            print(f"   📄 File details: {result.stdout.strip()}")
+            print("   [OK] Memory pipeline file exists in OpenWebUI container")
+            print(f"   [PAGE] File details: {result.stdout.strip()}")
             results["pipeline_file_exists"] = True
         else:
-            print("   ❌ Memory pipeline file not found in container")
+            print("   [FAIL] Memory pipeline file not found in container")
     except Exception as e:
-        print(f"   ❌ Failed to check pipeline file: {e}")
+        print(f"   [FAIL] Failed to check pipeline file: {e}")
     
     # Test 4: Memory retrieval endpoint
     print("\n4️⃣ Testing memory retrieval endpoint...")
@@ -90,13 +106,13 @@ def verify_memory_pipeline_installation():
         
         if response.status_code == 200:
             result = response.json()
-            print("   ✅ Memory retrieval endpoint is functional")
-            print(f"   📊 Retrieved {result.get('count', 0)} memories")
+            print("   [OK] Memory retrieval endpoint is functional")
+            print(f"   [DATA] Retrieved {result.get('count', 0)} memories")
             results["memory_endpoint"] = True
         else:
-            print(f"   ❌ Memory endpoint failed: {response.status_code}")
+            print(f"   [FAIL] Memory endpoint failed: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Memory endpoint error: {e}")
+        print(f"   [FAIL] Memory endpoint error: {e}")
     
     # Test 5: Learning endpoint
     print("\n5️⃣ Testing learning endpoint...")
@@ -115,13 +131,13 @@ def verify_memory_pipeline_installation():
         
         if response.status_code == 200:
             result = response.json()
-            print("   ✅ Learning endpoint is functional")
-            print(f"   📊 Processing status: {result.get('status', 'unknown')}")
+            print("   [OK] Learning endpoint is functional")
+            print(f"   [DATA] Processing status: {result.get('status', 'unknown')}")
             results["learning_endpoint"] = True
         else:
-            print(f"   ❌ Learning endpoint failed: {response.status_code}")
+            print(f"   [FAIL] Learning endpoint failed: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Learning endpoint error: {e}")
+        print(f"   [FAIL] Learning endpoint error: {e}")
     
     # Test 6: Pipeline status endpoint
     print("\n6️⃣ Testing pipeline status endpoint...")
@@ -131,30 +147,30 @@ def verify_memory_pipeline_installation():
         
         if response.status_code == 200:
             status = response.json()
-            print("   ✅ Pipeline status endpoint is functional")
-            print(f"   📊 Backend status: {status.get('status', 'unknown')}")
+            print("   [OK] Pipeline status endpoint is functional")
+            print(f"   [DATA] Backend status: {status.get('status', 'unknown')}")
             results["status_endpoint"] = True
         else:
-            print(f"   ❌ Pipeline status failed: {response.status_code}")
+            print(f"   [FAIL] Pipeline status failed: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Pipeline status error: {e}")
+        print(f"   [FAIL] Pipeline status error: {e}")
     
     # Final assessment
     print("\n" + "="*60)
-    print("🏁 INSTALLATION VERIFICATION RESULTS")
+    print("[FINISH] INSTALLATION VERIFICATION RESULTS")
     print("="*60)
     
     success_count = sum(results.values())
     total_tests = len(results) - 1  # Exclude overall_success
     
-    print(f"\n📊 TEST RESULTS SUMMARY:")
-    print(f"   ✅ Passed: {success_count}/{total_tests} tests")
-    print(f"   📈 Success rate: {(success_count/total_tests)*100:.1f}%")
+    print(f"\n[DATA] TEST RESULTS SUMMARY:")
+    print(f"   [OK] Passed: {success_count}/{total_tests} tests")
+    print(f"   [CHART] Success rate: {(success_count/total_tests)*100:.1f}%")
     
-    print(f"\n📋 DETAILED RESULTS:")
+    print(f"\n[CLIPBOARD] DETAILED RESULTS:")
     for test_name, passed in results.items():
         if test_name != "overall_success":
-            status = "✅ PASS" if passed else "❌ FAIL"
+            status = "[OK] PASS" if passed else "[FAIL] FAIL"
             print(f"   {test_name}: {status}")
     
     # Overall status
@@ -172,7 +188,7 @@ def verify_memory_pipeline_installation():
         print(f"   5. In a new chat, ask: 'What do you remember about me?'")
         print(f"   6. The AI should remember your name and preferences!")
         
-        print(f"\n🔧 MEMORY PIPELINE FEATURES:")
+        print(f"\n[TOOL] MEMORY PIPELINE FEATURES:")
         print(f"   • Automatic memory injection in conversations")
         print(f"   • Persistent user information across sessions")
         print(f"   • Adaptive learning from user interactions")

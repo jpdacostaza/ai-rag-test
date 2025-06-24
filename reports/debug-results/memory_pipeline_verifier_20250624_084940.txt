@@ -1,0 +1,21 @@
+Debug Tool Report: Memory Pipeline Verifier
+Timestamp: 2025-06-24T08:49:40.973601
+Tool Path: debug/utilities/verify_memory_pipeline.py
+Description: Verifies memory pipeline functionality
+Status: FAILED
+================================================================================
+
+STDERR:
+----------------------------------------
+Traceback (most recent call last):
+  File "E:\Projects\opt\backend\debug\utilities\verify_memory_pipeline.py", line 189, in <module>
+    results = verify_memory_pipeline_installation()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Projects\opt\backend\debug\utilities\verify_memory_pipeline.py", line 17, in verify_memory_pipeline_installation
+    print("\U0001f680 MEMORY PIPELINE INSTALLATION VERIFICATION")
+  File "C:\Users\jdaco\AppData\Local\Programs\Python\Python312\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\U0001f680' in position 0: character maps to <undefined>
+
+

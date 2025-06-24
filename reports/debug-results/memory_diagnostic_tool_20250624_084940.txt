@@ -1,0 +1,15 @@
+Debug Tool Report: Memory Diagnostic Tool
+Timestamp: 2025-06-24T08:49:46.181094
+Tool Path: debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
+Description: Advanced memory diagnostic and troubleshooting
+Status: FAILED
+================================================================================
+
+STDERR:
+----------------------------------------
+Traceback (most recent call last):
+  File "E:\Projects\opt\backend\debug\archived\demo-test\debug-tools\openwebui_memory_diagnostic.py", line 15, in <module>
+    from setup.api_key_manager import APIKeyManager
+ModuleNotFoundError: No module named 'setup'
+
+

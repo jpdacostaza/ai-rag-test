@@ -1,0 +1,29 @@
+DEBUG TOOLS COMPREHENSIVE TEST REPORT
+==================================================
+Timestamp: 2025-06-24T08:55:52.485665
+Total Tools Tested: 8
+[OK] Successful: 3
+[FAIL] Failed: 5
+[ERROR] Errors: 0
+[TIMEOUT] Timeouts: 0
+
+==================================================
+
+DETAILED RESULTS:
+------------------------------
+[OK] Endpoint Validator: SUCCESS
+
+[OK] Debug Endpoints: SUCCESS
+
+[FAIL] Memory Pipeline Verifier: FAILED
+
+[OK] Comprehensive Memory Test: SUCCESS
+
+[FAIL] OpenWebUI Memory Test: FAILED
+
+[FAIL] OpenWebUI Memory Test (Fixed): FAILED
+
+[FAIL] Memory Diagnostic Tool: FAILED
+
+[FAIL] Cross-Chat Memory Test: FAILED
+

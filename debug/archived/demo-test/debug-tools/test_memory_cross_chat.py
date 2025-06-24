@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Windows-compatible debug tool with Unicode fixes applied
+"""
+import sys
+import os
+
+# Set UTF-8 encoding for Windows compatibility
+if sys.platform.startswith('win'):
+    import io
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except AttributeError:
+        pass  # Already wrapped or not available
+
 """
 Quick Memory Cross-Chat Test
 Tests if OpenWebUI memory persists across different chat sessions
@@ -40,7 +56,7 @@ def test_memory_persistence(api_token, base_url):
         "Content-Type": "application/json"
     }
     
-    print("🧠 Testing OpenWebUI Memory Persistence Across Chats")
+    print("[BRAIN] Testing OpenWebUI Memory Persistence Across Chats")
     print("=" * 55)
     
     # Step 1: Add a test memory
@@ -54,12 +70,12 @@ def test_memory_persistence(api_token, base_url):
             json={"content": memory_content}
         )
         if response.status_code == 200:
-            print(f"   ✅ Memory added successfully")
+            print(f"   [OK] Memory added successfully")
         else:
-            print(f"   ❌ Failed to add memory: {response.status_code} - {response.text}")
+            print(f"   [FAIL] Failed to add memory: {response.status_code} - {response.text}")
             return
     except Exception as e:
-        print(f"   ❌ Error adding memory: {e}")
+        print(f"   [FAIL] Error adding memory: {e}")
         return
     
     # Step 2: Test memory query
@@ -74,15 +90,15 @@ def test_memory_persistence(api_token, base_url):
             results = response.json()
             if results and hasattr(results, 'documents') and results.get('documents'):
                 docs = results['documents'][0] if results['documents'] else []
-                print(f"   ✅ Found {len(docs)} relevant memories")
+                print(f"   [OK] Found {len(docs)} relevant memories")
                 for i, doc in enumerate(docs[:2]):
-                    print(f"   📝 Memory {i+1}: {doc[:60]}...")
+                    print(f"   [NOTE] Memory {i+1}: {doc[:60]}...")
             else:
                 print("   ⚠️ Memory query returned no results")
         else:
-            print(f"   ❌ Memory query failed: {response.status_code}")
+            print(f"   [FAIL] Memory query failed: {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Error querying memory: {e}")
+        print(f"   [FAIL] Error querying memory: {e}")
     
     # Step 3: Simulate chat request with memory
     print("\n3. Testing chat with memory injection...")
@@ -107,16 +123,16 @@ def test_memory_persistence(api_token, base_url):
             result = response.json()
             assistant_response = result.get('choices', [{}])[0].get('message', {}).get('content', '')
             if 'debug' in assistant_response.lower() or 'test' in assistant_response.lower():
-                print("   ✅ Memory seems to be working - AI referenced stored context")
+                print("   [OK] Memory seems to be working - AI referenced stored context")
             else:
                 print("   ⚠️ AI response doesn't seem to reference stored memory")
             print(f"   📤 AI Response: {assistant_response[:100]}...")
         else:
-            print(f"   ❌ Chat request failed: {response.status_code} - {response.text}")
+            print(f"   [FAIL] Chat request failed: {response.status_code} - {response.text}")
     except Exception as e:
-        print(f"   ❌ Error testing chat: {e}")
+        print(f"   [FAIL] Error testing chat: {e}")
     
-    print("\n💡 Next Steps:")
+    print("\n[IDEA] Next Steps:")
     print("1. If memory query works but chat doesn't reference it:")
     print("   - Check that memory feature is enabled in OpenWebUI settings")
     print("   - Verify backend logs for memory injection")
@@ -142,12 +158,12 @@ if __name__ == "__main__":
         api_token, base_url = get_api_credentials(user=user, environment=environment)
         
         if not api_token:
-            print("❌ Please provide your OpenWebUI API token")
-            print("💡 Get token from: OpenWebUI Settings → Account → API Keys")
+            print("[FAIL] Please provide your OpenWebUI API token")
+            print("[IDEA] Get token from: OpenWebUI Settings → Account → API Keys")
         else:
             test_memory_persistence(api_token, base_url)
     except KeyboardInterrupt:
-        print("\n❌ Cancelled by user")
+        print("\n[FAIL] Cancelled by user")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"[FAIL] Error: {e}")
         print("Usage: python test_memory_cross_chat.py [--user=username] [--env=environment]")

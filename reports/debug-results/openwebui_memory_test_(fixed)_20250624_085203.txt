@@ -1,0 +1,16 @@
+Debug Tool Report: OpenWebUI Memory Test (Fixed)
+Timestamp: 2025-06-24T08:55:51.828123
+Tool Path: debug/memory-tests/test_openwebui_memory_fixed.py
+Description: Fixed version of OpenWebUI memory testing
+Status: FAILED
+================================================================================
+
+STDOUT:
+----------------------------------------
+=== OpenWebUI Memory Pipeline Integration Test ===
+Test started at: 2025-06-24 08:55:47.740416
+
+1. Testing OpenWebUI accessibility...
+[FAIL] Failed to connect to OpenWebUI: HTTPConnectionPool(host='localhost', port=3000): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x000002B22DBAAF90>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))
+
+

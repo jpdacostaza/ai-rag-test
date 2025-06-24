@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Windows-compatible debug tool with Unicode fixes applied
+"""
+import sys
+import os
+
+# Set UTF-8 encoding for Windows compatibility
+if sys.platform.startswith('win'):
+    import io
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except AttributeError:
+        pass  # Already wrapped or not available
+
 """
 Test script to check if pipeline endpoints can be loaded
 """
@@ -16,12 +32,12 @@ try:
         content = f.read()
     
     ast.parse(content)
-    print("✅ Syntax is valid")
+    print("[OK] Syntax is valid")
     
     # Check if we can import specific functions
     print("2. Testing imports...")
     from main import app
-    print("✅ FastAPI app imported successfully")
+    print("[OK] FastAPI app imported successfully")
       # List all routes
     print("3. Checking registered routes...")
     routes = []
@@ -45,5 +61,5 @@ try:
         print(f"  {route}")
         
 except Exception as e:
-    print(f"❌ Error: {e}")
+    print(f"[FAIL] Error: {e}")
     traceback.print_exc()

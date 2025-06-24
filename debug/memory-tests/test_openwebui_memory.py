@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Windows-compatible debug tool with Unicode fixes applied
+"""
+import sys
+import os
+
+# Set UTF-8 encoding for Windows compatibility
+if sys.platform.startswith('win'):
+    import io
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+    except AttributeError:
+        pass  # Already wrapped or not available
+
 """
 Test script to verify the memory pipeline is working in OpenWebUI.
 This test makes direct API calls to simulate OpenWebUI behavior.
@@ -25,12 +41,12 @@ def test_openwebui_memory_integration():
     try:
         response = requests.get(f"{base_url}", timeout=10)
         if response.status_code == 200:
-            print("✅ OpenWebUI is accessible")
+            print("[OK] OpenWebUI is accessible")
         else:
-            print(f"❌ OpenWebUI returned status: {response.status_code}")
+            print(f"[FAIL] OpenWebUI returned status: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Failed to connect to OpenWebUI: {e}")
+        print(f"[FAIL] Failed to connect to OpenWebUI: {e}")
         return False
     
     # Test 2: Check if backend is accessible
@@ -38,12 +54,12 @@ def test_openwebui_memory_integration():
     try:
         response = requests.get(f"{backend_url}/health", timeout=10)
         if response.status_code == 200:
-            print("✅ Backend is accessible")
+            print("[OK] Backend is accessible")
         else:
-            print(f"❌ Backend returned status: {response.status_code}")
+            print(f"[FAIL] Backend returned status: {response.status_code}")
             return False
     except Exception as e:
-        print(f"❌ Failed to connect to backend: {e}")
+        print(f"[FAIL] Failed to connect to backend: {e}")
         return False
     
     # Test 3: Check memory endpoints
@@ -67,15 +83,15 @@ def test_openwebui_memory_integration():
         if response.status_code == 200:
             result = response.json()
             memories = result.get("memories", [])
-            print("✅ Memory retrieval endpoint works")
+            print("[OK] Memory retrieval endpoint works")
             print(f"   Retrieved {result.get('count', 0)} memories for user {test_user}")
         else:
-            print(f"❌ Memory retrieval failed: {response.status_code}")
+            print(f"[FAIL] Memory retrieval failed: {response.status_code}")
             print(f"Response: {response.text}")
             return False
             
     except Exception as e:
-        print(f"❌ Memory retrieval error: {e}")
+        print(f"[FAIL] Memory retrieval error: {e}")
         return False
     
     # Test 3.5: Test learning endpoint
@@ -95,15 +111,15 @@ def test_openwebui_memory_integration():
         
         if response.status_code == 200:
             result = response.json()
-            print("✅ Learning endpoint works")
+            print("[OK] Learning endpoint works")
             print(f"   Processing result: {result.get('status', 'unknown')}")
         else:
-            print(f"❌ Learning endpoint failed: {response.status_code}")
+            print(f"[FAIL] Learning endpoint failed: {response.status_code}")
             print(f"Response: {response.text}")
             return False
             
     except Exception as e:
-        print(f"❌ Learning endpoint error: {e}")
+        print(f"[FAIL] Learning endpoint error: {e}")
         return False
     
     # Test 4: Test chat with memory injection
@@ -126,22 +142,22 @@ def test_openwebui_memory_integration():
             assistant_message = result.get("choices", [{}])[0].get("message", {}).get("content", "")
             
             if "Alice" in assistant_message or "alice" in assistant_message.lower():
-                print("✅ Memory injection works - AI remembered the name!")
+                print("[OK] Memory injection works - AI remembered the name!")
                 print(f"   AI response: {assistant_message[:100]}...")
             else:
                 print("⚠️  Memory injection may not be working - name not found in response")
                 print(f"   AI response: {assistant_message[:200]}...")
         else:
-            print(f"❌ Chat with memory failed: {response.status_code}")
+            print(f"[FAIL] Chat with memory failed: {response.status_code}")
             print(f"Response: {response.text}")
             return False
             
     except Exception as e:
-        print(f"❌ Chat with memory error: {e}")
+        print(f"[FAIL] Chat with memory error: {e}")
         return False
     
     print("\n=== Memory Pipeline Integration Test Results ===")
-    print("✅ All tests passed! The memory pipeline is working correctly.")
+    print("[OK] All tests passed! The memory pipeline is working correctly.")
     print("\nNext steps:")
     print("1. Open OpenWebUI at: http://localhost:3000")
     print("2. Create an account or login")
