@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Add parent directory to path to import API key manager
 sys.path.append(str(Path(__file__).parent))
-from api_key_manager import APIKeyManager
+from utilities.api_key_manager import APIKeyManager
 
 
 def demo_api_key_setup():
@@ -81,7 +81,7 @@ def demo_api_key_setup():
     print("\n   To set environment variables:")
     print("   🔧 export OPENWEBUI_API_KEY='your-key-here'")
     print("   🔧 export OPENWEBUI_BASE_URL='http://localhost:3000'")
-      print("\n   To use updated diagnostic tools:")
+    print("\n   To use updated diagnostic tools:")
     print("   🔍 python demo-tests/debug-tools/openwebui_memory_diagnostic.py")
     print("   🧠 python demo-tests/debug-tools/test_memory_cross_chat.py")
     

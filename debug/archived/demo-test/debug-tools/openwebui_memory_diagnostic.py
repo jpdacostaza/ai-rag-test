@@ -45,7 +45,7 @@ try:
     from setup.api_key_manager import APIKeyManager
 except ImportError:
     try:
-        from api_key_manager import APIKeyManager
+        from utilities.api_key_manager import APIKeyManager
     except ImportError:
         APIKeyManager = SimpleAPIKeyManager
 

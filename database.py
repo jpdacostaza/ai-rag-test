@@ -1,7 +1,7 @@
 import json
 import logging
 
-from ai_tools import chunk_text
+from utilities.ai_tools import chunk_text
 from cache_manager import CacheManager
 from database_manager import DatabaseManager
 from error_handler import MemoryErrorHandler
@@ -203,7 +203,7 @@ def index_user_document(
     try:
         pass  # Placeholder for try block content
     except ImportError:
-        logging.error("[CHUNKING] Failed to import chunk_text from ai_tools")
+        logging.error("[CHUNKING] Failed to import chunk_text from utilities.ai_tools")
         return False
 
     chunks = chunk_text(text, chunk_size, chunk_overlap)

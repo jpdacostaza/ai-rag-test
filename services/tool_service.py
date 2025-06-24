@@ -5,7 +5,7 @@ import re
 import logging
 from typing import Tuple, Optional, List, Dict, Any
 
-from ai_tools import convert_units, get_current_time, get_weather
+from utilities.ai_tools import convert_units, get_current_time, get_weather
 from error_handler import ToolErrorHandler, safe_execute
 from human_logging import log_service_status
 

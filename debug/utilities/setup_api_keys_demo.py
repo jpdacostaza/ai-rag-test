@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Add parent directory to path to import API key manager
 sys.path.append(str(Path(__file__).parent))
-from api_key_manager import APIKeyManager
+from utilities.api_key_manager import APIKeyManager
 
 
 def demo_api_key_setup():
