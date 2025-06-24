@@ -110,20 +110,20 @@ After configuration, test with:
 
 Or run the diagnostic tools directly:
 ```bash
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
-python demo-tests/debug-tools/test_memory_cross_chat.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/test_memory_cross_chat.py
 ```
 
 ## Advanced Usage
 
 ### User-Specific Keys
 ```bash
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --user=john
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --user=john
 ```
 
 ### Environment-Specific Keys
 ```bash
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --env=production
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --env=production
 ```
 
 ### Programmatic Access

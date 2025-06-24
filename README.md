@@ -451,7 +451,7 @@ This project follows a clean, organized structure that separates concerns and ma
 ├── README.md              # Project documentation
 └── requirements.txt       # Dependencies
 
-📁 demo-tests/ - Development & Testing
+📁 debug/archived/demo-test/ - Development & Testing
 ├── cache-tests/           # Cache system tests
 ├── debug-tools/          # Debugging utilities
 ├── integration-tests/    # Full system tests

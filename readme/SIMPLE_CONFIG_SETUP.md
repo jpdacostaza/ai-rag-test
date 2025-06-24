@@ -40,7 +40,7 @@ Open `openwebui_api_keys.json` and replace the placeholder values:
 
 ### Step 3: Test It
 ```bash
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
 ```
 
 That's it! Your tools will automatically find and use the keys.
@@ -69,13 +69,13 @@ That's it! Your tools will automatically find and use the keys.
 
 ```bash
 # Use default key
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
 
 # Use john's key  
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --user=john
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --user=john
 
 # Use production environment key
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --env=production
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --env=production
 ```
 
 No complex setup needed - just edit the JSON file and you're done! 🎉

@@ -23,13 +23,13 @@ The diagnostic and test tools now automatically use stored API keys:
 
 ```bash
 # Use default key
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
 
 # Use specific user's key
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --user=john
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --user=john
 
 # Use environment-specific key
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py --env=production
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --env=production
 ```
 
 ## API Key Storage Options
@@ -145,10 +145,10 @@ Both diagnostic tools support automatic key lookup:
 
 ```bash
 # Memory diagnostic
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py [--user=username] [--env=environment]
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py [--user=username] [--env=environment]
 
 # Cross-chat memory test
-python demo-tests/debug-tools/test_memory_cross_chat.py [--user=username] [--env=environment]
+python debug/archived/demo-test/debug-tools/test_memory_cross_chat.py [--user=username] [--env=environment]
 ```
 
 ## File Structure
@@ -159,7 +159,7 @@ backend/
 ├── openwebui_api_keys.json         # Your keys (ignored by git)
 ├── openwebui_api_keys.example.json # Example configuration
 ├── .gitignore                      # Updated with key protection
-└── demo-tests/debug-tools/
+└── debug/archived/demo-test/debug-tools/
     ├── openwebui_memory_diagnostic.py  # Updated diagnostic tool
     └── test_memory_cross_chat.py        # Updated test tool
 ```
@@ -214,7 +214,7 @@ If you were previously entering keys manually:
 
 1. Run the interactive setup: `python api_key_manager.py`
 2. Add your existing keys using option 1 (default) or 2 (user-specific)
-3. Test with: `python demo-tests/debug-tools/openwebui_memory_diagnostic.py`
+3. Test with: `python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py`
 4. The tools will now use stored keys automatically
 
 ## API Reference

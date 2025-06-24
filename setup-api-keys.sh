@@ -129,8 +129,8 @@ check_updated_tools() {
     echo -e "\n3. Checking updated diagnostic tools..."
     
     local tools=(
-        "debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py"
-        "debug/demo-tests/debug-tools/test_memory_cross_chat.py"
+        "debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py"
+        "debug/archived/demo-test/debug-tools/test_memory_cross_chat.py"
     )
     
     for tool in "${tools[@]}"; do
@@ -164,16 +164,16 @@ show_setup_options() {
 show_usage_examples() {
     echo -e "\n5. Usage examples:"
     echo -e "   ${INFO} Run diagnostic with auto-detected keys:"
-    echo -e "      ${CYAN}python3 debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py${NC}"
+    echo -e "      ${CYAN}python3 debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py${NC}"
     
     echo -e "\n   ${INFO} Run with specific user:"
-    echo -e "      ${CYAN}python3 debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py --user=john${NC}"
+    echo -e "      ${CYAN}python3 debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --user=john${NC}"
     
     echo -e "\n   ${INFO} Run with specific environment:"
-    echo -e "      ${CYAN}python3 debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py --env=production${NC}"
+    echo -e "      ${CYAN}python3 debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --env=production${NC}"
     
     echo -e "\n   ${INFO} Test memory across chat sessions:"
-    echo -e "      ${CYAN}python3 debug/demo-tests/debug-tools/test_memory_cross_chat.py${NC}"
+    echo -e "      ${CYAN}python3 debug/archived/demo-test/debug-tools/test_memory_cross_chat.py${NC}"
 }
 
 interactive_setup() {
@@ -219,9 +219,9 @@ quick_env_setup() {
 test_setup() {
     echo -e "\n${ROCKET} Testing current setup..."
     
-    if [[ -f "$SCRIPT_DIR/debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py" ]]; then
+    if [[ -f "$SCRIPT_DIR/debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py" ]]; then
         echo -e "${INFO} Running diagnostic tool..."
-        python3 "$SCRIPT_DIR/debug/demo-tests/debug-tools/openwebui_memory_diagnostic.py" || \
+        python3 "$SCRIPT_DIR/debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py" || \
             print_status "Diagnostic tool failed. Check your API keys and OpenWebUI connection." "error"
     else
         print_status "Diagnostic tool not found." "error"

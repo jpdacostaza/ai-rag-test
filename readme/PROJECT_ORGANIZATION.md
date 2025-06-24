@@ -25,7 +25,7 @@ backend/
 │   ├── PROJECT_ORGANIZATION.md         # This file
 │   └── [50+ other .md files]           # All project documentation
 │
-├── demo-tests/                         # 🧪 All demos and tests
+├── debug/archived/demo-test/                         # 🧪 All demos and tests
 │   ├── debug-tools/
 │   │   ├── openwebui_memory_diagnostic.py  # Updated with new paths
 │   │   ├── test_memory_cross_chat.py       # Updated with new paths
@@ -55,14 +55,14 @@ python quick-setup.py
 #### **From Project Root:**
 ```bash
 # Still works with updated paths
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
-python demo-tests/debug-tools/test_memory_cross_chat.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/test_memory_cross_chat.py
 ```
 
 ### **🔄 Updated File References:**
 
 #### **Import Paths Updated:**
-- ✅ `demo-tests/debug-tools/*.py` now import `from setup.api_key_manager import APIKeyManager`
+- ✅ `debug/archived/demo-test/debug-tools/*.py` now import `from setup.api_key_manager import APIKeyManager`
 - ✅ Config file references updated to `setup/openwebui_api_keys.json`
 - ✅ Shell scripts use relative paths `../demo-tests/debug-tools/`
 

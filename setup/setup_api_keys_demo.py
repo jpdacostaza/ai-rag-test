@@ -71,8 +71,7 @@ def demo_api_key_setup():
             key_preview = credentials['api_key'][-8:] if len(credentials['api_key']) > 8 else 'short-key'
             print(f"      ✅ Found key from {source}: ...{key_preview}")
             print(f"      🌐 Base URL: {credentials['base_url']}")
-        else:
-            print(f"      ❌ No key found for this scenario")
+        else:            print(f"      ❌ No key found for this scenario")
     
     print("\n4. Setup options...")
     print("   To add keys interactively:")
@@ -81,9 +80,10 @@ def demo_api_key_setup():
     print("\n   To set environment variables:")
     print("   🔧 export OPENWEBUI_API_KEY='your-key-here'")
     print("   🔧 export OPENWEBUI_BASE_URL='http://localhost:3000'")
-      print("\n   To use updated diagnostic tools:")
-    print("   🔍 python demo-tests/debug-tools/openwebui_memory_diagnostic.py")
-    print("   🧠 python demo-tests/debug-tools/test_memory_cross_chat.py")
+    
+    print("\n   To use updated diagnostic tools:")
+    print("   🔍 python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py")
+    print("   🧠 python debug/archived/demo-test/debug-tools/test_memory_cross_chat.py")
     
     print("\n5. Shell script alternatives:")
     shell_scripts = [
@@ -112,13 +112,14 @@ def demo_api_key_setup():
         ("setup-api-keys.sh", "Bash setup script"),
         (".gitignore", "Updated with key protection"),
         ("demo-tests/debug-tools/openwebui_memory_diagnostic.py", "Updated diagnostic tool"),
-        ("demo-tests/debug-tools/test_memory_cross_chat.py", "Updated test tool"),
-    ]
+        ("demo-tests/debug-tools/test_memory_cross_chat.py", "Updated test tool"),    ]
     
     for filename, description in files_info:
         file_path = Path(filename)
         if filename.startswith("demo-tests/"):
-            file_path = Path(__file__).parent / filename
+            # demo-tests is now at debug/archived/demo-test/
+            corrected_path = filename.replace("demo-tests/", "debug/archived/demo-test/")
+            file_path = Path(__file__).parent.parent / corrected_path
         else:
             file_path = Path(__file__).parent / filename
             

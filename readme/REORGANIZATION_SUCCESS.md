@@ -10,7 +10,7 @@ Successfully reorganized your entire OpenWebUI project into a clean, professiona
 backend/
 ├── setup/           # 🔧 All setup and configuration files
 ├── readme/          # 📚 All documentation (.md files)  
-├── demo-tests/      # 🧪 All demos and tests
+├── debug/archived/demo-test/      # 🧪 All demos and tests
 └── [core files]     # Main application code
 ```
 
@@ -33,7 +33,7 @@ backend/
 - ✅ `SIMPLE_CONFIG_SETUP.md` - Quick config guide
 - ✅ `PROJECT_ORGANIZATION.md` - Organization summary
 
-#### **Demo/Tests (`demo-tests/`):**
+#### **Demo/Tests (`debug/archived/demo-test/`):**
 - ✅ All test and demo files already organized
 - ✅ Updated import paths in diagnostic tools
 - ✅ Maintained existing structure
@@ -41,13 +41,13 @@ backend/
 ### **🔧 Code Updates Applied:**
 
 #### **Import Paths Fixed:**
-- ✅ `demo-tests/debug-tools/*.py` now use `from setup.api_key_manager import`
+- ✅ `debug/archived/demo-test/debug-tools/*.py` now use `from setup.api_key_manager import`
 - ✅ Config file paths updated to `setup/openwebui_api_keys.json`
 - ✅ Shell scripts use correct relative paths
 
 #### **Path References Updated:**
-- ✅ PowerShell script: `../demo-tests/debug-tools/`
-- ✅ Bash script: `../demo-tests/debug-tools/`
+- ✅ PowerShell script: `../debug/archived/demo-test/debug-tools/`
+- ✅ Bash script: `../debug/archived/demo-test/debug-tools/`
 - ✅ Python imports: `setup.api_key_manager`
 
 ### **✅ Verification Tests Passed:**
@@ -62,7 +62,7 @@ backend/
 
 2. **Diagnostic Tools Work:** ✅
    ```bash
-   python demo-tests/debug-tools/openwebui_memory_diagnostic.py  # ✅
+   python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py  # ✅
    ```
 
 3. **Auto API Key Detection:** ✅
@@ -83,7 +83,7 @@ backend/
 #### **📋 Better Organization:**
 - Setup files in `setup/`
 - Documentation in `readme/`  
-- Tests/demos in `demo-tests/`
+- Tests/demos in `debug/archived/demo-test/`
 - Core app files in root
 
 #### **🔍 Easier Navigation:**
@@ -116,7 +116,7 @@ notepad openwebui_api_keys.json    # Edit your API keys
 #### **Run Diagnostics:**
 ```bash
 # From project root - still works!
-python demo-tests/debug-tools/openwebui_memory_diagnostic.py
+python debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py
 ```
 
 #### **Read Documentation:**
