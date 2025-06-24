@@ -68,13 +68,13 @@ async def _spinner_log(message: str, duration: float = 2, interval: float = 0.2)
     sys.stdout.write("\r" + " " * (len(message) + 2) + "\r")
     sys.stdout.flush()
 
-def _print_startup_summary() -> None:
+async def _print_startup_summary() -> None:
     """Print a visually distinct summary banner with health status of all services."""
-    health = get_database_health()
+    health = await get_database_health()
     # Use ASCII equivalents instead of Unicode emojis for better compatibility
-    redis_status = "OK" if health['redis']['available'] else "FAIL"
-    chromadb_status = "OK" if health['chromadb']['available'] else "FAIL"
-    embeddings_status = "OK" if health['embeddings']['available'] else "FAIL"
+    redis_status = "OK" if health['redis']['status'] == 'healthy' else "FAIL"
+    chromadb_status = "OK" if health['chromadb']['status'] == 'healthy' else "FAIL"
+    embeddings_status = "OK" if health['embeddings']['status'] == 'healthy' else "FAIL"
     
     lines = [
         "\n================= SERVICE STATUS SUMMARY =================",
@@ -230,7 +230,7 @@ async def startup_event(app) -> None:
 
         # Final summary banner
         await _spinner_log("[STARTUP] Finalizing startup", 1)
-        _print_startup_summary()
+        await _print_startup_summary()
         log_service_status("STARTUP", "ready", "FastAPI LLM Backend startup completed successfully!")
         
     except Exception as e:

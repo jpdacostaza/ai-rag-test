@@ -55,7 +55,7 @@ async def root():
 async def health_check():
     """Health check endpoint that includes database status and a human-readable summary."""
     print("[CONSOLE DEBUG] Health endpoint called!")
-    health_status = get_database_health()
+    health_status = await get_database_health()
 
     # Add cache information
     cache_manager = get_cache_manager()
@@ -64,9 +64,9 @@ async def health_check():
         cache_info = cache_manager.get_cache_stats()
 
     services = [
-        ("Redis", health_status["redis"]["available"]),
-        ("ChromaDB", health_status["chromadb"]["available"]),
-        ("Embeddings", health_status["embeddings"]["available"]),
+        ("Redis", health_status["redis"]["status"] == "healthy"),
+        ("ChromaDB", health_status["chromadb"]["status"] == "healthy"),
+        ("Embeddings", health_status["embeddings"]["status"] == "healthy"),
     ]
     healthy = sum(1 for _, ok in services if ok)
     total = len(services)
