@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Make startup script executable
-RUN chmod +x startup.sh
+RUN chmod +x scripts/startup.sh
 
 # Create storage and cache directories with proper permissions
 RUN mkdir -p ./storage && \
@@ -54,13 +54,10 @@ RUN mkdir -p ./storage && \
     chmod -R 777 /opt/cache && \
     chmod -R 755 /home/llama
 
-# Make startup scripts executable
-RUN chmod +x /opt/backend/startup.sh
-
 # Switch to llama user
 USER llama
 
 EXPOSE 8001
 
 # Use the startup script for backend initialization
-CMD ["./startup.sh"]
+CMD ["./scripts/startup.sh"]

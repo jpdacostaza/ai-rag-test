@@ -1,13 +1,15 @@
 """
 Standalone pipeline routes for OpenWebUI compatibility
 """
+import json
+import time
 from fastapi import APIRouter, Body, Depends, HTTPException
 from typing import Optional
 from datetime import datetime
 from human_logging import log_service_status
 from error_handler import log_error
 from database_manager import db_manager
-from database import index_document_chunks, retrieve_user_memory, get_embedding
+from database import index_document_chunks, retrieve_user_memory, get_embedding, index_user_document
 
 # Create the router
 router = APIRouter()
@@ -52,14 +54,29 @@ async def pipeline_inlet(
 ):
     """Pipeline inlet - inject memory context into messages before LLM processing"""
     try:
-        # Extract user information
-        user_id = request.get("user", {}).get("id", "default")
+        # DEBUG: Log the full request structure to understand OpenWebUI's format
+        log_service_status("PIPELINE_DEBUG", "info", f"Full request structure: {json.dumps(request, indent=2)}")
+        
+        # Extract user information - try multiple possible formats
+        user_id = None
+        if "user" in request and isinstance(request["user"], dict):
+            user_id = request["user"].get("id")
+        elif "user" in request and isinstance(request["user"], str):
+            user_id = request["user"]
+        elif "user_id" in request:
+            user_id = request["user_id"]
+        
+        # If no user found, use default
+        if not user_id:
+            user_id = "default"
+            
+        log_service_status("PIPELINE_DEBUG", "info", f"Extracted user_id: {user_id}")
+        
         messages = request.get("messages", [])
         
         if not messages:
             return request
-            
-        # Get the latest user message
+              # Get the latest user message
         latest_message = None
         for msg in reversed(messages):
             if msg.get("role") == "user":
@@ -68,9 +85,35 @@ async def pipeline_inlet(
         
         if not latest_message or not latest_message.get("content"):
             return request
-        
+            
         user_query = latest_message["content"]
         log_service_status("PIPELINE_INLET", "info", f"Processing query for user {user_id}")
+        
+        # Check if user is sharing personal information and store it as memory
+        memory_keywords = [
+            "my name is", "i am", "i'm", "call me", "i'm called",
+            "i live in", "i work", "i study", "my job", "i work as",
+            "my favorite", "i like", "i love", "i hate", "i prefer",
+            "remember that", "don't forget", "important:",
+            "my birthday", "my age", "years old", "from", "born in",
+            "i'm from", "i come from", "my hobby", "my hobbies"
+        ]
+          # Check if this message contains personal information
+        user_query_lower = user_query.lower()
+        contains_personal_info = any(keyword in user_query_lower for keyword in memory_keywords)
+        
+        if contains_personal_info and user_id != "default":
+            # Store this as a memory for the user
+            try:
+                import time
+                doc_id = f"personal_info_{user_id}_{int(time.time())}"
+                chunks_stored = index_user_document(db_manager, user_id, doc_id, "Personal Information", user_query)
+                if chunks_stored:
+                    log_service_status("PIPELINE_MEMORY", "info", f"Stored personal info as memory for user {user_id}")
+                else:
+                    log_service_status("PIPELINE_MEMORY", "warning", f"Failed to store memory for user {user_id}")
+            except Exception as e:
+                log_service_status("PIPELINE_MEMORY", "error", f"Error storing memory for user {user_id}: {str(e)}")
         
         # Retrieve relevant memories
         query_embedding = get_embedding(db_manager, user_query)
@@ -92,10 +135,9 @@ async def pipeline_inlet(
             else:
                 log_service_status("PIPELINE_INLET", "info", f"No memories found for user {user_id}")
         
-        return request
-        
+        return request        
     except Exception as e:
-        log_error(e, "pipeline_inlet", user_id, "pipeline")
+        log_error(e, "pipeline_inlet", user_id or "unknown", "pipeline")
         # Return original request if enhancement fails
         return request
 

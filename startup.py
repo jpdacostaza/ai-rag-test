@@ -10,7 +10,7 @@ import httpx
 from config import (
     DEFAULT_MODEL, OLLAMA_BASE_URL, log_system_info, log_environment_variables
 )
-from cpu_enforcer import verify_cpu_only_setup, log_cpu_verification_results
+from utilities.cpu_enforcer import verify_cpu_only_setup, log_cpu_verification_results
 from database_manager import db_manager, get_database_health
 from human_logging import log_service_status
 from model_manager import ensure_model_available

@@ -129,6 +129,8 @@ services:
       - ./services:/opt/backend/services
       - ./routes:/opt/backend/routes
       - ./handlers:/opt/backend/handlers
+      - ./pipelines:/opt/backend/pipelines
+      - ./utilities:/opt/backend/utilities
       - ./persona.json:/opt/backend/persona.json
       # For development only: mount the whole codebase for live reload (do not use in production)
       # - ./:/opt/backend

@@ -11,7 +11,7 @@ from fastapi import FastAPI, Request, Body, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
 
 # CRITICAL: Import and enforce CPU-only mode BEFORE any ML libraries
-from utilities.cpu_enforcer import enforce_cpu_only_mode
+from cpu_enforcer import enforce_cpu_only_mode
 
 # Enforce CPU-only mode immediately
 enforce_cpu_only_mode()
@@ -32,7 +32,7 @@ from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
 from adaptive_learning import adaptive_learning_system
-from pipelines.pipelines_v1_routes import router as pipelines_v1_router
+from pipelines_v1_routes import router as pipelines_v1_router
 
 # Import database and other dependencies
 from database_manager import (
@@ -62,7 +62,7 @@ app.include_router(feedback_router)
 app.include_router(pipelines_v1_router)
 
 # Simple API key verification for pipelines
-def verify_api_key(api_key: str = ""):
+def verify_api_key(api_key: str = None):
     """Simple API key verification - implement proper security as needed"""
     return api_key or "development"
 

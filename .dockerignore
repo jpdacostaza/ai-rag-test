@@ -52,8 +52,9 @@ README.md
 *.md
 
 # Scripts that shouldn't be in container
-scripts/
-*.ps1
+scripts/*.ps1
+scripts/*.sh
+!scripts/startup.sh
 # Note: startup.sh is needed for the container
 
 # Temporary files
