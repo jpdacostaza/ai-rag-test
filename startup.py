@@ -17,6 +17,7 @@ from config import (
     DEFAULT_MODEL, OLLAMA_BASE_URL, log_system_info, log_environment_variables
 )
 from utilities.cpu_enforcer import verify_cpu_only_setup, log_cpu_verification_results
+from utilities.alert_manager import get_alert_manager
 from database_manager import db_manager, get_database_health
 from human_logging import log_service_status
 from model_manager import ensure_model_available
@@ -115,6 +116,14 @@ async def startup_event(app) -> None:
         
         log_system_info()
         log_environment_variables()
+
+        # Initialize alert manager
+        log_service_status("STARTUP", "starting", "Initializing alert management system...")
+        try:
+            alert_manager = get_alert_manager()
+            log_service_status("STARTUP", "ready", "Alert management system initialized successfully")
+        except Exception as e:
+            log_service_status("STARTUP", "error", f"Alert manager initialization failed: {e}")
 
         # Storage
         log_service_status("STARTUP", "starting", "Initializing storage structure...")

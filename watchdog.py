@@ -257,7 +257,7 @@ class ChromaDBMonitor(SubsystemMonitor):
                 try:
                     collections = await asyncio.to_thread(client.list_collections)
                     collection_count = len(collections)
-                except Exception:
+                except Exception as e:
                     collection_count = "unknown"
 
                 metadata = {
@@ -348,7 +348,7 @@ class OllamaMonitor(SubsystemMonitor):
                     },
                 )
             else:
-                raise Exception("HTTP {response.status_code}: {response.text}")
+                raise Exception(f"HTTP {response.status_code}: {response.text}")
 
         except Exception as e:
             self._record_failure()
@@ -491,8 +491,8 @@ class SystemWatchdog:
             # Log alerts if needed
             if monitor.should_alert():
                 self.logger.error(
-                    "ALERT: {monitor.name} has failed {monitor.consecutive_failures} "
-                    "consecutive health checks. Last error: {results[monitor.name].error_message}"
+                    f"ALERT: {monitor.name} has failed {monitor.consecutive_failures} "
+                    f"consecutive health checks. Last error: {results[monitor.name].error_message}"
                 )
                 monitor.alert_sent = True
 
@@ -569,7 +569,7 @@ class SystemWatchdog:
         # Initial startup delay to let services initialize
         if self.config.startup_delay > 0:
             self.logger.info(
-                "Waiting {self.config.startup_delay} seconds for services to initialize..."
+                f"Waiting {self.config.startup_delay} seconds for services to initialize..."
             )
             await asyncio.sleep(self.config.startup_delay)
 
@@ -589,8 +589,8 @@ class SystemWatchdog:
                 next_interval = self._get_adaptive_check_interval()
 
                 self.logger.info(
-                    "Health check completed: {healthy_count}/{total_count} services healthy "
-                    "(took {check_duration:.2f}s, next check in {next_interval}s)"
+                    f"Health check completed: {healthy_count}/{total_count} services healthy "
+                    f"(took {check_duration:.2f}s, next check in {next_interval}s)"
                 )
 
                 # Store metrics for monitoring
@@ -599,8 +599,8 @@ class SystemWatchdog:
                 # Adaptive sleep based on system health
                 await asyncio.sleep(next_interval)
 
-            except Exception:
-                self.logger.error("Error during monitoring cycle: {e}")
+            except Exception as e:
+                self.logger.error(f"Error during monitoring cycle: {e}")
                 await asyncio.sleep(
                     self.config.check_interval
                 )  # Fallback to normal interval on error

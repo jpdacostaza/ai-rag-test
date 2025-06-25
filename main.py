@@ -40,8 +40,11 @@ from pipelines.pipelines_v1_routes import router as pipelines_v1_router
 
 # Import database and other dependencies
 from database_manager import (
-    db_manager, get_cache, set_cache, get_chat_history, 
-    store_chat_history, get_embedding, index_user_document, retrieve_user_memory
+    db_manager, get_embedding, index_user_document, retrieve_user_memory
+)
+from database_manager import (
+    get_cache, set_cache, get_chat_history, store_chat_history, 
+    get_database_health, db_manager
 )
 from error_handler import CacheErrorHandler, safe_execute, log_error
 
@@ -199,16 +202,13 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 log_service_status("STREAM", "info", f"Starting stream for session {session_id}")
                 
                 # --- Retrieve chat history and memory for streaming ---
-                def get_history():
-                    return get_chat_history(user_id, limit=10)
-
-                history = safe_execute(
-                    get_history,
-                    fallback_value=[],
-                    error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+                try:
+                    history = await get_chat_history(f"user:{user_id}", limit=10)
+                except Exception as e:
+                    CacheErrorHandler.handle_cache_error(
                         e, "get_history", f"history:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
-                    ),
-                )
+                    )
+                    history = []
 
                 # Build enhanced message format with chat history for streaming
                 stream_messages = []
@@ -272,15 +272,21 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 
                 # Store the complete streaming response in chat history
                 if full_response:
-                    def store_streaming_chat():
-                        store_chat_history(user_id, user_message, str(full_response))
+                    async def store_streaming_chat():
+                        try:
+                            await store_chat_history(
+                                f"user:{user_id}",
+                                [
+                                    {"role": "user", "content": user_message, "timestamp": datetime.fromtimestamp(start_time).isoformat()},
+                                    {"role": "assistant", "content": str(full_response), "timestamp": datetime.utcnow().isoformat()}
+                                ]
+                            )
+                        except Exception as e:
+                            CacheErrorHandler.handle_cache_error(
+                                e, "store_streaming_chat", f"chat:{user_id}", user_id, session_id
+                            )
                     
-                    safe_execute(
-                        store_streaming_chat,
-                        error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                            e, "store_streaming_chat", f"chat:{user_id}", user_id, session_id
-                        ),
-                    )
+                    await store_streaming_chat()
                     log_service_status("STREAM", "info", f"Stored streaming response for user {user_id}: {len(full_response)} chars")
                 
                 # End of stream
@@ -327,16 +333,13 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         # Non-streaming response - call LLM directly with specified model
         try:
             # --- Retrieve chat history and memory for OpenWebUI integration ---
-            def get_history():
-                return get_chat_history(user_id, limit=10)
-
-            history = safe_execute(
-                get_history,
-                fallback_value=[],
-                error_handler=lambda e: CacheErrorHandler.handle_cache_error(
+            try:
+                history = await get_chat_history(f"user:{user_id}", limit=10)
+            except Exception as e:
+                CacheErrorHandler.handle_cache_error(
                     e, "get_history", f"history:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
-                ),
-            )
+                )
+                history = []
 
             # Build enhanced message format with chat history
             llm_messages = []
@@ -373,15 +376,21 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             
             # Store chat history using the existing logic but with the actual response
             if llm_response:
-                def store_chat():
-                    store_chat_history(user_id, user_message, str(llm_response))
+                async def store_chat():
+                    try:
+                        await store_chat_history(
+                            f"user:{user_id}",
+                            [
+                                {"role": "user", "content": user_message, "timestamp": datetime.fromtimestamp(start_time).isoformat()},
+                                {"role": "assistant", "content": str(llm_response), "timestamp": datetime.utcnow().isoformat()}
+                            ]
+                        )
+                    except Exception as e:
+                        CacheErrorHandler.handle_cache_error(
+                            e, "store_chat", f"chat:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
+                        )
                 
-                safe_execute(
-                    store_chat,
-                    error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                        e, "store_chat", f"chat:{user_id}", user_id, getattr(request.state, 'request_id', 'unknown')
-                    ),
-                )
+                await store_chat()
             
             end_time = time.time()
             response_time = (end_time - start_time) * 1000

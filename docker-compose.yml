@@ -26,7 +26,7 @@ services:
     image: chromadb/chroma:latest
     container_name: backend-chroma
     ports:
-      - "8002:8000" # Host 8002 -> Container 8000 (ChromaDB)
+      - "8002:8000" # Host 8002 -> Container 8000 (chromadb)
     restart: always
     volumes:
       - ./storage/chroma:/chroma
@@ -110,7 +110,7 @@ services:
       - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
       - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
       - HF_HOME=/opt/internal_cache/sentence_transformers
-      # ChromaDB ONNX cache location
+      # chromadb ONNX cache location
       - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9099", "--log-level", "debug"]
     healthcheck:

@@ -2,7 +2,7 @@
 Advanced Memory Pipeline for OpenWebUI
 =====================================
 
-This pipeline integrates with the backend's adaptive learning and ChromaDB memory systems
+This pipeline integrates with the backend's adaptive learning and chromadb memory systems
 to provide contextual memory injection and learning capabilities.
 
 Installation:
@@ -121,7 +121,7 @@ class Pipeline:
             return False
     
     async def get_user_memory(self, user_id: str, query: str) -> List[Dict[str, Any]]:
-        """Retrieve relevant user memories from backend ChromaDB"""
+        """Retrieve relevant user memories from backend chromadb"""
         if not self.valves.enable_memory_retrieval:
             return []
             

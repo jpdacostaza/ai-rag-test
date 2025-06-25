@@ -15,10 +15,16 @@ from models import HealthResponse, DetailedHealthResponse
 
 health_router = APIRouter()
 
-# Stub functions for missing imports
+# Import the get_cache function from database_manager
+from database_manager import get_cache
+
 def get_cache_manager():
-    """Stub function to get cache manager."""
-    return None
+    """Get cache manager from database manager."""
+    try:
+        return get_cache()
+    except Exception as e:
+        log_service_status("cache", "error", f"Failed to get cache manager: {str(e)}")
+        return None
 
 class MockWatchdog:
     """Mock watchdog class."""
@@ -61,7 +67,7 @@ async def health_check():
     cache_manager = get_cache_manager()
     cache_info = {}
     if cache_manager:
-        cache_info = cache_manager.get_cache_stats()
+        cache_info = cache_manager.get_stats()
 
     services = [
         ("Redis", health_status["redis"]["status"] == "healthy"),

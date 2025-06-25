@@ -3,6 +3,7 @@ Chat endpoints and logic.
 """
 import logging
 import re
+import time
 import uuid
 from datetime import datetime
 
@@ -10,8 +11,10 @@ from fastapi import APIRouter, Request, HTTPException
 
 from config import DEFAULT_SYSTEM_PROMPT
 from database_manager import (
-    db_manager, get_cache, set_cache, get_chat_history, 
-    store_chat_history, get_embedding, index_user_document, retrieve_user_memory
+    db_manager, get_embedding, get_cache, set_cache
+)
+from database import (
+    get_chat_history, store_chat_history, retrieve_user_memory, index_user_document
 )
 from error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
 from human_logging import log_service_status
@@ -23,8 +26,11 @@ chat_router = APIRouter()
 
 # Stub functions
 def get_cache_manager():
-    """Stub function to get cache manager."""
-    return None
+    """Get cache manager from database_manager."""
+    try:
+        return get_cache()
+    except Exception:
+        return None
 
 def should_store_as_memory(message: str, response: str) -> bool:
     """Determine if a conversation should be stored as long-term memory."""
@@ -104,14 +110,15 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             is_time_query = True
         
         if not is_time_query:
-            cached = get_cache(db_manager, cache_key)
+            cache_manager = get_cache()
+            cached = cache_manager.get(cache_key) if cache_manager else None
             if cached and str(cached).strip():  # Only return non-empty cached responses
                 logging.info(f"[CACHE] Returning cached response for user {user_id}")
                 return ChatResponse(response=str(cached))
 
         # --- Retrieve chat history and memory ---
         def get_history():
-            return get_chat_history(user_id, limit=10)
+            return get_chat_history(db_manager, user_id, max_history=10)
 
         history = safe_execute(
             get_history,
@@ -144,7 +151,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 logging.info(f"[DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
                 
                 memory_chunks = (
-                    retrieve_user_memory(user_id, user_message, limit=3)
+                    retrieve_user_memory(db_manager, user_id, query_emb, n_results=3)
                     if query_emb is not None
                     else []
                 )
@@ -153,10 +160,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 # Compose LLM context with explicit instructions for plain text responses
                 system_prompt = DEFAULT_SYSTEM_PROMPT
 
-                # Check for system prompt changes and invalidate cache if needed
+                # Check for system prompt changes (simplified - just log for now)
                 cache_manager = get_cache_manager()
                 if cache_manager:
-                    cache_manager.check_system_prompt_change(system_prompt)
+                    logging.debug(f"[CACHE] Using cache manager with system prompt")
                 
                 # Ensure memory_chunks is a list and handle None values
                 memory_chunks = memory_chunks or []
@@ -217,7 +224,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 
         # --- Store chat in Redis ---
         def store_chat():
-            store_chat_history(user_id, user_message, str(user_response))
+            message_data = {
+                "user_message": user_message,
+                "assistant_response": str(user_response),
+                "timestamp": time.time()
+            }
+            store_chat_history(db_manager, user_id, message_data)
 
         safe_execute(
             store_chat,
@@ -235,7 +247,8 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             def store_memory():
                 # Create a memory document from the conversation
                 memory_text = f"User: {user_message}\nAssistant: {str(user_response)}"
-                chunks_stored = index_user_document(user_id, memory_text)
+                doc_id = f"chat_{user_id}_{int(time.time())}"
+                chunks_stored = index_user_document(db_manager, user_id, doc_id, "chat_conversation", memory_text)
                 logging.info(f"[MEMORY] Stored conversation as memory ({chunks_stored} chunks) for user {user_id}")
                 debug_info.append(f"[MEMORY] Stored as long-term memory ({chunks_stored} chunks)")
 
@@ -251,14 +264,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         # --- Cache the response (after generating user_response) ---
         def cache_response():
             if not is_time_query and user_response and str(user_response).strip():  # Only cache non-empty responses
-                set_cache(
-                    db_manager,
-                    cache_key,
-                    str(user_response),
-                    expire=600
-                )
-                logging.info(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
-                debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
+                success = set_cache(cache_key, str(user_response))
+                if success:
+                    logging.info(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
+                    debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
+                else:
+                    logging.warning(f"[CACHE] Failed to cache response for user {user_id}")
             else:
                 if is_time_query:
                     logging.info("[CACHE] Skipping cache for time-sensitive query")

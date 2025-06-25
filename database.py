@@ -10,7 +10,7 @@ from error_handler import safe_execute
 
 """
 Database management module for the FastAPI LLM backend.
-Handles Redis (caching & chat history) and ChromaDB (semantic memory) operations.
+Handles Redis (caching & chat history) and chromadb (semantic memory) operations.
 """
 
 
@@ -39,7 +39,7 @@ def get_redis_client():
 
 
 def get_chroma_collection():
-    """Get ChromaDB collection (backward compatibility)."""
+    """Get chromadb collection (backward compatibility)."""
     return db_manager.chroma_collection
 
 
@@ -145,11 +145,11 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
 
 
 def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
-    """Embed and index a list of pre-chunked text documents for a user in ChromaDB."""
+    """Embed and index a list of pre-chunked text documents for a user in chromadb."""
 
     def _index_op():
         if not db_manager.is_chromadb_available():
-            logging.warning("[CHROMADB] ChromaDB not available, skipping document indexing")
+            logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
             return False
 
         if not db_manager.is_embeddings_available():
@@ -181,7 +181,7 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
             )
             return True
         except Exception as e:
-            logging.error(f"Failed to store chunks in ChromaDB for doc_id={doc_id}: {e}")
+            logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
             raise e
 
     return safe_execute(
@@ -197,7 +197,7 @@ def index_user_document(
     db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""
 ):
     """
-    Chunk, embed, and index a document for a specific user in ChromaDB.
+    Chunk, embed, and index a document for a specific user in chromadb.
     Note: This is a convenience wrapper. For pre-chunked data, use index_document_chunks."""
     
     try:
@@ -215,14 +215,14 @@ def index_user_document(
 
 
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
-    """Retrieve relevant memory chunks for a user from ChromaDB."""
+    """Retrieve relevant memory chunks for a user from chromadb."""
     
     # Add logging for memory retrieval
     logging.debug(f"retrieve_user_memory called with user_id={user_id}")
     
     def _retrieve_memory():
         if not db_manager.is_chromadb_available():
-            logging.warning("[CHROMADB] ChromaDB not available, returning empty memory")
+            logging.warning("[CHROMADB] chromadb not available, returning empty memory")
             return []
 
         # Enhanced logging for debugging
@@ -248,7 +248,7 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
             include=["documents", "metadatas", "distances"],
         )
 
-        logging.info(f"[MEMORY] 📊 ChromaDB query results: {results}")
+        logging.info(f"[MEMORY] 📊 chromadb query results: {results}")
 
         docs = results.get("documents", [[]])[0] if results else []
         metadatas = results.get("metadatas", [[]])[0] if results else []

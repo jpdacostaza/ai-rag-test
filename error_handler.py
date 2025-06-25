@@ -177,7 +177,7 @@ class CacheErrorHandler:
 
 
 class MemoryErrorHandler:
-    """Specialized error handler for memory/ChromaDB operations."""
+    """Specialized error handler for memory/chromadb operations."""
 
     @staticmethod
     def handle_memory_error(

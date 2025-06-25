@@ -60,7 +60,7 @@ dump.rdb
 appendonly.aof
 appendonlydir/
 
-# ChromaDB data (keep structure, not data)
+# chromadb data (keep structure, not data)
 storage/chroma/
 chroma_db/
 *.parquet

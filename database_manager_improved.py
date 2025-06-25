@@ -112,7 +112,7 @@ class ImprovedDatabaseManager:
                 raise
                 
     async def _initialize_chromadb(self):
-        """Initialize ChromaDB connection."""
+        """Initialize chromadb connection."""
         async with self._chroma_lock:
             try:
                 settings = Settings(
@@ -123,18 +123,18 @@ class ImprovedDatabaseManager:
                 
                 self.chroma_db = ChromaDBClient(settings)
                 if not self.chroma_db.connect():
-                    raise RuntimeError("Failed to connect to ChromaDB")
+                    raise RuntimeError("Failed to connect to chromadb")
                     
                 log_service_status(
                     "database_manager",
                     "info",
-                    "Connected to ChromaDB"
+                    "Connected to chromadb"
                 )
             except Exception as e:
                 log_service_status(
                     "database_manager",
                     "error",
-                    f"ChromaDB connection error: {str(e)}"
+                    f"chromadb connection error: {str(e)}"
                 )
                 raise
                 

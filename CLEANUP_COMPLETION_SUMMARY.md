@@ -40,7 +40,7 @@ Project: FastAPI LLM Backend with Docker Environment
 ```
 ✅ FastAPI Backend (port 9099) - HEALTHY
 ✅ Redis Cache Layer - HEALTHY  
-✅ ChromaDB Vector Database - HEALTHY
+✅ chromadb Vector Database - HEALTHY
 ✅ Ollama LLM Service - HEALTHY
 ✅ OpenWebUI Frontend (port 3000) - HEALTHY
 ✅ Watchtower Auto-Updates - HEALTHY
