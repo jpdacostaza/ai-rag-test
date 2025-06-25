@@ -25,14 +25,13 @@ from models import (
     ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest,
     ModelListResponse, ErrorResponse
 )
-from routes import health_router, chat_router, models_router
+from routes import health_router, chat_router, models_router, upload_router
 from services.llm_service import call_llm, call_llm_stream
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
 
 # Import existing routers
 from model_manager import router as model_manager_router, initialize_model_cache
-from upload import upload_router
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
 from adaptive_learning import adaptive_learning_system

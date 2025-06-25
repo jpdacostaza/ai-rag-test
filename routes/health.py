@@ -212,3 +212,35 @@ async def storage_health():
         "permissions": permissions,
         "directory_details": storage_info["directories"],
     }
+
+@health_router.get("/alerts/stats")
+async def get_alert_statistics():
+    """Get alert system statistics."""
+    try:
+        # Import alert manager
+        from utilities.alert_manager import get_alert_manager
+        
+        alert_manager = get_alert_manager()
+        stats = alert_manager.get_alert_stats()
+        return {
+            "status": "success",
+            "data": stats
+        }
+    except ImportError:
+        # Alert manager not available
+        return {
+            "status": "success",
+            "data": {
+                "total_alerts": 0,
+                "alerts_by_level": {},
+                "recent_alerts": [],
+                "message": "Alert system not configured"
+            }
+        }
+    except Exception as e:
+        log_service_status("health", "error", f"Failed to get alert stats: {str(e)}")
+        return {
+            "status": "error",
+            "message": "Failed to retrieve alert statistics",
+            "error": str(e)
+        }

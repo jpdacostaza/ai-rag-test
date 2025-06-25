@@ -14,7 +14,7 @@ from database_manager import (
     db_manager, get_embedding, get_cache, set_cache
 )
 from database import (
-    get_chat_history, store_chat_history, retrieve_user_memory, index_user_document
+    get_chat_history, get_chat_history_async, store_chat_history, store_chat_history_async, retrieve_user_memory, index_user_document
 )
 from error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
 from human_logging import log_service_status
@@ -117,16 +117,14 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 return ChatResponse(response=str(cached))
 
         # --- Retrieve chat history and memory ---
-        def get_history():
-            return get_chat_history(db_manager, user_id, max_history=10)
+        async def get_history():
+            return await get_chat_history_async(db_manager, user_id, max_history=10)
 
-        history = safe_execute(
-            get_history,
-            fallback_value=[],
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                e, "get_history", f"history:{user_id}", user_id, request_id
-            ),
-        )
+        try:
+            history = await get_history()
+        except Exception as e:
+            history = []
+            logging.warning(f"[CHAT_HISTORY] Failed to retrieve history for user {user_id}: {e}")
         
         logging.debug(f"[CHAT_HISTORY] Retrieved {len(history or [])} history entries for user {user_id}")
         
@@ -146,7 +144,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 print(f"[CONSOLE DEBUG] LLM query function called for user {user_id}")
                 logging.info(f"[DEBUG] LLM query function called for user {user_id}")
                   # Embed user query and retrieve relevant memory
-                query_emb = get_embedding(user_message)
+                query_emb = await get_embedding(user_message)
                 print(f"[CONSOLE DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
                 logging.info(f"[DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
                 
@@ -223,20 +221,16 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             debug_info.append(f"[TOOL] Used {tool_name} tool")
 
         # --- Store chat in Redis ---
-        def store_chat():
+        try:
             message_data = {
                 "user_message": user_message,
                 "assistant_response": str(user_response),
                 "timestamp": time.time()
             }
-            store_chat_history(db_manager, user_id, message_data)
-
-        safe_execute(
-            store_chat,
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                e, "store_chat", f"chat:{user_id}", user_id, request_id
-            ),
-        )
+            await store_chat_history_async(db_manager, user_id, message_data)
+        except Exception as e:
+            logging.warning(f"[REDIS] Failed to store chat history for user {user_id}: {e}")
+        
         
         # --- Automatic memory storage for important conversations ---
         print(f"[CONSOLE DEBUG] Checking if conversation should be stored as memory...")

@@ -123,6 +123,26 @@ def store_chat_history(db_manager, user_id, message, max_history=20, request_id=
     )
 
 
+async def store_chat_history_async(db_manager, user_id, message, max_history=20, request_id=""):
+    """Store a chat message in Redis for a user (as a capped list) with automatic retry (async version)."""
+
+    def _store_chat_operation(redis_client):
+        key = f"chat_history:{user_id}"
+        redis_client.rpush(key, json.dumps(message))
+        redis_client.ltrim(key, -max_history, -1)
+        logging.debug(f"[MEMORY] Stored chat message for user {user_id}")
+        return True
+
+    try:
+        result = await db_manager.execute_redis_operation(
+            _store_chat_operation, f"store_chat_history({user_id})"
+        )
+        return result
+    except Exception as e:
+        logging.warning(f"[REDIS] Failed to store chat history for user {user_id}: {e}")
+        return False
+
+
 def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
     """Retrieve recent chat history for a user from Redis with automatic retry."""
 
@@ -142,6 +162,26 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
             e, "get_chat", f"chat_history:{user_id}", user_id, request_id
         ),
     )
+
+
+async def get_chat_history_async(db_manager, user_id, max_history=20, request_id=""):
+    """Retrieve recent chat history for a user from Redis with automatic retry (async version)."""
+
+    def _get_chat_operation(redis_client):
+        key = f"chat_history:{user_id}"
+        history = redis_client.lrange(key, -max_history, -1)
+        parsed_history = [json.loads(m) for m in history]
+        logging.debug(f"[MEMORY] Retrieved {len(parsed_history)} chat messages for user {user_id}")
+        return parsed_history
+
+    try:
+        result = await db_manager.execute_redis_operation(
+            _get_chat_operation, f"get_chat_history({user_id})"
+        )
+        return result
+    except Exception as e:
+        logging.warning(f"[REDIS] Failed to get chat history for user {user_id}: {e}")
+        return []
 
 
 def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
@@ -221,22 +261,32 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
     logging.debug(f"retrieve_user_memory called with user_id={user_id}")
     
     def _retrieve_memory():
-        if not db_manager.is_chromadb_available():
-            logging.warning("[CHROMADB] chromadb not available, returning empty memory")
+        try:
+            # Synchronous check for ChromaDB availability
+            if db_manager.chroma_client is None or db_manager.chroma_collection is None:
+                logging.warning("[CHROMADB] chromadb not available, returning empty memory")
+                return []
+        except Exception as e:
+            logging.warning(f"[CHROMADB] Error checking availability: {str(e)}, returning empty memory")
             return []
 
         # Enhanced logging for debugging
         logging.info(f"[MEMORY] 🔍 Starting memory retrieval for user_id={user_id}, n_results={n_results}")
         
         # Ensure query_embedding is properly formatted
-        if hasattr(query_embedding, 'tolist'):
+        logging.debug(f"[MEMORY] 📊 Query embedding type: {type(query_embedding)}")
+        
+        if query_embedding is None:
+            logging.error("[MEMORY] ❌ Query embedding is None")
+            return []
+        elif hasattr(query_embedding, 'tolist'):
             embedding_list = query_embedding.tolist()
             logging.debug(f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}")
-        elif hasattr(query_embedding, '__iter__'):
+        elif hasattr(query_embedding, '__iter__') and not isinstance(query_embedding, str):
             embedding_list = list(query_embedding)
             logging.debug(f"[MEMORY] 📊 Converted iterable to list, length: {len(embedding_list)}")
         else:
-            logging.error("[MEMORY] ❌ Invalid embedding format")
+            logging.error(f"[MEMORY] ❌ Invalid embedding format: {type(query_embedding)}")
             return []
 
         logging.debug(f"[MEMORY] 📐 Query embedding dimension: {len(embedding_list)}")

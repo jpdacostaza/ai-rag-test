@@ -126,6 +126,20 @@ services:
       - ./config.py:/opt/backend/config.py
       - ./models.py:/opt/backend/models.py
       - ./startup.py:/opt/backend/startup.py
+      - ./database.py:/opt/backend/database.py
+      - ./database_manager.py:/opt/backend/database_manager.py
+      - ./error_handler.py:/opt/backend/error_handler.py
+      - ./human_logging.py:/opt/backend/human_logging.py
+      - ./cache_manager.py:/opt/backend/cache_manager.py
+      - ./watchdog.py:/opt/backend/watchdog.py
+      - ./rag.py:/opt/backend/rag.py
+      - ./model_manager.py:/opt/backend/model_manager.py
+      - ./storage_manager.py:/opt/backend/storage_manager.py
+      - ./adaptive_learning.py:/opt/backend/adaptive_learning.py
+      - ./enhanced_document_processing.py:/opt/backend/enhanced_document_processing.py
+      - ./enhanced_integration.py:/opt/backend/enhanced_integration.py
+      - ./enhanced_streaming.py:/opt/backend/enhanced_streaming.py
+      - ./feedback_router.py:/opt/backend/feedback_router.py
       - ./services:/opt/backend/services
       - ./routes:/opt/backend/routes
       - ./handlers:/opt/backend/handlers
