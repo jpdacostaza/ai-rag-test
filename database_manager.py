@@ -107,14 +107,17 @@ class DatabaseManager:
         """Initialize all components with proper error handling."""
         try:
             await self._initialize_redis()
-            await self._initialize_chroma()
-            await self._initialize_embedding_model()
-            self._initialized = True
-            log_service_status("database_manager", "info", "All database components initialized successfully")
         except Exception as e:
-            log_service_status("database_manager", "error", f"Error during initialization: {str(e)}")
+            log_service_status("database_manager", "error", f"Critical error during Redis initialization: {str(e)}")
             self._initialization_failed = True
-            # Don't raise - allow partial initialization
+            return
+
+        # Chroma and Embeddings are optional and will handle their own errors/retries
+        await self._initialize_chroma()
+        await self._initialize_embedding_model()
+        
+        self._initialized = True
+        log_service_status("database_manager", "info", "Database components initialization process completed.")
             
     async def _initialize_redis(self):
         """Initialize Redis client with proper error handling."""
@@ -139,44 +142,59 @@ class DatabaseManager:
             raise
             
     async def _initialize_chroma(self):
-        """Initialize chromadb client with proper error handling."""
-        try:
-            settings = Settings(
-                chroma_server_host=os.getenv("CHROMA_HOST", "localhost"),
-                chroma_server_http_port=int(os.getenv("CHROMA_PORT", "8000")),
-                anonymized_telemetry=False
-            )
-            
-            async with self._chroma_lock:
-                self.chroma_client = cast(ChromaClientProtocol, chromadb.Client(settings))
-                
-                # Test connection by getting collections
-                try:
-                    _ = self.chroma_client.list_collections()
-                except Exception:
-                    log_service_status("chromadb", "error", "chromadb connection test failed")
-                    raise
-                
-                collection_name = os.getenv("CHROMA_COLLECTION", "default")
-                self.chroma_collection = self.chroma_client.get_or_create_collection(
-                    name=collection_name,
-                    metadata={"description": "Default vector store for embeddings"}
+        """Initialize chromadb client with retry logic and graceful degradation."""
+        chroma_host = os.getenv("CHROMA_HOST", "localhost")
+        chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
+        max_retries = int(os.getenv("CHROMA_INIT_MAX_RETRIES", "3"))
+        retry_delay = int(os.getenv("CHROMA_INIT_RETRY_DELAY", "5"))
+
+        for attempt in range(max_retries):
+            try:
+                settings = Settings(
+                    chroma_api_impl="rest",
+                    chroma_server_host=chroma_host,
+                    chroma_server_http_port=chroma_port,
+                    anonymized_telemetry=False
                 )
                 
-                log_service_status("chromadb", "info", "chromadb initialized successfully")
-        except Exception as e:
-            log_service_status("chromadb", "error", f"chromadb initialization failed: {str(e)}")
-            raise
+                async with self._chroma_lock:
+                    self.chroma_client = cast(ChromaClientProtocol, chromadb.Client(settings))
+                    
+                    # Test connection
+                    self.chroma_client.heartbeat()
+                    
+                    collection_name = os.getenv("CHROMA_COLLECTION", "default")
+                    self.chroma_collection = self.chroma_client.get_or_create_collection(
+                        name=collection_name,
+                        metadata={"description": "Default vector store for embeddings"}
+                    )
+                    
+                    log_service_status("chromadb", "info", "chromadb initialized successfully")
+                    return
+            except Exception as e:
+                log_service_status("chromadb", "warning", f"chromadb initialization attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+        
+        log_service_status("chromadb", "error", "chromadb initialization failed after multiple retries. Service will be unavailable.")
+        self.chroma_client = None
+        self.chroma_collection = None
             
     async def _initialize_embedding_model(self):
-        """Initialize the embedding model with proper error handling."""
+        """Initialize the embedding model with graceful failure."""
+        if os.getenv("DISABLE_EMBEDDINGS", "false").lower() == "true":
+            log_service_status("embeddings", "info", "Embeddings are disabled via environment variable.")
+            self.embedding_model = None
+            return
+
         try:
             model_name = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-            self.embedding_model = SentenceTransformer(model_name)
+            # This can be a blocking call, so run it in a thread
+            self.embedding_model = await asyncio.to_thread(SentenceTransformer, model_name)
             log_service_status("embeddings", "info", f"Embedding model {model_name} loaded successfully")
         except Exception as e:
-            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}")
-            raise
+            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable.")
+            self.embedding_model = None
 
     def _initialize_chroma_collection(self):
         """Set up and access the chromadb collection."""
@@ -267,11 +285,11 @@ class DatabaseManager:
                 "details": "Connected and responsive" if redis_available else "Not available"
             },
             "chromadb": {
-                "status": "healthy" if chroma_available else "unhealthy",
+                "status": "healthy" if chroma_available else "degraded",
                 "details": "Connected and responsive" if chroma_available else "Not available"
             },
             "embeddings": {
-                "status": "healthy" if embeddings_available else "unhealthy",
+                "status": "healthy" if embeddings_available else "degraded",
                 "details": "Model loaded and ready" if embeddings_available else "Not available"
             }
         }

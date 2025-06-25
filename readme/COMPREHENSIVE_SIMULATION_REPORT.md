@@ -1,11 +1,11 @@
 # Comprehensive Real-Life Simulation Test Report
-Generated: 2025-06-25T13:40:23.818883
+Generated: 2025-06-25T18:33:10.449957
 
 ## Executive Summary
-- **Duration:** 743.51 seconds
+- **Duration:** 765.10 seconds
 - **Phases Completed:** 7
 - **Test Users Created:** 5
-- **Overall Success Rate:** 76.7%
+- **Overall Success Rate:** 83.3%
 
 ## Phase Results
 
@@ -29,17 +29,17 @@ Generated: 2025-06-25T13:40:23.818883
 ### Service Health
 
 - **Healthy Services:** 4/4
-  - ✅ /health (8.83ms)
-  - ✅ / (12.46ms)
-  - ✅ /upload/health (3.01ms)
-  - ✅ /v1/models (66.23ms)
+  - ✅ /health (1009.06ms)
+  - ✅ / (19.73ms)
+  - ✅ /upload/health (15.43ms)
+  - ✅ /v1/models (115.75ms)
 
 ### Concurrent Operations
 
 - **Total Requests:** 10
 - **Successful:** 10
-- **Duration:** 3.39s
-- **Requests/Second:** 2.95
+- **Duration:** 7.24s
+- **Requests/Second:** 1.38
 
 ### Edge Cases
 
@@ -49,18 +49,18 @@ Generated: 2025-06-25T13:40:23.818883
 - **Load Test Results:**
   - **Health check load**
     - Iterations: 50
-    - Avg Response: 11.49ms
-    - P95 Response: 29.55ms
+    - Avg Response: 1014.58ms
+    - P95 Response: 1030.82ms
     - Success Rate: 100.0%
   - **Search load**
     - Iterations: 25
-    - Avg Response: 351.87ms
-    - P95 Response: 376.48ms
+    - Avg Response: 15.6ms
+    - P95 Response: 27.39ms
     - Success Rate: 100.0%
   - **Chat load**
     - Iterations: 10
-    - Avg Response: 2361.02ms
-    - P95 Response: 21134.29ms
+    - Avg Response: 3108.0ms
+    - P95 Response: 27838.93ms
     - Success Rate: 90.0%
 
 ### Integration Scenarios

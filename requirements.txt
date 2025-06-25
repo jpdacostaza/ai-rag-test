@@ -7,6 +7,9 @@ pydantic>=2.5.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
+# Security
+bleach>=6.0.0                # HTML sanitization
+
 # Redis (asyncio built in)
 redis>=4.6.0
 
@@ -68,3 +71,21 @@ RestrictedPython>=6.0  # For safer code execution
 # Testing dependencies
 pytest>=7.4.0               # Testing framework
 pytest-asyncio>=0.21.0      # Async testing support
+
+# Additional standard library dependencies (explicitly listed for clarity)
+# Note: These are built-in modules but listed for documentation
+# collections, dataclasses, enum, hashlib, pathlib, uuid, contextlib, threading, traceback, etc.
+
+# Web scraping and parsing
+beautifulsoup4>=4.12.0      # Already listed above
+
+# Email and SMTP (for alert manager)
+# smtplib is built-in, email.mime is built-in
+
+# Additional third-party packages
+starlette>=0.27.0           # Web framework (FastAPI dependency)
+tenacity>=8.2.0            # Retry logic
+torch>=2.0.0               # PyTorch (for CPU-only mode)
+
+# Development and debugging tools
+requests>=2.31.0           # HTTP client for testing

@@ -10,6 +10,8 @@ from typing import Dict
 
 from fastapi import FastAPI, Request, Body, Depends, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
+import asyncio
 
 # CRITICAL: Import and enforce CPU-only mode BEFORE any ML libraries
 from utilities.cpu_enforcer import enforce_cpu_only_mode
@@ -67,6 +69,12 @@ async def lifespan(app: FastAPI):
     # Shutdown
     log_service_status('APP', 'info', 'Application shutting down')
 
+# Import security configuration
+from security import configure_security, validate_environment
+
+# Validate environment variables at startup
+validate_environment()
+
 # Create FastAPI app with lifespan
 app = FastAPI(
     title="AI Backend API", 
@@ -74,10 +82,38 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Configure security middleware first
+configure_security(app)
+
 # Add exception handlers
 exception_handlers = create_exception_handlers()
 for exception_type, handler in exception_handlers:
     app.add_exception_handler(exception_type, handler)
+
+# Timeout middleware to prevent long-running requests
+class TimeoutMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, timeout: int = 45):
+        super().__init__(app)
+        self.timeout = timeout
+    
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await asyncio.wait_for(
+                call_next(request), 
+                timeout=self.timeout
+            )
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                status_code=504,
+                content={
+                    "error": "Request timeout",
+                    "message": f"Request took longer than {self.timeout} seconds",
+                    "suggestion": "Try a simpler query or break it into smaller parts"
+                }
+            )
+
+# Add timeout middleware
+app.add_middleware(TimeoutMiddleware, timeout=45)
 
 # Include route modules
 app.include_router(health_router)

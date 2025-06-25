@@ -77,7 +77,14 @@ services:
     environment:
       - CACHE_TTL=604800
       - SIMILARITY_THRESHOLD=0.92
-      - LLM_TIMEOUT=180
+      - LLM_TIMEOUT=30
+      - API_TIMEOUT=30
+      - WEB_SEARCH_TIMEOUT=10
+      - CONNECTION_TIMEOUT=5
+      - READ_TIMEOUT=25
+      - WRITE_TIMEOUT=5
+      - CONNECTION_POOL_SIZE=10
+      - MAX_KEEPALIVE_CONNECTIONS=5
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CHROMA_HOST=chroma
@@ -88,7 +95,8 @@ services:
       - JWT_SECRET=change_this_in_production
       - JWT_ALGORITHM=HS256
       - API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-      - MAX_REQUESTS_PER_MINUTE=60      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36
+      - MAX_REQUESTS_PER_MINUTE=60
+      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36
       - WATCHDOG_STARTUP_DELAY=10
       # Ollama Configuration (Primary mode)
       - OLLAMA_BASE_URL=http://ollama:11434
@@ -106,7 +114,7 @@ services:
       - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
-      - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
       - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
       - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
       - HF_HOME=/opt/internal_cache/sentence_transformers

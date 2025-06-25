@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Any
 from urllib.parse import quote_plus
 import re
 from datetime import datetime
+from config import WEB_SEARCH_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,25 @@ class WebSearchTool:
         self.user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         
     async def _get_session(self) -> aiohttp.ClientSession:
-        """Get or create aiohttp session"""
+        """Get or create aiohttp session with optimized timeout"""
         if self.session is None or self.session.closed:
-            timeout = aiohttp.ClientTimeout(total=10)
+            # Use optimized timeout for web search
+            timeout = aiohttp.ClientTimeout(
+                total=WEB_SEARCH_TIMEOUT,
+                connect=2,  # Fast connection timeout
+                sock_read=WEB_SEARCH_TIMEOUT - 2  # Leave time for connection
+            )
             headers = {"User-Agent": self.user_agent}
-            self.session = aiohttp.ClientSession(timeout=timeout, headers=headers)
+            connector = aiohttp.TCPConnector(
+                limit=10,  # Connection pool limit
+                ttl_dns_cache=300,  # DNS cache for 5 minutes
+                use_dns_cache=True
+            )
+            self.session = aiohttp.ClientSession(
+                timeout=timeout, 
+                headers=headers, 
+                connector=connector
+            )
         return self.session
     
     async def search_duckduckgo(self, query: str, max_results: int = 5) -> List[Dict[str, Any]]:
@@ -140,43 +155,55 @@ class WebSearchTool:
     
     async def search(self, query: str, max_results: int = 3) -> Dict[str, Any]:
         """
-        Main search interface
+        Main search interface with timeout protection
         Returns formatted search results with metadata
         """
         try:
-            start_time = datetime.now()
-            
-            # Perform search
-            results = await self.search_duckduckgo(query, max_results)
-            
-            end_time = datetime.now()
-            search_duration = (end_time - start_time).total_seconds()
-            
-            # Format response
-            response = {
-                'query': query,
-                'results_count': len(results),
-                'search_duration_seconds': round(search_duration, 3),
-                'timestamp': end_time.isoformat(),
-                'results': results
-            }
-            
-            if results:
-                logger.info(f"Web search successful: '{query}' returned {len(results)} results in {search_duration:.3f}s")
-            else:
-                logger.warning(f"Web search returned no results for query: '{query}'")
+            # Add timeout protection for the entire search operation
+            async with asyncio.timeout(WEB_SEARCH_TIMEOUT):
+                start_time = datetime.now()
                 
-            return response
-            
+                # Perform search
+                results = await self.search_duckduckgo(query, max_results)
+                
+                end_time = datetime.now()
+                search_duration = (end_time - start_time).total_seconds()
+                
+                # Format response
+                response = {
+                    'query': query,
+                    'results_count': len(results),
+                    'search_duration_seconds': round(search_duration, 3),
+                    'timestamp': end_time.isoformat(),
+                    'results': results
+                }
+                
+                if results:
+                    logger.info(f"Web search successful: '{query}' returned {len(results)} results in {search_duration:.3f}s")
+                else:
+                    logger.warning(f"Web search returned no results for: '{query}'")
+                
+                return response
+                
+        except asyncio.TimeoutError:
+            logger.warning(f"Web search timeout ({WEB_SEARCH_TIMEOUT}s) for query: '{query}'")
+            return {
+                'query': query,
+                'results_count': 0,
+                'search_duration_seconds': WEB_SEARCH_TIMEOUT,
+                'timestamp': datetime.now().isoformat(),
+                'results': [],
+                'error': f'Search timed out after {WEB_SEARCH_TIMEOUT} seconds'
+            }
         except Exception as e:
-            logger.error(f"Web search failed for query '{query}': {str(e)}")
+            logger.error(f"Web search error for query '{query}': {str(e)}")
             return {
                 'query': query,
                 'results_count': 0,
                 'search_duration_seconds': 0,
                 'timestamp': datetime.now().isoformat(),
                 'results': [],
-                'error': str(e)
+                'error': f'Search failed: {str(e)}'
             }
     
     def format_search_results_for_chat(self, search_data: Dict[str, Any]) -> str:

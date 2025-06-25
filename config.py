@@ -23,7 +23,14 @@ OPENAI_API_MAX_TOKENS = int(os.getenv("OPENAI_API_MAX_TOKENS", "4096"))
 OPENAI_API_TIMEOUT = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
 
 # LLM timeout settings
-LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "180"))
+LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "30"))  # Reduced from 180 to 30 seconds
+
+# Performance timeout configurations (Added to fix high latency)
+API_TIMEOUT = int(os.getenv("API_TIMEOUT", "30"))  # API request timeout
+WEB_SEARCH_TIMEOUT = int(os.getenv("WEB_SEARCH_TIMEOUT", "10"))  # Web search timeout
+CONNECTION_TIMEOUT = int(os.getenv("CONNECTION_TIMEOUT", "5"))  # Connection timeout
+READ_TIMEOUT = int(os.getenv("READ_TIMEOUT", "25"))  # Read timeout
+WRITE_TIMEOUT = int(os.getenv("WRITE_TIMEOUT", "5"))  # Write timeout
 
 # Database configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -42,6 +49,10 @@ MODEL_CACHE_TTL = int(os.getenv("MODEL_CACHE_TTL", "300"))  # 5 minutes default
 
 # Session management
 SESSION_CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "3600"))  # 1 hour default
+
+# Connection pool settings
+CONNECTION_POOL_SIZE = int(os.getenv("CONNECTION_POOL_SIZE", "10"))
+MAX_KEEPALIVE_CONNECTIONS = int(os.getenv("MAX_KEEPALIVE_CONNECTIONS", "5"))
 
 def get_app_start_time():
     """Get the application startup time."""

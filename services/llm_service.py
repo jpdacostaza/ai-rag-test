@@ -11,7 +11,8 @@ import httpx
 from config import (
     DEFAULT_MODEL, OLLAMA_BASE_URL, USE_OLLAMA, 
     OPENAI_API_BASE_URL, OPENAI_API_KEY, OPENAI_API_MAX_TOKENS, 
-    OPENAI_API_TIMEOUT, LLM_TIMEOUT
+    OPENAI_API_TIMEOUT, LLM_TIMEOUT, CONNECTION_TIMEOUT, READ_TIMEOUT, 
+    WRITE_TIMEOUT, CONNECTION_POOL_SIZE, MAX_KEEPALIVE_CONNECTIONS
 )
 from human_logging import log_service_status
 
@@ -56,9 +57,23 @@ class LLMService:
         timeout = LLM_TIMEOUT
 
         try:
-            async with httpx.AsyncClient() as client:
+            # Configure optimized timeouts and connection pooling
+            timeout = httpx.Timeout(
+                timeout=LLM_TIMEOUT,
+                connect=CONNECTION_TIMEOUT,
+                read=READ_TIMEOUT,
+                write=WRITE_TIMEOUT
+            )
+            
+            limits = httpx.Limits(
+                max_keepalive_connections=MAX_KEEPALIVE_CONNECTIONS,
+                max_connections=CONNECTION_POOL_SIZE,
+                keepalive_expiry=30.0
+            )
+            
+            async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
                 response = await client.post(
-                    f"{self.ollama_url}/api/chat", json=payload, timeout=timeout
+                    f"{self.ollama_url}/api/chat", json=payload
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -102,8 +117,22 @@ class LLMService:
         timeout = OPENAI_API_TIMEOUT
 
         try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post(api_url, headers=headers, json=payload, timeout=timeout)
+            # Configure optimized timeouts and connection pooling
+            timeout = httpx.Timeout(
+                timeout=OPENAI_API_TIMEOUT,
+                connect=CONNECTION_TIMEOUT,
+                read=READ_TIMEOUT,
+                write=WRITE_TIMEOUT
+            )
+            
+            limits = httpx.Limits(
+                max_keepalive_connections=MAX_KEEPALIVE_CONNECTIONS,
+                max_connections=CONNECTION_POOL_SIZE,
+                keepalive_expiry=30.0
+            )
+            
+            async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
+                resp = await client.post(api_url, headers=headers, json=payload)
                 resp.raise_for_status()
                 data = resp.json()
                 return data.get("choices", [{}])[0].get("message", {}).get("content", "")
