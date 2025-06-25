@@ -37,8 +37,17 @@ class ToolService:
             return self._execute_conversion_tool(user_message, user_id, request_id, debug_info)
         
         # Other tool detections...
+        # News queries - let web search handle topic-specific news
         elif "news" in user_message.lower():
-            return self._execute_news_tool(user_message, user_id, request_id, debug_info)
+            # Check if it's a topic-specific news query (should go to web search)
+            topic_news_keywords = ["news about", "news on", "climate change", "AI news", "technology news"]
+            if any(keyword in user_message.lower() for keyword in topic_news_keywords):
+                # Let web search handle topic-specific news queries
+                debug_info.append("[TOOL] Topic-specific news query - deferring to web search")
+                return False, None, None, debug_info
+            else:
+                # General news lookup
+                return self._execute_news_tool(user_message, user_id, request_id, debug_info)
         
         elif "search" in user_message.lower():
             return self._execute_search_tool(user_message, user_id, request_id, debug_info)

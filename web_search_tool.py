@@ -209,17 +209,63 @@ class WebSearchTool:
     def should_search_web(self, user_message: str, model_response: str = "") -> bool:
         """
         Determine if web search is needed based on user query and model uncertainty
+        Enhanced logic to properly handle different query types
         """
+        user_lower = user_message.lower()
+        response_lower = model_response.lower()
+        
+        # First, check if this is a casual greeting or simple conversation
+        casual_greetings = [
+            "hello", "hi", "hey", "how are you", "good morning", "good evening",
+            "good afternoon", "what's up", "howdy", "greetings", "thanks", "thank you"
+        ]
+        
+        # Check if it's a tool-specific query that should NOT trigger web search
+        tool_specific_keywords = [
+            "calculate", "convert", "weather in", "time in", "current time",
+            "square root", "multiply", "divide", "add", "subtract",
+            "celsius to", "fahrenheit to", "km to miles", "miles to km"
+        ]
+        
+        # Enhanced news detection - these SHOULD trigger web search
+        news_keywords = [
+            "news about", "latest news", "breaking news", "current news",
+            "what's happening", "recent developments", "today's news",
+            "news today", "news update", "news on", "climate change news"
+        ]
+        
+        # Check message characteristics
+        is_casual_greeting = any(
+            greeting in user_lower 
+            for greeting in casual_greetings
+        ) and len(user_message.split()) < 10
+        
+        is_tool_query = any(
+            keyword in user_lower 
+            for keyword in tool_specific_keywords
+        )
+        
+        is_news_query = any(
+            keyword in user_lower 
+            for keyword in news_keywords
+        )
+        
+        # If it's a casual greeting or tool query, don't trigger web search
+        if is_casual_greeting or (is_tool_query and not is_news_query):
+            logger.info(f"Skipping web search - Casual: {is_casual_greeting}, Tool: {is_tool_query}")
+            return False
+        
         # Keywords that suggest current/recent information needs
         current_info_keywords = [
             'current', 'recent', 'latest', 'today', 'now', 'this year', '2025',
-            'breaking', 'news', 'update', 'what happened', 'what\'s happening'
+            'breaking', 'update', 'what happened', 'what\'s happening'
         ]
         
         # Keywords that suggest factual lookup needs
         factual_keywords = [
             'who is', 'what is', 'when did', 'where is', 'how many',
-            'population of', 'capital of', 'president of', 'ceo of'
+            'population of', 'capital of', 'president of', 'ceo of',
+            'founder of'
         ]
         
         # Model uncertainty indicators
@@ -229,23 +275,21 @@ class WebSearchTool:
             "i don't have recent", "my knowledge", "as of my last update"
         ]
         
-        user_lower = user_message.lower()
-        response_lower = model_response.lower()
-        
-        # Check for current information needs
+        # Check for different trigger conditions
         needs_current_info = any(keyword in user_lower for keyword in current_info_keywords)
-        
-        # Check for factual lookup needs
         needs_factual_info = any(keyword in user_lower for keyword in factual_keywords)
-        
-        # Check for model uncertainty
         model_uncertain = any(phrase in response_lower for phrase in uncertainty_phrases)
         
-        # Search if any condition is met
+        # News queries have highest priority
+        if is_news_query:
+            logger.info(f"Web search triggered - News query detected: {user_message[:50]}...")
+            return True
+        
+        # Check other conditions
         should_search = needs_current_info or needs_factual_info or model_uncertain
         
         if should_search:
-            logger.info(f"Web search triggered - Current info: {needs_current_info}, Factual: {needs_factual_info}, Uncertain: {model_uncertain}")
+            logger.info(f"Web search triggered - Current: {needs_current_info}, Factual: {needs_factual_info}, Uncertain: {model_uncertain}")
         
         return should_search
 

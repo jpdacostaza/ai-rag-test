@@ -1,0 +1,57 @@
+{
+  "timestamp": "2025-06-25T17:59:27.825817",
+  "test_results": [
+    {
+      "test": 1,
+      "query": "What are the latest developments in AI technology today?",
+      "duration": 45.93041229248047,
+      "has_web_search": true,
+      "expected": true,
+      "result": "PASS",
+      "response_length": 3614
+    },
+    {
+      "test": 2,
+      "query": "Who is the current president of France?",
+      "duration": 1.7827682495117188,
+      "has_web_search": true,
+      "expected": true,
+      "result": "PASS",
+      "response_length": 620
+    },
+    {
+      "test": 3,
+      "query": "What's happening in the news about climate change today?",
+      "duration": 19.88447880744934,
+      "has_web_search": true,
+      "expected": true,
+      "result": "PASS",
+      "response_length": 2215
+    },
+    {
+      "test": 4,
+      "query": "Hello, how are you doing?",
+      "duration": 3.6316895484924316,
+      "has_web_search": false,
+      "expected": false,
+      "result": "PASS",
+      "response_length": 261
+    },
+    {
+      "test": 5,
+      "query": "Calculate the square root of 144",
+      "duration": 0.7867794036865234,
+      "has_web_search": false,
+      "expected": false,
+      "result": "PASS",
+      "response_length": 29
+    }
+  ],
+  "summary": {
+    "total_tests": 5,
+    "passed": 5,
+    "unexpected": 0,
+    "errors": 0,
+    "success_rate": 100.0
+  }
+}
