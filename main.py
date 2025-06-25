@@ -25,7 +25,7 @@ from models import (
     ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest,
     ModelListResponse, ErrorResponse
 )
-from routes import health_router, chat_router, models_router, upload_router
+from routes import health_router, chat_router, models_router, upload_router, pipeline_router, debug_router
 from services.llm_service import call_llm, call_llm_stream
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
@@ -87,6 +87,8 @@ app.include_router(models_router)
 # Include existing routers
 app.include_router(model_manager_router)
 app.include_router(upload_router)
+app.include_router(pipeline_router)
+app.include_router(debug_router)
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
 app.include_router(pipelines_v1_router)

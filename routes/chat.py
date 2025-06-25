@@ -5,6 +5,7 @@ import logging
 import re
 import time
 import uuid
+import hashlib
 from datetime import datetime
 
 from fastapi import APIRouter, Request, HTTPException
@@ -21,6 +22,8 @@ from human_logging import log_service_status
 from models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service
+from user_profiles import user_profile_manager
+from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 
 chat_router = APIRouter()
 
@@ -32,6 +35,12 @@ def get_cache_manager():
     except Exception:
         return None
 
+def generate_cache_key(user_id: str, message: str) -> str:
+    """Generate a cache key for chat requests."""
+    # Use hash of message to keep key consistent but not too long
+    message_hash = hashlib.md5(message.encode()).hexdigest()[:8]
+    return f"chat:{user_id}:{message_hash}"
+
 def should_store_as_memory(message: str, response: str) -> bool:
     """Determine if a conversation should be stored as long-term memory."""
     memory_keywords = [
@@ -40,7 +49,9 @@ def should_store_as_memory(message: str, response: str) -> bool:
         "my favorite", "i like", "i love", "i hate",
         "i prefer", "remember that", "don't forget",
         "important:", "note:", "my birthday",
-        "my age", "years old", "from", "born in"
+        "my age", "years old", "from", "born in",
+        "my profession", "my career", "my location",
+        "my interests", "my hobbies", "my family"
     ]
     
     # Check if user is sharing personal information
@@ -48,9 +59,14 @@ def should_store_as_memory(message: str, response: str) -> bool:
     for keyword in memory_keywords:
         if keyword in message_lower:
             return True
-            
+    
     # Store responses to "who am i" or "what do you know about me" type questions
-    if any(phrase in message_lower for phrase in ["who am i", "about me", "know about me"]):
+    if any(phrase in message_lower for phrase in ["who am i", "about me", "know about me", "remember me"]):
+        return True
+    
+    # Store any conversation where user info was extracted
+    user_info = user_profile_manager.extract_user_info(message)
+    if user_info:
         return True
         
     return False
@@ -59,6 +75,7 @@ def should_store_as_memory(message: str, response: str) -> bool:
 async def chat_endpoint(chat: ChatRequest, request: Request):
     # Use request ID from middleware
     request_id = getattr(request.state, 'request_id', str(uuid.uuid4()))
+    start_time = time.time()
     print(f"[CONSOLE DEBUG] Chat endpoint called for user {chat.user_id}, message: {chat.message[:50]}...")
     logging.info(f"[DEBUG] Chat endpoint called for user {chat.user_id}")
 
@@ -74,14 +91,14 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 detail="Message cannot be empty"
             )
 
-        logging.debug(
-            f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}..."
-        )
+        # Extract and save user information from message
+        user_info = user_profile_manager.extract_user_info(user_message)
+        if user_info:
+            user_profile_manager.save_user_info(user_id, user_info)
+            log_service_status("memory", "info", f"Saved user info for {user_id}: {user_info}")
 
-        # --- Check cache before tool/LLM logic ---
-        cache_key = f"chat:{user_id}:{user_message}"
-        cached = None
-        logging.debug(f"[CACHE] Checking cache for key: {cache_key}")
+        # Check cache first - unified cache implementation
+        cache_key = generate_cache_key(user_id, user_message)
         
         # Bypass cache for time queries to ensure real-time lookup
         is_time_query = False
@@ -97,7 +114,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                     for x in [
                         "weather",
                         "convert",
-                        "calculate",
+                        "calculate", 
                         "exchange rate",
                         "system info",
                         "news",
@@ -110,11 +127,28 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             is_time_query = True
         
         if not is_time_query:
-            cache_manager = get_cache()
-            cached = cache_manager.get(cache_key) if cache_manager else None
-            if cached and str(cached).strip():  # Only return non-empty cached responses
-                logging.info(f"[CACHE] Returning cached response for user {user_id}")
-                return ChatResponse(response=str(cached))
+            try:
+                cache_manager = get_cache()
+                cached_response = cache_manager.get(cache_key) if cache_manager else None
+                if cached_response and isinstance(cached_response, dict):
+                    log_service_status("cache", "info", f"Cache hit for key: {cache_key}")
+                    # Update request_id and return cached response
+                    cached_data = cached_response.copy()
+                    cached_data['request_id'] = request_id
+                    duration = (time.time() - start_time) * 1000
+                    log_service_status("api", "info", f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)")
+                    return ChatResponse(**cached_data)
+                elif cached_response and str(cached_response).strip():
+                    # Handle old string-based cache entries
+                    log_service_status("cache", "info", f"Cache hit (legacy format) for key: {cache_key}")
+                    duration = (time.time() - start_time) * 1000
+                    log_service_status("api", "info", f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)")
+                    return ChatResponse(response=str(cached_response))
+            except Exception as cache_error:
+                log_service_status("cache", "warning", f"Cache check failed: {str(cache_error)}")
+
+        log_service_status("cache", "info", f"Cache miss for key: {cache_key}")
+        logging.debug(f"[REQUEST {request_id}] Chat request from user {user_id}: {user_message[:100]}...")
 
         # --- Retrieve chat history and memory ---
         async def get_history():
@@ -157,6 +191,12 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 
                 # Compose LLM context with explicit instructions for plain text responses
                 system_prompt = DEFAULT_SYSTEM_PROMPT
+
+                # Add user profile information to system prompt
+                user_context = user_profile_manager.build_context_for_llm(user_id)
+                if user_context:
+                    system_prompt += f" User Profile Information: {user_context}"
+                    logging.info(f"[PROFILE] Added user context for {user_id}: {user_context[:100]}...")
 
                 # Check for system prompt changes (simplified - just log for now)
                 cache_manager = get_cache_manager()
@@ -210,6 +250,43 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 user_response = await llm_query()
                 logging.info(f"[DEBUG] LLM returned response for user {user_id}: {repr(user_response)}")
                 logging.debug(f"[LLM] Received response for user {user_id}: {len(str(user_response)) if user_response else 0} chars")
+                
+                # Check if web search is needed after getting initial LLM response
+                if should_trigger_web_search(user_message, str(user_response)):
+                    logging.info(f"[WEB_SEARCH] Triggering web search for user {user_id} - query: {user_message[:100]}...")
+                    try:
+                        # Perform web search
+                        search_results = await search_web(user_message, max_results=3)
+                        
+                        if search_results.get('results'):
+                            # Format web search results
+                            web_info = format_web_results_for_chat(search_results)
+                            
+                            # Enhance the response with web search results
+                            if any(phrase in str(user_response).lower() for phrase in ["i don't know", "i'm not sure", "i don't have"]):
+                                # Replace uncertain response with web search results
+                                user_response = web_info
+                            else:
+                                # Append web search results to existing response
+                                user_response = f"{user_response}\n\n{web_info}"
+                            
+                            debug_info.append(f"[WEB_SEARCH] Enhanced response with {len(search_results['results'])} web results")
+                            logging.info(f"[WEB_SEARCH] Successfully enhanced response for user {user_id}")
+                        else:
+                            debug_info.append("[WEB_SEARCH] No web results found")
+                            logging.warning(f"[WEB_SEARCH] No results found for query: {user_message[:100]}...")
+                            
+                    except Exception as search_error:
+                        logging.error(f"[WEB_SEARCH] Failed for user {user_id}: {search_error}")
+                        debug_info.append(f"[WEB_SEARCH] Search failed: {str(search_error)[:50]}...")
+                
+                # Add personalized greeting for returning users
+                if any(greeting in user_message.lower() for greeting in ["hello", "hi", "hey", "good morning", "good afternoon", "good evening"]):
+                    personalized_greeting = user_profile_manager.get_user_greeting(user_id)
+                    if personalized_greeting != "Hello! I'm here to help you.":
+                        user_response = f"{personalized_greeting} {user_response}"
+                        logging.info(f"[PROFILE] Added personalized greeting for {user_id}")
+                        
             except Exception as e:
                 logging.error(f"[DEBUG] LLM query failed for user {user_id}: {e}")
                 user_response = "I apologize, but I'm having trouble processing your request right now. Please try again."
@@ -255,27 +332,26 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
         else:
             print(f"[CONSOLE DEBUG] Conversation not stored as memory (no personal info detected)")
 
-        # --- Cache the response (after generating user_response) ---
-        def cache_response():
-            if not is_time_query and user_response and str(user_response).strip():  # Only cache non-empty responses
-                success = set_cache(cache_key, str(user_response))
-                if success:
-                    logging.info(f"[CACHE] Response cached for user {user_id} (key: {cache_key})")
-                    debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
-                else:
-                    logging.warning(f"[CACHE] Failed to cache response for user {user_id}")
+        # --- Cache the response (unified implementation) ---
+        if not is_time_query and user_response and str(user_response).strip():
+            try:
+                cache_manager = get_cache()
+                if cache_manager:
+                    # Create response object to cache
+                    response_data = {"response": str(user_response)}
+                    success = cache_manager.set(cache_key, response_data)
+                    if success:
+                        log_service_status("cache", "info", f"Cached response for key: {cache_key}")
+                        debug_info.append(f"[CACHE] Response cached (key: {cache_key})")
+                    else:
+                        log_service_status("cache", "warning", f"Failed to cache response for user {user_id}")
+            except Exception as cache_error:
+                log_service_status("cache", "warning", f"Cache set failed: {str(cache_error)}")
+        else:
+            if is_time_query:
+                logging.info("[CACHE] Skipping cache for time-sensitive query")
             else:
-                if is_time_query:
-                    logging.info("[CACHE] Skipping cache for time-sensitive query")
-                else:
-                    logging.info("[CACHE] Skipping cache for empty response")
-
-        safe_execute(
-            cache_response,
-            error_handler=lambda e: CacheErrorHandler.handle_cache_error(
-                e, "set", cache_key, user_id, request_id
-            ),
-        )
+                logging.info("[CACHE] Skipping cache for empty response")
 
         # Always log debug info, but do not include in user-facing response
         logging.debug(f"[DEBUG INFO] {' | '.join(debug_info)}")
@@ -283,7 +359,10 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
             f"[REQUEST {request_id}] Successfully processed chat request for user {user_id}"
         )
 
-        return ChatResponse(response=str(user_response) if user_response is not None else "")
+        # Create response
+        response = ChatResponse(response=str(user_response) if user_response is not None else "")
+        
+        return response
 
     except Exception as e:
         # Log error with service status

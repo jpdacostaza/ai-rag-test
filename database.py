@@ -317,6 +317,25 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
 
         # Return formatted results for semantic search
         formatted_results = []
+        
+        # Add user profile as highest priority context
+        try:
+            from user_profiles import user_profile_manager
+            user_profile = user_profile_manager.get_user_info(user_id)
+            if user_profile:
+                profile_context = user_profile_manager.build_context_for_llm(user_id)
+                if profile_context:
+                    formatted_results.append({
+                        "document": f"User Profile: {profile_context}",
+                        "metadata": {"type": "user_profile", "user_id": user_id},
+                        "distance": 0.0  # Highest relevance
+                    })
+                    logging.info(f"[MEMORY] 👤 Added user profile context for {user_id}")
+        except ImportError:
+            logging.debug("[MEMORY] User profile system not available")
+        except Exception as e:
+            logging.warning(f"[MEMORY] Error adding user profile: {e}")
+        
         for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
             similarity = 1 - distance if distance is not None else 0.0
             formatted_results.append({

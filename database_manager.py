@@ -100,12 +100,8 @@ class DatabaseManager:
         self._service_start_times = {}
         self._service_downtime_alerts = {}
         
-        # Initialize everything (don't fail constructor)
-        try:
-            asyncio.create_task(self._initialize_all())
-        except Exception as e:
-            log_service_status("database_manager", "error", f"Failed to start initialization task: {str(e)}")
-            self._initialization_failed = True
+        # Don't initialize during construction - wait for proper event loop
+        log_service_status("database_manager", "info", "Database manager created on module import")
         
     async def _initialize_all(self):
         """Initialize all components with proper error handling."""

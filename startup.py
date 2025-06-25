@@ -143,14 +143,24 @@ async def startup_event(app) -> None:
         log_service_status("STARTUP", "starting", "Initializing database connections...")
         await _spinner_log("[STARTUP] Initializing database connections", 2)
 
-        # Store Redis pool in app state for dependency injection (like working implementation)
-        if hasattr(db_manager, "redis_pool") and db_manager.redis_pool is not None:
-            app.state.redis_pool = db_manager.redis_pool
-            log_service_status("STARTUP", "ready", "Redis pool stored in app state")
+        # Initialize database manager properly
+        try:
+            if db_manager:
+                await db_manager.ensure_initialized()
+                log_service_status("STARTUP", "ready", "Database manager initialized successfully")
+            else:
+                log_service_status("STARTUP", "error", "Database manager is None - initialization failed")
+        except Exception as e:
+            log_service_status("STARTUP", "error", f"Database manager initialization failed: {e}")
+
+        # Store Redis client in app state for dependency injection
+        if db_manager and hasattr(db_manager, "redis_client") and db_manager.redis_client is not None:
+            app.state.redis_client = db_manager.redis_client
+            log_service_status("STARTUP", "ready", "Redis client stored in app state")
         else:
-            app.state.redis_pool = None
+            app.state.redis_client = None
             log_service_status(
-                "STARTUP", "degraded", "Redis pool not available - some features may be degraded"
+                "STARTUP", "degraded", "Redis client not available - some features may be degraded"
             )
         
         # Model verification and auto-pull
