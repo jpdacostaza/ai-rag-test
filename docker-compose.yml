@@ -115,8 +115,6 @@ services:
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
       - EMBEDDING_MODEL=all-MiniLM-L6-v2
-      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
-      - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
       - HF_HOME=/opt/internal_cache/sentence_transformers
       # chromadb ONNX cache location
       - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models

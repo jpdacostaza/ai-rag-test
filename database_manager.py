@@ -143,57 +143,63 @@ class DatabaseManager:
             
     async def _initialize_chroma(self):
         """Initialize chromadb client with retry logic and graceful degradation."""
+        log_service_status("chromadb", "info", "[TRACE] Entered _initialize_chroma (AI test marker)")
+        raise Exception("AI TEST EXCEPTION - _initialize_chroma")
         chroma_host = os.getenv("CHROMA_HOST", "localhost")
         chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
         max_retries = int(os.getenv("CHROMA_INIT_MAX_RETRIES", "3"))
         retry_delay = int(os.getenv("CHROMA_INIT_RETRY_DELAY", "5"))
+        use_http_chroma = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
 
         for attempt in range(max_retries):
             try:
-                settings = Settings(
-                    chroma_api_impl="rest",
-                    chroma_server_host=chroma_host,
-                    chroma_server_http_port=chroma_port,
-                    anonymized_telemetry=False
-                )
-                
                 async with self._chroma_lock:
-                    self.chroma_client = cast(ChromaClientProtocol, chromadb.Client(settings))
-                    
-                    # Test connection
+                    if use_http_chroma:
+                        self.chroma_client = cast(ChromaClientProtocol, chromadb.HttpClient(
+                            host=chroma_host, 
+                            port=chroma_port
+                        ))
+                    else:
+                        settings = Settings(
+                            chroma_api_impl="rest",
+                            chroma_server_host=chroma_host,
+                            chroma_server_http_port=chroma_port,
+                            anonymized_telemetry=False
+                        )
+                        self.chroma_client = cast(ChromaClientProtocol, chromadb.Client(settings))
                     self.chroma_client.heartbeat()
-                    
                     collection_name = os.getenv("CHROMA_COLLECTION", "default")
                     self.chroma_collection = self.chroma_client.get_or_create_collection(
                         name=collection_name,
                         metadata={"description": "Default vector store for embeddings"}
                     )
-                    
                     log_service_status("chromadb", "info", "chromadb initialized successfully")
                     return
             except Exception as e:
-                log_service_status("chromadb", "warning", f"chromadb initialization attempt {attempt + 1}/{max_retries} failed: {str(e)}")
+                import traceback
+                tb = traceback.format_exc()
+                log_service_status("chromadb", "error", f"chromadb initialization attempt {attempt + 1}/{max_retries} failed: {str(e)}\nTraceback:\n{tb}")
                 if attempt < max_retries - 1:
                     await asyncio.sleep(retry_delay)
-        
         log_service_status("chromadb", "error", "chromadb initialization failed after multiple retries. Service will be unavailable.")
         self.chroma_client = None
         self.chroma_collection = None
             
     async def _initialize_embedding_model(self):
         """Initialize the embedding model with graceful failure."""
+        log_service_status("embeddings", "debug", "[TRACE] Entered _initialize_embedding_model (AI test marker)")
         if os.getenv("DISABLE_EMBEDDINGS", "false").lower() == "true":
             log_service_status("embeddings", "info", "Embeddings are disabled via environment variable.")
             self.embedding_model = None
             return
-
         try:
             model_name = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-            # This can be a blocking call, so run it in a thread
             self.embedding_model = await asyncio.to_thread(SentenceTransformer, model_name)
             log_service_status("embeddings", "info", f"Embedding model {model_name} loaded successfully")
         except Exception as e:
-            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable.")
+            import traceback
+            tb = traceback.format_exc()
+            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable.\nTraceback:\n{tb}")
             self.embedding_model = None
 
     def _initialize_chroma_collection(self):
@@ -266,7 +272,10 @@ class DatabaseManager:
                 return False
             self.chroma_client.heartbeat()
             return True
-        except Exception:
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            log_service_status("chromadb", "error", f"ChromaDB health check failed: {str(e)}\nTraceback:\n{tb}")
             return False
 
     def is_embeddings_available(self):

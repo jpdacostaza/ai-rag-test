@@ -1,0 +1,870 @@
+{
+  "timestamp": "2025-06-25 20:22:29.287906",
+  "files_analyzed": {
+    "memory_files": [
+      "adaptive_learning.py",
+      "cache_manager.py",
+      "config.py",
+      "database.py",
+      "database_manager.py",
+      "enhanced_document_processing.py",
+      "error_handler.py",
+      "human_logging.py",
+      "main.py",
+      "models.py",
+      "rag.py",
+      "review_memory_learning.py",
+      "startup.py",
+      "user_profiles.py",
+      "validate_alert_integration.py",
+      "memory\\advanced_memory_pipeline.py",
+      "memory\\backend_memory_pipeline.py",
+      "memory\\cross_chat_memory_filter.py",
+      "memory\\memory_filter.py",
+      "memory\\memory_pipeline.py",
+      "memory\\openwebui_memory_pipeline.py",
+      "memory\\openwebui_memory_pipeline_full.py",
+      "memory\\simple_memory_function.py",
+      "pipelines\\pipelines_v1_routes.py",
+      "routes\\chat.py",
+      "routes\\debug.py",
+      "routes\\upload.py",
+      "services\\streaming_service.py",
+      "utilities\\alert_manager.py",
+      "utilities\\cache_manager.py",
+      "utilities\\database_types.py",
+      "utilities\\endpoint_validator.py",
+      "utilities\\focused_endpoint_validator.py",
+      "utilities\\inspect_chromadb.py",
+      "utilities\\memory_monitor.py",
+      "utilities\\memory_pool.py",
+      "utilities\\setup_api_keys_demo.py"
+    ],
+    "learning_files": [
+      "adaptive_learning.py",
+      "enhanced_document_processing.py",
+      "enhanced_integration.py",
+      "main.py",
+      "review_memory_learning.py",
+      "watchdog.py",
+      "memory\\advanced_memory_pipeline.py",
+      "memory\\memory_pipeline.py"
+    ]
+  },
+  "issues": [
+    {
+      "file": "database_manager.py",
+      "function": "get_chat_history",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "store_chat_entry",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_embedding",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "set_cache",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_cache_async",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "set_cache_async",
+      "issues": [
+        "Missing error handling",
+        "Potential memory leak - large data structures not cleared"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "store_chat_history",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "index_user_document",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_or_create_collection",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "list_collections",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "heartbeat",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "add",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "query",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "__init__",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_initialize_all",
+      "issues": [
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_initialize_redis",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_initialize_embedding_model",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_redis_client",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "is_redis_available",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "is_chromadb_available",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "is_embeddings_available",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_health_status",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_handle_memory_pressure",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_embedding",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_chat_history",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "store_chat_entry",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "query_chroma",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_cache",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "clear_cache",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_cache_stats",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "monitor_service_health",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_check_redis_health",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_check_chromadb_health",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "_check_embeddings_health",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "is_initialized",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "initialization_failed",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "ensure_initialized",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "store_operation",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "alert_memory_pressure",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "alert_service_down",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "get_operation",
+      "issues": [
+        "Potential memory leak - large data structures not cleared"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "database_manager.py",
+      "function": "store_operation",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "__init__",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "on_startup",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "on_shutdown",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "on_valves_updated",
+      "issues": [
+        "Missing error handling",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "log",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "check_backend_health",
+      "issues": [
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "get_user_memory",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "store_interaction",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "_store_interaction_async",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "format_memory_context",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "extract_user_id",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "inlet",
+      "issues": [
+        "Nested loops detected - potential O(n\u00b2) complexity",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "outlet",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\advanced_memory_pipeline.py",
+      "function": "get_pipeline_status",
+      "issues": [
+        "Missing error handling",
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "__init__",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_get_client",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_call_backend",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_retrieve_user_memory",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_get_user_id",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_get_conversation_id",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_store_interaction",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "_store_user_memory",
+      "issues": [
+        "Potential memory leak - large data structures not cleared",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "inlet",
+      "issues": [
+        "Nested loops detected - potential O(n\u00b2) complexity",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "outlet",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "memory\\memory_pipeline.py",
+      "function": "cleanup",
+      "issues": [
+        "Missing error handling",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "memory"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "__init__",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "analyze_interaction",
+      "issues": [
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_classify_feedback",
+      "issues": [
+        "Nested loops detected - potential O(n\u00b2) complexity"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_extract_topics",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_count_follow_up_indicators",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "__init__",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "process_interaction",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "get_user_insights",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_update_learning_patterns",
+      "issues": [
+        "Nested loops detected - potential O(n\u00b2) complexity",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_check_knowledge_expansion",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "_update_user_preferences",
+      "issues": [
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "adaptive_learning.py",
+      "function": "process_knowledge_expansion_queue",
+      "issues": [
+        "Missing input validation",
+        "Potential race condition - missing locks/semaphores"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "enhanced_integration.py",
+      "function": "get_user_insights",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "enhanced_integration.py",
+      "function": "get_chunking_strategies",
+      "issues": [
+        "Missing error handling"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "enhanced_integration.py",
+      "function": "_get_strategy_description",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "enhanced_integration.py",
+      "function": "_get_document_type_description",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "get_weather_weatherapi",
+      "issues": [
+        "Potential memory leak - large data structures not cleared"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "chunk_text",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "web_search",
+      "issues": [
+        "Potential memory leak - large data structures not cleared"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "get_news",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "get_exchange_rate",
+      "issues": [
+        "Potential memory leak - large data structures not cleared"
+      ],
+      "category": "learning"
+    },
+    {
+      "file": "utilities\\ai_tools.py",
+      "function": "get_timezone_for_location",
+      "issues": [
+        "Missing input validation"
+      ],
+      "category": "learning"
+    }
+  ],
+  "improvements": [
+    {
+      "category": "Memory Management",
+      "improvements": [
+        {
+          "title": "Implement Memory Pooling",
+          "description": "Use object pooling for frequently created/destroyed memory objects",
+          "priority": "high"
+        },
+        {
+          "title": "Add Memory Pressure Monitoring",
+          "description": "Monitor and respond to memory pressure",
+          "priority": "medium"
+        },
+        {
+          "title": "Implement Hierarchical Memory",
+          "description": "Create memory hierarchy for better organization",
+          "priority": "high"
+        }
+      ]
+    },
+    {
+      "category": "Learning Optimization",
+      "improvements": [
+        {
+          "title": "Implement Learning Rate Scheduling",
+          "description": "Adaptive learning rate based on performance",
+          "priority": "medium"
+        },
+        {
+          "title": "Add Reinforcement Learning",
+          "description": "Learn from user feedback",
+          "priority": "high"
+        },
+        {
+          "title": "Implement Meta-Learning",
+          "description": "Learn how to learn better",
+          "priority": "medium"
+        }
+      ]
+    },
+    {
+      "category": "Retrieval Enhancement",
+      "improvements": [
+        {
+          "title": "Implement Hybrid Search",
+          "description": "Combine vector and keyword search",
+          "priority": "high"
+        },
+        {
+          "title": "Add Contextual Reranking",
+          "description": "Rerank results based on context",
+          "priority": "medium"
+        },
+        {
+          "title": "Implement Query Expansion",
+          "description": "Expand queries for better recall",
+          "priority": "low"
+        }
+      ]
+    }
+  ]
+}

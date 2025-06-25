@@ -315,9 +315,9 @@ class OllamaMonitor(SubsystemMonitor):
         try:
             headers = {"Content-Type": "application/json"}
             if self.api_key:
-                headers["Authorization"] = "Bearer {self.api_key}"
+                headers["Authorization"] = f"Bearer {self.api_key}"
 
-            health_url = "{self.ollama_url.rstrip('/')}/api/tags"
+            health_url = f"{self.ollama_url.rstrip('/')}/api/tags"
 
             response = await self.client.get(health_url, headers=headers)
 

@@ -1,5 +1,0 @@
-{
-  "user_id": "test_user", 
-  "message": "What is the latest news about artificial intelligence?", 
-  "model": "llama3.2:3b"
-}
