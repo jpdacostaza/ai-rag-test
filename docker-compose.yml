@@ -114,7 +114,9 @@ services:
       - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
       - ENABLE_COLORED_LOGS=false
-      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+      - EMBEDDING_MODEL=intfloat/e5-small-v2
+      - EMBEDDING_PROVIDER=huggingface
+      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
       - HF_HOME=/opt/internal_cache/sentence_transformers
       # chromadb ONNX cache location
       - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models

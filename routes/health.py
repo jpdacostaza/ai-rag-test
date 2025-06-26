@@ -244,3 +244,81 @@ async def get_alert_statistics():
             "message": "Failed to retrieve alert statistics",
             "error": str(e)
         }
+
+@health_router.get("/startup-status")
+async def get_startup_status():
+    """Get detailed startup status for debugging ChromaDB and Embeddings issues."""
+    from database_manager import db_manager
+    import httpx
+    from config import OLLAMA_BASE_URL, EMBEDDING_MODEL, CHROMA_HOST, CHROMA_PORT
+    
+    status = {
+        "timestamp": datetime.utcnow().isoformat(),
+        "services": {},
+        "recommendations": {},
+        "details": {}
+    }
+    
+    # Check Redis
+    try:
+        if db_manager and db_manager.redis_client:
+            await db_manager.redis_client.ping()
+            status["services"]["redis"] = "Connected"
+            status["details"]["redis"] = f"Connected to Redis at {db_manager.redis_client.connection_pool.connection_kwargs.get('host', 'unknown')}"
+        else:
+            status["services"]["redis"] = "Not initialized"
+            status["details"]["redis"] = "Redis client not initialized"
+    except Exception as e:
+        status["services"]["redis"] = "Failed"
+        status["details"]["redis"] = f"Redis error: {str(e)}"
+        status["recommendations"]["redis"] = "Run: docker-compose up -d redis"
+    
+    # Check ChromaDB
+    try:
+        if db_manager and db_manager.chroma_client:
+            db_manager.chroma_client.heartbeat()
+            status["services"]["chromadb"] = "Connected"
+            status["details"]["chromadb"] = f"Connected to ChromaDB at {CHROMA_HOST}:{CHROMA_PORT}"
+        else:
+            status["services"]["chromadb"] = "Not initialized"
+            status["details"]["chromadb"] = "ChromaDB client not initialized"
+    except Exception as e:
+        status["services"]["chromadb"] = "Failed"
+        status["details"]["chromadb"] = f"ChromaDB error: {str(e)}"
+        status["recommendations"]["chromadb"] = f"Check: docker-compose ps | grep chroma. Expected port: {CHROMA_PORT}"
+    
+    # Check Ollama and Embeddings
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            # Check Ollama availability
+            response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                model_names = [model.get("name", "").split(":")[0] for model in models]
+                
+                if EMBEDDING_MODEL in model_names:
+                    status["services"]["embeddings"] = "Available"
+                    status["details"]["embeddings"] = f"Model '{EMBEDDING_MODEL}' found in Ollama. Available models: {model_names}"
+                else:
+                    status["services"]["embeddings"] = "Model Missing"
+                    status["details"]["embeddings"] = f"Model '{EMBEDDING_MODEL}' not found. Available: {model_names}"
+                    status["recommendations"]["embeddings"] = f"Run: ollama pull {EMBEDDING_MODEL}"
+            else:
+                status["services"]["embeddings"] = "Ollama Error"
+                status["details"]["embeddings"] = f"Ollama returned status {response.status_code}"
+                status["recommendations"]["embeddings"] = "Check Ollama service health"
+    except Exception as e:
+        status["services"]["embeddings"] = "Failed"
+        status["details"]["embeddings"] = f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {str(e)}"
+        status["recommendations"]["embeddings"] = "Run: docker-compose up -d ollama"
+    
+    # Overall status
+    all_services_ok = all(
+        service_status in ["Connected", "Available"] 
+        for service_status in status["services"].values()
+    )
+    
+    status["overall"] = "Healthy" if all_services_ok else "Degraded"
+    status["ready_for_production"] = all_services_ok
+    
+    return status

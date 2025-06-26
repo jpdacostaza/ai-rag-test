@@ -121,19 +121,25 @@ def configure_security(app: FastAPI):
     logger.info("Security middleware configured successfully")
 
 def validate_environment():
-    """Validate required environment variables."""
-    required_vars = [
-        "REDIS_HOST",
-        "CHROMA_HOST",
-        "DEFAULT_MODEL"
-    ]
+    """Validate required environment variables with fallback to config defaults."""
+    from config import REDIS_HOST, CHROMA_HOST, DEFAULT_MODEL
     
-    missing_vars = []
-    for var in required_vars:
-        if not os.getenv(var):
-            missing_vars.append(var)
+    # Check if essential services are configured (either via env vars or config defaults)
+    configurations = {
+        "REDIS_HOST": REDIS_HOST,
+        "CHROMA_HOST": CHROMA_HOST, 
+        "DEFAULT_MODEL": DEFAULT_MODEL
+    }
     
-    if missing_vars:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+    missing_configs = []
+    for config_name, config_value in configurations.items():
+        if not config_value:
+            missing_configs.append(config_name)
+    
+    if missing_configs:
+        raise ValueError(f"Missing required configurations: {', '.join(missing_configs)}")
     
     logger.info("Environment validation passed")
+    logger.info(f"Using Redis: {REDIS_HOST}")
+    logger.info(f"Using ChromaDB: {CHROMA_HOST}")
+    logger.info(f"Using Model: {DEFAULT_MODEL}")

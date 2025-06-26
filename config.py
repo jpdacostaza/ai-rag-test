@@ -36,12 +36,14 @@ WRITE_TIMEOUT = int(os.getenv("WRITE_TIMEOUT", "5"))  # Write timeout
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
-CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8002"))  # Fixed: ChromaDB runs on port 8002 in docker-compose
 USE_HTTP_CHROMA = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
 
 # Embedding configuration
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-SENTENCE_TRANSFORMERS_HOME = os.getenv("SENTENCE_TRANSFORMERS_HOME", "./models")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/e5-small-v2")  # Default: Use e5-small-v2 from HuggingFace
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "huggingface")  # Options: "huggingface", "ollama"
+SENTENCE_TRANSFORMERS_HOME = os.getenv("SENTENCE_TRANSFORMERS_HOME", "./storage/models")
+AUTO_PULL_MODELS = os.getenv("AUTO_PULL_MODELS", "true").lower() == "true"  # Automatically pull missing models
 
 # Cache configuration
 CACHE_TTL = int(os.getenv("CACHE_TTL", "600"))  # 10 minutes default
@@ -72,7 +74,7 @@ def log_environment_variables():
     try:
         env_vars_to_log = [
             "REDIS_HOST", "REDIS_PORT", "CHROMA_HOST", "CHROMA_PORT",
-            "DEFAULT_MODEL", "EMBEDDING_MODEL", "SENTENCE_TRANSFORMERS_HOME",
+            "DEFAULT_MODEL", "EMBEDDING_MODEL", "EMBEDDING_PROVIDER", "SENTENCE_TRANSFORMERS_HOME",
             "OLLAMA_BASE_URL", "USE_OLLAMA", "USE_HTTP_CHROMA",
             "OPENAI_API_BASE_URL", "LLM_TIMEOUT"
         ]

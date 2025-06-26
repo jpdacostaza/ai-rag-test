@@ -105,19 +105,24 @@ class DatabaseManager:
         
     async def _initialize_all(self):
         """Initialize all components with proper error handling."""
+        redis_success = False
         try:
             await self._initialize_redis()
+            redis_success = True
         except Exception as e:
-            log_service_status("database_manager", "error", f"Critical error during Redis initialization: {str(e)}")
-            self._initialization_failed = True
-            return
+            log_service_status("database_manager", "warning", f"Redis initialization failed: {str(e)}. Continuing with other components.")
+            # Don't set _initialization_failed = True or return early
+            # Redis can be reconnected later, but we should still initialize embeddings and ChromaDB
 
-        # Chroma and Embeddings are optional and will handle their own errors/retries
+        # Initialize Chroma and Embeddings independently - they are optional and will handle their own errors/retries
         await self._initialize_chroma()
         await self._initialize_embedding_model()
         
         self._initialized = True
-        log_service_status("database_manager", "info", "Database components initialization process completed.")
+        if redis_success:
+            log_service_status("database_manager", "info", "Database components initialization process completed successfully.")
+        else:
+            log_service_status("database_manager", "info", "Database components initialization completed (Redis connection pending).")
             
     async def _initialize_redis(self):
         """Initialize Redis client with proper error handling."""
@@ -143,23 +148,28 @@ class DatabaseManager:
             
     async def _initialize_chroma(self):
         """Initialize chromadb client with retry logic and graceful degradation."""
-        log_service_status("chromadb", "info", "[TRACE] Entered _initialize_chroma (AI test marker)")
-        raise Exception("AI TEST EXCEPTION - _initialize_chroma")
-        chroma_host = os.getenv("CHROMA_HOST", "localhost")
-        chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
+        from config import CHROMA_HOST, CHROMA_PORT, USE_HTTP_CHROMA
+        
+        chroma_host = CHROMA_HOST
+        chroma_port = CHROMA_PORT
         max_retries = int(os.getenv("CHROMA_INIT_MAX_RETRIES", "3"))
         retry_delay = int(os.getenv("CHROMA_INIT_RETRY_DELAY", "5"))
-        use_http_chroma = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
+        use_http_chroma = USE_HTTP_CHROMA
+
+        log_service_status("chromadb", "info", f"Attempting ChromaDB connection to {chroma_host}:{chroma_port}")
 
         for attempt in range(max_retries):
             try:
                 async with self._chroma_lock:
                     if use_http_chroma:
+                        # Use HttpClient for connecting to remote ChromaDB service
                         self.chroma_client = cast(ChromaClientProtocol, chromadb.HttpClient(
                             host=chroma_host, 
-                            port=chroma_port
+                            port=chroma_port,
+                            settings=Settings(anonymized_telemetry=False)
                         ))
                     else:
+                        # Use persistent client for local/embedded ChromaDB
                         settings = Settings(
                             chroma_api_impl="rest",
                             chroma_server_host=chroma_host,
@@ -167,39 +177,174 @@ class DatabaseManager:
                             anonymized_telemetry=False
                         )
                         self.chroma_client = cast(ChromaClientProtocol, chromadb.Client(settings))
+                    
+                    # Test connection
                     self.chroma_client.heartbeat()
+                    
                     collection_name = os.getenv("CHROMA_COLLECTION", "default")
                     self.chroma_collection = self.chroma_client.get_or_create_collection(
                         name=collection_name,
                         metadata={"description": "Default vector store for embeddings"}
                     )
-                    log_service_status("chromadb", "info", "chromadb initialized successfully")
+                    
+                    log_service_status("chromadb", "info", f"ChromaDB initialized successfully on {chroma_host}:{chroma_port}")
                     return
             except Exception as e:
-                import traceback
-                tb = traceback.format_exc()
-                log_service_status("chromadb", "error", f"chromadb initialization attempt {attempt + 1}/{max_retries} failed: {str(e)}\nTraceback:\n{tb}")
+                log_service_status("chromadb", "warning", f"ChromaDB initialization attempt {attempt + 1}/{max_retries} failed: {str(e)}")
                 if attempt < max_retries - 1:
+                    log_service_status("chromadb", "info", f"Retrying in {retry_delay} seconds...")
                     await asyncio.sleep(retry_delay)
-        log_service_status("chromadb", "error", "chromadb initialization failed after multiple retries. Service will be unavailable.")
+        
+        log_service_status("chromadb", "error", "ChromaDB initialization failed after multiple retries. Service will be unavailable.")
+        log_service_status("chromadb", "info", "💡 To fix: Check 'docker-compose ps' and ensure ChromaDB container is running")
         self.chroma_client = None
         self.chroma_collection = None
             
     async def _initialize_embedding_model(self):
-        """Initialize the embedding model with graceful failure."""
-        log_service_status("embeddings", "debug", "[TRACE] Entered _initialize_embedding_model (AI test marker)")
+        """Initialize the embedding model with automatic downloading if needed."""
         if os.getenv("DISABLE_EMBEDDINGS", "false").lower() == "true":
             log_service_status("embeddings", "info", "Embeddings are disabled via environment variable.")
             self.embedding_model = None
             return
+
         try:
-            model_name = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-            self.embedding_model = await asyncio.to_thread(SentenceTransformer, model_name)
-            log_service_status("embeddings", "info", f"Embedding model {model_name} loaded successfully")
+            from config import EMBEDDING_MODEL, EMBEDDING_PROVIDER, SENTENCE_TRANSFORMERS_HOME, AUTO_PULL_MODELS
+            
+            model_name = EMBEDDING_MODEL
+            provider = EMBEDDING_PROVIDER.lower()
+            
+            log_service_status("embeddings", "info", f"Initializing embedding model '{model_name}' with provider '{provider}'...")
+            
+            if provider == "huggingface":
+                await self._initialize_huggingface_model(model_name)
+            elif provider == "ollama":
+                await self._initialize_ollama_model(model_name)
+            else:
+                log_service_status("embeddings", "error", f"Unknown embedding provider '{provider}'. Supported: 'huggingface', 'ollama'")
+                self.embedding_model = None
+
         except Exception as e:
-            import traceback
-            tb = traceback.format_exc()
-            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable.\nTraceback:\n{tb}")
+            log_service_status("embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable.")
+            self.embedding_model = None
+
+    async def _initialize_huggingface_model(self, model_name: str):
+        """Initialize a HuggingFace SentenceTransformers model."""
+        try:
+            from config import SENTENCE_TRANSFORMERS_HOME, AUTO_PULL_MODELS
+            import os
+            
+            # Set the cache directory for models
+            os.environ['SENTENCE_TRANSFORMERS_HOME'] = SENTENCE_TRANSFORMERS_HOME
+            
+            # Set the cache directory for models
+            os.environ['SENTENCE_TRANSFORMERS_HOME'] = SENTENCE_TRANSFORMERS_HOME
+            os.makedirs(SENTENCE_TRANSFORMERS_HOME, exist_ok=True)
+            
+            # SentenceTransformers handles downloading automatically if model doesn't exist
+            log_service_status("embeddings", "info", f"📥 Loading/downloading model '{model_name}'...")
+            
+            def load_or_download_model():
+                from sentence_transformers import SentenceTransformer
+                try:
+                    # This will download the model if it doesn't exist, or load from cache if it does
+                    model = SentenceTransformer(model_name, cache_folder=SENTENCE_TRANSFORMERS_HOME)
+                    return model
+                except Exception as e:
+                    log_service_status("embeddings", "error", f"Failed to load/download model '{model_name}': {e}")
+                    return None
+            
+            # Load or download the model in a thread to avoid blocking the event loop
+            model = await asyncio.to_thread(load_or_download_model)
+            
+            if model is not None:
+                self.embedding_model = model
+                log_service_status("embeddings", "info", f"✅ Successfully loaded model '{model_name}'")
+                log_service_status("embeddings", "info", f"📊 Model dimensions: {model.get_sentence_embedding_dimension()}")
+            else:
+                log_service_status("embeddings", "error", f"Failed to load model '{model_name}'")
+                self.embedding_model = None
+                
+        except ImportError:
+            log_service_status("embeddings", "error", "sentence-transformers library not available. Install with: pip install sentence-transformers")
+            self.embedding_model = None
+        except Exception as e:
+            log_service_status("embeddings", "error", f"Error initializing HuggingFace model '{model_name}': {str(e)}")
+            self.embedding_model = None
+
+    async def _initialize_ollama_model(self, model_name: str):
+        """Initialize an Ollama embedding model."""
+        try:
+            from config import OLLAMA_BASE_URL, AUTO_PULL_MODELS
+            import httpx
+            
+            # Test if Ollama is available and has the model
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                # Check if Ollama is running
+                try:
+                    response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+                    if response.status_code == 200:
+                        models = response.json().get("models", [])
+                        model_names = [model.get("name", "").split(":")[0] for model in models]
+                        
+                        if model_name in model_names:
+                            log_service_status("embeddings", "info", f"✅ Embedding model '{model_name}' found in Ollama")
+                            self.embedding_model = model_name  # Store model name for Ollama usage
+                            return
+                        else:
+                            log_service_status("embeddings", "info", f"Model '{model_name}' not found. Available models: {model_names}")
+                            log_service_status("embeddings", "info", f"� Automatically pulling model '{model_name}'...")
+                            
+                            # Attempt to pull the model automatically
+                            await self._pull_embedding_model(client, model_name)
+                            return
+                    else:
+                        log_service_status("embeddings", "warning", f"Ollama returned status {response.status_code}")
+                        
+                except Exception as e:
+                    log_service_status("embeddings", "warning", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
+                    log_service_status("embeddings", "info", "💡 To fix: Ensure Ollama is running with 'docker-compose up -d ollama'")
+            
+            # Fallback: mark as unavailable but don't fail startup
+            log_service_status("embeddings", "error", "Ollama embedding model initialization failed. Service will be unavailable.")
+            self.embedding_model = None
+
+        except Exception as e:
+            log_service_status("embeddings", "error", f"Ollama embedding model initialization failed: {str(e)}. Service will be unavailable.")
+            self.embedding_model = None
+            
+    async def _pull_embedding_model(self, client: Any, model_name: str) -> None:
+        """Pull the embedding model from Ollama."""
+        try:
+            from config import OLLAMA_BASE_URL
+            
+            # Start the pull request
+            pull_response = await client.post(
+                f"{OLLAMA_BASE_URL}/api/pull",
+                json={"name": model_name},
+                timeout=300.0  # 5 minutes timeout for model pulling
+            )
+            
+            if pull_response.status_code == 200:
+                log_service_status("embeddings", "info", f"✅ Successfully pulled model '{model_name}'")
+                self.embedding_model = model_name
+                
+                # Verify the model is now available
+                verify_response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
+                if verify_response.status_code == 200:
+                    models = verify_response.json().get("models", [])
+                    model_names = [model.get("name", "").split(":")[0] for model in models]
+                    if model_name in model_names:
+                        log_service_status("embeddings", "info", f"✅ Model '{model_name}' verified and ready")
+                    else:
+                        log_service_status("embeddings", "warning", f"Model '{model_name}' pull succeeded but not found in model list")
+            else:
+                log_service_status("embeddings", "error", f"Failed to pull model '{model_name}': HTTP {pull_response.status_code}")
+                log_service_status("embeddings", "info", f"💡 Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'")
+                self.embedding_model = None
+                
+        except Exception as e:
+            log_service_status("embeddings", "error", f"Error pulling model '{model_name}': {str(e)}")
+            log_service_status("embeddings", "info", f"💡 Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'")
             self.embedding_model = None
 
     def _initialize_chroma_collection(self):
@@ -272,10 +417,7 @@ class DatabaseManager:
                 return False
             self.chroma_client.heartbeat()
             return True
-        except Exception as e:
-            import traceback
-            tb = traceback.format_exc()
-            log_service_status("chromadb", "error", f"ChromaDB health check failed: {str(e)}\nTraceback:\n{tb}")
+        except Exception:
             return False
 
     def is_embeddings_available(self):
@@ -376,14 +518,44 @@ class DatabaseManager:
             raise
 
     async def get_embedding(self, text: str) -> Optional[List[float]]:
-        """Get embedding for text using the current model."""
+        """Get embedding for text using the configured provider (HuggingFace or Ollama)."""
         if not self.embedding_model:
             log_service_status("embeddings", "error", "Embedding model not available")
             return None
             
         try:
-            embedding = self.embedding_model.encode(text)
-            return embedding.tolist()
+            from config import EMBEDDING_PROVIDER
+            provider = EMBEDDING_PROVIDER.lower()
+            
+            if provider == "huggingface":
+                # Use SentenceTransformers model directly
+                if hasattr(self.embedding_model, 'encode'):
+                    # Add the query prefix for e5 models
+                    if "e5-" in str(self.embedding_model).lower():
+                        prefixed_text = f"query: {text}"
+                    else:
+                        prefixed_text = text
+                    
+                    # Run embedding generation in a thread to avoid blocking
+                    embedding = await asyncio.to_thread(
+                        self.embedding_model.encode, 
+                        [prefixed_text], 
+                        normalize_embeddings=True
+                    )
+                    return embedding[0].tolist() if len(embedding) > 0 else None
+                else:
+                    log_service_status("embeddings", "error", "HuggingFace model does not have encode method")
+                    return None
+                    
+            elif provider == "ollama":
+                # Use Ollama via LLM service
+                from services.llm_service import llm_service
+                embedding = await llm_service.get_embeddings(text, self.embedding_model)
+                return embedding
+            else:
+                log_service_status("embeddings", "error", f"Unknown provider '{provider}'")
+                return None
+                
         except Exception as e:
             log_service_status("embeddings", "error", f"Error generating embedding: {str(e)}")
             return None
@@ -586,13 +758,17 @@ class DatabaseManager:
             except Exception as e:
                 log_service_status("database_manager", "error", f"Reinitialization failed: {str(e)}")
                 return False
+        
+        # If not initialized and initialization hasn't failed, try to initialize
+        if not self._initialized:
+            try:
+                await self._initialize_all()
+                return self._initialized
+            except Exception as e:
+                log_service_status("database_manager", "error", f"Initial initialization failed: {str(e)}")
+                self._initialization_failed = True
+                return False
                 
-        # Wait a bit for initialization to complete
-        for _ in range(10):  # Wait up to 1 second
-            if self._initialized:
-                return True
-            await asyncio.sleep(0.1)
-            
         return self._initialized
 
 # Global database manager instance

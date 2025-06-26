@@ -524,7 +524,7 @@ async def debug_routes():
                     "path": path,
                     "methods": list(methods) if methods else ["GET"]
                 })
-        except:
+        except Exception:
             continue
     return {"total_routes": len(routes), "routes": sorted(routes, key=lambda x: x["path"])}
 

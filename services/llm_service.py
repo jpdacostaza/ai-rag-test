@@ -289,6 +289,44 @@ class LLMService:
             if session_id and session_id in STREAM_SESSION_STOP:
                 STREAM_SESSION_STOP.pop(session_id, None)
 
+    async def get_embeddings(self, text: str, model: Optional[str] = None) -> Optional[List[float]]:
+        """
+        Get embeddings for text using Ollama.
+        """
+        from config import EMBEDDING_MODEL
+        
+        model = model or EMBEDDING_MODEL
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.ollama_url}/api/embeddings",
+                    json={
+                        "model": model,
+                        "prompt": text
+                    }
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    embeddings = result.get("embedding", [])
+                    if embeddings:
+                        log_service_status("embeddings", "info", f"Generated embeddings with dimension {len(embeddings)}")
+                        return embeddings
+                    else:
+                        log_service_status("embeddings", "warning", "Empty embeddings returned")
+                        return None
+                else:
+                    log_service_status("embeddings", "error", f"Ollama embeddings API returned status {response.status_code}")
+                    return None
+                    
+        except httpx.ConnectError:
+            log_service_status("embeddings", "warning", f"Cannot connect to Ollama at {self.ollama_url}")
+            return None
+        except Exception as e:
+            log_service_status("embeddings", "error", f"Error getting embeddings: {e}")
+            return None
+
 # Global LLM service instance
 llm_service = LLMService()
 
@@ -304,3 +342,7 @@ async def call_llm_stream(messages: List[Dict[str, Any]], model: Optional[str] =
     """Convenience function for LLM streaming."""
     async for token in llm_service.call_llm_stream(messages, model, api_url, api_key, stop_event, session_id):
         yield token
+
+async def get_embeddings(text: str, model: Optional[str] = None) -> Optional[List[float]]:
+    """Convenience function for getting embeddings."""
+    return await llm_service.get_embeddings(text, model)

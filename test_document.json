@@ -1,0 +1,8 @@
+{
+  "content": "This is a test document to verify the new embedding model intfloat/e5-small-v2 is working correctly. The e5-small-v2 model should provide better embeddings than the previous all-MiniLM-L6-v2 model.",
+  "user_id": "test_user_001",
+  "metadata": {
+    "test": "embedding_model_test",
+    "model": "e5-small-v2"
+  }
+}
