@@ -86,6 +86,7 @@ class DocumentAnalyzer:
     """Analyzes documents to determine optimal processing strategy."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.code_extensions = {".py", ".js", ".html", ".css", ".json", ".xml", ".yaml", ".yml"}
         self.markdown_extensions = {".md", ".markdown", ".rst"}
 
@@ -97,9 +98,7 @@ class DocumentAnalyzer:
             "markdown": [r"^#+\s", r"\*\*\w+\*\*", r"\[.*\]\(.*\)", r"```"],
         }
 
-    async def analyze_document(
-        self, content: str, filename: str
-    ) -> Tuple[DocumentType, DocumentMetadata]:
+    async def analyze_document(self, content: str, filename: str) -> Tuple[DocumentType, DocumentMetadata]:
         """Analyze document to determine type and extract metadata."""
         try:
             file_ext = os.path.splitext(filename)[1].lower()
@@ -152,9 +151,7 @@ class DocumentAnalyzer:
 
         return DocumentType.TEXT
 
-    async def _extract_metadata(
-        self, content: str, filename: str, doc_type: DocumentType
-    ) -> DocumentMetadata:
+    async def _extract_metadata(self, content: str, filename: str, doc_type: DocumentType) -> DocumentMetadata:
         """Extract comprehensive metadata from document."""
         size_bytes = len(content.encode("utf-8"))
 
@@ -227,9 +224,7 @@ class DocumentAnalyzer:
             "parameter",
             "implementation",
         ]
-        tech_score = sum(1 for term in technical_indicators if term in content.lower()) / len(
-            technical_indicators
-        )
+        tech_score = sum(1 for term in technical_indicators if term in content.lower()) / len(technical_indicators)
 
         # Normalize and combine scores
         length_score = min(avg_sentence_length / 20, 1.0)  # Normalize by 20 words
@@ -253,9 +248,7 @@ class DocumentAnalyzer:
             classes = len(re.findall(r"class\s+\w+", content))
             comments = len(re.findall(r"#.*|//.*|/\*.*\*/", content))
 
-            structure_elements = (
-                functions + classes + (comments // 5)
-            )  # Comments are less significant
+            structure_elements = functions + classes + (comments // 5)  # Comments are less significant
             return min(structure_elements / 10, 1.0)
 
         else:
@@ -333,6 +326,7 @@ class EnhancedChunker:
     """Advanced document chunking with multiple strategies."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.analyzer = DocumentAnalyzer()
 
         # Initialize different splitters
@@ -375,9 +369,7 @@ class EnhancedChunker:
             # Process each chunk
             processed_chunks = []
             for i, chunk_text in enumerate(chunks):
-                chunk = await self._create_processed_chunk(
-                    chunk_text, i, strategy, metadata, filename, user_id
-                )
+                chunk = await self._create_processed_chunk(chunk_text, i, strategy, metadata, filename, user_id)
                 processed_chunks.append(chunk)
 
             log_service_status(
@@ -389,23 +381,15 @@ class EnhancedChunker:
             return processed_chunks
 
         except Exception as e:
-            log_service_status(
-                "DOC_PROCESSING", 
-                "error", 
-                f"Error in enhanced chunking for {filename}: {e}"
-            )
+            log_service_status("DOC_PROCESSING", "error", f"Error in enhanced chunking for {filename}: {e}")
             MemoryErrorHandler.handle_memory_error(e, "enhanced_chunking", user_id)
             # Fallback to simple chunking
             return await self._fallback_processing(content, filename, user_id)
 
-    def _select_optimal_strategy(
-        self, doc_type: DocumentType, content_length: int
-    ) -> ChunkingStrategy:
+    def _select_optimal_strategy(self, doc_type: DocumentType, content_length: int) -> ChunkingStrategy:
         """Select optimal chunking strategy based on document characteristics."""
         if doc_type == DocumentType.CODE:
-            return (
-                ChunkingStrategy.SEMANTIC if content_length > 5000 else ChunkingStrategy.FIXED_SIZE
-            )
+            return ChunkingStrategy.SEMANTIC if content_length > 5000 else ChunkingStrategy.FIXED_SIZE
 
         elif doc_type == DocumentType.ACADEMIC:
             return ChunkingStrategy.HIERARCHICAL
@@ -422,9 +406,7 @@ class EnhancedChunker:
         else:
             return ChunkingStrategy.FIXED_SIZE
 
-    async def _chunk_document(
-        self, content: str, strategy: ChunkingStrategy, doc_type: DocumentType
-    ) -> List[str]:
+    async def _chunk_document(self, content: str, strategy: ChunkingStrategy, doc_type: DocumentType) -> List[str]:
         """Chunk document using specified strategy."""
         if strategy == ChunkingStrategy.SEMANTIC:
             return await self._semantic_chunking(content, doc_type)
@@ -667,9 +649,7 @@ class EnhancedChunker:
         # Information density: ratio of meaningful words to total words
         words = text.split()
         meaningful_words = [
-            w
-            for w in words
-            if len(w) > 3 and not w.lower() in {"the", "and", "that", "this", "with", "from"}
+            w for w in words if len(w) > 3 and not w.lower() in {"the", "and", "that", "this", "with", "from"}
         ]
         density = len(meaningful_words) / max(len(words), 1)
 
@@ -682,12 +662,10 @@ class EnhancedChunker:
 
         return (completeness + density + length_score) / 3
 
-    async def _fallback_processing(
-        self, content: str, filename: str, user_id: str
-    ) -> List[ProcessedChunk]:
+    async def _fallback_processing(self, content: str, filename: str, user_id: str) -> List[ProcessedChunk]:
         """Fallback to simple processing if enhanced processing fails."""
         chunks = self.recursive_splitter.split_text(content)
-        
+
         processed_chunks = []
         for i, chunk_text in enumerate(chunks):
             chunk_id = f"{user_id}_{hashlib.md5((filename + str(i)).encode()).hexdigest()[:8]}"

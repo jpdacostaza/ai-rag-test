@@ -58,6 +58,7 @@ class ColoredFormatter(logging.Formatter):
     """Custom formatter with colors, emojis, and structured output."""
 
     def __init__(self, *args, **kwargs):
+        """TODO: Add proper docstring for __init__."""
         super().__init__(*args, **kwargs)
         self.use_colors = sys.stdout.isatty()
 
@@ -65,7 +66,7 @@ class ColoredFormatter(logging.Formatter):
         """Formats a log record with colors, emojis, and contextual icons."""
         level_name = record.levelname
         message = record.getMessage()
-        
+
         if self.use_colors:
             level_color = COLORS.get(level_name, "")
             reset, bold, dim = (
@@ -85,7 +86,7 @@ class ColoredFormatter(logging.Formatter):
             if f"[{service}]" in message:
                 message = message.replace(f"[{service}]", "").strip()
                 service_icon = f"{icon} "
-                break        # Define format based on log level
+                break  # Define format based on log level
         log_formats = {
             "ERROR": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
             "CRITICAL": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
@@ -94,9 +95,7 @@ class ColoredFormatter(logging.Formatter):
             "DEBUG": f"{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}",
         }
 
-        return log_formats.get(
-            level_name, f"{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}"
-        )
+        return log_formats.get(level_name, f"{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}")
 
 
 # --- Logger Setup ---
@@ -131,9 +130,7 @@ class HumanLogger:
         if sys.stdout.isatty():
             formatter = ColoredFormatter()
         else:
-            formatter = logging.Formatter(
-                "%(asctime)s │ %(levelname)-8s │ %(message)s", datefmt="%H:%M:%S"
-            )
+            formatter = logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(message)s", datefmt="%H:%M:%S")
 
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
@@ -157,11 +154,7 @@ def log_service_status(service: str, status: str, details: str = ""):
     icon = status_icons.get(status.lower(), "📝")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
-    log_level = (
-        "error"
-        if status.lower() == "failed"
-        else "warning" if status.lower() == "degraded" else "info"
-    )
+    log_level = "error" if status.lower() == "failed" else "warning" if status.lower() == "degraded" else "info"
     getattr(logger, log_level)(message)
 
 
@@ -173,9 +166,7 @@ def log_api_request(method: str, endpoint: str, status_code: int, response_time_
         status_emoji = "⚠️"
     else:
         status_emoji = "❌"
-    logger.info(
-        f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)"
-    )
+    logger.info(f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)")
 
 
 def log_chat_interaction(
@@ -188,9 +179,7 @@ def log_chat_interaction(
     """Log key details of a chat interaction."""
     tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ""
     req_id_info = f" [ReqID: {request_id}]" if request_id else ""
-    logger.info(
-        f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}"
-    )
+    logger.info(f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}")
 
 
 # --- Initialization ---

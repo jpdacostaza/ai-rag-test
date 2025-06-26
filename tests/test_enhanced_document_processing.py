@@ -23,21 +23,24 @@ class TestEnhancedChunker:
         user_id = "user123"
 
         # Mock the analyzer's analyze_document method
-        with patch.object(chunker.analyzer, 'analyze_document', return_value=(
-            DocumentType.TEXT, {"type": "text", "length": len(content)}
-        )):
+        with patch.object(
+            chunker.analyzer,
+            "analyze_document",
+            return_value=(DocumentType.TEXT, {"type": "text", "length": len(content)}),
+        ):
             # Mock the _chunk_document method
-            with patch.object(chunker, '_chunk_document', return_value=[
-                "First chunk content",
-                "Second chunk content"
-            ]):
+            with patch.object(chunker, "_chunk_document", return_value=["First chunk content", "Second chunk content"]):
                 # Mock the _create_processed_chunk method
-                with patch.object(chunker, '_create_processed_chunk', side_effect=[
-                    Mock(content="First chunk", metadata={"chunk_id": 0}),
-                    Mock(content="Second chunk", metadata={"chunk_id": 1})
-                ]):
+                with patch.object(
+                    chunker,
+                    "_create_processed_chunk",
+                    side_effect=[
+                        Mock(content="First chunk", metadata={"chunk_id": 0}),
+                        Mock(content="Second chunk", metadata={"chunk_id": 1}),
+                    ],
+                ):
                     result = await chunker.process_document(content, filename, user_id)
-                    
+
                     assert len(result) == 2
 
     @pytest.mark.asyncio
@@ -48,13 +51,15 @@ class TestEnhancedChunker:
         user_id = "user123"
 
         # Mock analyzer to raise an exception
-        with patch.object(chunker.analyzer, 'analyze_document', side_effect=Exception("Analysis failed")):
+        with patch.object(chunker.analyzer, "analyze_document", side_effect=Exception("Analysis failed")):
             # Mock the fallback method
-            with patch.object(chunker, '_fallback_processing', return_value=[
-                Mock(content="Fallback chunk", metadata={"fallback": True})
-            ]) as mock_fallback:
+            with patch.object(
+                chunker,
+                "_fallback_processing",
+                return_value=[Mock(content="Fallback chunk", metadata={"fallback": True})],
+            ) as mock_fallback:
                 result = await chunker.process_document(content, filename, user_id)
-                
+
                 # Verify fallback was called
                 mock_fallback.assert_called_once_with(content, filename, user_id)
                 assert len(result) == 1
@@ -67,18 +72,16 @@ class TestEnhancedChunker:
         user_id = "user123"
 
         # Mock the logging function
-        with patch('enhanced_document_processing.log_service_status') as mock_log:
+        with patch("enhanced_document_processing.log_service_status") as mock_log:
             # Mock analyzer to raise an exception
-            with patch.object(chunker.analyzer, 'analyze_document', side_effect=Exception("Test error")):
+            with patch.object(chunker.analyzer, "analyze_document", side_effect=Exception("Test error")):
                 # Mock the fallback method
-                with patch.object(chunker, '_fallback_processing', return_value=[]):
+                with patch.object(chunker, "_fallback_processing", return_value=[]):
                     await chunker.process_document(content, filename, user_id)
-                    
+
                     # Verify error was logged
                     mock_log.assert_called_with(
-                        "DOC_PROCESSING", 
-                        "error", 
-                        f"Error in enhanced chunking for {filename}: Test error"
+                        "DOC_PROCESSING", "error", f"Error in enhanced chunking for {filename}: Test error"
                     )
 
     def test_chunking_strategy_enum(self):
@@ -126,21 +129,21 @@ class TestEnhancedChunker:
         user_id = "user123"
 
         # Test that the method exists (we'll mock its implementation)
-        with patch.object(chunker, '_fallback_processing', return_value=[
-            Mock(content="Fallback chunk", metadata={"fallback": True})
-        ]) as mock_fallback:
+        with patch.object(
+            chunker, "_fallback_processing", return_value=[Mock(content="Fallback chunk", metadata={"fallback": True})]
+        ) as mock_fallback:
             result = await chunker._fallback_processing(content, filename, user_id)
-            
+
             # Should return a list
             assert isinstance(result, list)
             assert len(result) == 1
 
     def test_chunker_initialization(self, chunker):
         """Test that chunker initializes with proper components."""
-        assert hasattr(chunker, 'analyzer')
-        assert hasattr(chunker, 'recursive_splitter')
-        assert hasattr(chunker, 'semantic_splitter')
-        assert hasattr(chunker, 'code_splitter')
+        assert hasattr(chunker, "analyzer")
+        assert hasattr(chunker, "recursive_splitter")
+        assert hasattr(chunker, "semantic_splitter")
+        assert hasattr(chunker, "code_splitter")
 
     @pytest.mark.asyncio
     async def test_memory_error_handling(self, chunker):
@@ -150,13 +153,13 @@ class TestEnhancedChunker:
         user_id = "user123"
 
         # Mock MemoryErrorHandler
-        with patch('enhanced_document_processing.MemoryErrorHandler') as mock_handler:
+        with patch("enhanced_document_processing.MemoryErrorHandler") as mock_handler:
             # Mock analyzer to raise an exception
-            with patch.object(chunker.analyzer, 'analyze_document', side_effect=Exception("Memory error")):
+            with patch.object(chunker.analyzer, "analyze_document", side_effect=Exception("Memory error")):
                 # Mock the fallback method
-                with patch.object(chunker, '_fallback_processing', return_value=[]):
+                with patch.object(chunker, "_fallback_processing", return_value=[]):
                     await chunker.process_document(content, filename, user_id)
-                    
+
                     # Verify memory error handler was called
                     mock_handler.handle_memory_error.assert_called_once()
 
@@ -165,11 +168,11 @@ class TestEnhancedChunker:
         # Test recursive splitter
         assert chunker.recursive_splitter._chunk_size == 1000
         assert chunker.recursive_splitter._chunk_overlap == 200
-        
+
         # Test semantic splitter
         assert chunker.semantic_splitter._chunk_size == 800
         assert chunker.semantic_splitter._chunk_overlap == 100
-        
+
         # Test code splitter
         assert chunker.code_splitter._chunk_size == 1200
         assert chunker.code_splitter._chunk_overlap == 100

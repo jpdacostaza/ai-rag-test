@@ -12,9 +12,7 @@ from human_logging import log_service_status
 feedback_router = APIRouter()
 
 
-@feedback_router.post(
-    "/feedback", deprecated=True, summary="Legacy feedback endpoint - Redirects to new endpoint"
-)
+@feedback_router.post("/feedback", deprecated=True, summary="Legacy feedback endpoint - Redirects to new endpoint")
 async def feedback_alias(request: Request):
     """
     Deprecated legacy feedback endpoint that redirects to /enhanced/feedback/interaction.
@@ -63,7 +61,7 @@ async def feedback_alias(request: Request):
         return result
 
     except Exception as e:
-        log_service_status('FEEDBACK', 'error', f'Error in feedback alias endpoint: {e}')
+        log_service_status("FEEDBACK", "error", f"Error in feedback alias endpoint: {e}")
         log_error(e, "feedback_alias_endpoint")
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -1,6 +1,7 @@
 """
 Health check endpoints.
 """
+
 import time
 from dataclasses import asdict
 from datetime import datetime
@@ -18,6 +19,7 @@ health_router = APIRouter()
 # Import the get_cache function from database_manager
 from database_manager import get_cache
 
+
 def get_cache_manager():
     """Get cache manager from database manager."""
     try:
@@ -26,36 +28,48 @@ def get_cache_manager():
         log_service_status("cache", "error", f"Failed to get cache manager: {str(e)}")
         return None
 
+
 class MockWatchdog:
     """Mock watchdog class."""
+
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.monitors = []
-    
+
     def get_service_history(self, service_name: str, hours: int):
+        """TODO: Add proper docstring for get_service_history."""
         return []
+
 
 def get_watchdog():
     """Stub function to get watchdog."""
     return MockWatchdog()
 
+
 async def get_health_status():
     """Stub function for health status."""
     return {}
 
+
 class StorageManager:
     """Stub class for storage manager."""
+
     @staticmethod
     def get_storage_info():
+        """TODO: Add proper docstring for get_storage_info."""
         return {"directories": {}}
-    
-    @staticmethod  
+
+    @staticmethod
     def validate_permissions():
+        """TODO: Add proper docstring for validate_permissions."""
         return {}
+
 
 @health_router.get("/")
 async def root():
     """Root endpoint to verify API is accessible."""
     return {"message": "FastAPI LLM Backend is running", "status": "ok"}
+
 
 @health_router.get("/health")
 async def health_check():
@@ -91,16 +105,18 @@ async def health_check():
 
     return response
 
+
 @health_router.get("/health/simple")
 async def simple_health():
     """Simple health check without any dependencies."""
     app_start_time = get_app_start_time()
     return {
-        "status": "ok", 
+        "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": time.time() - app_start_time,
-        "message": "Simple health check working"
+        "message": "Simple health check working",
     }
+
 
 @health_router.get("/health/detailed")
 async def detailed_health_check():
@@ -133,6 +149,7 @@ async def detailed_health_check():
         },
     }
 
+
 @health_router.get("/health/redis")
 async def redis_health():
     """Check Redis connectivity specifically."""
@@ -143,6 +160,7 @@ async def redis_health():
         return {"service": "Redis", "health": result.__dict__}
     return {"service": "Redis", "status": "monitor_not_found"}
 
+
 @health_router.get("/health/chromadb")
 async def chromadb_health():
     """Check ChromaDB connectivity specifically."""
@@ -152,6 +170,7 @@ async def chromadb_health():
         result = await chroma_monitor.check_health()
         return {"service": "ChromaDB", "health": result.__dict__}
     return {"service": "ChromaDB", "status": "monitor_not_found"}
+
 
 @health_router.get("/health/history/{service_name}")
 async def service_health_history(service_name: str, hours: int = 24):
@@ -165,6 +184,7 @@ async def service_health_history(service_name: str, hours: int = 24):
         "history": [h.__dict__ for h in history],
     }
 
+
 @health_router.get("/health/storage")
 async def storage_health():
     """Check storage directory structure and permissions."""
@@ -176,14 +196,10 @@ async def storage_health():
     permissions = StorageManager.validate_permissions()
 
     # Calculate total storage usage
-    total_size_mb = sum(
-        dir_info.get("size_mb", 0) for dir_info in storage_info["directories"].values()
-    )
+    total_size_mb = sum(dir_info.get("size_mb", 0) for dir_info in storage_info["directories"].values())
 
     # Count directories
-    existing_dirs = sum(
-        1 for dir_info in storage_info["directories"].values() if dir_info["exists"]
-    )
+    existing_dirs = sum(1 for dir_info in storage_info["directories"].values() if dir_info["exists"])
     total_dirs = len(storage_info["directories"])
 
     # Determine overall status
@@ -205,13 +221,12 @@ async def storage_health():
         },
         "storage_usage": {
             "total_size_mb": total_size_mb,
-            "total_files": sum(
-                dir_info.get("file_count", 0) for dir_info in storage_info["directories"].values()
-            ),
+            "total_files": sum(dir_info.get("file_count", 0) for dir_info in storage_info["directories"].values()),
         },
         "permissions": permissions,
         "directory_details": storage_info["directories"],
     }
+
 
 @health_router.get("/alerts/stats")
 async def get_alert_statistics():
@@ -219,13 +234,10 @@ async def get_alert_statistics():
     try:
         # Import alert manager
         from utilities.alert_manager import get_alert_manager
-        
+
         alert_manager = get_alert_manager()
         stats = alert_manager.get_alert_stats()
-        return {
-            "status": "success",
-            "data": stats
-        }
+        return {"status": "success", "data": stats}
     except ImportError:
         # Alert manager not available
         return {
@@ -234,16 +246,13 @@ async def get_alert_statistics():
                 "total_alerts": 0,
                 "alerts_by_level": {},
                 "recent_alerts": [],
-                "message": "Alert system not configured"
-            }
+                "message": "Alert system not configured",
+            },
         }
     except Exception as e:
         log_service_status("health", "error", f"Failed to get alert stats: {str(e)}")
-        return {
-            "status": "error",
-            "message": "Failed to retrieve alert statistics",
-            "error": str(e)
-        }
+        return {"status": "error", "message": "Failed to retrieve alert statistics", "error": str(e)}
+
 
 @health_router.get("/startup-status")
 async def get_startup_status():
@@ -251,20 +260,17 @@ async def get_startup_status():
     from database_manager import db_manager
     import httpx
     from config import OLLAMA_BASE_URL, EMBEDDING_MODEL, CHROMA_HOST, CHROMA_PORT
-    
-    status = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "services": {},
-        "recommendations": {},
-        "details": {}
-    }
-    
+
+    status = {"timestamp": datetime.utcnow().isoformat(), "services": {}, "recommendations": {}, "details": {}}
+
     # Check Redis
     try:
         if db_manager and db_manager.redis_client:
             await db_manager.redis_client.ping()
             status["services"]["redis"] = "Connected"
-            status["details"]["redis"] = f"Connected to Redis at {db_manager.redis_client.connection_pool.connection_kwargs.get('host', 'unknown')}"
+            status["details"][
+                "redis"
+            ] = f"Connected to Redis at {db_manager.redis_client.connection_pool.connection_kwargs.get('host', 'unknown')}"
         else:
             status["services"]["redis"] = "Not initialized"
             status["details"]["redis"] = "Redis client not initialized"
@@ -272,7 +278,7 @@ async def get_startup_status():
         status["services"]["redis"] = "Failed"
         status["details"]["redis"] = f"Redis error: {str(e)}"
         status["recommendations"]["redis"] = "Run: docker-compose up -d redis"
-    
+
     # Check ChromaDB
     try:
         if db_manager and db_manager.chroma_client:
@@ -286,7 +292,7 @@ async def get_startup_status():
         status["services"]["chromadb"] = "Failed"
         status["details"]["chromadb"] = f"ChromaDB error: {str(e)}"
         status["recommendations"]["chromadb"] = f"Check: docker-compose ps | grep chroma. Expected port: {CHROMA_PORT}"
-    
+
     # Check Ollama and Embeddings
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -295,10 +301,12 @@ async def get_startup_status():
             if response.status_code == 200:
                 models = response.json().get("models", [])
                 model_names = [model.get("name", "").split(":")[0] for model in models]
-                
+
                 if EMBEDDING_MODEL in model_names:
                     status["services"]["embeddings"] = "Available"
-                    status["details"]["embeddings"] = f"Model '{EMBEDDING_MODEL}' found in Ollama. Available models: {model_names}"
+                    status["details"][
+                        "embeddings"
+                    ] = f"Model '{EMBEDDING_MODEL}' found in Ollama. Available models: {model_names}"
                 else:
                     status["services"]["embeddings"] = "Model Missing"
                     status["details"]["embeddings"] = f"Model '{EMBEDDING_MODEL}' not found. Available: {model_names}"
@@ -311,14 +319,13 @@ async def get_startup_status():
         status["services"]["embeddings"] = "Failed"
         status["details"]["embeddings"] = f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {str(e)}"
         status["recommendations"]["embeddings"] = "Run: docker-compose up -d ollama"
-    
+
     # Overall status
     all_services_ok = all(
-        service_status in ["Connected", "Available"] 
-        for service_status in status["services"].values()
+        service_status in ["Connected", "Available"] for service_status in status["services"].values()
     )
-    
+
     status["overall"] = "Healthy" if all_services_ok else "Degraded"
     status["ready_for_production"] = all_services_ok
-    
+
     return status

@@ -23,6 +23,7 @@ class RAGProcessor:
     """Handles document processing and semantic search for RAG implementation."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
@@ -46,7 +47,8 @@ class RAGProcessor:
                     "document_id": None,
                     "filename": file.filename,
                     "chunks_processed": 0,
-                    "total_chunks": 0,                    "status": "failed",
+                    "total_chunks": 0,
+                    "status": "failed",
                     "error": "No chunks created from document",
                 }
 
@@ -82,93 +84,91 @@ class RAGProcessor:
             MemoryErrorHandler.handle_memory_error(e, "document_processing", user_id)
             raise HTTPException(status_code=500, detail=f"Document processing failed: {str(e)}")
 
-    async def semantic_search(
-        self, query: str, user_id: str, limit: int = 5
-    ) -> List[Dict[str, Any]]:
+    async def semantic_search(self, query: str, user_id: str, limit: int = 5) -> List[Dict[str, Any]]:
         """Perform semantic search across user's documents."""
-        
+
         # CRITICAL DEBUG: Add this at the very start
         import sys
+
         sys.stderr.write(f"🚨🚨🚨 [RAG] semantic_search CALLED with query='{query}', user_id='{user_id}'\n")
         sys.stderr.flush()
-        
+
         import logging
-        
+
         # Force log to file as well as stdout
-        with open('/tmp/rag_debug.log', 'a') as f:
+        with open("/tmp/rag_debug.log", "a") as f:
             f.write(f"🔍 [RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}\n")
             f.flush()
-        
+
         logging.critical(f"🔍 [RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}")
         try:
-            with open('/tmp/rag_debug.log', 'a') as f:
+            with open("/tmp/rag_debug.log", "a") as f:
                 f.write(f"🔍 [RAG] About to call get_embedding...\n")
                 f.flush()
-            
+
             logging.critical(f"🔍 [RAG] About to call get_embedding...")
             # Get query embedding
             query_embedding = get_embedding(db_manager, query)
-            
-            with open('/tmp/rag_debug.log', 'a') as f:
+
+            with open("/tmp/rag_debug.log", "a") as f:
                 f.write(f"🔍 [RAG] get_embedding returned: {type(query_embedding)}\n")
                 f.flush()
-            
+
             logging.critical(f"🔍 [RAG] get_embedding returned: {type(query_embedding)}")
-            
+
             # Check if embedding is valid - avoid NumPy array truth value errors
             embedding_valid = True
             if query_embedding is None:
                 embedding_valid = False
-            elif hasattr(query_embedding, 'size'):
+            elif hasattr(query_embedding, "size"):
                 # For NumPy arrays, check size safely
                 try:
                     embedding_valid = query_embedding.size > 0
                 except ValueError:
                     # Handle NumPy array truth value error
                     embedding_valid = False
-            elif hasattr(query_embedding, '__len__'):
+            elif hasattr(query_embedding, "__len__"):
                 embedding_valid = len(query_embedding) > 0
             else:
                 embedding_valid = False
-                
+
             if not embedding_valid:
                 log_service_status("RAG", "warning", "Could not generate embedding for search query")
-                with open('/tmp/rag_debug.log', 'a') as f:
+                with open("/tmp/rag_debug.log", "a") as f:
                     f.write(f"❌ [RAG] Embedding is None or empty\n")
                     f.flush()
                 logging.critical(f"❌ [RAG] Embedding is None or empty")
                 return []
 
-            with open('/tmp/rag_debug.log', 'a') as f:
+            with open("/tmp/rag_debug.log", "a") as f:
                 f.write(f"🔍 [RAG] About to call retrieve_user_memory...\n")
                 f.flush()
-            
+
             logging.critical(f"🔍 [RAG] About to call retrieve_user_memory...")
             # Retrieve similar documents
             results = retrieve_user_memory(db_manager, user_id, query_embedding, limit)
-            
-            with open('/tmp/rag_debug.log', 'a') as f:
+
+            with open("/tmp/rag_debug.log", "a") as f:
                 f.write(f"🔍 [RAG] retrieve_user_memory returned: {len(results)} results\n")
                 f.flush()
-            
+
             logging.critical(f"🔍 [RAG] retrieve_user_memory returned: {len(results)} results")
 
-            log_service_status(
-                "RAG", "ready", f"Found {len(results)} relevant documents for query: {query[:50]}..."
-            )
+            log_service_status("RAG", "ready", f"Found {len(results)} relevant documents for query: {query[:50]}...")
 
             return results
 
         except Exception as e:
             import traceback
+
             error_msg = f"❌ [RAG] Exception caught in semantic_search: {type(e).__name__}: {e}"
             traceback_str = traceback.format_exc()
-            
-            with open('/tmp/rag_debug.log', 'a') as f:
+
+            with open("/tmp/rag_debug.log", "a") as f:
                 f.write(f"{error_msg}\n")
                 f.write(f"❌ [RAG] Full traceback:\n{traceback_str}\n")
                 f.flush()
-            
+
             logging.critical(error_msg)
             logging.critical(f"❌ [RAG] Full traceback:\n{traceback_str}")
             log_service_status("RAG", "error", f"{error_msg}\nTraceback: {traceback_str}")

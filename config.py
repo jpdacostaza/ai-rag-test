@@ -1,6 +1,7 @@
 """
 Configuration and environment variables for the FastAPI backend.
 """
+
 import os
 import logging
 import platform
@@ -56,9 +57,11 @@ SESSION_CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "3600"))  #
 CONNECTION_POOL_SIZE = int(os.getenv("CONNECTION_POOL_SIZE", "10"))
 MAX_KEEPALIVE_CONNECTIONS = int(os.getenv("MAX_KEEPALIVE_CONNECTIONS", "5"))
 
+
 def get_app_start_time():
     """Get the application startup time."""
     return _APP_START_TIME
+
 
 def log_system_info():
     """Log system information for startup diagnostics."""
@@ -69,14 +72,24 @@ def log_system_info():
     except Exception as e:
         log_service_status("SYSTEM", "warning", f"Failed to log system info: {e}")
 
+
 def log_environment_variables():
     """Log relevant environment variables for startup diagnostics."""
     try:
         env_vars_to_log = [
-            "REDIS_HOST", "REDIS_PORT", "CHROMA_HOST", "CHROMA_PORT",
-            "DEFAULT_MODEL", "EMBEDDING_MODEL", "EMBEDDING_PROVIDER", "SENTENCE_TRANSFORMERS_HOME",
-            "OLLAMA_BASE_URL", "USE_OLLAMA", "USE_HTTP_CHROMA",
-            "OPENAI_API_BASE_URL", "LLM_TIMEOUT"
+            "REDIS_HOST",
+            "REDIS_PORT",
+            "CHROMA_HOST",
+            "CHROMA_PORT",
+            "DEFAULT_MODEL",
+            "EMBEDDING_MODEL",
+            "EMBEDDING_PROVIDER",
+            "SENTENCE_TRANSFORMERS_HOME",
+            "OLLAMA_BASE_URL",
+            "USE_OLLAMA",
+            "USE_HTTP_CHROMA",
+            "OPENAI_API_BASE_URL",
+            "LLM_TIMEOUT",
         ]
 
         log_service_status("STARTUP", "info", "Environment configuration:")
@@ -89,19 +102,23 @@ def log_environment_variables():
     except Exception as e:
         log_service_status("CONFIG", "warning", f"Failed to log environment: {e}")
 
+
 # Persona configuration
 def load_persona():
     """Load persona configuration from persona.json."""
     try:
         import json
+
         with open("persona.json", "r", encoding="utf-8") as f:
             persona = json.load(f)
             return persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
     except Exception as e:
         # Log the error for debugging purposes
         from human_logging import log_service_status
+
         log_service_status("CONFIG", "warning", f"Failed to load persona.json: {e}")
         return "You are a helpful AI assistant with access to tools and memory."
+
 
 # Default system prompt
 DEFAULT_SYSTEM_PROMPT = load_persona()

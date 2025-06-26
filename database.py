@@ -64,6 +64,7 @@ def get_cache(db_manager, cache_key, user_id="", request_id=""):
 
     # Fallback to direct Redis if cache manager unavailable
     def _get_cache_operation(redis_client):
+        """TODO: Add proper docstring for _get_cache_operation."""
         cached = redis_client.get(cache_key)
         if cached:
             logging.debug(f"[CACHE] HIT for key: {cache_key}")
@@ -75,9 +76,7 @@ def get_cache(db_manager, cache_key, user_id="", request_id=""):
     return safe_execute(
         lambda: db_manager.execute_redis_operation(_get_cache_operation, f"get_cache({cache_key})"),
         fallback_value=None,
-        error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
-            e, "get", cache_key, user_id, request_id
-        ),
+        error_handler=lambda e: RedisConnectionHandler.handle_redis_error(e, "get", cache_key, user_id, request_id),
     )
 
 
@@ -89,6 +88,7 @@ def set_cache(db_manager, cache_key, value, ttl=600, user_id="", request_id=""):
 
     # Fallback to direct Redis if cache manager unavailable
     def _set_cache_operation(redis_client):
+        """TODO: Add proper docstring for _set_cache_operation."""
         redis_client.setex(cache_key, ttl, value)
         logging.debug(f"[CACHE] SET for key: {cache_key}")
         return True
@@ -96,9 +96,7 @@ def set_cache(db_manager, cache_key, value, ttl=600, user_id="", request_id=""):
     return safe_execute(
         lambda: db_manager.execute_redis_operation(_set_cache_operation, f"set_cache({cache_key})"),
         fallback_value=False,
-        error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
-            e, "set", cache_key, user_id, request_id
-        ),
+        error_handler=lambda e: RedisConnectionHandler.handle_redis_error(e, "set", cache_key, user_id, request_id),
     )
 
 
@@ -106,6 +104,7 @@ def store_chat_history(db_manager, user_id, message, max_history=20, request_id=
     """Store a chat message in Redis for a user (as a capped list) with automatic retry."""
 
     def _store_chat_operation(redis_client):
+        """TODO: Add proper docstring for _store_chat_operation."""
         key = f"chat_history:{user_id}"
         redis_client.rpush(key, json.dumps(message))
         redis_client.ltrim(key, -max_history, -1)
@@ -113,9 +112,7 @@ def store_chat_history(db_manager, user_id, message, max_history=20, request_id=
         return True
 
     return safe_execute(
-        lambda: db_manager.execute_redis_operation(
-            _store_chat_operation, f"store_chat_history({user_id})"
-        ),
+        lambda: db_manager.execute_redis_operation(_store_chat_operation, f"store_chat_history({user_id})"),
         fallback_value=False,
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
             e, "store_chat", f"chat_history:{user_id}", user_id, request_id
@@ -127,6 +124,7 @@ async def store_chat_history_async(db_manager, user_id, message, max_history=20,
     """Store a chat message in Redis for a user (as a capped list) with automatic retry (async version)."""
 
     def _store_chat_operation(redis_client):
+        """TODO: Add proper docstring for _store_chat_operation."""
         key = f"chat_history:{user_id}"
         redis_client.rpush(key, json.dumps(message))
         redis_client.ltrim(key, -max_history, -1)
@@ -134,9 +132,7 @@ async def store_chat_history_async(db_manager, user_id, message, max_history=20,
         return True
 
     try:
-        result = await db_manager.execute_redis_operation(
-            _store_chat_operation, f"store_chat_history({user_id})"
-        )
+        result = await db_manager.execute_redis_operation(_store_chat_operation, f"store_chat_history({user_id})")
         return result
     except Exception as e:
         logging.warning(f"[REDIS] Failed to store chat history for user {user_id}: {e}")
@@ -147,6 +143,7 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
     """Retrieve recent chat history for a user from Redis with automatic retry."""
 
     def _get_chat_operation(redis_client):
+        """TODO: Add proper docstring for _get_chat_operation."""
         key = f"chat_history:{user_id}"
         history = redis_client.lrange(key, -max_history, -1)
         parsed_history = [json.loads(m) for m in history]
@@ -154,9 +151,7 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
         return parsed_history
 
     return safe_execute(
-        lambda: db_manager.execute_redis_operation(
-            _get_chat_operation, f"get_chat_history({user_id})"
-        ),
+        lambda: db_manager.execute_redis_operation(_get_chat_operation, f"get_chat_history({user_id})"),
         fallback_value=[],
         error_handler=lambda e: RedisConnectionHandler.handle_redis_error(
             e, "get_chat", f"chat_history:{user_id}", user_id, request_id
@@ -168,6 +163,7 @@ async def get_chat_history_async(db_manager, user_id, max_history=20, request_id
     """Retrieve recent chat history for a user from Redis with automatic retry (async version)."""
 
     def _get_chat_operation(redis_client):
+        """TODO: Add proper docstring for _get_chat_operation."""
         key = f"chat_history:{user_id}"
         history = redis_client.lrange(key, -max_history, -1)
         parsed_history = [json.loads(m) for m in history]
@@ -175,9 +171,7 @@ async def get_chat_history_async(db_manager, user_id, max_history=20, request_id
         return parsed_history
 
     try:
-        result = await db_manager.execute_redis_operation(
-            _get_chat_operation, f"get_chat_history({user_id})"
-        )
+        result = await db_manager.execute_redis_operation(_get_chat_operation, f"get_chat_history({user_id})")
         return result
     except Exception as e:
         logging.warning(f"[REDIS] Failed to get chat history for user {user_id}: {e}")
@@ -188,14 +182,13 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
     """Embed and index a list of pre-chunked text documents for a user in chromadb."""
 
     def _index_op():
+        """TODO: Add proper docstring for _index_op."""
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
             return False
 
         if not db_manager.is_embeddings_available():
-            logging.warning(
-                "[EMBEDDINGS] Embedding model not available, skipping document indexing"
-            )
+            logging.warning("[EMBEDDINGS] Embedding model not available, skipping document indexing")
             return False
 
         try:
@@ -208,17 +201,14 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
 
         chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
         metadatas = [
-            {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i}
-            for i in range(len(chunks))
+            {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i} for i in range(len(chunks))
         ]
 
         try:
             db_manager.chroma_collection.add(
                 embeddings=embeddings, ids=chunk_ids, metadatas=metadatas, documents=chunks
             )
-            logging.info(
-                f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}"
-            )
+            logging.info(f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}")
             return True
         except Exception as e:
             logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
@@ -227,19 +217,15 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
     return safe_execute(
         _index_op,
         fallback_value=False,
-        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(
-            e, "index_chunks", user_id, request_id
-        ),
+        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "index_chunks", user_id, request_id),
     )
 
 
-def index_user_document(
-    db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""
-):
+def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):
     """
     Chunk, embed, and index a document for a specific user in chromadb.
     Note: This is a convenience wrapper. For pre-chunked data, use index_document_chunks."""
-    
+
     try:
         pass  # Placeholder for try block content
     except ImportError:
@@ -256,11 +242,12 @@ def index_user_document(
 
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from chromadb."""
-    
+
     # Add logging for memory retrieval
     logging.debug(f"retrieve_user_memory called with user_id={user_id}")
-    
+
     def _retrieve_memory():
+        """TODO: Add proper docstring for _retrieve_memory."""
         try:
             # Synchronous check for ChromaDB availability
             if db_manager.chroma_client is None or db_manager.chroma_collection is None:
@@ -272,17 +259,19 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
 
         # Enhanced logging for debugging
         logging.info(f"[MEMORY] 🔍 Starting memory retrieval for user_id={user_id}, n_results={n_results}")
-        
+
         # Ensure query_embedding is properly formatted
         logging.debug(f"[MEMORY] 📊 Query embedding type: {type(query_embedding)}")
-        
+
         if query_embedding is None:
             logging.error("[MEMORY] ❌ Query embedding is None")
             return []
-        elif hasattr(query_embedding, 'tolist'):
+        elif hasattr(query_embedding, "tolist"):
             embedding_list = query_embedding.tolist()
-            logging.debug(f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}")
-        elif hasattr(query_embedding, '__iter__') and not isinstance(query_embedding, str):
+            logging.debug(
+                f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}"
+            )
+        elif hasattr(query_embedding, "__iter__") and not isinstance(query_embedding, str):
             embedding_list = list(query_embedding)
             logging.debug(f"[MEMORY] 📊 Converted iterable to list, length: {len(embedding_list)}")
         else:
@@ -303,7 +292,7 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         docs = results.get("documents", [[]])[0] if results else []
         metadatas = results.get("metadatas", [[]])[0] if results else []
         distances = results.get("distances", [[]])[0] if results else []
-        
+
         logging.info(f"[MEMORY] ✅ Retrieved {len(docs)} memory chunks for user_id={user_id}")
 
         # Use len() check instead of boolean check to avoid numpy array truth value error
@@ -317,34 +306,33 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
 
         # Return formatted results for semantic search
         formatted_results = []
-        
+
         # Add user profile as highest priority context
         try:
             from user_profiles import user_profile_manager
+
             user_profile = user_profile_manager.get_user_info(user_id)
             if user_profile:
                 profile_context = user_profile_manager.build_context_for_llm(user_id)
                 if profile_context:
-                    formatted_results.append({
-                        "document": f"User Profile: {profile_context}",
-                        "metadata": {"type": "user_profile", "user_id": user_id},
-                        "distance": 0.0  # Highest relevance
-                    })
+                    formatted_results.append(
+                        {
+                            "document": f"User Profile: {profile_context}",
+                            "metadata": {"type": "user_profile", "user_id": user_id},
+                            "distance": 0.0,  # Highest relevance
+                        }
+                    )
                     logging.info(f"[MEMORY] 👤 Added user profile context for {user_id}")
         except ImportError:
             logging.debug("[MEMORY] User profile system not available")
         except Exception as e:
             logging.warning(f"[MEMORY] Error adding user profile: {e}")
-        
+
         for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
             similarity = 1 - distance if distance is not None else 0.0
-            formatted_results.append({
-                "content": doc,
-                "metadata": metadata,
-                "similarity": similarity,
-                "distance": distance,
-                "rank": i + 1
-            })
+            formatted_results.append(
+                {"content": doc, "metadata": metadata, "similarity": similarity, "distance": distance, "rank": i + 1}
+            )
 
         logging.info(f"[MEMORY] 📋 Returning {len(formatted_results)} formatted results")
         return formatted_results
@@ -352,33 +340,39 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
     return safe_execute(
         _retrieve_memory,
         fallback_value=[],
-        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(
-            e, "retrieve", user_id, request_id
-        ),
+        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "retrieve", user_id, request_id),
     )
 
 
 def get_embedding(db_manager, text, request_id=""):
     """Get embedding for text."""
     import logging
+
     logging.critical(f"🔍 [DATABASE] get_embedding called with text: '{text[:50]}...'")
 
     def _get_embedding():
+        """TODO: Add proper docstring for _get_embedding."""
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")
             logging.critical(f"❌ [DATABASE] Embedding model not available")
             return None
-            
+
         logging.critical(f"🔍 [DATABASE] Generating embedding using model: {type(db_manager.embedding_model)}")
         # Get the embedding and return the first element (single text input)
         embedding = db_manager.embedding_model.encode([text])
-        logging.critical(f"🔍 [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}")
-        
+        logging.critical(
+            f"🔍 [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}"
+        )
+
         if embedding is not None:
-            logging.critical(f"🔍 [DATABASE] Embedding is not None, length check: {len(embedding) if hasattr(embedding, '__len__') else 'no len'}")
-            if hasattr(embedding, '__len__') and len(embedding) > 0:
+            logging.critical(
+                f"🔍 [DATABASE] Embedding is not None, length check: {len(embedding) if hasattr(embedding, '__len__') else 'no len'}"
+            )
+            if hasattr(embedding, "__len__") and len(embedding) > 0:
                 result = embedding[0]
-                logging.critical(f"🔍 [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}")
+                logging.critical(
+                    f"🔍 [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}"
+                )
                 return result
             else:
                 logging.critical(f"❌ [DATABASE] Embedding has no length or is empty")
@@ -392,6 +386,8 @@ def get_embedding(db_manager, text, request_id=""):
         fallback_value=None,
         error_handler=lambda e: (
             logging.error(f"[EMBEDDINGS] Failed to generate embedding: {e}"),
-            logging.critical(f"❌ [DATABASE] safe_execute caught error: {e}")
-        )[0],  # Use first element to avoid tuple return
+            logging.critical(f"❌ [DATABASE] safe_execute caught error: {e}"),
+        )[
+            0
+        ],  # Use first element to avoid tuple return
     )

@@ -42,7 +42,9 @@ def get_user_friendly_message(error: Exception, context: str = "") -> str:
         return f"Web server issue (status code: {error.status_code}). Please check your request."
 
     if "chroma" in error_str or "memory" in context.lower():
-        return "I'm having trouble with my long-term memory. I can still help, but I might not remember our conversation."
+        return (
+            "I'm having trouble with my long-term memory. I can still help, but I might not remember our conversation."
+        )
     if any(keyword in error_str for keyword in ["llm", "ollama", "model", "completion"]):
         return "The AI model is currently unavailable. Please try again in a moment."
     if any(keyword in error_str for keyword in ["tool", "search", "calculator"]):
@@ -55,9 +57,7 @@ def get_user_friendly_message(error: Exception, context: str = "") -> str:
         KeyError: "Some required information is missing from your request.",
         TypeError: "An internal type mismatch occurred. This has been logged for review.",
     }
-    return error_map.get(
-        error_type, "I encountered an unexpected issue. The details have been logged."
-    )
+    return error_map.get(error_type, "I encountered an unexpected issue. The details have been logged.")
 
 
 # --- Error Response Model ---
@@ -91,9 +91,7 @@ class ErrorHandler:
         log_error(error, context, user_id, request_id)
         user_message = get_user_friendly_message(error, context)
 
-        response = ErrorResponse(
-            message=user_message, error_type=type(error).__name__, request_id=request_id
-        )
+        response = ErrorResponse(message=user_message, error_type=type(error).__name__, request_id=request_id)
 
         if include_details:
             response.details = str(error)
@@ -103,7 +101,7 @@ class ErrorHandler:
 
 class ChatErrorHandler:
     """Specialized error handler for chat endpoints."""
-    
+
     @staticmethod
     def handle_chat_error(
         error: Exception, user_id: str, user_message: str = "", request_id: str = ""
@@ -145,9 +143,7 @@ class ToolErrorHandler:
             context += f" for user {user_id}"
         if input_data:
             context += (
-                f" with input: '{input_data[:50]}...'"
-                if len(input_data) > 50
-                else f" with input: '{input_data}'"
+                f" with input: '{input_data[:50]}...'" if len(input_data) > 50 else f" with input: '{input_data}'"
             )
 
         log_error(error, context, user_id, request_id)
@@ -189,9 +185,7 @@ class MemoryErrorHandler:
         """Handle memory storage errors gracefully."""
         context = f"Memory {operation} operation for user: {user_id}"
         log_error(error, context, user_id, request_id)
-        logging.warning(
-            f"[MEMORY] Memory operation failed - continuing without persistent memory: {error}"
-        )
+        logging.warning(f"[MEMORY] Memory operation failed - continuing without persistent memory: {error}")
 
 
 class RedisConnectionHandler:
@@ -213,9 +207,7 @@ class RedisConnectionHandler:
         log_error(error, context, user_id, request_id)
 
         if RedisConnectionHandler.is_recoverable_error(error):
-            logging.warning(
-                "[REDIS] Connection issue detected - system will continue with degraded caching."
-            )
+            logging.warning("[REDIS] Connection issue detected - system will continue with degraded caching.")
         else:
             logging.warning("[REDIS] Operation failed but system continues: {error}")
 
@@ -249,7 +241,7 @@ def safe_execute(func, *args, fallback_value=None, error_handler=None, **kwargs)
     try:
         return func(*args, **kwargs)
     except Exception as e:
-        log_service_status('ERROR_HANDLER', 'error', f'Error in safe_execute for {func.__name__}: {e}')
+        log_service_status("ERROR_HANDLER", "error", f"Error in safe_execute for {func.__name__}: {e}")
         if error_handler:
             error_handler(e)
         else:
@@ -261,11 +253,14 @@ def with_error_handling(error_message="An error occurred"):
     """Decorator for adding basic error handling to functions."""
 
     def decorator(func):
+        """TODO: Add proper docstring for decorator."""
+
         def wrapper(*args, **kwargs):
+            """TODO: Add proper docstring for wrapper."""
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                log_service_status('ERROR_HANDLER', 'error', f'Error in decorator for {func.__name__}: {e}')
+                log_service_status("ERROR_HANDLER", "error", f"Error in decorator for {func.__name__}: {e}")
                 log_error(e, f"Error in decorator for {func.__name__}")
                 return error_message
 

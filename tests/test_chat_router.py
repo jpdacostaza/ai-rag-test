@@ -34,9 +34,9 @@ class TestChatLogic:
             ("I like pizza", "Pizza is delicious"),
             ("Remember that I'm vegetarian", "I'll remember you're vegetarian"),
             ("I'm 25 years old", "Got it, you're 25"),
-            ("My birthday is tomorrow", "Happy early birthday!")
+            ("My birthday is tomorrow", "Happy early birthday!"),
         ]
-        
+
         for message, response in personal_messages:
             result = should_store_as_memory(message, response)
             assert result is True, f"Should store: '{message}'"
@@ -47,9 +47,9 @@ class TestChatLogic:
             ("Can you explain how neural networks work?", "Neural networks are computing systems..."),
             ("What is quantum computing?", "Quantum computing leverages quantum mechanics..."),
             ("How do databases work?", "Databases are organized collections of data..."),
-            ("Explain machine learning", "Machine learning is a subset of AI...")
+            ("Explain machine learning", "Machine learning is a subset of AI..."),
         ]
-        
+
         for message, response in technical_messages:
             result = should_store_as_memory(message, response)
             assert result is False, f"Should not store: '{message}'"
@@ -60,9 +60,9 @@ class TestChatLogic:
             ("Hello", "Hi there!"),
             ("How are you?", "I'm doing well, thank you!"),
             ("Thanks", "You're welcome!"),
-            ("Goodbye", "See you later!")
+            ("Goodbye", "See you later!"),
         ]
-        
+
         for message, response in greetings:
             result = should_store_as_memory(message, response)
             assert result is False
@@ -72,21 +72,17 @@ class TestChatLogic:
         identity_questions = [
             ("Who am I?", "Based on our conversation..."),
             ("What do you know about me?", "I know that you..."),
-            ("Tell me about me", "From what you've told me...")
+            ("Tell me about me", "From what you've told me..."),
         ]
-        
+
         for message, response in identity_questions:
             result = should_store_as_memory(message, response)
             assert result is True
 
     def test_should_store_as_memory_case_insensitive(self):
         """Test that the function is case insensitive."""
-        cases = [
-            ("MY NAME IS ALICE", "Hi Alice!"),
-            ("i am a developer", "Cool!"),
-            ("Call Me Bob", "Sure thing Bob")
-        ]
-        
+        cases = [("MY NAME IS ALICE", "Hi Alice!"), ("i am a developer", "Cool!"), ("Call Me Bob", "Sure thing Bob")]
+
         for message, response in cases:
             result = should_store_as_memory(message, response)
             assert result is True
@@ -94,14 +90,30 @@ class TestChatLogic:
     def test_memory_keywords_coverage(self):
         """Test that all memory keywords are properly detected."""
         memory_keywords = [
-            "my name is", "i am", "i'm", "call me", 
-            "i live in", "i work", "i study", "my job",
-            "my favorite", "i like", "i love", "i hate",
-            "i prefer", "remember that", "don't forget",
-            "important:", "note:", "my birthday",
-            "my age", "years old", "from", "born in"
+            "my name is",
+            "i am",
+            "i'm",
+            "call me",
+            "i live in",
+            "i work",
+            "i study",
+            "my job",
+            "my favorite",
+            "i like",
+            "i love",
+            "i hate",
+            "i prefer",
+            "remember that",
+            "don't forget",
+            "important:",
+            "note:",
+            "my birthday",
+            "my age",
+            "years old",
+            "from",
+            "born in",
         ]
-        
+
         for keyword in memory_keywords:
             test_message = f"Hello, {keyword} something important."
             result = should_store_as_memory(test_message, "Response")
@@ -112,9 +124,9 @@ class TestChatLogic:
         false_positives = [
             ("This is important information", "Good to know"),
             ("I heard from someone", "Interesting"),
-            ("The name is Bond", "James Bond reference")
+            ("The name is Bond", "James Bond reference"),
         ]
-        
+
         for message, response in false_positives:
             result = should_store_as_memory(message, response)
             # These should be False since they don't match the exact patterns
@@ -124,13 +136,8 @@ class TestChatLogic:
 
     def test_empty_and_whitespace_handling(self):
         """Test handling of empty and whitespace-only strings."""
-        edge_cases = [
-            ("", ""),
-            ("   ", "   "),
-            ("\n\t", "response"),
-            ("message", "\n\t")
-        ]
-        
+        edge_cases = [("", ""), ("   ", "   "), ("\n\t", "response"), ("message", "\n\t")]
+
         for message, response in edge_cases:
             # Should not crash
             result = should_store_as_memory(message, response)

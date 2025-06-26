@@ -1,4 +1,5 @@
 """Cache manager utility for memory-efficient caching."""
+
 from typing import Generic, TypeVar, Dict, Optional, Any
 from collections import OrderedDict
 import time
@@ -13,7 +14,9 @@ try:
 except ImportError:
     # Fallback if logging is not available
     def log_service_status(service: str, status: str, details: str = "") -> None:
+        """TODO: Add proper docstring for log_service_status."""
         pass
+
 
 # Alert manager integration
 try:
@@ -23,11 +26,13 @@ except ImportError:
     async def alert_cache_performance(hit_rate: float, component: str = "cache"):
         pass
 
-T = TypeVar('T')
+
+T = TypeVar("T")
+
 
 class CacheManager(Generic[T]):
     """Thread-safe LRU cache with size limit and statistics tracking."""
-    
+
     def __init__(self, max_size: int = 1000, alert_threshold: float = 50.0):
         """Initialize cache with maximum size and alert threshold."""
         self._cache: OrderedDict[str, T] = OrderedDict()
@@ -38,7 +43,7 @@ class CacheManager(Generic[T]):
         self._alert_threshold = alert_threshold
         self._last_alert_time = 0
         self._alert_cooldown = 300  # 5 minutes between alerts
-    
+
     def get(self, key: str) -> Optional[T]:
         """Get value from cache."""
         self._total_requests += 1
@@ -46,25 +51,25 @@ class CacheManager(Generic[T]):
             self._miss_count += 1
             hit_rate = (self._hit_count / self._total_requests) * 100
             log_service_status("cache", "info", f"Cache miss - key: {key}, hit_rate: {hit_rate:.1f}%")
-            
+
             # Check performance every 100 requests
             if self._total_requests % 100 == 0:
                 self._trigger_performance_check()
-            
+
             return None
-        
+
         # Move to end to mark as recently used
         self._cache.move_to_end(key)
         self._hit_count += 1
         hit_rate = (self._hit_count / self._total_requests) * 100
         log_service_status("cache", "info", f"Cache hit - key: {key}, hit_rate: {hit_rate:.1f}%")
-        
+
         # Check performance every 100 requests
         if self._total_requests % 100 == 0:
             self._trigger_performance_check()
-        
+
         return self._cache[key]
-    
+
     def set(self, key: str, value: T) -> None:
         """Set value in cache."""
         if key in self._cache:
@@ -75,16 +80,16 @@ class CacheManager(Generic[T]):
             if len(self._cache) >= self._max_size:
                 lru_key, _ = self._cache.popitem(last=False)
                 log_service_status("cache", "info", f"Cache eviction - removed key: {lru_key} (LRU)")
-        
+
         self._cache[key] = value
         log_service_status("cache", "info", f"Cache set - key: {key}, cache_size: {len(self._cache)}/{self._max_size}")
-    
+
     def remove(self, key: str) -> None:
         """Remove item from cache."""
         if key in self._cache:
             self._cache.pop(key)
             log_service_status("cache", "info", f"Cache remove - key: {key}")
-    
+
     def clear(self) -> None:
         """Clear all items from cache."""
         cache_size = len(self._cache)
@@ -93,11 +98,11 @@ class CacheManager(Generic[T]):
         self._miss_count = 0
         self._total_requests = 0
         log_service_status("cache", "info", f"Cache cleared - removed {cache_size} entries")
-    
+
     def get_size(self) -> int:
         """Get current cache size."""
         return len(self._cache)
-    
+
     def get_stats(self) -> Dict[str, Any]:
         """Get cache statistics."""
         hit_rate = (self._hit_count / self._total_requests * 100) if self._total_requests > 0 else 0
@@ -108,27 +113,26 @@ class CacheManager(Generic[T]):
             "miss_count": self._miss_count,
             "total_requests": self._total_requests,
             "hit_rate": f"{hit_rate:.1f}%",
-            "hit_rate_numeric": hit_rate
+            "hit_rate_numeric": hit_rate,
         }
 
     async def _check_performance_and_alert(self):
         """Check cache performance and trigger alerts if needed."""
         if self._total_requests < 50:  # Don't alert on low sample sizes
             return
-            
-        hit_rate = (self._hit_count / self._total_requests * 100)
+
+        hit_rate = self._hit_count / self._total_requests * 100
         current_time = time.time()
-        
+
         # Only send alerts if hit rate is below threshold and cooldown has passed
-        if (hit_rate < self._alert_threshold and 
-            current_time - self._last_alert_time > self._alert_cooldown):
-            
+        if hit_rate < self._alert_threshold and current_time - self._last_alert_time > self._alert_cooldown:
+
             try:
                 await alert_cache_performance(hit_rate, "cache_manager")
                 self._last_alert_time = current_time
             except Exception as e:
                 log_service_status("cache", "warning", f"Failed to send cache performance alert: {e}")
-    
+
     def _trigger_performance_check(self):
         """Trigger async performance check without blocking."""
         try:

@@ -21,6 +21,7 @@ class CacheManager:
     SYSTEM_PROMPT_HASH_KEY = "cache:system_prompt_hash"
 
     def __init__(self, redis_client):
+        """TODO: Add proper docstring for __init__."""
         self.redis_client = redis_client
         self._check_cache_version()
 
@@ -36,9 +37,7 @@ class CacheManager:
                 )
                 self.invalidate_all_cache()
                 self.redis_client.set(self.VERSION_KEY, self.CACHE_VERSION)
-                log_service_status(
-                    "CACHE", "ready", f"Cache upgraded to version {self.CACHE_VERSION}"
-                )
+                log_service_status("CACHE", "ready", f"Cache upgraded to version {self.CACHE_VERSION}")
         except Exception as e:
             log_service_status("CACHE", "warning", f"Cache version check failed: {e}")
 
@@ -53,14 +52,10 @@ class CacheManager:
             stored_hash = self.redis_client.get(self.SYSTEM_PROMPT_HASH_KEY)
 
             if stored_hash != current_hash:
-                log_service_status(
-                    "CACHE", "updating", "System prompt changed, invalidating chat cache"
-                )
+                log_service_status("CACHE", "updating", "System prompt changed, invalidating chat cache")
                 self.invalidate_chat_cache()
                 self.redis_client.set(self.SYSTEM_PROMPT_HASH_KEY, current_hash)
-                log_service_status(
-                    "CACHE", "ready", "Chat cache invalidated due to system prompt change"
-                )
+                log_service_status("CACHE", "ready", "Chat cache invalidated due to system prompt change")
         except Exception as e:
             log_service_status("CACHE", "warning", f"System prompt check failed: {e}")
 
@@ -93,18 +88,14 @@ class CacheManager:
             while True:
                 cursor, keys = self.redis_client.scan(cursor, count=1000)
                 # Exclude version control keys
-                filtered_keys = [
-                    k for k in keys if k not in [self.VERSION_KEY, self.SYSTEM_PROMPT_HASH_KEY]
-                ]
+                filtered_keys = [k for k in keys if k not in [self.VERSION_KEY, self.SYSTEM_PROMPT_HASH_KEY]]
                 all_keys.extend(filtered_keys)
                 if cursor == 0:
                     break
 
             if all_keys:
                 self.redis_client.delete(*all_keys)
-                log_service_status(
-                    "CACHE", "ready", f"Invalidated all cache: {len(all_keys)} entries deleted"
-                )
+                log_service_status("CACHE", "ready", f"Invalidated all cache: {len(all_keys)} entries deleted")
             else:
                 log_service_status("CACHE", "ready", "No cache entries to invalidate")
         except Exception as e:
@@ -122,9 +113,7 @@ class CacheManager:
                 json.loads(response_trimmed)
                 # If it parses as JSON, it's invalid for our plain text
                 # requirement
-                log_service_status(
-                    "CACHE", "warning", "Detected JSON response format - invalidating"
-                )
+                log_service_status("CACHE", "warning", "Detected JSON response format - invalidating")
                 return False
             except json.JSONDecodeError:
                 # Not valid JSON, so it's fine
@@ -136,9 +125,7 @@ class CacheManager:
         """Set cache with response format validation."""
         try:
             if not self.validate_response_format(value):
-                log_service_status(
-                    "CACHE", "warning", f"Skipping cache for key {key} - invalid format"
-                )
+                log_service_status("CACHE", "warning", f"Skipping cache for key {key} - invalid format")
                 return False
 
             # Add metadata to cached value
@@ -168,28 +155,22 @@ class CacheManager:
             # Try to parse as new format with metadata
             try:
                 data = json.loads(cached_data)
-                if isinstance(data, dict) and "value" in data:                    # Validate format
+                if isinstance(data, dict) and "value" in data:  # Validate format
                     if not self.validate_response_format(data["value"]):
-                        log_service_status(
-                            "CACHE", "warning", f"Invalidating cache key {key} - bad format"
-                        )
+                        log_service_status("CACHE", "warning", f"Invalidating cache key {key} - bad format")
                         self.redis_client.delete(key)
                         return None
                     return data["value"]
                 else:
                     # Old format, validate and migrate or invalidate
                     if not self.validate_response_format(cached_data):
-                        log_service_status(
-                            "CACHE", "warning", f"Invalidating old format cache key {key}"
-                        )
+                        log_service_status("CACHE", "warning", f"Invalidating old format cache key {key}")
                         self.redis_client.delete(key)
                         return None
                     return cached_data
-            except json.JSONDecodeError:                # Plain string, validate format
+            except json.JSONDecodeError:  # Plain string, validate format
                 if not self.validate_response_format(cached_data):
-                    log_service_status(
-                        "CACHE", "warning", f"Invalidating cache key {key} - bad format"
-                    )
+                    log_service_status("CACHE", "warning", f"Invalidating cache key {key} - bad format")
                     self.redis_client.delete(key)
                     return None
                 return cached_data

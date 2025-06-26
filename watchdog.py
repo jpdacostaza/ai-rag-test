@@ -29,6 +29,8 @@ from database import db_manager
 
 
 class HealthStatus(Enum):
+    """TODO: Add proper docstring for HealthStatus class."""
+
     HEALTHY = "healthy"
     DEGRADED = "degraded"
     UNHEALTHY = "unhealthy"
@@ -37,6 +39,8 @@ class HealthStatus(Enum):
 
 @dataclass
 class ServiceHealth:
+    """TODO: Add proper docstring for ServiceHealth class."""
+
     service: str
     status: HealthStatus
     last_check: datetime
@@ -108,6 +112,7 @@ class SubsystemMonitor:
     """Base class for monitoring individual subsystems."""
 
     def __init__(self, name: str, config: WatchdogConfig):
+        """TODO: Add proper docstring for __init__."""
         self.name = name
         self.config = config
         self.consecutive_failures = 0
@@ -137,6 +142,7 @@ class RedisMonitor(SubsystemMonitor):
     """Monitor Redis connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
+        """TODO: Add proper docstring for __init__."""
         super().__init__("Redis", config)
         self.redis_host = os.getenv("REDIS_HOST", "localhost")
         self.redis_port = int(os.getenv("REDIS_PORT", 6379))
@@ -199,6 +205,7 @@ class ChromaDBMonitor(SubsystemMonitor):
     """Monitor ChromaDB connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
+        """TODO: Add proper docstring for __init__."""
         super().__init__("ChromaDB", config)
         self.chroma_dir = os.getenv("CHROMA_DB_DIR", "./storage/chroma")
         self.use_http_chroma = os.getenv("USE_HTTP_CHROMA", "false").lower() == "true"
@@ -241,9 +248,7 @@ class ChromaDBMonitor(SubsystemMonitor):
             )
 
             # Query to verify
-            results = await asyncio.to_thread(
-                collection.query, query_texts=["Health check"], n_results=1
-            )
+            results = await asyncio.to_thread(collection.query, query_texts=["Health check"], n_results=1)
 
             # Clean up
             await asyncio.to_thread(collection.delete, ids=[test_id])
@@ -304,6 +309,7 @@ class OllamaMonitor(SubsystemMonitor):
     """Monitor Ollama API connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
+        """TODO: Add proper docstring for __init__."""
         super().__init__("Ollama", config)
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         self.api_key = os.getenv("LLM_API_KEY")
@@ -367,6 +373,7 @@ class EmbeddingMonitor(SubsystemMonitor):
     """Monitor embedding model availability and performance."""
 
     def __init__(self, config: WatchdogConfig):
+        """TODO: Add proper docstring for __init__."""
         super().__init__("Embeddings", config)
 
     async def check_health(self) -> ServiceHealth:
@@ -427,6 +434,7 @@ class SystemWatchdog:
     """Main watchdog service that orchestrates monitoring of all subsystems."""
 
     def __init__(self, config: Optional[WatchdogConfig] = None):
+        """TODO: Add proper docstring for __init__."""
         self.config = config or WatchdogConfig()
         self.monitors: List[SubsystemMonitor] = []
         self.health_history: Dict[str, List[ServiceHealth]] = {}
@@ -536,11 +544,7 @@ class SystemWatchdog:
             return []
 
         cutoff_time = datetime.now() - timedelta(hours=hours)
-        return [
-            health
-            for health in self.health_history[service_name]
-            if health.last_check >= cutoff_time
-        ]
+        return [health for health in self.health_history[service_name] if health.last_check >= cutoff_time]
 
     def _get_adaptive_check_interval(self) -> int:
         """Get adaptive check interval based on current system health."""
@@ -568,9 +572,7 @@ class SystemWatchdog:
 
         # Initial startup delay to let services initialize
         if self.config.startup_delay > 0:
-            self.logger.info(
-                f"Waiting {self.config.startup_delay} seconds for services to initialize..."
-            )
+            self.logger.info(f"Waiting {self.config.startup_delay} seconds for services to initialize...")
             await asyncio.sleep(self.config.startup_delay)
 
         self.logger.info("Starting system watchdog monitoring")
@@ -601,9 +603,7 @@ class SystemWatchdog:
 
             except Exception as e:
                 self.logger.error(f"Error during monitoring cycle: {e}")
-                await asyncio.sleep(
-                    self.config.check_interval
-                )  # Fallback to normal interval on error
+                await asyncio.sleep(self.config.check_interval)  # Fallback to normal interval on error
 
     def _store_watchdog_metrics(self, check_duration: float, healthy_count: int, total_count: int):
         """Store watchdog performance metrics."""
@@ -629,6 +629,7 @@ class SystemWatchdog:
         """Start monitoring in a background thread."""
 
         def run_monitoring():
+            """TODO: Add proper docstring for run_monitoring."""
             asyncio.run(self.start_monitoring())
 
         monitoring_thread = threading.Thread(target=run_monitoring, daemon=True)
@@ -681,7 +682,7 @@ if __name__ == "__main__":
             # Single health check
             print("Performing single health check...")
             results = await watchdog.check_all_systems()
-            
+
             print("\n=== SYSTEM HEALTH REPORT ===")
             for service_name, health in results.items():
                 status_emoji = "✅" if health.status == HealthStatus.HEALTHY else "❌"

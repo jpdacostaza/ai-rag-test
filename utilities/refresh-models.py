@@ -32,6 +32,7 @@ class ModelRefreshService:
     """Service to refresh and synchronize models across services."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         pass
 
     async def get_ollama_models(self) -> List[Dict]:
@@ -54,9 +55,7 @@ class ModelRefreshService:
     async def get_backend_models(self) -> List[Dict]:
         """Get list of models from backend API."""
         try:
-            async with httpx.AsyncClient(
-                timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}) as client:
                 response = await client.get("{BACKEND_URL}/v1/models")
                 if response.status_code == 200:
                     data = response.json()
@@ -84,9 +83,7 @@ class ModelRefreshService:
     async def trigger_backend_model_refresh(self) -> bool:
         """Trigger model refresh in backend."""
         try:
-            async with httpx.AsyncClient(
-                timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}
-            ) as client:
+            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}) as client:
                 response = await client.get("{BACKEND_URL}/v1/models/verify/llama3.2:3b")
                 if response.status_code in [200, 404]:  # 404 is ok, means model check was performed
                     logger.info("Backend model refresh triggered")

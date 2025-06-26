@@ -125,13 +125,10 @@ async def upload_document_advanced(
                     "processing_time": round(processing_time, 2),
                     "chunks": stored_chunks_details,
                     "document_metadata": {
-                        "strategy_used": (
-                            processed_chunks[0].strategy.value if processed_chunks else "none"
-                        ),
+                        "strategy_used": (processed_chunks[0].strategy.value if processed_chunks else "none"),
                         "avg_quality_score": (
                             round(
-                                sum(c.quality_score for c in processed_chunks)
-                                / len(processed_chunks),
+                                sum(c.quality_score for c in processed_chunks) / len(processed_chunks),
                                 2,
                             )
                             if processed_chunks
@@ -365,8 +362,7 @@ async def start_enhanced_background_tasks():
         log_service_status(
             "ENHANCED_SYSTEM",
             "ready",
-            "Enhanced learning and document processing systems initialized",        )
-    except Exception as e:
-        log_service_status(
-            "ENHANCED_SYSTEM", "error", f"Failed to start enhanced background tasks: {e}"
+            "Enhanced learning and document processing systems initialized",
         )
+    except Exception as e:
+        log_service_status("ENHANCED_SYSTEM", "error", f"Failed to start enhanced background tasks: {e}")

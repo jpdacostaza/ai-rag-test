@@ -74,6 +74,7 @@ class ConversationAnalyzer:
     """Analyzes conversations to extract learning patterns."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.sentiment_keywords = {
             "positive": [
                 "good",
@@ -136,9 +137,7 @@ class ConversationAnalyzer:
             feedback_type = self._classify_feedback(user_message)
 
             # Calculate context relevance score
-            context_score = await self._calculate_context_relevance(
-                user_id, user_message, assistant_response
-            )
+            context_score = await self._calculate_context_relevance(user_id, user_message, assistant_response)
 
             # Check for follow-up questions
             follow_ups = self._count_follow_up_indicators(user_message)
@@ -226,14 +225,10 @@ class ConversationAnalyzer:
         try:
             # Get user's recent memory
             query_embedding = get_embedding(db_manager, query)
-            if query_embedding is None or (
-                hasattr(query_embedding, "size") and query_embedding.size == 0
-            ):
+            if query_embedding is None or (hasattr(query_embedding, "size") and query_embedding.size == 0):
                 return 0.5  # Neutral score if can't get embedding
 
-            recent_memories = retrieve_user_memory(
-                db_manager, user_id, query_embedding, n_results=3
-            )
+            recent_memories = retrieve_user_memory(db_manager, user_id, query_embedding, n_results=3)
 
             if not recent_memories:
                 return 0.5  # No context available
@@ -255,9 +250,7 @@ class ConversationAnalyzer:
 
             # Calculate overlap scores safely
             query_memory_overlap = len(query_words & memory_words) / max(len(query_words), 1)
-            response_memory_overlap = len(response_words & memory_words) / max(
-                len(response_words), 1
-            )
+            response_memory_overlap = len(response_words & memory_words) / max(len(response_words), 1)
 
             return min((query_memory_overlap + response_memory_overlap) / 2, 1.0)
 
@@ -285,6 +278,7 @@ class AdaptiveLearningSystem:
     """Main adaptive learning system that coordinates all learning components."""
 
     def __init__(self):
+        """TODO: Add proper docstring for __init__."""
         self.analyzer = ConversationAnalyzer()
         self.user_patterns: Dict[str, Dict] = defaultdict(dict)
         self.global_patterns: Dict[str, Any] = {}
@@ -326,7 +320,7 @@ class AdaptiveLearningSystem:
             # Check for knowledge expansion opportunities
             await self._check_knowledge_expansion(
                 user_id, metrics, user_message, assistant_response
-            )            # Update user preference models
+            )  # Update user preference models
             await self._update_user_preferences(user_id, metrics)
 
             log_service_status(
@@ -361,9 +355,7 @@ class AdaptiveLearningSystem:
 
             # Calculate trends
             if recent_metrics:
-                avg_context_score = sum(m.context_relevance_score for m in recent_metrics) / len(
-                    recent_metrics
-                )
+                avg_context_score = sum(m.context_relevance_score for m in recent_metrics) / len(recent_metrics)
                 feedback_distribution = defaultdict(int)
                 for m in recent_metrics:
                     if m.feedback_type:
@@ -432,9 +424,7 @@ class AdaptiveLearningSystem:
             user_data["feedback_history"].append(
                 {
                     "timestamp": metrics.timestamp.isoformat(),
-                    "feedback_type": (
-                        metrics.feedback_type.value if metrics.feedback_type else "neutral"
-                    ),
+                    "feedback_type": (metrics.feedback_type.value if metrics.feedback_type else "neutral"),
                     "context_score": metrics.context_relevance_score,
                 }
             )
@@ -464,20 +454,12 @@ class AdaptiveLearningSystem:
                 expansion_content = "User correction: {user_message}\nContext: {assistant_response}"
                 expansion_type = "correction"
 
-            elif (
-                metrics.feedback_type == FeedbackType.POSITIVE
-                and metrics.context_relevance_score > 0.7
-            ):
+            elif metrics.feedback_type == FeedbackType.POSITIVE and metrics.context_relevance_score > 0.7:
                 should_expand = True
-                expansion_content = (
-                    "High-quality interaction: Q: {user_message}\nA: {assistant_response}"
-                )
+                expansion_content = "High-quality interaction: Q: {user_message}\nA: {assistant_response}"
                 expansion_type = "quality_interaction"
 
-            elif any(
-                keyword in user_message.lower()
-                for keyword in ["learn", "remember", "note", "important"]
-            ):
+            elif any(keyword in user_message.lower() for keyword in ["learn", "remember", "note", "important"]):
                 should_expand = True
                 expansion_content = "User-requested learning: {user_message}"
                 expansion_type = "user_requested"
@@ -491,11 +473,9 @@ class AdaptiveLearningSystem:
                         "timestamp": datetime.now().isoformat(),
                         "topics": metrics.topics,
                     }
-                )                # Immediately process high-priority expansions
+                )  # Immediately process high-priority expansions
                 if expansion_type in ["correction", "user_requested"]:
-                    await self._process_knowledge_expansion(
-                        user_id, expansion_content, expansion_type
-                    )
+                    await self._process_knowledge_expansion(user_id, expansion_content, expansion_type)
 
         except Exception as e:
             log_service_status("LEARNING", "error", f"Knowledge expansion check failed: {e}")
@@ -516,13 +496,9 @@ class AdaptiveLearningSystem:
             )
 
             if success:
-                log_service_status(
-                    "LEARNING", "ready", f"Expanded knowledge base for {user_id}: {expansion_type}"
-                )
+                log_service_status("LEARNING", "ready", f"Expanded knowledge base for {user_id}: {expansion_type}")
             else:
-                log_service_status(
-                    "LEARNING", "error", f"Failed to expand knowledge base for {user_id}"
-                )
+                log_service_status("LEARNING", "error", f"Failed to expand knowledge base for {user_id}")
 
         except Exception:
             log_service_status("LEARNING", "error", "Knowledge expansion processing failed: {e}")
@@ -541,20 +517,14 @@ class AdaptiveLearningSystem:
 
             # Update response time preferences
             if metrics.feedback_type == FeedbackType.POSITIVE:
-                preferences["preferred_response_time"] = preferences.get(
-                    "preferred_response_time", []
-                )
+                preferences["preferred_response_time"] = preferences.get("preferred_response_time", [])
                 preferences["preferred_response_time"].append(metrics.response_time)
-                preferences["preferred_response_time"] = preferences["preferred_response_time"][
-                    -10:
-                ]  # Keep last 10
+                preferences["preferred_response_time"] = preferences["preferred_response_time"][-10:]  # Keep last 10
 
             # Update detail level preferences based on follow-up questions
             if metrics.follow_up_questions > 2:
                 preferences["detail_level"] = preferences.get("detail_level", 0.5) + 0.1
-            elif (
-                metrics.follow_up_questions == 0 and metrics.feedback_type == FeedbackType.POSITIVE
-            ):
+            elif metrics.follow_up_questions == 0 and metrics.feedback_type == FeedbackType.POSITIVE:
                 preferences["detail_level"] = preferences.get("detail_level", 0.5) - 0.05
 
             # Normalize detail level between 0 and 1
@@ -570,9 +540,7 @@ class AdaptiveLearningSystem:
         try:
             while self.knowledge_expansion_queue:
                 item = self.knowledge_expansion_queue.popleft()
-                await self._process_knowledge_expansion(
-                    item["user_id"], item["content"], item["type"]
-                )
+                await self._process_knowledge_expansion(item["user_id"], item["content"], item["type"])
                 # Small delay to prevent overwhelming the system
                 await asyncio.sleep(0.1)
 

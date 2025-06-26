@@ -27,6 +27,7 @@ from RestrictedPython import compile_restricted
 
 
 def get_current_time(timezone: Optional[str] = None) -> str:
+    """TODO: Add proper docstring for get_current_time."""
     try:
         if timezone:
 
@@ -35,12 +36,13 @@ def get_current_time(timezone: Optional[str] = None) -> str:
             now = datetime.now()
         return now.strftime("%Y-%m-%d %H:%M:%S %Z")
     except Exception as e:
-        log_service_status('AI_TOOLS', 'error', f'Error getting current time: {e}')
+        log_service_status("AI_TOOLS", "error", f"Error getting current time: {e}")
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 # --- Tool: Weather (Open-Meteo, no API key required) ---
 def get_weather_weatherapi(city: str = "London") -> str:
+    """TODO: Add proper docstring for get_weather_weatherapi."""
     api_key = os.getenv("WEATHERAPI_KEY", "")
     if not api_key:
         logging.warning("[WeatherAPI] API key not set.")
@@ -67,6 +69,7 @@ def get_weather_weatherapi(city: str = "London") -> str:
 
 # --- Tool: Weather (Open-Meteo or WeatherAPI.com) ---
 def get_weather(city: str = "London") -> str:
+    """TODO: Add proper docstring for get_weather."""
     api_key = os.getenv("WEATHERAPI_KEY", "")
     logging.debug(f"[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
     if api_key:
@@ -142,26 +145,26 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         # Normalize unit names to lowercase and handle variations
         from_unit = from_unit.lower().strip()
         to_unit = to_unit.lower().strip()
-        
+
         # Handle common variations
         unit_variations = {
-            'kilometers': 'km',
-            'kilometer': 'km',
-            'metres': 'm',
-            'meters': 'm',
-            'meter': 'm',
-            'miles': 'mile',
-            'pounds': 'lb',
-            'pound': 'lb',
-            'kilograms': 'kg',
-            'kilogram': 'kg',
-            'grams': 'g',
-            'gram': 'g',
-            'celsius': 'c',
-            'fahrenheit': 'f',
-            'kelvin': 'k'
+            "kilometers": "km",
+            "kilometer": "km",
+            "metres": "m",
+            "meters": "m",
+            "meter": "m",
+            "miles": "mile",
+            "pounds": "lb",
+            "pound": "lb",
+            "kilograms": "kg",
+            "kilogram": "kg",
+            "grams": "g",
+            "gram": "g",
+            "celsius": "c",
+            "fahrenheit": "f",
+            "kelvin": "k",
         }
-        
+
         from_unit = unit_variations.get(from_unit, from_unit)
         to_unit = unit_variations.get(to_unit, to_unit)
 
@@ -176,7 +179,8 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
             ("ft", "m"): 0.3048,
             ("m", "ft"): 3.28084,
             ("in", "cm"): 2.54,
-            ("cm", "in"): 0.393701,            ("mile", "km"): 1.60934,
+            ("cm", "in"): 0.393701,
+            ("mile", "km"): 1.60934,
             ("km", "mile"): 0.621371,
             ("miles", "km"): 1.60934,
             ("km", "miles"): 0.621371,
@@ -209,7 +213,7 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         # Check conversions dictionaries
         conversion_key = (from_unit, to_unit)
         reverse_key = (to_unit, from_unit)
-        
+
         for conversions in [length_conversions, weight_conversions]:
             if conversion_key in conversions:
                 result = value * conversions[conversion_key]
@@ -501,7 +505,9 @@ def get_news(category: str = "general", country: str = "us") -> str:
     try:
         # For demo purposes, return a placeholder
         # In production, you would integrate with a news API like NewsAPI
-        return "News lookup is currently unavailable. Would you like me to search the web for '{category}' news instead?"
+        return (
+            "News lookup is currently unavailable. Would you like me to search the web for '{category}' news instead?"
+        )
 
     except Exception:
         return "News service error: {str(e)}"
@@ -518,7 +524,7 @@ def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0)
           Returns:
         Exchange rate information or error message
     """
-    try:        # Use a free exchange rate API
+    try:  # Use a free exchange rate API
         url = f"https://api.exchangerate-api.com/v4/latest/{from_currency.upper()}"
         with httpx.Client(timeout=10) as client:
             response = client.get(url)

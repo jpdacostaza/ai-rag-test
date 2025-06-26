@@ -14,245 +14,238 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Any
 import json
 
+
 class MemoryLearningReviewer:
+    """TODO: Add proper docstring for MemoryLearningReviewer class."""
+
     def __init__(self, project_root="."):
+        """TODO: Add proper docstring for __init__."""
         self.project_root = Path(project_root)
         self.memory_files = []
         self.learning_files = []
         self.issues = []
         self.improvements = []
-        
+
     def find_memory_learning_files(self):
         """Find all files related to memory and learning."""
-        patterns = ['memory', 'learning', 'adaptive', 'retrieval', 'embedding', 'vector']
-        
+        patterns = ["memory", "learning", "adaptive", "retrieval", "embedding", "vector"]
+
         for root, dirs, files in os.walk(self.project_root):
             # Skip irrelevant directories
-            if any(skip in root for skip in ['.git', '__pycache__', 'venv', 'test']):
+            if any(skip in root for skip in [".git", "__pycache__", "venv", "test"]):
                 continue
-                
+
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     filepath = Path(root) / file
-                    content = filepath.read_text(encoding='utf-8')
-                    
+                    content = filepath.read_text(encoding="utf-8")
+
                     # Check if file contains memory/learning related code
                     if any(pattern in content.lower() for pattern in patterns):
-                        if 'memory' in file.lower() or 'memory' in content.lower():
+                        if "memory" in file.lower() or "memory" in content.lower():
                             self.memory_files.append(filepath)
-                        if 'learning' in file.lower() or 'adaptive' in content.lower():
+                        if "learning" in file.lower() or "adaptive" in content.lower():
                             self.learning_files.append(filepath)
-                            
+
     def analyze_memory_functions(self):
         """Analyze memory-related functions for issues and improvements."""
         print("\n🧠 Analyzing Memory Functions...")
-        
+
         # Key files to analyze
         key_files = [
-            'database_manager.py',
-            'memory_manager.py',
-            'enhanced_memory_system.py',
-            'memory/advanced_memory_pipeline.py',
-            'memory/memory_pipeline.py'
+            "database_manager.py",
+            "memory_manager.py",
+            "enhanced_memory_system.py",
+            "memory/advanced_memory_pipeline.py",
+            "memory/memory_pipeline.py",
         ]
-        
+
         for filename in key_files:
             filepath = self.project_root / filename
             if filepath.exists():
-                self._analyze_file(filepath, 'memory')
-                
+                self._analyze_file(filepath, "memory")
+
     def analyze_learning_functions(self):
         """Analyze learning-related functions for issues and improvements."""
         print("\n📚 Analyzing Learning Functions...")
-        
+
         # Key files to analyze
-        key_files = [
-            'adaptive_learning.py',
-            'enhanced_integration.py',
-            'utilities/ai_tools.py'
-        ]
-        
+        key_files = ["adaptive_learning.py", "enhanced_integration.py", "utilities/ai_tools.py"]
+
         for filename in key_files:
             filepath = self.project_root / filename
             if filepath.exists():
-                self._analyze_file(filepath, 'learning')
-                
+                self._analyze_file(filepath, "learning")
+
     def _analyze_file(self, filepath: Path, category: str):
         """Analyze a specific file for memory/learning issues."""
         try:
-            content = filepath.read_text(encoding='utf-8')
+            content = filepath.read_text(encoding="utf-8")
             tree = ast.parse(content)
-            
+
             # Analyze functions
             for node in ast.walk(tree):
                 if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     self._analyze_function(node, filepath, category)
-                    
+
         except Exception as e:
-            self.issues.append({
-                'file': str(filepath),
-                'issue': f'Failed to parse file: {e}',
-                'severity': 'high'
-            })
-            
+            self.issues.append({"file": str(filepath), "issue": f"Failed to parse file: {e}", "severity": "high"})
+
     def _analyze_function(self, node: ast.AST, filepath: Path, category: str):
         """Analyze a specific function for issues."""
         function_name = node.name
-        
+
         # Check for common issues
         issues = []
-        
+
         # 1. Check for missing error handling
         has_try_except = any(isinstance(n, ast.Try) for n in ast.walk(node))
-        if not has_try_except and not function_name.startswith('_'):
+        if not has_try_except and not function_name.startswith("_"):
             issues.append("Missing error handling")
-            
+
         # 2. Check for performance issues
         if self._has_nested_loops(node):
             issues.append("Nested loops detected - potential O(n²) complexity")
-            
+
         # 3. Check for memory leaks
         if self._has_potential_memory_leak(node):
             issues.append("Potential memory leak - large data structures not cleared")
-            
+
         # 4. Check for missing validation
         if self._lacks_input_validation(node):
             issues.append("Missing input validation")
-            
+
         # 5. Check for synchronization issues
-        if 'async' in ast.unparse(node) and self._lacks_proper_locking(node):
+        if "async" in ast.unparse(node) and self._lacks_proper_locking(node):
             issues.append("Potential race condition - missing locks/semaphores")
-            
+
         if issues:
-            self.issues.append({
-                'file': str(filepath),
-                'function': function_name,
-                'issues': issues,
-                'category': category
-            })
-            
+            self.issues.append(
+                {"file": str(filepath), "function": function_name, "issues": issues, "category": category}
+            )
+
     def _has_nested_loops(self, node: ast.AST) -> bool:
         """Check if function has nested loops."""
         loop_depth = 0
         max_depth = 0
-        
+
         for child in ast.walk(node):
             if isinstance(child, (ast.For, ast.While)):
                 loop_depth += 1
                 max_depth = max(max_depth, loop_depth)
             elif isinstance(child, ast.FunctionDef):
                 loop_depth = 0
-                
+
         return max_depth > 1
-        
+
     def _has_potential_memory_leak(self, node: ast.AST) -> bool:
         """Check for potential memory leaks."""
         # Look for large collections that aren't cleared
         has_large_collection = False
         has_clear_operation = False
-        
+
         for child in ast.walk(node):
             if isinstance(child, ast.Name):
-                if child.id in ['cache', 'buffer', 'history', 'data']:
+                if child.id in ["cache", "buffer", "history", "data"]:
                     has_large_collection = True
             if isinstance(child, ast.Call):
-                if hasattr(child.func, 'attr') and child.func.attr in ['clear', 'close', 'cleanup']:
+                if hasattr(child.func, "attr") and child.func.attr in ["clear", "close", "cleanup"]:
                     has_clear_operation = True
-                    
+
         return has_large_collection and not has_clear_operation
-        
+
     def _lacks_input_validation(self, node: ast.AST) -> bool:
         """Check if function lacks input validation."""
         # Check if function has parameters but no validation
         if node.args.args:
             has_validation = any(
-                isinstance(n, ast.If) or 
-                (isinstance(n, ast.Call) and hasattr(n.func, 'id') and 
-                 n.func.id in ['isinstance', 'validate', 'check'])
+                isinstance(n, ast.If)
+                or (
+                    isinstance(n, ast.Call)
+                    and hasattr(n.func, "id")
+                    and n.func.id in ["isinstance", "validate", "check"]
+                )
                 for n in ast.walk(node)
             )
             return not has_validation
         return False
-        
+
     def _lacks_proper_locking(self, node: ast.AST) -> bool:
         """Check if async function lacks proper locking."""
-        has_shared_state = any(
-            isinstance(n, ast.Attribute) and 'self' in ast.unparse(n)
-            for n in ast.walk(node)
-        )
+        has_shared_state = any(isinstance(n, ast.Attribute) and "self" in ast.unparse(n) for n in ast.walk(node))
         has_lock = any(
-            'lock' in ast.unparse(n).lower() or 'semaphore' in ast.unparse(n).lower()
-            for n in ast.walk(node)
+            "lock" in ast.unparse(n).lower() or "semaphore" in ast.unparse(n).lower() for n in ast.walk(node)
         )
         return has_shared_state and not has_lock
-        
+
     def generate_improvements(self):
         """Generate specific improvements for memory and learning functions."""
-        
+
         self.improvements = [
             {
-                'category': 'Memory Management',
-                'improvements': [
+                "category": "Memory Management",
+                "improvements": [
                     {
-                        'title': 'Implement Memory Pooling',
-                        'description': 'Use object pooling for frequently created/destroyed memory objects',
-                        'code': self._get_memory_pooling_code()
+                        "title": "Implement Memory Pooling",
+                        "description": "Use object pooling for frequently created/destroyed memory objects",
+                        "code": self._get_memory_pooling_code(),
                     },
                     {
-                        'title': 'Add Memory Pressure Monitoring',
-                        'description': 'Monitor and respond to memory pressure',
-                        'code': self._get_memory_monitoring_code()
+                        "title": "Add Memory Pressure Monitoring",
+                        "description": "Monitor and respond to memory pressure",
+                        "code": self._get_memory_monitoring_code(),
                     },
                     {
-                        'title': 'Implement Hierarchical Memory',
-                        'description': 'Create memory hierarchy for better organization',
-                        'code': self._get_hierarchical_memory_code()
-                    }
-                ]
+                        "title": "Implement Hierarchical Memory",
+                        "description": "Create memory hierarchy for better organization",
+                        "code": self._get_hierarchical_memory_code(),
+                    },
+                ],
             },
             {
-                'category': 'Learning Optimization',
-                'improvements': [
+                "category": "Learning Optimization",
+                "improvements": [
                     {
-                        'title': 'Implement Learning Rate Scheduling',
-                        'description': 'Adaptive learning rate based on performance',
-                        'code': self._get_learning_rate_code()
+                        "title": "Implement Learning Rate Scheduling",
+                        "description": "Adaptive learning rate based on performance",
+                        "code": self._get_learning_rate_code(),
                     },
                     {
-                        'title': 'Add Reinforcement Learning',
-                        'description': 'Learn from user feedback',
-                        'code': self._get_reinforcement_learning_code()
+                        "title": "Add Reinforcement Learning",
+                        "description": "Learn from user feedback",
+                        "code": self._get_reinforcement_learning_code(),
                     },
                     {
-                        'title': 'Implement Meta-Learning',
-                        'description': 'Learn how to learn better',
-                        'code': self._get_meta_learning_code()
-                    }
-                ]
+                        "title": "Implement Meta-Learning",
+                        "description": "Learn how to learn better",
+                        "code": self._get_meta_learning_code(),
+                    },
+                ],
             },
             {
-                'category': 'Retrieval Enhancement',
-                'improvements': [
+                "category": "Retrieval Enhancement",
+                "improvements": [
                     {
-                        'title': 'Implement Hybrid Search',
-                        'description': 'Combine vector and keyword search',
-                        'code': self._get_hybrid_search_code()
+                        "title": "Implement Hybrid Search",
+                        "description": "Combine vector and keyword search",
+                        "code": self._get_hybrid_search_code(),
                     },
                     {
-                        'title': 'Add Contextual Reranking',
-                        'description': 'Rerank results based on context',
-                        'code': self._get_reranking_code()
+                        "title": "Add Contextual Reranking",
+                        "description": "Rerank results based on context",
+                        "code": self._get_reranking_code(),
                     },
                     {
-                        'title': 'Implement Query Expansion',
-                        'description': 'Expand queries for better recall',
-                        'code': self._get_query_expansion_code()
-                    }
-                ]
-            }
+                        "title": "Implement Query Expansion",
+                        "description": "Expand queries for better recall",
+                        "code": self._get_query_expansion_code(),
+                    },
+                ],
+            },
         ]
-        
+
     def _get_memory_pooling_code(self) -> str:
+        """TODO: Add proper docstring for _get_memory_pooling_code."""
         return '''# In utilities/memory_pool.py
 from typing import List, Dict, Any, Optional
 from collections import deque
@@ -331,8 +324,9 @@ async def store_memory_efficient(content: str, metadata: Dict[str, Any]):
     except Exception as e:
         await memory_pool.release(chunk)
         raise'''
-        
+
     def _get_memory_monitoring_code(self) -> str:
+        """TODO: Add proper docstring for _get_memory_monitoring_code."""
         return '''# In utilities/memory_monitor.py
 import psutil
 import asyncio
@@ -417,8 +411,9 @@ memory_monitor.register_cleanup(cache_manager.clear_expired)
 
 # Start monitoring
 await memory_monitor.start_monitoring()'''
-        
+
     def _get_hierarchical_memory_code(self) -> str:
+        """TODO: Add proper docstring for _get_hierarchical_memory_code."""
         return '''# In memory/hierarchical_memory.py
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
@@ -557,8 +552,9 @@ class HierarchicalMemory:
         # Group similar memories and create summary
         # This would use embedding similarity in production
         pass'''
-        
+
     def _get_learning_rate_code(self) -> str:
+        """TODO: Add proper docstring for _get_learning_rate_code."""
         return '''# In learning/adaptive_scheduler.py
 from typing import Dict, Any, Optional
 import math
@@ -651,8 +647,9 @@ elif feedback == 'negative':
 # Use in learning decision
 if scheduler.should_learn(importance_score):
     await store_learning_example(...)'''
-        
+
     def _get_reinforcement_learning_code(self) -> str:
+        """TODO: Add proper docstring for _get_reinforcement_learning_code."""
         return '''# In learning/reinforcement_learner.py
 from typing import Dict, List, Any, Tuple
 import numpy as np
@@ -797,8 +794,9 @@ if user_feedback == 'thumbs_up':
     rl_learner.record_reward(1.0)
 elif user_feedback == 'thumbs_down':
     rl_learner.record_reward(-1.0)'''
-        
+
     def _get_meta_learning_code(self) -> str:
+        """TODO: Add proper docstring for _get_meta_learning_code."""
         return '''# In learning/meta_learner.py
 from typing import Dict, List, Any, Optional
 import numpy as np
@@ -968,8 +966,9 @@ result = apply_learning_strategy(strategy, data)
 # Update based on performance
 performance = calculate_performance(result, ground_truth)
 meta_learner.update_performance(strategy, performance, context)'''
-        
+
     def _get_hybrid_search_code(self) -> str:
+        """TODO: Add proper docstring for _get_hybrid_search_code."""
         return '''# In retrieval/hybrid_search.py
 from typing import List, Dict, Any, Tuple
 import numpy as np
@@ -1112,8 +1111,9 @@ results = await hybrid_search.search(
     query_embedding=query_embedding,
     top_k=5
 )'''
-        
+
     def _get_reranking_code(self) -> str:
+        """TODO: Add proper docstring for _get_reranking_code."""
         return '''# In retrieval/contextual_reranker.py
 from typing import List, Dict, Any, Tuple
 import numpy as np
@@ -1304,8 +1304,9 @@ context = {
 }
 
 reranked_results = await reranker.rerank(search_results, context, user_id)'''
-        
+
     def _get_query_expansion_code(self) -> str:
+        """TODO: Add proper docstring for _get_query_expansion_code."""
         return '''# In retrieval/query_expander.py
 from typing import List, Dict, Any, Set
 import nltk
@@ -1514,57 +1515,52 @@ expanded = expander.expand_query(
 # Create expanded search query
 search_query = expander.create_expanded_query_string(expanded)
 # Result: "How to fix ML bug?" OR "Machine Learning" OR "error" OR "issue"'''
-        
+
     def generate_report(self):
         """Generate comprehensive report."""
         report = {
-            'timestamp': datetime.utcnow().isoformat(),
-            'files_analyzed': {
-                'memory_files': len(self.memory_files),
-                'learning_files': len(self.learning_files)
-            },
-            'issues_found': len(self.issues),
-            'improvements_suggested': sum(len(cat['improvements']) for cat in self.improvements),
-            'detailed_analysis': {
-                'issues': self.issues,
-                'improvements': self.improvements
-            }
+            "timestamp": datetime.utcnow().isoformat(),
+            "files_analyzed": {"memory_files": len(self.memory_files), "learning_files": len(self.learning_files)},
+            "issues_found": len(self.issues),
+            "improvements_suggested": sum(len(cat["improvements"]) for cat in self.improvements),
+            "detailed_analysis": {"issues": self.issues, "improvements": self.improvements},
         }
-        
+
         return report
-        
+
     def run_review(self):
         """Run complete review of memory and learning functions."""
         print("🔍 Starting Memory and Learning Review...")
-        
+
         # Find relevant files
         self.find_memory_learning_files()
-        
+
         # Analyze functions
         self.analyze_memory_functions()
         self.analyze_learning_functions()
-        
+
         # Generate improvements
         self.generate_improvements()
-        
+
         # Generate report
         report = self.generate_report()
-        
+
         # Save report
         report_path = Path("memory_learning_review.json")
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             json.dump(report, f, indent=2)
-            
+
         print(f"\n✅ Review complete! Report saved to: {report_path}")
-        
+
         # Print summary
         print(f"\n📊 Summary:")
         print(f"  - Memory files analyzed: {len(self.memory_files)}")
         print(f"  - Learning files analyzed: {len(self.learning_files)}")
         print(f"  - Issues found: {len(self.issues)}")
         print(f"  - Improvements suggested: {sum(len(cat['improvements']) for cat in self.improvements)}")
-        
+
         return report
+
 
 if __name__ == "__main__":
     reviewer = MemoryLearningReviewer()

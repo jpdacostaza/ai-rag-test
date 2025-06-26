@@ -74,13 +74,11 @@ class StorageManager:
             Dict mapping directory names to creation success status
         """
         results = {}
-        base_path = Path(cls.STORAGE_ROOT)        # Create base storage directory
+        base_path = Path(cls.STORAGE_ROOT)  # Create base storage directory
         if not base_path.exists():
-            log_service_status(
-                "STORAGE", "starting", f"Creating base storage directory: {base_path.absolute()}"
-            )
+            log_service_status("STORAGE", "starting", f"Creating base storage directory: {base_path.absolute()}")
             base_path.mkdir(parents=True, exist_ok=True)
-            os.chmod(base_path, 0o755)        # Create each storage component
+            os.chmod(base_path, 0o755)  # Create each storage component
         for name, config in cls.STORAGE_STRUCTURE.items():
             dir_path = base_path / config["path"]
 
@@ -88,9 +86,7 @@ class StorageManager:
                 # Create directory if it doesn't exist
                 if not dir_path.exists():
                     dir_path.mkdir(parents=True, exist_ok=True)
-                    log_service_status(
-                        "STORAGE", "ready", f"Created {name}: {config['description']}"
-                    )
+                    log_service_status("STORAGE", "ready", f"Created {name}: {config['description']}")
 
                 # Set permissions
                 if os.name != "nt":  # Skip permission setting on Windows
@@ -155,7 +151,7 @@ class StorageManager:
                     dir_info["file_count"] = file_count
 
                 except Exception as e:
-                    log_service_status('STORAGE', 'error', f'Error processing directory {name}: {e}')
+                    log_service_status("STORAGE", "error", f"Error processing directory {name}: {e}")
                     dir_info["error"] = str(e)
 
             info["directories"][name] = dir_info
@@ -184,16 +180,14 @@ class StorageManager:
                 results[name] = False
                 continue
 
-            try:                # Test write access
+            try:  # Test write access
                 test_file = dir_path / ".write_test"
                 test_file.write_text("test")
                 test_file.unlink()
                 results[name] = True
 
             except Exception as e:
-                log_service_status(
-                    "STORAGE", "degraded", f"Write permission issue in {name}: {str(e)}"
-                )
+                log_service_status("STORAGE", "degraded", f"Write permission issue in {name}: {str(e)}")
                 results[name] = False
 
         return results
@@ -210,13 +204,12 @@ def initialize_storage() -> bool:
         log_service_status("STORAGE", "starting", "Initializing storage structure...")
 
         # Ensure storage structure exists
-        results = StorageManager.ensure_storage_structure()        # Check results
+        results = StorageManager.ensure_storage_structure()  # Check results
         success_count = sum(1 for success in results.values() if success)
         total_count = len(results)
 
         if success_count == total_count:
-            log_service_status(
-                "STORAGE", "ready", f"All {total_count} storage directories initialized successfully"            )
+            log_service_status("STORAGE", "ready", f"All {total_count} storage directories initialized successfully")
             return True
         else:
             log_service_status(
@@ -247,11 +240,7 @@ if __name__ == "__main__":
     print("\nStorage directories:")
     for name, dir_info in info["directories"].items():
         status = "✅" if dir_info["exists"] else "❌"
-        size_info = (
-            f" ({dir_info['size_mb']} MB, {dir_info['file_count']} files)"
-            if dir_info["exists"]
-            else ""
-        )
+        size_info = f" ({dir_info['size_mb']} MB, {dir_info['file_count']} files)" if dir_info["exists"] else ""
         print(f"{status} {name}: {dir_info['description']}{size_info}")
 
     # Validate permissions
