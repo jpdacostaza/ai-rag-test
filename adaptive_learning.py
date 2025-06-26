@@ -22,10 +22,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from database import db_manager
-from database import get_embedding
-from database import index_document_chunks
-from database import retrieve_user_memory
+from database_manager import db_manager
 from error_handler import MemoryErrorHandler
 from human_logging import log_service_status
 

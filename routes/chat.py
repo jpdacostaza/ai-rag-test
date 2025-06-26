@@ -14,9 +14,6 @@ from fastapi import APIRouter, Request, HTTPException
 from config import DEFAULT_SYSTEM_PROMPT
 from database_manager import db_manager, get_embedding, get_cache, set_cache
 from database import (
-    get_chat_history,
-    get_chat_history_async,
-    store_chat_history,
     store_chat_history_async,
     retrieve_user_memory,
     index_user_document,

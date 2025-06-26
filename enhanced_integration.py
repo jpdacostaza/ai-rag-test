@@ -26,7 +26,7 @@ from fastapi.responses import JSONResponse
 from adaptive_learning import FeedbackType
 from adaptive_learning import adaptive_learning_system
 from adaptive_learning import start_learning_background_tasks
-from database import db_manager
+from database_manager import db_manager
 from database import index_document_chunks
 from enhanced_document_processing import ChunkingStrategy
 from enhanced_document_processing import DocumentType

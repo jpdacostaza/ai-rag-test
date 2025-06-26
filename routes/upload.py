@@ -8,8 +8,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, File, Form, UploadFile
 from pydantic import BaseModel, Field
 
-from database_manager import db_manager, get_embedding
-from database import index_user_document, retrieve_user_memory
+from database_manager import db_manager, get_embedding, index_user_document, retrieve_user_memory
 from human_logging import log_service_status
 
 # Create router for upload endpoints

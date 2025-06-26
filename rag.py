@@ -11,10 +11,8 @@ from fastapi import HTTPException
 from fastapi import UploadFile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-from database import db_manager
-from database import get_embedding
-from database import index_document_chunks
-from database import retrieve_user_memory
+from database_manager import db_manager
+from database import get_embedding, index_document_chunks, retrieve_user_memory
 from error_handler import MemoryErrorHandler
 from human_logging import log_service_status
 

@@ -25,7 +25,7 @@ import httpx
 import redis.asyncio as redis
 from chromadb.config import Settings
 
-from database import db_manager
+from database_manager import db_manager
 
 
 class HealthStatus(Enum):
