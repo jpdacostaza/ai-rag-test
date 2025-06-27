@@ -36,6 +36,7 @@ from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
 from adaptive_learning import adaptive_learning_system
 from pipelines.pipelines_v1_routes import router as pipelines_v1_router
+from routes.memory import memory_router
 
 # Import database and other dependencies
 from database_manager import db_manager, get_embedding, index_user_document, retrieve_user_memory
@@ -112,7 +113,7 @@ app.include_router(health_router)
 app.include_router(chat_router)
 app.include_router(models_router)
 
-# Include existing routers
+# Include additional routers
 app.include_router(model_manager_router)
 app.include_router(upload_router)
 app.include_router(pipeline_router)
@@ -120,6 +121,7 @@ app.include_router(debug_router)
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
 app.include_router(pipelines_v1_router)
+app.include_router(memory_router)
 
 
 # Simple API key verification for pipelines

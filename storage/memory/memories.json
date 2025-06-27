@@ -1,0 +1,44 @@
+{
+  "live_test_user": [
+    {
+      "content": "Name: Emma",
+      "metadata": {
+        "conversation_id": "live_test_chat_1751057060",
+        "timestamp": 1751057060.3763058,
+        "source": "learning_interaction"
+      }
+    },
+    {
+      "content": "Hi! My name is Emma and I work as a software architect at Google.",
+      "metadata": {
+        "conversation_id": "live_test_chat_1751057060",
+        "timestamp": 1751057060.3763115,
+        "source": "learning_interaction"
+      }
+    },
+    {
+      "content": "I have 8 years of experience in Python and love working with Kubernetes.",
+      "metadata": {
+        "conversation_id": "live_test_chat_1751057060",
+        "timestamp": 1751057060.3894331,
+        "source": "learning_interaction"
+      }
+    },
+    {
+      "content": "Name: Currently",
+      "metadata": {
+        "conversation_id": "live_test_chat_1751057060",
+        "timestamp": 1751057060.3956785,
+        "source": "learning_interaction"
+      }
+    },
+    {
+      "content": "I'm currently leading a team of 12 developers on a new microservices platform.",
+      "metadata": {
+        "conversation_id": "live_test_chat_1751057060",
+        "timestamp": 1751057060.3956804,
+        "source": "learning_interaction"
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "user_id": "live_test_user",
+    "conversation_id": "live_test_chat_1751057060",
+    "user_message": "Hi! My name is Emma and I work as a software architect at Google.",
+    "assistant_response": null,
+    "response_time": 1.0,
+    "tools_used": [],
+    "context": {
+      "test": true,
+      "step": 1
+    },
+    "timestamp": 1751057060.3760202,
+    "source": "pipeline"
+  },
+  {
+    "user_id": "live_test_user",
+    "conversation_id": "live_test_chat_1751057060",
+    "user_message": "I specialize in distributed systems and cloud architecture.",
+    "assistant_response": null,
+    "response_time": 1.0,
+    "tools_used": [],
+    "context": {
+      "test": true,
+      "step": 2
+    },
+    "timestamp": 1751057060.3826444,
+    "source": "pipeline"
+  },
+  {
+    "user_id": "live_test_user",
+    "conversation_id": "live_test_chat_1751057060",
+    "user_message": "I have 8 years of experience in Python and love working with Kubernetes.",
+    "assistant_response": null,
+    "response_time": 1.0,
+    "tools_used": [],
+    "context": {
+      "test": true,
+      "step": 3
+    },
+    "timestamp": 1751057060.3894153,
+    "source": "pipeline"
+  },
+  {
+    "user_id": "live_test_user",
+    "conversation_id": "live_test_chat_1751057060",
+    "user_message": "I'm currently leading a team of 12 developers on a new microservices platform.",
+    "assistant_response": null,
+    "response_time": 1.0,
+    "tools_used": [],
+    "context": {
+      "test": true,
+      "step": 4
+    },
+    "timestamp": 1751057060.395665,
+    "source": "pipeline"
+  }
+]

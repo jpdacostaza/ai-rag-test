@@ -159,6 +159,52 @@ services:
     networks:
       - backend-net
 
+  # Enhanced Memory API Service (with Redis + ChromaDB integration)
+  memory_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.memory
+    image: backend-memory-api-enhanced
+    container_name: backend-memory-api
+    ports:
+      - "8000:8000"
+    restart: always
+    environment:
+      - LOG_LEVEL=INFO
+      - API_KEY=default_test_key
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+    volumes:
+      - ./storage/memory:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    networks:
+      - backend-net
+
+  # OpenWebUI Pipelines Server
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: backend-pipelines
+    ports:
+      - "9098:9099"
+    restart: always
+    environment:
+      - PIPELINES_API_KEY=0p3n-w3bu!
+      - PIPELINES_BACKEND_URL=http://memory_api:8000
+    volumes:
+      - ./memory:/app/pipelines
+      - ./storage/pipelines:/app/data
+    depends_on:
+      memory_api:
+        condition: service_started
+    networks:
+      - backend-net
+
   openwebui:
     image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
@@ -192,11 +238,15 @@ services:
       - FILE_SIZE_LIMIT=100 # MB, must match backend config
       # Pipeline Configuration
       - ENABLE_PIPELINES=true
-      - PIPELINES_URLS=http://llm_backend:9099
+      - ENABLE_PIPELINES_FILTER=true
+      - PIPELINES_URLS=http://pipelines:9099
+      - PIPELINES_API_KEY=0p3n-w3bu!
     volumes:
       - ./storage/openwebui:/app/backend/data
     depends_on:
       llm_backend:
+        condition: service_started
+      pipelines:
         condition: service_started
     networks:
       - backend-net
