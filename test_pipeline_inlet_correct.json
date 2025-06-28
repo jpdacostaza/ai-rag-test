@@ -1,0 +1,15 @@
+{
+  "body": {
+    "messages": [
+      {
+        "role": "user", 
+        "content": "Hello, my name is J.P. and I work at Swift. Can you remember that?"
+      }
+    ],
+    "model": "gpt-4"
+  },
+  "user": {
+    "id": "test_user_jp",
+    "email": "jp@swift.com"
+  }
+}

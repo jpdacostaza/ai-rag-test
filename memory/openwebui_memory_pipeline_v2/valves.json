@@ -1,1 +1,1 @@
-{}
+{"pipelines": ["*"], "priority": 0, "backend_url": "http://memory_api:8000", "api_key": "default_test_key", "memory_limit": 3, "enable_learning": true, "enable_memory_injection": true, "max_memory_length": 500, "debug_mode": true}

@@ -205,6 +205,24 @@ services:
     networks:
       - backend-net
 
+  # OpenWebUI API Bridge
+  api_bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.api_bridge
+    image: backend-api-bridge
+    container_name: backend-api-bridge
+    ports:
+      - "8003:8003"
+    restart: always
+    environment:
+      - LOG_LEVEL=INFO
+    depends_on:
+      pipelines:
+        condition: service_started
+    networks:
+      - backend-net
+
   openwebui:
     image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
@@ -236,11 +254,15 @@ services:
       # File Upload Settings
       - ENABLE_FILE_UPLOAD=true
       - FILE_SIZE_LIMIT=100 # MB, must match backend config
-      # Pipeline Configuration
+      # Pipeline Configuration - Direct connection
       - ENABLE_PIPELINES=true
       - ENABLE_PIPELINES_FILTER=true
       - PIPELINES_URLS=http://pipelines:9099
       - PIPELINES_API_KEY=0p3n-w3bu!
+      # Alternative configuration
+      - ENABLE_FUNCTIONS=true
+      - FUNCTIONS_API_BASE_URL=http://pipelines:9099
+      - FUNCTIONS_API_KEY=0p3n-w3bu!
     volumes:
       - ./storage/openwebui:/app/backend/data
     depends_on:

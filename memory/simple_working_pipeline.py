@@ -303,3 +303,20 @@ class Pipeline:
                 "content": f"You are a helpful AI assistant.\n\n{memory_context}"
             }
             messages.insert(0, system_message)
+
+    async def pipe(self, body: dict, user: Optional[dict] = None) -> dict:
+        """
+        Pipe method for handling direct chat completions.
+        This should not be used normally as this is a filter pipeline,
+        but added for compatibility.
+        """
+        self.log("⚠️ Pipe method called - this pipeline should be used as a filter, not a standalone model")
+        
+        # This pipeline is designed to be a filter, not a standalone model
+        # Return an error response
+        return {
+            "error": {
+                "message": "This is a filter pipeline, not a standalone model. Please use it as a filter with a base model like llama3.2:3b",
+                "type": "invalid_request_error"
+            }
+        }

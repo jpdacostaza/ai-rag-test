@@ -1,0 +1,8 @@
+{
+  "memory_api_url": "http://memory_api:8000",
+  "enable_memory": true,
+  "max_memories": 5,
+  "memory_threshold": 0.1,
+  "debug": true,
+  "pipelines": ["*"]
+}
