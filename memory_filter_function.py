@@ -1,9 +1,19 @@
 """
-Simple Working Memory Pipeline for OpenWebUI
-===========================================
+OpenWebUI Memory Filter Function
+================================
 
-A minimal memory pipeline that works with the current pipelines server.
-This pipeline integrates with our memory API to provide basic memory functionality.
+A memory filter function that adds context from previous conversations.
+This should be imported as a Function in OpenWebUI, then applied as a Filter to models.
+
+Instructions:
+1. Copy this entire code
+2. In OpenWebUI: Admin → Functions → Import Function
+3. Paste this code
+4. Set ID: "memory_filter"
+5. Set Name: "Memory Filter"
+6. Set Type: "filter" 
+7. Enable the function
+8. Go to Models → llama3.2:3b → Filters → Add this filter
 """
 
 import json
@@ -20,78 +30,31 @@ except ImportError:
     import httpx
 
 
-class Pipeline:
-    """Simple memory pipeline for OpenWebUI integration."""
+class Filter:
+    """Memory filter for OpenWebUI - adds context from previous conversations."""
 
     class Valves(BaseModel):
-        """Pipeline configuration valves."""
+        """Filter configuration valves."""
         # Backend integration
         memory_api_url: str = "http://memory_api:8000"
         
         # Memory settings
         enable_memory: bool = True
         max_memories: int = 3
-        memory_threshold: float = 0.7
+        memory_threshold: float = 0.3
         
         # Debug
         debug: bool = True
-        
-        # Pipeline targets
-        pipelines: List[str] = ["*"]
-
-        class Config:
-            """Pydantic config for compatibility."""
-            # This ensures compatibility with both Pydantic v1 and v2
-            pass
 
     def __init__(self):
-        """Initialize the pipeline."""
-        # Explicitly set as filter pipeline
-        self.type = "filter"
-        self.id = "simple_memory_pipeline"
-        self.name = "Simple Memory Pipeline"
-        self.description = "Memory pipeline that adds context from previous conversations"
-        
-        # Initialize components
+        """Initialize the filter."""
         self.valves = self.Valves()
         self.client = httpx.AsyncClient(timeout=10.0)
-
-    @property
-    def manifest(self):
-        """Pipeline manifest for OpenWebUI."""
-        return {
-            "id": self.id,
-            "name": self.name,
-            "type": self.type,
-            "description": self.description,
-            "requirements": ["httpx"]
-        }
 
     def log(self, message: str):
         """Simple logging function."""
         if self.valves.debug:
-            print(f"[MEMORY_PIPELINE] {message}")
-
-    async def on_startup(self):
-        """Pipeline startup."""
-        self.log("🚀 Simple Memory Pipeline starting...")
-        
-        # Test memory API connection
-        try:
-            response = await self.client.get(f"{self.valves.memory_api_url}/health")
-            if response.status_code == 200:
-                self.log("✅ Memory API connected")
-            else:
-                self.log(f"⚠️ Memory API health check failed: {response.status_code}")
-        except Exception as e:
-            self.log(f"❌ Memory API connection failed: {e}")
-        
-        self.log("🧠 Simple Memory Pipeline ready!")
-
-    async def on_shutdown(self):
-        """Pipeline shutdown."""
-        self.log("🛑 Simple Memory Pipeline shutting down...")
-        await self.client.aclose()
+            print(f"[MEMORY_FILTER] {message}")
 
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
         """
@@ -104,28 +67,14 @@ class Pipeline:
             if not self.valves.enable_memory:
                 return body
             
-            # Extract user information with multiple fallback methods
-            user_id = "default_user"  # Default fallback
+            # Extract user information
+            user_id = "default_user"
+            if user and user.get("id"):
+                user_id = str(user["id"])
+            elif user and user.get("email"):
+                user_id = user["email"]
             
-            if user:
-                if user.get("id"):
-                    user_id = str(user["id"])
-                elif user.get("email"):
-                    user_id = user["email"]
-                elif user.get("name"):
-                    user_id = user["name"]
-            
-            # Try to extract from body as well
-            if user_id == "default_user" and body:
-                if body.get("user_id"):
-                    user_id = str(body["user_id"])
-                elif body.get("user"):
-                    if isinstance(body["user"], dict):
-                        user_id = str(body["user"].get("id", body["user"].get("email", "default_user")))
-                    else:
-                        user_id = str(body["user"])
-            
-            self.log(f"👤 Identified user: {user_id}")
+            self.log(f"👤 User: {user_id}")
             
             # Get the user's message
             messages = body.get("messages", [])
@@ -141,24 +90,22 @@ class Pipeline:
             if not user_message.strip():
                 return body
             
-            self.log(f"👤 User: {user_id}, Message: {user_message[:50]}...")
+            self.log(f"💬 Message: {user_message[:50]}...")
             
             # Retrieve relevant memories
             memories = await self.retrieve_memories(user_id, user_message)
             
             if memories:
-                self.log(f"🧠 Found {len(memories)} relevant memories")
+                self.log(f"🧠 Found {len(memories)} memories")
                 
                 # Create memory context
                 memory_context = self.format_memory_context(memories)
                 
                 # Inject memory context into the system message
                 self.inject_memory_context(messages, memory_context)
-                
-                # Update the body with modified messages
                 body["messages"] = messages
             else:
-                self.log("🔍 No relevant memories found")
+                self.log("🔍 No memories found")
             
             return body
             
@@ -177,28 +124,12 @@ class Pipeline:
             if not self.valves.enable_memory:
                 return body
             
-            # Extract user information with multiple fallback methods
-            user_id = "default_user"  # Default fallback
-            
-            if user:
-                if user.get("id"):
-                    user_id = str(user["id"])
-                elif user.get("email"):
-                    user_id = user["email"]
-                elif user.get("name"):
-                    user_id = user["name"]
-            
-            # Try to extract from body as well
-            if user_id == "default_user" and body:
-                if body.get("user_id"):
-                    user_id = str(body["user_id"])
-                elif body.get("user"):
-                    if isinstance(body["user"], dict):
-                        user_id = str(body["user"].get("id", body["user"].get("email", "default_user")))
-                    else:
-                        user_id = str(body["user"])
-            
-            self.log(f"👤 Storing for user: {user_id}")
+            # Extract user information
+            user_id = "default_user"
+            if user and user.get("id"):
+                user_id = str(user["id"])
+            elif user and user.get("email"):
+                user_id = user["email"]
             
             # Extract messages
             messages = body.get("messages", [])
@@ -219,7 +150,6 @@ class Pipeline:
                     break
             
             if user_message and assistant_response:
-                # Store the interaction for learning
                 await self.store_interaction(user_id, user_message, assistant_response)
             
             return body
@@ -231,20 +161,50 @@ class Pipeline:
     async def retrieve_memories(self, user_id: str, query: str) -> List[Dict[str, Any]]:
         """Retrieve relevant memories for the user query."""
         try:
+            request_data = {
+                "user_id": user_id,
+                "query": query,
+                "limit": self.valves.max_memories,
+                "threshold": self.valves.memory_threshold
+            }
+            
+            self.log(f"🔍 Retrieving memories with: {request_data}")
+            
             response = await self.client.post(
                 f"{self.valves.memory_api_url}/api/memory/retrieve",
-                json={
-                    "user_id": user_id,
-                    "query": query,
-                    "limit": self.valves.max_memories,
-                    "threshold": self.valves.memory_threshold
-                },
+                json=request_data,
                 headers={"Content-Type": "application/json"}
             )
             
             if response.status_code == 200:
                 result = response.json()
-                return result.get("memories", [])
+                memories = result.get("memories", [])
+                self.log(f"📊 API returned {len(memories)} memories")
+                
+                # If no memories found with the specific query, try a fallback approach
+                if not memories and result.get("sources", {}).get("long_term", 0) > 0:
+                    self.log("🔄 No memories found with query, trying fallback with empty query")
+                    
+                    # Try with empty query and lower threshold
+                    fallback_request = {
+                        "user_id": user_id,
+                        "query": "",
+                        "limit": self.valves.max_memories,
+                        "threshold": 0.0  # Get any memories
+                    }
+                    
+                    fallback_response = await self.client.post(
+                        f"{self.valves.memory_api_url}/api/memory/retrieve",
+                        json=fallback_request,
+                        headers={"Content-Type": "application/json"}
+                    )
+                    
+                    if fallback_response.status_code == 200:
+                        fallback_result = fallback_response.json()
+                        memories = fallback_result.get("memories", [])
+                        self.log(f"🔄 Fallback returned {len(memories)} memories")
+                
+                return memories
             else:
                 self.log(f"Memory retrieval failed: {response.status_code}")
                 return []
@@ -266,20 +226,21 @@ class Pipeline:
                     "user_message": user_message,
                     "assistant_response": assistant_response,
                     "response_time": 1.0,
-                    "context": {"source": "simple_pipeline"},
-                    "source": "pipeline"
+                    "context": {"source": "memory_filter"},
+                    "source": "filter"
                 },
                 headers={"Content-Type": "application/json"}
             )
             
             if response.status_code == 200:
                 result = response.json()
-                self.log(f"💾 Interaction stored (Total memories: {result.get('memories_count', 0)})")
+                total_memories = result.get('total_memories', {}).get('total', 0) or result.get('memories_count', 0)
+                self.log(f"💾 Stored interaction (Total: {total_memories})")
             else:
-                self.log(f"Interaction storage failed: {response.status_code}")
+                self.log(f"Storage failed: {response.status_code}")
                 
         except Exception as e:
-            self.log(f"Interaction storage error: {e}")
+            self.log(f"Storage error: {e}")
 
     def format_memory_context(self, memories: List[Dict[str, Any]]) -> str:
         """Format memories into context string."""
@@ -319,5 +280,3 @@ class Pipeline:
                 "content": f"You are a helpful AI assistant.\n\n{memory_context}"
             }
             messages.insert(0, system_message)
-
-    # Note: No pipe() method - this is a filter-only pipeline

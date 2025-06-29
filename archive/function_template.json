@@ -1,0 +1,12 @@
+{
+  "id": "memory_filter",
+  "name": "Memory Filter",
+  "type": "filter",
+  "content": "",
+  "meta": {
+    "description": "Memory filter function that adds context from previous conversations",
+    "manifest": {}
+  },
+  "is_active": true,
+  "is_global": false
+}

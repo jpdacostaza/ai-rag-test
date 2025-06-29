@@ -1,14 +1,16 @@
 # OpenWebUI Memory Pipeline Project - Status Summary
-**Date: June 28, 2025**
-**Status: 95% COMPLETE - Functions/Filters Discovery Issue**
+**Date: June 29, 2025**
+**Status: 100% COMPLETE - Functions Discovery FIXED! 🎉**
 
 ---
 
-## 🎯 CURRENT ISSUE
-**OpenWebUI cannot see pipeline filters/functions in the UI**
+## 🎯 ISSUE RESOLVED! ✅
+**OpenWebUI can now see pipeline filters/functions in the UI**
 
-**Error**: "To select filters here, add them to the 'Functions' workspace first"
-**Root Cause**: OpenWebUI `/api/v1/functions/` endpoint returns empty list (functions not discovered)
+**Solution**: Configured OpenWebUI to use API bridge for functions endpoint
+- OpenWebUI now connects to `http://api_bridge:8003` for functions
+- API bridge converts pipelines to functions format
+- Functions are now discoverable in OpenWebUI Admin interface
 
 ---
 

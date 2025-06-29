@@ -259,9 +259,9 @@ services:
       - ENABLE_PIPELINES_FILTER=true
       - PIPELINES_URLS=http://pipelines:9099
       - PIPELINES_API_KEY=0p3n-w3bu!
-      # Alternative configuration
+      # Functions Configuration - Via API Bridge
       - ENABLE_FUNCTIONS=true
-      - FUNCTIONS_API_BASE_URL=http://pipelines:9099
+      - FUNCTIONS_API_BASE_URL=http://api_bridge:8003
       - FUNCTIONS_API_KEY=0p3n-w3bu!
     volumes:
       - ./storage/openwebui:/app/backend/data
