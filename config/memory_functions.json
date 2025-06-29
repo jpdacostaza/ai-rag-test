@@ -1,0 +1,56 @@
+[
+  {
+    "id": "simple_working_pipeline",
+    "name": "Memory Pipeline",
+    "description": "Stores and retrieves user context and memories across conversations using Redis and ChromaDB",
+    "type": "filter",
+    "spec": {
+      "type": "function",
+      "function": {
+        "name": "memory_pipeline",
+        "description": "Process user messages to store memories and inject relevant context",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "body": {
+              "type": "object",
+              "description": "The message body containing user input and metadata"
+            },
+            "user": {
+              "type": "object", 
+              "description": "User information including ID and preferences"
+            }
+          },
+          "required": ["body"]
+        }
+      }
+    },
+    "valve": {
+      "MEMORY_API_URL": {
+        "type": "str",
+        "default": "http://memory_api:8000",
+        "title": "Memory API URL"
+      },
+      "memory_threshold": {
+        "type": "float",
+        "default": 0.1,
+        "title": "Memory Similarity Threshold"
+      },
+      "max_memories": {
+        "type": "int",
+        "default": 5,
+        "title": "Maximum Memories to Retrieve"
+      },
+      "enable_learning": {
+        "type": "bool",
+        "default": true,
+        "title": "Enable Memory Learning"
+      },
+      "enable_memory_injection": {
+        "type": "bool", 
+        "default": true,
+        "title": "Enable Memory Context Injection"
+      }
+    }
+  }
+]
