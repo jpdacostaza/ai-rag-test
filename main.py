@@ -124,6 +124,20 @@ app.include_router(pipelines_v1_router)
 app.include_router(memory_router)
 
 
+# Pipeline status endpoint (separate from pipeline_router for backward compatibility)
+@app.get("/api/pipeline/status")
+async def get_pipeline_status():
+    """Get pipeline system status for backward compatibility"""
+    return {
+        "status": "operational",
+        "timestamp": datetime.utcnow().isoformat(),
+        "backend_status": "healthy",
+        "version": "1.0.0",
+        "pipelines_available": True,
+        "memory_api_available": True
+    }
+
+
 # Simple API key verification for pipelines
 def verify_api_key(api_key: str = ""):
     """Simple API key verification - implement proper security as needed"""

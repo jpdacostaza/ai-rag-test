@@ -5,6 +5,7 @@ Pipeline routes for managing AI pipelines
 from fastapi import APIRouter, HTTPException
 from typing import Dict, List, Any
 from pydantic import BaseModel
+from datetime import datetime
 
 pipeline_router = APIRouter(prefix="/pipelines", tags=["pipelines"])
 
@@ -56,3 +57,15 @@ async def execute_pipeline(pipeline_id: str, data: Dict[str, Any]) -> Dict[str, 
 
     # Placeholder for pipeline execution
     return {"pipeline_id": pipeline_id, "status": "executed", "result": f"Pipeline {pipeline_id} executed successfully"}
+
+
+@pipeline_router.get("/status")
+async def get_pipeline_status() -> Dict[str, Any]:
+    """Get pipeline system status"""
+    return {
+        "status": "operational",
+        "timestamp": datetime.utcnow().isoformat(),
+        "active_pipelines": len([p for p in PIPELINES.values() if p.enabled]),
+        "total_pipelines": len(PIPELINES),
+        "pipelines": {pid: {"enabled": p.enabled, "version": p.version} for pid, p in PIPELINES.items()},
+    }

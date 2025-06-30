@@ -105,18 +105,18 @@ def log_environment_variables():
 
 # Persona configuration
 def load_persona():
-    """Load persona configuration from persona.json."""
+    """Load persona configuration from config/persona.json."""
     try:
         import json
 
-        with open("persona.json", "r", encoding="utf-8") as f:
+        with open("config/persona.json", "r", encoding="utf-8") as f:
             persona = json.load(f)
             return persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
     except Exception as e:
         # Log the error for debugging purposes
         from human_logging import log_service_status
 
-        log_service_status("CONFIG", "warning", f"Failed to load persona.json: {e}")
+        log_service_status("CONFIG", "warning", f"Failed to load config/persona.json: {e}")
         return "You are a helpful AI assistant with access to tools and memory."
 
 
