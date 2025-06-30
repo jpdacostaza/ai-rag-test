@@ -70,15 +70,6 @@ class LearningInteractionRequest(BaseModel):
 class DocumentLearningRequest(BaseModel):
     user_id: str
     document: Dict[str, Any]
-class ExplicitMemoryRequest(BaseModel):
-    user_id: str
-    content: str
-    source: Optional[str] = "explicit_command"
-    conversation_id: Optional[str] = "manual"
-class ForgetMemoryRequest(BaseModel):
-    user_id: str
-    forget_query: str  # What to forget (e.g., "my job", "my name", "everything about work")
-    source: Optional[str] = "forget_command"
 async def initialize_databases():
     """Initialize Redis and ChromaDB connections."""
     global redis_client, chroma_client, memory_collection
@@ -179,52 +170,14 @@ async def retrieve_memory(request: MemoryRetrieveRequest = Body(...)):
             if relevance_score >= request.threshold:
                 memory["relevance_score"] = relevance_score
                 relevant_memories.append(memory)
-        
         # Sort by relevance and recency
         relevant_memories.sort(key=lambda x: (x["relevance_score"], x.get("timestamp", 0)), reverse=True)
-        
-        # ENHANCED: Filter out outdated information when we have corrections
-        # Look for correction patterns and remove conflicting old memories
-        filtered_memories = []
-        correction_memories = [m for m in relevant_memories if m["content"].lower().startswith("correction:")]
-        
-        for memory in relevant_memories:
-            content_lower = memory["content"].lower()
-            
-            # Skip correction memories themselves (they're just metadata)
-            if content_lower.startswith("correction:"):
-                continue
-                
-            # Check if this memory conflicts with any corrections
-            is_outdated = False
-            for correction in correction_memories:
-                correction_content = correction["content"].lower()
-                
-                # Check for name corrections
-                if "name is not" in correction_content:
-                    # Extract the incorrect name from the correction
-                    import re
-                    incorrect_name_match = re.search(r"name is not ([a-zA-Z\s]+)", correction_content)
-                    if incorrect_name_match:
-                        incorrect_name = incorrect_name_match.group(1).strip()
-                        # If this memory contains the incorrect name, mark as outdated
-                        if incorrect_name in content_lower and "name" in content_lower:
-                            is_outdated = True
-                            print(f"🚫 Filtering out outdated memory: {memory['content'][:50]}...")
-                            break
-            
-            # Only include memories that aren't outdated
-            if not is_outdated:
-                filtered_memories.append(memory)
-        
-        # Take only the top results after filtering
-        final_memories = filtered_memories[:request.limit]
-        
-        print(f"✅ Returning {len(final_memories)} relevant memories (filtered from {len(relevant_memories)} total)")
+        relevant_memories = relevant_memories[:request.limit]
+        print(f"✅ Returning {len(relevant_memories)} relevant memories")
         return {
             "status": "success",
-            "memories": final_memories,
-            "count": len(final_memories),
+            "memories": relevant_memories,
+            "count": len(relevant_memories),
             "user_id": request.user_id,
             "sources": {
                 "short_term": len(short_term_memories),
@@ -386,43 +339,22 @@ async def promote_to_long_term(user_id: str, memory_data: Dict[str, Any]):
     except Exception as e:
         print(f"❌ Long-term promotion error: {e}")
 def extract_memories(text: str) -> List[str]:
-    """Extract memorable information from user text, including corrections."""
+    """Extract memorable information from user text."""
     memories = []
     text_lower = text.lower()
-    
-    # Handle corrections first (name corrections like "my name is X not Y")
-    correction_patterns = [
-        r"my name is ([a-zA-Z\s.]+)(?:,)?\s*not\s*([a-zA-Z\s]+)",
-        r"i'm ([a-zA-Z\s.]+)(?:,)?\s*not\s*([a-zA-Z\s]+)",
-        r"call me ([a-zA-Z\s.]+)(?:,)?\s*not\s*([a-zA-Z\s]+)"
+    # Name extraction
+    name_patterns = [
+        r"my name is ([a-zA-Z\s]+)",
+        r"i'm ([a-zA-Z\s]+)",
+        r"i am ([a-zA-Z\s]+)",
+        r"call me ([a-zA-Z\s]+)"
     ]
-    
-    name_corrected = False
-    for pattern in correction_patterns:
+    for pattern in name_patterns:
         matches = re.findall(pattern, text_lower)
-        for correct_name, wrong_name in matches:
-            correct_name = correct_name.strip().title()
-            if len(correct_name) > 1:
-                memories.append(f"User's name is {correct_name}")
-                memories.append(f"CORRECTION: User's name is NOT {wrong_name.strip().title()}")
-                name_corrected = True
-                print(f"📝 Name correction detected: {wrong_name} → {correct_name}")
-    
-    # Regular name extraction (only if no correction was made)
-    if not name_corrected:
-        name_patterns = [
-            r"my name is ([a-zA-Z\s.]+)",
-            r"i'm ([a-zA-Z\s.]+)",
-            r"i am ([a-zA-Z\s.]+)",
-            r"call me ([a-zA-Z\s.]+)"
-        ]
-        for pattern in name_patterns:
-            matches = re.findall(pattern, text_lower)
-            for name in matches:
-                name = name.strip().title()
-                if len(name) > 1 and name not in ["A", "An", "The"]:
-                    memories.append(f"User's name is {name}")
-    
+        for name in matches:
+            name = name.strip().title()
+            if len(name) > 1 and name not in ["A", "An", "The"]:
+                memories.append(f"User's name is {name}")
     # Work/profession extraction
     work_patterns = [
         r"i work (?:as |at |in )?([^.!?]+)",
@@ -439,15 +371,12 @@ def extract_memories(text: str) -> List[str]:
                 work_info = match.strip()
             if len(work_info) > 3:
                 memories.append(f"User works {work_info}")
-    
     # Personal interests and preferences
     if any(keyword in text_lower for keyword in ["i like", "i love", "i enjoy", "my favorite", "i prefer"]):
         memories.append(text.strip())
-    
     # Skills and experience
     if any(keyword in text_lower for keyword in ["i have experience", "i know", "i'm good at", "i specialize"]):
         memories.append(text.strip())
-    
     # Location information
     location_patterns = [
         r"i live in ([^.!?]+)",
@@ -460,7 +389,6 @@ def extract_memories(text: str) -> List[str]:
             location = location.strip().title()
             if len(location) > 1:
                 memories.append(f"User lives in {location}")
-    
     return memories
 def calculate_relevance_score(content: str, query: str) -> float:
     """Calculate relevance score between content and query. ENHANCED for better matching."""
@@ -468,16 +396,6 @@ def calculate_relevance_score(content: str, query: str) -> float:
     query_lower = query.lower()
     query_words = set(query_lower.split())
     content_words = set(content_lower.split())
-    
-    # Heavily penalize corrected/incorrect information
-    if content_lower.startswith("correction:") or "not " in content_lower:
-        return 0.01  # Very low relevance for corrections/negations
-    
-    # CRITICAL: Penalize old/incorrect names heavily when we have corrections
-    # Check if this memory contains an outdated name like "TestUser" 
-    if "testuser" in content_lower and ("name" in content_lower or "user's name" in content_lower):
-        # This is likely an outdated name memory, heavily penalize it
-        return 0.02  # Very low relevance for outdated names
     
     score = 0.0
     total_words = len(query_words)
@@ -500,12 +418,9 @@ def calculate_relevance_score(content: str, query: str) -> float:
         # For these queries, give any stored memory some relevance
         score += 0.3
     
-    # Name-based queries (boost for current/correct names)
+    # Name-based queries
     if "name" in query_lower and "name" in content_lower:
         score += 0.4
-        # Extra boost for specific correct names like "J.P."
-        if "j.p." in content_lower or "jp" in content_lower:
-            score += 0.5  # Big boost for the correct name
     
     # Work-based queries  
     if any(word in query_lower for word in ["work", "job", "career"]) and any(word in content_lower for word in ["work", "job", "career"]):
@@ -514,8 +429,8 @@ def calculate_relevance_score(content: str, query: str) -> float:
     # Normalize by query length and ensure minimum relevance for any memory
     normalized_score = min(score / max(total_words, 1), 1.0)
     
-    # Give a small base score to any memory for broad queries (but not corrections or outdated names)
-    if ("what do you know" in query_lower or "about me" in query_lower) and not content_lower.startswith("correction:") and "testuser" not in content_lower:
+    # Give a small base score to any memory for broad queries
+    if "what do you know" in query_lower or "about me" in query_lower:
         normalized_score = max(normalized_score, 0.15)
     
     return normalized_score

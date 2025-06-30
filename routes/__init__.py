@@ -6,7 +6,6 @@ from .health import health_router
 from .chat import chat_router
 from .models import models_router
 from .upload import upload_router
-# pipeline_router removed - using Functions only
 from .debug import debug_router
 
 __all__ = ["health_router", "chat_router", "models_router", "upload_router", "debug_router"]

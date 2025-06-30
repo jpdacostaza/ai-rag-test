@@ -132,7 +132,6 @@ def main():
         ("GET", "/", None, "Root health check"),
         ("GET", "/health", None, "Basic health"),
         ("GET", "/health/detailed", None, "Detailed health"),
-        ("GET", "/api/pipeline/status", None, ),
         (
             "POST",
             "/api/memory/retrieve",

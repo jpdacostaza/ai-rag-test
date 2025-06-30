@@ -23,7 +23,7 @@ class MemoryRetrieveRequest(BaseModel):
     user_id: str
     query: str
     limit: int = 5
-    threshold: float = 0.7
+    threshold: float = 0.1
 
 
 class LearningInteractionRequest(BaseModel):
@@ -36,6 +36,11 @@ class LearningInteractionRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
     timestamp: Optional[str] = None
     source: Optional[str] = "function"
+
+
+class DocumentLearningRequest(BaseModel):
+    user_id: str
+    document: Dict[str, Any]
 
 
 @memory_router.post("/memory/retrieve")
@@ -58,10 +63,15 @@ async def retrieve_memory_for_function(request: MemoryRetrieveRequest = Body(...
         formatted_memories = []
         if memories:
             for memory in memories:
+                # Convert distance to relevance score (distance is 0-2, where 0 is perfect match)
+                # Convert to relevance score where 1.0 is perfect and 0.0 is no match
+                distance = memory.get("distance", 2.0)
+                relevance_score = max(0.0, 1.0 - (distance / 2.0))
+                
                 formatted_memories.append({
-                    "content": memory.get("content", ""),
+                    "content": memory.get("document", ""),
                     "metadata": memory.get("metadata", {}),
-                    "relevance_score": memory.get("score", 0.0)
+                    "relevance_score": relevance_score
                 })
         
         return {
@@ -74,6 +84,33 @@ async def retrieve_memory_for_function(request: MemoryRetrieveRequest = Body(...
     except Exception as e:
         log_error(e, "memory_retrieval_api")
         raise HTTPException(status_code=500, detail=f"Memory retrieval failed: {str(e)}")
+
+
+@memory_router.post("/memory/learn")
+async def learn_from_document(request: DocumentLearningRequest = Body(...)):
+    """
+    Learn from a document and store it in the user's memory.
+    """
+    try:
+        log_service_status("MEMORY_API", "info", f"Memory learning requested for user {request.user_id}")
+        
+        # Use the adaptive learning system to process and store the document
+        document_id = await adaptive_learning_system.add_document_to_memory(
+            user_id=request.user_id,
+            document_content=request.document.get("content", ""),
+            metadata=request.document.get("metadata", {})
+        )
+        
+        return {
+            "status": "success",
+            "message": "Document learned successfully",
+            "document_id": document_id,
+            "user_id": request.user_id
+        }
+        
+    except Exception as e:
+        log_error(e, "memory_learning_api")
+        raise HTTPException(status_code=500, detail=f"Memory learning failed: {str(e)}")
 
 
 @memory_router.post("/learning/process_interaction")

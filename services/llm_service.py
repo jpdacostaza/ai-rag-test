@@ -31,7 +31,7 @@ class LLMService:
     """Service for handling LLM API calls."""
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """Initializes the LLMService with configuration from config.py."""
         self.default_model = DEFAULT_MODEL
         self.ollama_url = OLLAMA_BASE_URL
         self.use_ollama = USE_OLLAMA
@@ -60,9 +60,9 @@ class LLMService:
         model = model or self.default_model
 
         # Debug logging to see what messages are being sent
-        logging.info(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
+        logging.debug(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
         for i, msg in enumerate(messages):
-            logging.info(f"[DEBUG] Message {i}: role='{msg.get('role')}', content='{msg.get('content', '')[:100]}...'")
+            logging.debug(f"[DEBUG] Message {i}: role='{msg.get('role')}', content='{msg.get('content', '')[:100]}...'")
 
         # Use Ollama's chat endpoint which provides better control over system prompts
         payload = {
@@ -90,8 +90,8 @@ class LLMService:
                 response.raise_for_status()
                 data = response.json()
                 llm_response = data.get("message", {}).get("content", "")
-                logging.info(f"[DEBUG] Ollama response length: {len(llm_response)} chars")
-                logging.info(f"[DEBUG] Ollama response content: '{llm_response[:200]}...'")
+                logging.debug(f"[DEBUG] Ollama response length: {len(llm_response)} chars")
+                logging.debug(f"[DEBUG] Ollama response content: '{llm_response[:200]}...'")
                 return llm_response
         except httpx.RequestError as e:
             log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
@@ -194,13 +194,13 @@ class LLMService:
 
         model = model or self.default_model
         prompt = "\n".join(f"{msg.get('role', 'user').capitalize()}: {msg.get('content', '')}" for msg in messages)
-        payload = {"model": model, "prompt": prompt, "stream": True}
+        payload = {"model": model, "messages": messages, "stream": True}
         timeout = LLM_TIMEOUT
 
         client = None
         try:
             client = httpx.AsyncClient(timeout=timeout)
-            async with client.stream("POST", f"{self.ollama_url}/api/generate", json=payload) as resp:
+            async with client.stream("POST", f"{self.ollama_url}/api/chat", json=payload) as resp:
                 resp.raise_for_status()
                 async for line in resp.aiter_lines():
                     # Check stop conditions
@@ -213,8 +213,12 @@ class LLMService:
 
                     try:
                         data = json.loads(line)
-                        if "response" in data:
-                            yield data["response"]
+                        if (
+                            (choices := data.get("choices"))
+                            and (delta := choices[0].get("delta"))
+                            and (content := delta.get("content"))
+                        ):
+                            yield content
                         if data.get("done"):
                             log_service_status("OLLAMA", "info", "Stream completed successfully")
                             break

@@ -1,1 +1,0 @@
-{"backend_url": "http://host.docker.internal:8001", "api_key": "f2b985dd-219f-45b1-a90e-170962cc7082", "memory_limit": 3, "memory_threshold": 0.7, "enable_learning": true, "enable_memory_injection": true, "max_memory_length": 500, "pipeline_mode": "filter"}

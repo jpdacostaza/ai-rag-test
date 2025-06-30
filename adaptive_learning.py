@@ -22,7 +22,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from database_manager import db_manager
+from database_manager import db_manager, retrieve_user_memory, get_embedding, index_document_chunks
 from error_handler import MemoryErrorHandler
 from human_logging import log_service_status
 
@@ -390,6 +390,34 @@ class AdaptiveLearningSystem:
         except Exception as e:
             log_service_status("LEARNING", "error", f"Failed to get insights for user {user_id}: {e}")
             return {"status": "error", "reason": str(e)}
+
+    async def add_document_to_memory(self, user_id: str, document_content: str, metadata: Dict[str, Any]) -> str:
+        """
+        Adds a document directly to the user's memory.
+        """
+        try:
+            doc_id = f"doc_{user_id}_{int(time.time())}"
+            
+            # Use db_manager to index the document
+            success = await db_manager.index_document(
+                user_id=user_id,
+                doc_id=doc_id,
+                name=metadata.get("source", "document"),
+                content=document_content,
+                metadata=metadata
+            )
+
+            if success:
+                log_service_status("LEARNING", "info", f"Successfully added document {doc_id} to memory for user {user_id}")
+                return doc_id
+            else:
+                log_service_status("LEARNING", "error", f"Failed to add document to memory for user {user_id}")
+                raise Exception("Failed to index document")
+
+        except Exception as e:
+            log_service_status("LEARNING", "error", f"Error adding document to memory for user {user_id}: {e}")
+            MemoryErrorHandler.handle_memory_error(e, "add_document_to_memory", user_id)
+            raise
 
     async def _update_learning_patterns(self, user_id: str, metrics: InteractionMetrics):
         """Update learning patterns based on interaction metrics."""

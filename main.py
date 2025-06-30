@@ -25,7 +25,7 @@ from config import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
 from human_logging import log_api_request, log_service_status
 from models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
-from routes import health_router, chat_router, models_router, upload_router, pipeline_router, debug_router
+from routes import health_router, chat_router, models_router, upload_router, debug_router
 from services.llm_service import call_llm, call_llm_stream
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
@@ -35,12 +35,11 @@ from model_manager import router as model_manager_router, initialize_model_cache
 from enhanced_integration import enhanced_router
 from feedback_router import feedback_router
 from adaptive_learning import adaptive_learning_system
-from pipelines.pipelines_v1_routes import router as pipelines_v1_router
 from routes.memory import memory_router
 
 # Import database and other dependencies
 from database_manager import db_manager, get_embedding, index_user_document, retrieve_user_memory
-from database_manager import get_cache, set_cache, get_chat_history, store_chat_history, get_database_health, db_manager
+from database_manager import get_cache, set_cache, get_chat_history, store_chat_history, get_database_health
 from error_handler import CacheErrorHandler, safe_execute, log_error
 
 
@@ -114,53 +113,12 @@ app.include_router(chat_router)
 app.include_router(models_router)
 
 # Include additional routers
-app.include_router(model_manager_router)
 app.include_router(upload_router)
-app.include_router(pipeline_router)
 app.include_router(debug_router)
+app.include_router(model_manager_router)
 app.include_router(enhanced_router)
 app.include_router(feedback_router)
-app.include_router(pipelines_v1_router)
 app.include_router(memory_router)
-
-
-# Pipeline status endpoint (separate from pipeline_router for backward compatibility)
-@app.get("/api/pipeline/status")
-async def get_pipeline_status():
-    """Get pipeline system status for backward compatibility"""
-    return {
-        "status": "operational",
-        "timestamp": datetime.utcnow().isoformat(),
-        "backend_status": "healthy",
-        "version": "1.0.0",
-        "pipelines_available": True,
-        "memory_api_available": True
-    }
-
-
-# Simple API key verification for pipelines
-def verify_api_key(api_key: str = ""):
-    """Simple API key verification - implement proper security as needed"""
-    return api_key or "development"
-
-
-# Test endpoints for debugging
-@app.get("/test-pipelines")
-async def test_pipelines():
-    """Test route to debug pipeline issues"""
-    return {"message": "Test pipelines endpoint working", "status": "ok"}
-
-
-@app.post("/test/inlet")
-async def test_pipeline_inlet(request: dict = Body(...)):
-    """Test inlet endpoint directly in main.py"""
-    return {"status": "Test inlet working", "received": request}
-
-
-@app.post("/test/outlet")
-async def test_pipeline_outlet(request: dict = Body(...)):
-    """Test outlet endpoint directly in main.py"""
-    return {"status": "Test outlet working", "received": request}
 
 
 # OpenAI-compatible chat completions endpoint

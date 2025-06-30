@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create app directory
+WORKDIR /app
+
+# Copy the auto-installer script and memory function
+COPY scripts/auto_install_function.py /scripts/auto_install_function.py
+COPY scripts/entrypoint_auto_install.sh /scripts/entrypoint_auto_install.sh  
+COPY memory_function.py /app/memory_function.py
+
+# Make scripts executable
+RUN chmod +x /scripts/entrypoint_auto_install.sh
+
+# Install Python dependencies
+RUN pip install httpx
+
+# Set the entrypoint
+ENTRYPOINT ["/scripts/entrypoint_auto_install.sh"]

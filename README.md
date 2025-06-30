@@ -22,8 +22,8 @@ docker-compose up -d
 
 ### Core Components
 - **Memory API** (`enhanced_memory_api.py`) - Redis + ChromaDB backend
-- **Memory Filter** (`memory_filter_function.py`) - OpenWebUI integration
-- **API Bridge** (`openwebui_api_bridge.py`) - Pipeline connectivity
+- **Memory Functions** (`memory_filter_function.py`) - OpenWebUI integration
+- **Main API** (`main.py`) - OpenAI-compatible endpoints
 - **Docker Services** - Redis, ChromaDB, Memory API, OpenWebUI
 
 ### Key Features
@@ -41,8 +41,7 @@ backend/
 ├── 📄 Core Application Files
 │   ├── main.py                     # Main application
 │   ├── enhanced_memory_api.py      # Memory API (Redis + ChromaDB)
-│   ├── memory_filter_function.py   # OpenWebUI memory filter
-│   ├── openwebui_api_bridge.py     # API bridge
+│   ├── memory_filter_function.py   # OpenWebUI memory function
 │   └── docker-compose.yml          # Service orchestration
 │
 ├── 📚 docs/                        # Documentation
