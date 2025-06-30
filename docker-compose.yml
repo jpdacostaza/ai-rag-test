@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Redis - Memory cache and short-term storage
+  redis:
+    image: redis:7-alpine
+    container_name: backend-redis
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - ./storage/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - backend-net
+
+  # ChromaDB - Vector database for embeddings
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: backend-chroma
+    ports:
+      - "8000:8000"
+    restart: always
+    volumes:
+      - ./storage/chroma:/chroma/chroma
+    networks:
+      - backend-net
+
+  # Memory API - Enhanced memory system
+  memory_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.memory
+    image: backend-memory-api
+    container_name: backend-memory-api
+    ports:
+      - "8001:8000"
+    restart: always
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chroma:8000
+    volumes:
+      - ./main.py:/opt/backend/main.py
+      - ./config.py:/opt/backend/config.py
+      - ./models.py:/opt/backend/models.py
+      - ./routes:/opt/backend/routes
+      - ./services:/opt/backend/services
+      - ./utilities:/opt/backend/utilities
+      - ./storage/memory:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    networks:
+      - backend-net
+
+  # OpenWebUI - Main web interface  
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:latest
+    container_name: backend-openwebui
+    ports:
+      - "3000:8080"
+    restart: always
+    environment:
+      - OPENAI_API_BASE_URL=http://memory_api:8001/v1
+      - OPENAI_API_KEY=backend-key
+      - ENABLE_FUNCTIONS=true
+    volumes:
+      - ./storage/openwebui:/app/backend/data
+    depends_on:
+      - memory_api
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge

@@ -2,7 +2,7 @@
 Memory and Learning API Routes
 
 This module provides API endpoints for memory retrieval and learning interaction processing
-required by the OpenWebUI pipelines.
+required by the OpenWebUI Functions.
 """
 
 import asyncio
@@ -35,14 +35,14 @@ class LearningInteractionRequest(BaseModel):
     tools_used: Optional[List[str]] = None
     context: Optional[Dict[str, Any]] = None
     timestamp: Optional[str] = None
-    source: Optional[str] = "pipeline"
+    source: Optional[str] = "function"
 
 
 @memory_router.post("/memory/retrieve")
-async def retrieve_memory_for_pipeline(request: MemoryRetrieveRequest = Body(...)):
+async def retrieve_memory_for_function(request: MemoryRetrieveRequest = Body(...)):
     """
     Retrieve relevant memories for a user query.
-    Used by OpenWebUI pipelines for memory injection.
+    Used by OpenWebUI Functions for memory injection.
     """
     try:
         log_service_status("MEMORY_API", "info", f"Memory retrieval requested for user {request.user_id}")
@@ -54,7 +54,7 @@ async def retrieve_memory_for_pipeline(request: MemoryRetrieveRequest = Body(...
             limit=request.limit
         )
         
-        # Format memories for pipeline consumption
+        # Format memories for function consumption
         formatted_memories = []
         if memories:
             for memory in memories:
@@ -80,7 +80,7 @@ async def retrieve_memory_for_pipeline(request: MemoryRetrieveRequest = Body(...
 async def process_learning_interaction(request: LearningInteractionRequest = Body(...)):
     """
     Process an interaction for adaptive learning.
-    Used by OpenWebUI pipelines to store learning data.
+    Used by OpenWebUI Functions to store learning data.
     """
     try:
         log_service_status("LEARNING_API", "info", f"Learning interaction received for user {request.user_id}")
@@ -104,7 +104,7 @@ async def process_learning_interaction(request: LearningInteractionRequest = Bod
         
     except Exception as e:
         log_error(e, "learning_interaction_api")
-        # Don't fail the pipeline if learning fails
+        # Don't fail the function if learning fails
         return {
             "status": "partial_success",
             "error": str(e),

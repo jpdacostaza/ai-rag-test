@@ -132,7 +132,7 @@ def main():
         ("GET", "/", None, "Root health check"),
         ("GET", "/health", None, "Basic health"),
         ("GET", "/health/detailed", None, "Detailed health"),
-        ("GET", "/api/pipeline/status", None, "Pipeline status"),
+        ("GET", "/api/pipeline/status", None, ),
         (
             "POST",
             "/api/memory/retrieve",
@@ -236,9 +236,9 @@ def main():
     else:
         print("❌ CRITICAL: Multiple endpoint failures detected.")
 
-    # Memory pipeline specific check
+    # Memory system specific check (Functions only)
     memory_endpoints = [
-        "GET /api/pipeline/status",
+        "",
         "POST /api/memory/retrieve",
         "POST /api/learning/process_interaction",
     ]
@@ -246,16 +246,16 @@ def main():
     memory_working = all(results.get(ep, {}).get("status") == "success" for ep in memory_endpoints)
 
     if memory_working:
-        print("🧠 MEMORY PIPELINE: ✅ Fully operational!")
+        print("🧠 MEMORY SYSTEM: ✅ Fully operational!")
     else:
-        print("🧠 MEMORY PIPELINE: ❌ Issues detected!")
+        print("🧠 MEMORY SYSTEM: ❌ Issues detected!")
         for ep in memory_endpoints:
             status = results.get(ep, {}).get("status", "not_tested")
             print(f"   {ep}: {status}")
 
     return {
         "success_rate": success_rate,
-        "memory_pipeline": memory_working,
+        "memory_system": memory_working,
         "total_live_routes": len(live_routes),
         "total_defined": total_defined,
         "results": results,

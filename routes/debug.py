@@ -119,7 +119,7 @@ async def list_endpoints() -> Dict[str, Any]:
                 "GET /upload/formats",
             ],
             "models": ["GET /v1/models"],
-            "pipelines": ["GET /pipelines", "GET /pipelines/{pipeline_id}", "POST /pipelines/{pipeline_id}/execute"],
+            "functions": ["Built-in OpenWebUI Functions system"],
             "debug": [
                 "GET /debug/cache",
                 "POST /debug/cache/clear",

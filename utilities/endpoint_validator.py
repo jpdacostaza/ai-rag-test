@@ -303,9 +303,9 @@ class EndpointValidator:
                 print(f"      {ep['method']} {ep['path']} → {ep['function']}()")
 
         # Key endpoints validation
-        print(f"\n🎯 KEY MEMORY PIPELINE ENDPOINTS:")
+        print(f"\n🎯 KEY MEMORY SYSTEM ENDPOINTS:")
         key_endpoints = [
-            "GET /api/pipeline/status",
+            
             "POST /api/memory/retrieve",
             "POST /api/learning/process_interaction",
             "POST /v1/chat/completions",
