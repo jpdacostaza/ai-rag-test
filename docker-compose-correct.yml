@@ -1,6 +1,7 @@
-# docker-compose.yml - Backend services with automatic memory function installation
+# docker-compose.yml moved to /opt/backend root for unified project structure
 #
-# This configuration automatically mounts the memory function to OpenWebUI on startup
+# OpenAI/OpenAPI Configuration:
+# - Edit .env file to add your OPENAI_API_KEY
 
 services:
   redis:
@@ -25,7 +26,7 @@ services:
     image: chromadb/chroma:latest
     container_name: backend-chroma
     ports:
-      - "8002:8000"
+      - "8002:8000" # Host 8002 -> Container 8000 (ChromaDB)
     restart: always
     volumes:
       - ./storage/chroma:/chroma
@@ -86,6 +87,7 @@ services:
       dockerfile: Dockerfile
     image: backend-llm_backend
     container_name: backend-llm-backend
+    # Run as user llama (UID 1000) for Linux deployment
     user: "1000:1000"
     labels:
       - "com.centurylinklabs.watchtower.enable=false"
@@ -97,25 +99,60 @@ services:
         condition: service_healthy
       chroma:
         condition: service_started
+      ollama:
+        condition: service_started
     environment:
-      - REDIS_URL=redis://redis:6379
-      - CHROMA_URL=http://chroma:8000
-      - OLLAMA_URL=http://ollama:11434
+      - CACHE_TTL=604800
+      - SIMILARITY_THRESHOLD=0.92
+      - LLM_TIMEOUT=180
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
-      - OLLAMA_HOST=ollama
-      - OLLAMA_PORT=11434
-      - PYTHONPATH=/opt/backend
-      - STORAGE_PATH=/opt/backend/storage
-      - TEMP_PATH=/tmp
+      - USE_HTTP_CHROMA=true
+      - DEFAULT_MODEL=llama3.2:3b
+      - USE_OLLAMA=true
+      - JWT_SECRET=change_this_in_production
+      - JWT_ALGORITHM=HS256
+      - API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
+      - MAX_REQUESTS_PER_MINUTE=60      - USER_AGENT=Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36
+      - WATCHDOG_STARTUP_DELAY=10
+      # Ollama Configuration (Primary mode)
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_LOG_LEVEL=INFO
+      # OpenAI/OpenAPI Integration (Fallback mode)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_API_BASE_URL=${OPENAI_API_BASE_URL:-https://api.openai.com/v1}
+      - OPENAI_API_MODEL=${OPENAI_API_MODEL:-gpt-4}
+      - OPENAI_API_TIMEOUT=${OPENAI_API_TIMEOUT:-60}
+      - ENABLE_OPENAI_API=false
+      - USE_OPENAI_ONLY=false
+      # Performance optimizations
+      - WATCHDOG_CHECK_INTERVAL=30
+      - WATCHDOG_STABLE_INTERVAL=60
+      - CHROMA_TELEMETRY=false
       - LOG_LEVEL=INFO
+      - ENABLE_COLORED_LOGS=false
+      - EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
+      - SENTENCE_TRANSFORMERS_HOME=/opt/internal_cache/sentence_transformers
+      - TRANSFORMERS_CACHE=/opt/internal_cache/sentence_transformers
+      - HF_HOME=/opt/internal_cache/sentence_transformers
+      # ChromaDB ONNX cache location
+      - CHROMA_ONNX_CACHE_DIR=/opt/cache/chroma/onnx_models
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8001", "--log-level", "debug"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
     volumes:
       - ./storage/backend:/opt/backend/data
       - ./storage/chroma/onnx_cache:/opt/cache/chroma/onnx_models
       - ./app.py:/opt/backend/app.py
       - ./persona.json:/opt/backend/persona.json
+      # For development only: mount the whole codebase for live reload (do not use in production)
+      # - ./:/opt/backend
     networks:
       - backend-net
 
@@ -126,33 +163,36 @@ services:
       - "3000:8080"
     restart: always
     environment:
+      # Ollama Configuration - DISABLED (using OpenAI API only)
+      # - OLLAMA_BASE_URL=http://ollama:11434
+      # - OLLAMA_LOG_LEVEL=INFO
       - ENABLE_OLLAMA_API=false
+      # Custom OpenAPI Backend Configuration (Your LLM Backend) - PRIMARY MODE
       - OPENAI_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
       - OPENAI_API_BASE_URL=http://llm_backend:8001/v1
       - ENABLE_OPENAI_API=true
-      - OPENAI_API_MODEL=gpt-4
+      - OPENAI_API_MODEL=gpt-4 # Frontend default; actual backend model is set via env (see .env)
       - OPENAI_API_TIMEOUT=180
       - OPENAI_API_MAX_TOKENS=4096
+      # Custom Backend Configuration
       - BACKEND_API_URL=http://llm_backend:8001
       - BACKEND_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
+      # OpenWebUI Settings
       - POSTHOG_DISABLED=true
       - GLOBAL_LOG_LEVEL=INFO
       - ENABLE_TAGS_GENERATION=false
       - ENABLE_TITLE_GENERATION=false
+      # Authentication Settings
       - ENABLE_SIGNUP=true
       - DEFAULT_USER_ROLE=user
+      # File Upload Settings
       - ENABLE_FILE_UPLOAD=true
-      - FILE_SIZE_LIMIT=100
-      - ENABLE_COMMUNITY_SHARING=false
-      - WEBUI_AUTH=false
+      - FILE_SIZE_LIMIT=100 # MB, must match backend config
     volumes:
       - ./storage/openwebui:/app/backend/data
-      - ./storage/openwebui/memory_function_working.py:/app/backend/data/functions/memory_function.py:ro
     depends_on:
       llm_backend:
         condition: service_started
-      memory_api:
-        condition: service_healthy
     networks:
       - backend-net
 
