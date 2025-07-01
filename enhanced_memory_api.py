@@ -364,6 +364,33 @@ async def store_to_redis(user_id: str, content: str, interaction: Dict[str, Any]
     except Exception as e:
         print(f"❌ Redis storage error: {e}")
         return False
+
+async def store_to_chromadb(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
+    """Store memory directly in ChromaDB long-term storage."""
+    if not memory_collection:
+        return False
+    
+    try:
+        memory_id = str(uuid.uuid4())
+        memory_collection.add(
+            documents=[content],
+            metadatas=[{
+                "user_id": user_id,
+                "timestamp": interaction["timestamp"],
+                "conversation_id": interaction["conversation_id"],
+                "stored_at": time.time(),
+                "access_count": 0,
+                "source": interaction.get("source", "unknown"),
+                "type": "explicit_memory"
+            }],
+            ids=[memory_id]
+        )
+        print(f"📚 Stored to ChromaDB: {content[:50]}...")
+        return True
+    except Exception as e:
+        print(f"❌ ChromaDB storage error: {e}")
+        return False
+
 async def promote_to_long_term(user_id: str, memory_data: Dict[str, Any]):
     """Promote frequently accessed memory from Redis to ChromaDB."""
     if not memory_collection:
@@ -523,21 +550,31 @@ async def get_redis_memory_count(user_id: str) -> int:
     """Get count of memories in Redis for a user."""
     if not redis_client:
         return 0
+    
     try:
         pattern = f"memory:{user_id}:*"
         keys = redis_client.keys(pattern)
         return len(keys)
-    except:
+    except Exception as e:
+        print(f"❌ Redis count error: {e}")
         return 0
+
 async def get_chromadb_memory_count(user_id: str) -> int:
     """Get count of memories in ChromaDB for a user."""
     if not memory_collection:
         return 0
+    
     try:
-        results = memory_collection.get(where={"user_id": user_id})
-        return len(results["ids"]) if results["ids"] else 0
-    except:
+        results = memory_collection.query(
+            query_texts=[""],
+            where={"user_id": user_id},
+            n_results=1000  # Get up to 1000 to count
+        )
+        return len(results['ids'][0]) if results['ids'] else 0
+    except Exception as e:
+        print(f"❌ ChromaDB count error: {e}")
         return 0
+
 @app.get("/debug/stats")
 async def debug_stats():
     """Debug endpoint to show current state of both storage systems."""
@@ -580,6 +617,193 @@ async def debug_stats():
         except Exception as e:
             stats["chromadb"]["error"] = str(e)
     return stats
+@app.post("/api/memory/remember")
+async def explicit_remember(request: ExplicitMemoryRequest = Body(...)):
+    """
+    Explicitly remember user-provided information.
+    This endpoint allows users to manually store specific information.
+    """
+    try:
+        print(f"💭 Explicit remember for user {request.user_id}")
+        print(f"   Content: {request.content[:100]}...")
+        
+        # Create interaction metadata for explicit memory
+        interaction = {
+            "user_id": request.user_id,
+            "conversation_id": request.conversation_id,
+            "user_message": f"Remember: {request.content}",
+            "assistant_response": "I'll remember that for you.",
+            "response_time": 0.1,
+            "tools_used": ["explicit_memory"],
+            "context": {"command_type": "remember"},
+            "timestamp": time.time(),
+            "source": request.source
+        }
+        
+        # Store directly to memory systems
+        stored_to_redis = False
+        stored_to_chroma = False
+        
+        # Store in short-term memory (Redis)
+        if await store_to_redis(request.user_id, request.content, interaction):
+            stored_to_redis = True
+            print(f"💾 Stored to Redis: {request.content[:50]}...")
+        
+        # Also store directly to long-term memory for important explicit memories
+        if await store_to_chromadb(request.user_id, request.content, interaction):
+            stored_to_chroma = True
+            print(f"📚 Stored to ChromaDB: {request.content[:50]}...")
+        
+        # Get updated memory counts
+        short_term_count = await get_redis_memory_count(request.user_id)
+        long_term_count = await get_chromadb_memory_count(request.user_id)
+        
+        return {
+            "status": "success",
+            "message": "Memory stored successfully",
+            "user_id": request.user_id,
+            "content": request.content,
+            "stored_short_term": stored_to_redis,
+            "stored_long_term": stored_to_chroma,
+            "total_memories": {
+                "short_term": short_term_count,
+                "long_term": long_term_count,
+                "total": short_term_count + long_term_count
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ Explicit remember error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to store memory: {str(e)}")
+
+@app.post("/api/memory/forget")
+async def explicit_forget(request: ForgetMemoryRequest = Body(...)):
+    """
+    Explicitly forget user-specified information.
+    This endpoint allows users to remove specific information from memory.
+    """
+    try:
+        print(f"🗑️ Explicit forget for user {request.user_id}")
+        print(f"   Query: {request.forget_query[:100]}...")
+        
+        removed_count = 0
+        
+        # Remove from Redis (short-term memory)
+        redis_removed = await remove_from_redis(request.user_id, request.forget_query)
+        removed_count += redis_removed
+        
+        # Remove from ChromaDB (long-term memory)
+        chroma_removed = await remove_from_chromadb(request.user_id, request.forget_query)
+        removed_count += chroma_removed
+        
+        # Get updated memory counts
+        short_term_count = await get_redis_memory_count(request.user_id)
+        long_term_count = await get_chromadb_memory_count(request.user_id)
+        
+        return {
+            "status": "success",
+            "message": f"Removed {removed_count} memories matching your request",
+            "user_id": request.user_id,
+            "forget_query": request.forget_query,
+            "removed_count": removed_count,
+            "total_memories": {
+                "short_term": short_term_count,
+                "long_term": long_term_count,
+                "total": short_term_count + long_term_count
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ Explicit forget error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to forget memories: {str(e)}")
+
+async def remove_from_redis(user_id: str, forget_query: str) -> int:
+    """Remove memories from Redis that match the forget query."""
+    if not redis_client:
+        return 0
+    
+    try:
+        pattern = f"memory:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        removed_count = 0
+        
+        for key in keys:
+            memory_data = redis_client.hgetall(key)
+            if memory_data and 'content' in memory_data:
+                content = memory_data['content'].lower()
+                if forget_query.lower() in content:
+                    redis_client.delete(key)
+                    removed_count += 1
+                    print(f"🗑️ Removed from Redis: {memory_data['content'][:50]}...")
+        
+        return removed_count
+    except Exception as e:
+        print(f"❌ Redis removal error: {e}")
+        return 0
+
+async def remove_from_chromadb(user_id: str, forget_query: str) -> int:
+    """Remove memories from ChromaDB that match the forget query."""
+    if not memory_collection:
+        return 0
+    
+    try:
+        # Query for relevant memories first
+        results = memory_collection.query(
+            query_texts=[forget_query],
+            where={"user_id": user_id},
+            n_results=20
+        )
+        
+        removed_count = 0
+        if results['ids'] and len(results['ids']) > 0:
+            ids_to_remove = []
+            for i, document in enumerate(results['documents'][0]):
+                if forget_query.lower() in document.lower():
+                    ids_to_remove.append(results['ids'][0][i])
+            
+            if ids_to_remove:
+                memory_collection.delete(ids=ids_to_remove)
+                removed_count = len(ids_to_remove)
+                print(f"🗑️ Removed {removed_count} memories from ChromaDB")
+        
+        return removed_count
+    except Exception as e:
+        print(f"❌ ChromaDB removal error: {e}")
+        return 0
+
+# Continuing with helper functions...
+
+@app.get("/debug/stats")
+async def get_debug_stats():
+    """Get debug statistics for both storage systems."""
+    stats = {
+        "redis": {
+            "connected": redis_client is not None,
+            "total_keys": 0
+        },
+        "chromadb": {
+            "connected": memory_collection is not None,
+            "total_documents": 0
+        }
+    }
+    
+    # Redis stats
+    if redis_client:
+        try:
+            info = redis_client.info()
+            stats["redis"]["total_keys"] = info.get("db0", {}).get("keys", 0)
+        except Exception as e:
+            stats["redis"]["error"] = str(e)
+    
+    # ChromaDB stats
+    if memory_collection:
+        try:
+            stats["chromadb"]["total_documents"] = memory_collection.count()
+        except Exception as e:
+            stats["chromadb"]["error"] = str(e)
+    
+    return stats
+
 if __name__ == "__main__":
     print("🚀 Starting Enhanced Memory API Server with Redis + ChromaDB...")
     print("🏪 Storage Systems:")
@@ -587,6 +811,8 @@ if __name__ == "__main__":
     print(f"   📚 ChromaDB (long-term): {CHROMA_HOST}:{CHROMA_PORT}")
     print("📡 Endpoints:")
     print("   POST /api/memory/retrieve")
+    print("   POST /api/memory/remember")
+    print("   POST /api/memory/forget")
     print("   POST /api/learning/process_interaction")
     print("   GET /debug/stats")
     uvicorn.run(app, host="0.0.0.0", port=8000)
