@@ -54,6 +54,33 @@ services:
     networks:
       - backend-net
 
+  memory_api:
+    build:
+      context: .
+      dockerfile: Dockerfile.memory
+    image: backend-memory-api
+    container_name: backend-memory-api
+    ports:
+      - "8003:8000"
+    restart: always
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chroma:8000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+    volumes:
+      - ./enhanced_memory_api.py:/app/main.py
+      - ./storage/memory:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    networks:
+      - backend-net
+
   llm_backend:
     build:
       context: .

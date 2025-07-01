@@ -4,7 +4,7 @@ import requests
 
 try:
     # Test 1: API Health
-    response = requests.get("http://localhost:8001/", timeout=5)
+    response = requests.get("http://localhost:8003/health", timeout=5)
     if response.status_code == 200:
         print("✅ API Health: WORKING")
     else:
@@ -13,7 +13,7 @@ try:
     
     # Test 2: Remember Function
     response = requests.post(
-        "http://localhost:8001/api/memory/remember",
+        "http://localhost:8003/api/memory/remember",
         json={"user_id": "final_cleanup_test", "content": "Cleanup verification completed"},
         timeout=5
     )
