@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb
 
 # Copy the memory API
-COPY memory_api_main_fixed.py /app/main.py
+COPY memory/api/main.py /app/main.py
 
 # Create data directory
 RUN mkdir -p /app/data

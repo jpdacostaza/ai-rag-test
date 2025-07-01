@@ -1,0 +1,1 @@
+"""Memory functions module"""

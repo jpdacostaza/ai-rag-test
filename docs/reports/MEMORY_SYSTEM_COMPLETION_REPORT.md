@@ -38,11 +38,12 @@ All requested features for the ChromaDB and memory system have been successfully
 ## 🔧 Technical Implementation
 
 ### Files Modified/Created
-- **memory_api_main_fixed.py**: Main API server with all CRUD operations
-- **test_memory_debug.py**: Comprehensive test suite covering all operations
-- **test_memory_extensive.py**: Updated with correct endpoint usage
+- **memory/api/main.py**: Main API server with all CRUD operations (moved from memory_api_main_fixed.py)
+- **memory/functions/**: Memory functions for OpenWebUI integration
+- **memory/utils/**: Memory utility functions and management tools
+- **tests/test_memory_*.py**: Comprehensive test suite covering all operations (moved to tests folder)
 - **docker-compose.yml**: Fixed volume mounts and service configuration
-- **Dockerfile.memory**: Ensured correct API file deployment
+- **Dockerfile.memory**: Updated to use new memory/api/main.py path
 
 ### Storage Systems
 - **Redis**: Short-term memory storage with fast access patterns
