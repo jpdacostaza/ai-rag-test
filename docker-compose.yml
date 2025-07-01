@@ -77,6 +77,12 @@ services:
         condition: service_healthy
       chroma:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - backend-net
 
@@ -114,8 +120,14 @@ services:
     volumes:
       - ./storage/backend:/opt/backend/data
       - ./storage/chroma/onnx_cache:/opt/cache/chroma/onnx_models
-      - ./app.py:/opt/backend/app.py
-      - ./persona.json:/opt/backend/persona.json
+      - ./main.py:/opt/backend/main.py
+      - ./config:/opt/backend/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     networks:
       - backend-net
 
@@ -150,7 +162,7 @@ services:
       - ./storage/openwebui/memory_function_working.py:/app/backend/data/functions/memory_function.py:ro
     depends_on:
       llm_backend:
-        condition: service_started
+        condition: service_healthy
       memory_api:
         condition: service_healthy
     networks:
