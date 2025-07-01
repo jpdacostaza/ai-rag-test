@@ -58,10 +58,10 @@ class FunctionInstaller:
     def read_function_code(self) -> Optional[str]:
         """Read the memory function code"""
         possible_paths = [
-            Path("/app/memory_function.py"),
-            Path("/opt/backend/memory_function.py"),
-            Path("./memory_function.py"),
-            Path("/memory_function.py")
+            Path("/opt/backend/memory_filter_function.py"),
+            Path("/app/memory_filter_function.py"),
+            Path("./memory_filter_function.py"),
+            Path("/memory_filter_function.py")
         ]
         
         for path in possible_paths:

@@ -60,4 +60,4 @@ USER llama
 EXPOSE 8001
 
 # Use the startup script for backend initialization
-CMD ["/opt/backend/scripts/startup.sh"]
+CMD ["./scripts/startup.sh"]

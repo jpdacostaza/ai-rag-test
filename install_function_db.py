@@ -5,7 +5,7 @@ import hashlib
 import time
 
 # Read the function code
-with open('/app/backend/data/memory_function_code.py', 'r') as f:
+with open('/opt/backend/memory_filter_function.py', 'r') as f:
     function_code = f.read()
 
 # Connect to database

@@ -7,8 +7,12 @@ import requests
 import json
 
 # Read the memory function code
-with open('storage/openwebui/memory_function_code.py', 'r') as f:
-    function_code = f.read()
+try:
+    with open('memory_function_robust.py', 'r', encoding='utf-8') as f:
+        function_code = f.read()
+except UnicodeDecodeError:
+    with open('memory_function_robust.py', 'r', encoding='latin-1') as f:
+        function_code = f.read()
 
 # OpenWebUI API endpoint
 OPENWEBUI_URL = "http://localhost:3000"

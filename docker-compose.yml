@@ -1,8 +1,5 @@
-# docker-compose.yml - Backend services with automatic memory function installation
-#
-# This configuration automatically mounts the memory function to OpenWebUI on startup
-
 services:
+  # Redis - Memory cache and short-term storage
   redis:
     image: redis:7-alpine
     container_name: backend-redis
@@ -11,48 +8,42 @@ services:
     restart: always
     volumes:
       - ./storage/redis:/data
-    command: ["redis-server", "--bind", "0.0.0.0", "--port", "6379", "--appendonly", "yes", "--save", "60", "1", "--loglevel", "notice", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
+      interval: 30s
+      timeout: 10s
       retries: 5
-      start_period: 5s
     networks:
       - backend-net
 
+  # ChromaDB - Vector database for embeddings
   chroma:
     image: chromadb/chroma:latest
     container_name: backend-chroma
     ports:
-      - "8002:8000"
+      - "8000:8000"
     restart: always
     volumes:
-      - ./storage/chroma:/chroma
-      - ./storage/chroma/onnx_cache:/chroma/onnx_cache
-    environment:
-      - IS_PERSISTENT=TRUE
-      - ANONYMIZED_TELEMETRY=False
+      - ./storage/chroma:/chroma/chroma
     networks:
       - backend-net
 
+  # Ollama - Language model service
   ollama:
     image: ollama/ollama:latest
     container_name: backend-ollama
-    restart: unless-stopped
-    environment:
-      - OLLAMA_RUNNER=cpu
-      - OLLAMA_LLM_LIBRARY=cpu
-      - OLLAMA_DEBUG=false
-      - OLLAMA_HOST=0.0.0.0
-      - MODEL_DIR=/root/.ollama
-    volumes:
-      - ./storage/ollama:/root/.ollama
     ports:
       - "11434:11434"
+    restart: always
+    volumes:
+      - ./storage/ollama:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS="*"
+      - OLLAMA_HOST=0.0.0.0:11434
     networks:
       - backend-net
 
+  # Memory API - Enhanced memory system
   memory_api:
     build:
       context: .
@@ -60,77 +51,27 @@ services:
     image: backend-memory-api
     container_name: backend-memory-api
     ports:
-      - "8003:8000"
+      - "8001:8000"
     restart: always
     environment:
       - REDIS_URL=redis://redis:6379
       - CHROMA_URL=http://chroma:8000
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CHROMA_HOST=chroma
-      - CHROMA_PORT=8000
     volumes:
-      - ./enhanced_memory_api.py:/app/main.py
+      - ./config.py:/app/config.py
+      - ./models.py:/app/models.py
+      - ./routes:/app/routes
+      - ./services:/app/services
+      - ./utilities:/app/utilities
       - ./storage/memory:/app/data
     depends_on:
       redis:
         condition: service_healthy
       chroma:
         condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
     networks:
       - backend-net
 
-  llm_backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: backend-llm_backend
-    container_name: backend-llm-backend
-    user: "1000:1000"
-    labels:
-      - "com.centurylinklabs.watchtower.enable=false"
-    ports:
-      - "8001:8001"
-    restart: always
-    depends_on:
-      redis:
-        condition: service_healthy
-      chroma:
-        condition: service_started
-    environment:
-      - REDIS_URL=redis://redis:6379
-      - CHROMA_URL=http://chroma:8000
-      - OLLAMA_URL=http://ollama:11434
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - CHROMA_HOST=chroma
-      - CHROMA_PORT=8000
-      - OLLAMA_HOST=ollama
-      - OLLAMA_PORT=11434
-      - PYTHONPATH=/opt/backend
-      - STORAGE_PATH=/opt/backend/storage
-      - TEMP_PATH=/tmp
-      - LOG_LEVEL=INFO
-    volumes:
-      - ./storage/backend:/opt/backend/data
-      - ./storage/chroma/onnx_cache:/opt/cache/chroma/onnx_models
-      - ./main.py:/opt/backend/main.py
-      - ./config:/opt/backend/config
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    networks:
-      - backend-net
-
+  # OpenWebUI - Main web interface  
   openwebui:
     image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
@@ -138,36 +79,64 @@ services:
       - "3000:8080"
     restart: always
     environment:
-      - ENABLE_OLLAMA_API=false
-      - OPENAI_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-      - OPENAI_API_BASE_URL=http://llm_backend:8001/v1
-      - ENABLE_OPENAI_API=true
-      - OPENAI_API_MODEL=gpt-4
-      - OPENAI_API_TIMEOUT=180
-      - OPENAI_API_MAX_TOKENS=4096
-      - BACKEND_API_URL=http://llm_backend:8001
-      - BACKEND_API_KEY=f2b985dd-219f-45b1-a90e-170962cc7082
-      - POSTHOG_DISABLED=true
-      - GLOBAL_LOG_LEVEL=INFO
-      - ENABLE_TAGS_GENERATION=false
-      - ENABLE_TITLE_GENERATION=false
-      - ENABLE_SIGNUP=true
-      - DEFAULT_USER_ROLE=user
-      - ENABLE_FILE_UPLOAD=true
-      - FILE_SIZE_LIMIT=100
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OPENAI_API_BASE_URLS=http://memory_api:8000
+      - OPENAI_API_KEYS=memory-api-key
+      - ENABLE_FUNCTIONS=true
       - ENABLE_COMMUNITY_SHARING=false
       - WEBUI_AUTH=false
+      - DEFAULT_MODELS=llama3.2:3b
     volumes:
       - ./storage/openwebui:/app/backend/data
-      - ./storage/openwebui/memory_function_working.py:/app/backend/data/functions/memory_function.py:ro
     depends_on:
-      llm_backend:
-        condition: service_healthy
-      memory_api:
-        condition: service_healthy
+      - ollama
+      - memory_api
     networks:
       - backend-net
 
+  # Memory Auto-Activator - Ensures memory function is always active
+  memory_activator:
+    image: python:3.11-slim
+    container_name: backend-memory-activator
+    restart: "no"  # Run once and exit
+    networks:
+      - backend-net
+    depends_on:
+      openwebui:
+        condition: service_healthy
+    volumes:
+      - ./storage/openwebui:/app/backend/data:rw
+      - ./ensure_memory_active.py:/app/ensure_active.py:ro
+    command: >
+      sh -c "
+        echo 'Waiting for OpenWebUI to be fully ready...' &&
+        sleep 15 &&
+        python /app/ensure_active.py
+      "
+
+  # Function Auto-installer - Automatically installs memory function
+  function_installer:
+    image: python:3.11-slim
+    container_name: backend-function-installer
+    restart: "no"  # Run once and exit
+    networks:
+      - backend-net
+    depends_on:
+      openwebui:
+        condition: service_started
+    volumes:
+      - ./memory_function.py:/app/memory_function.py:ro
+      - ./scripts/advanced_auto_install_function.py:/app/install.py:ro
+      - ./storage/openwebui:/tmp/openwebui:rw  # Share volume for direct database access
+    environment:
+      - OPENWEBUI_URL=http://openwebui:8080
+    command: >
+      sh -c "
+        pip install httpx &&
+        python /app/install.py
+      "
+
+  # Watchtower - Automatic container updates
   watchtower:
     image: containrrr/watchtower:latest
     container_name: backend-watchtower

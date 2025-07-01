@@ -6,14 +6,13 @@ WORKDIR /app
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb
 
 # Copy the memory API
-COPY enhanced_memory_api.py /app/main.py
+COPY memory_api_main_fixed.py /app/main.py
 
 # Create data directory
 RUN mkdir -p /app/data

@@ -57,6 +57,21 @@ class MemoryRetrieveRequest(BaseModel):
     query: str
     limit: int = 5
     threshold: float = 0.1  # FIXED: Lowered from 0.7 to 0.1
+class MemorySaveRequest(BaseModel):
+    user_id: str
+    content: str
+    metadata: Optional[Dict[str, Any]] = None
+    category: Optional[str] = "explicit"
+class MemoryDeleteRequest(BaseModel):
+    user_id: str
+    query: str  # What to search for to delete
+    exact_match: bool = False  # If True, delete exact matches only
+class MemoryForgetRequest(BaseModel):
+    user_id: str
+    content: str  # Specific content to forget
+class MemoryClearRequest(BaseModel):
+    user_id: str
+    confirm: bool = False  # Safety flag
 class LearningInteractionRequest(BaseModel):
     user_id: str
     conversation_id: str
@@ -238,6 +253,181 @@ async def process_interaction(request: LearningInteractionRequest = Body(...)):
             "user_id": request.user_id,
             "processed": False
         }
+
+@app.post("/api/memory/save")
+async def save_memory(request: MemorySaveRequest = Body(...)):
+    """
+    Explicitly save a memory for a user (when they say "remember this").
+    """
+    try:
+        print(f"💾 Explicit memory save for user {request.user_id}: {request.content[:50]}...")
+        
+        # Create interaction-like object for storage
+        interaction = {
+            "user_id": request.user_id,
+            "conversation_id": f"explicit_{int(time.time())}",
+            "user_message": request.content,
+            "assistant_response": "Memory saved",
+            "timestamp": time.time(),
+            "metadata": request.metadata or {},
+            "category": request.category
+        }
+        
+        # Store directly (both short and long term)
+        stored = False
+        if await store_to_redis(request.user_id, request.content, interaction):
+            print(f"✅ Stored in Redis: {request.content[:50]}...")
+            stored = True
+            
+        if await store_to_chromadb(request.user_id, request.content, interaction):
+            print(f"✅ Stored in ChromaDB: {request.content[:50]}...")
+            stored = True
+        
+        if stored:
+            return {
+                "status": "success",
+                "message": "Memory saved successfully",
+                "content": request.content,
+                "user_id": request.user_id
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "Failed to save memory",
+                "user_id": request.user_id
+            }
+            
+    except Exception as e:
+        print(f"❌ Memory save error: {e}")
+        raise HTTPException(status_code=500, detail=f"Memory save failed: {str(e)}")
+
+@app.post("/api/memory/delete")
+async def delete_memory(request: MemoryDeleteRequest = Body(...)):
+    """
+    Delete specific memories based on query.
+    """
+    try:
+        print(f"🗑️ Memory deletion for user {request.user_id}, query: {request.query}")
+        
+        deleted_count = 0
+        
+        # Delete from Redis
+        redis_deleted = await delete_from_redis(request.user_id, request.query, request.exact_match)
+        deleted_count += redis_deleted
+        
+        # Delete from ChromaDB
+        chromadb_deleted = await delete_from_chromadb(request.user_id, request.query, request.exact_match)
+        deleted_count += chromadb_deleted
+        
+        print(f"✅ Deleted {deleted_count} memories (Redis: {redis_deleted}, ChromaDB: {chromadb_deleted})")
+        
+        return {
+            "status": "success",
+            "message": f"Deleted {deleted_count} memories",
+            "deleted_count": deleted_count,
+            "user_id": request.user_id,
+            "query": request.query
+        }
+        
+    except Exception as e:
+        print(f"❌ Memory deletion error: {e}")
+        raise HTTPException(status_code=500, detail=f"Memory deletion failed: {str(e)}")
+
+@app.post("/api/memory/forget")
+async def forget_memory(request: MemoryForgetRequest = Body(...)):
+    """
+    Forget a specific memory by exact content match.
+    """
+    try:
+        print(f"🧠 Forgetting memory for user {request.user_id}: {request.content[:50]}...")
+        
+        # This is just a wrapper around delete with exact_match=True
+        delete_request = MemoryDeleteRequest(
+            user_id=request.user_id,
+            query=request.content,
+            exact_match=True
+        )
+        
+        result = await delete_memory(delete_request)
+        result["message"] = f"Forgot memory: {request.content[:50]}..."
+        
+        return result
+        
+    except Exception as e:
+        print(f"❌ Memory forget error: {e}")
+        raise HTTPException(status_code=500, detail=f"Memory forget failed: {str(e)}")
+
+@app.get("/api/memory/list/{user_id}")
+async def list_memories(user_id: str, limit: int = 20):
+    """
+    List all memories for a user.
+    """
+    try:
+        print(f"📋 Listing memories for user {user_id}")
+        
+        # Get all memories using broad retrieval
+        request = MemoryRetrieveRequest(
+            user_id=user_id,
+            query="",
+            limit=limit,
+            threshold=0.0
+        )
+        
+        result = await retrieve_memory(request)
+        
+        return {
+            "status": "success",
+            "memories": result["memories"],
+            "count": result["count"],
+            "user_id": user_id,
+            "sources": result["sources"]
+        }
+        
+    except Exception as e:
+        print(f"❌ Memory list error: {e}")
+        raise HTTPException(status_code=500, detail=f"Memory list failed: {str(e)}")
+
+@app.post("/api/memory/clear")
+async def clear_memories(request: MemoryClearRequest = Body(...)):
+    """
+    Clear all memories for a user (requires confirmation).
+    """
+    try:
+        if not request.confirm:
+            return {
+                "status": "error",
+                "message": "Confirmation required. Set 'confirm': true to proceed.",
+                "user_id": request.user_id
+            }
+            
+        print(f"🗑️ Clearing ALL memories for user {request.user_id}")
+        
+        deleted_count = 0
+        
+        # Clear from Redis
+        redis_deleted = await clear_user_redis_memories(request.user_id)
+        deleted_count += redis_deleted
+        
+        # Clear from ChromaDB
+        chromadb_deleted = await clear_user_chromadb_memories(request.user_id)
+        deleted_count += chromadb_deleted
+        
+        print(f"✅ Cleared {deleted_count} memories (Redis: {redis_deleted}, ChromaDB: {chromadb_deleted})")
+        
+        return {
+            "status": "success",
+            "message": f"Cleared all {deleted_count} memories",
+            "deleted_count": deleted_count,
+            "user_id": request.user_id
+        }
+        
+    except Exception as e:
+        print(f"❌ Memory clear error: {e}")
+        raise HTTPException(status_code=500, detail=f"Memory clear failed: {str(e)}")
+
+# Helper Functions for Memory Operations
+# =====================================
+
 async def retrieve_from_redis(user_id: str, query: str) -> List[Dict[str, Any]]:
     """Retrieve memories from Redis short-term storage."""
     if not redis_client:
@@ -248,100 +438,255 @@ async def retrieve_from_redis(user_id: str, query: str) -> List[Dict[str, Any]]:
         keys = redis_client.keys(pattern)
         memories = []
         for key in keys:
-            memory_data = redis_client.hgetall(key)
-            if memory_data:
-                memories.append({
-                    "content": memory_data.get("content", ""),
-                    "metadata": {
-                        "type": "short_term",
-                        "timestamp": float(memory_data.get("timestamp", 0)),
-                        "access_count": int(memory_data.get("access_count", 0)),
-                        "conversation_id": memory_data.get("conversation_id", "")
-                    }
-                })
-                # Increment access count
-                redis_client.hincrby(key, "access_count", 1)
-                # Check if this memory should be promoted to long-term storage
-                access_count = int(memory_data.get("access_count", 0)) + 1
-                if access_count >= LONG_TERM_THRESHOLD:
-                    await promote_to_long_term(user_id, memory_data)
+            try:
+                memory_data = redis_client.get(key)
+                if memory_data:
+                    memory = json.loads(memory_data)
+                    memories.append({
+                        "content": memory.get("content", ""),
+                        "metadata": memory.get("metadata", {}),
+                        "timestamp": memory.get("timestamp", 0),
+                        "source": "redis"
+                    })
+            except Exception as e:
+                print(f"❌ Error retrieving Redis memory {key}: {e}")
         return memories
     except Exception as e:
         print(f"❌ Redis retrieval error: {e}")
         return []
+
 async def retrieve_from_chromadb(user_id: str, query: str, limit: int) -> List[Dict[str, Any]]:
     """Retrieve memories from ChromaDB long-term storage."""
     if not memory_collection:
         return []
     try:
-        # Semantic search in ChromaDB
+        # Query ChromaDB with embedding search
         results = memory_collection.query(
-            query_texts=[query],
-            where={"user_id": user_id},
-            n_results=limit
+            query_texts=[query] if query else [""],
+            n_results=min(limit, 100),
+            where={"user_id": user_id} if user_id else None
         )
+        
         memories = []
         if results["documents"] and results["documents"][0]:
             for i, doc in enumerate(results["documents"][0]):
-                metadata = results["metadatas"][0][i] if results["metadatas"] else {}
-                distance = results["distances"][0][i] if results["distances"] else 1.0
+                metadata = results["metadatas"][0][i] if results["metadatas"] and results["metadatas"][0] else {}
                 memories.append({
                     "content": doc,
-                    "metadata": {
-                        **metadata,
-                        "type": "long_term",
-                        "semantic_distance": distance
-                    }
+                    "metadata": metadata,
+                    "timestamp": metadata.get("timestamp", 0),
+                    "source": "chromadb"
                 })
         return memories
     except Exception as e:
         print(f"❌ ChromaDB retrieval error: {e}")
         return []
+
 async def store_to_redis(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
-    """Store memory in Redis with TTL."""
+    """Store memory in Redis short-term storage."""
     if not redis_client:
         return False
     try:
         memory_id = str(uuid.uuid4())
         key = f"memory:{user_id}:{memory_id}"
+        
         memory_data = {
             "content": content,
-            "timestamp": interaction["timestamp"],
-            "conversation_id": interaction["conversation_id"],
-            "access_count": 0,
-            "source": interaction["source"]
+            "metadata": interaction.get("metadata", {}),
+            "timestamp": interaction.get("timestamp", time.time()),
+            "conversation_id": interaction.get("conversation_id", ""),
+            "source": "redis"
         }
-        redis_client.hset(key, mapping=memory_data)
-        redis_client.expire(key, SHORT_TERM_TTL)
+        
+        # Store with TTL (24 hours)
+        redis_client.setex(key, SHORT_TERM_TTL, json.dumps(memory_data))
         return True
     except Exception as e:
         print(f"❌ Redis storage error: {e}")
         return False
-async def promote_to_long_term(user_id: str, memory_data: Dict[str, Any]):
-    """Promote frequently accessed memory from Redis to ChromaDB."""
+
+async def store_to_chromadb(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
+    """Store memory in ChromaDB long-term storage."""
     if not memory_collection:
-        return
+        return False
     try:
         memory_id = str(uuid.uuid4())
+        
+        metadata = {
+            "user_id": user_id,
+            "timestamp": interaction.get("timestamp", time.time()),
+            "conversation_id": interaction.get("conversation_id", ""),
+            "category": interaction.get("category", "general"),
+            "source": "chromadb"
+        }
+        metadata.update(interaction.get("metadata", {}))
+        
         memory_collection.add(
-            documents=[memory_data["content"]],
-            metadatas=[{
-                "user_id": user_id,
-                "timestamp": memory_data["timestamp"],
-                "conversation_id": memory_data["conversation_id"],
-                "promoted_at": time.time(),
-                "access_count": memory_data.get("access_count", 0),
-                "source": memory_data.get("source", "unknown")
-            }],
+            documents=[content],
+            metadatas=[metadata],
             ids=[memory_id]
         )
-        print(f"⬆️ Promoted memory to long-term storage: {memory_data['content'][:50]}...")
+        return True
     except Exception as e:
-        print(f"❌ Long-term promotion error: {e}")
+        print(f"❌ ChromaDB storage error: {e}")
+        return False
+
+async def delete_from_redis(user_id: str, query: str, exact_match: bool = False) -> int:
+    """Delete memories from Redis based on query."""
+    if not redis_client:
+        return 0
+    try:
+        pattern = f"memory:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        deleted_count = 0
+        
+        for key in keys:
+            try:
+                memory_data = redis_client.get(key)
+                if memory_data:
+                    memory = json.loads(memory_data)
+                    content = memory.get("content", "").lower()
+                    query_lower = query.lower()
+                    
+                    should_delete = False
+                    if exact_match:
+                        should_delete = content == query_lower
+                    else:
+                        should_delete = query_lower in content
+                    
+                    if should_delete:
+                        redis_client.delete(key)
+                        deleted_count += 1
+                        print(f"🗑️ Deleted Redis memory: {memory.get('content', '')[:50]}...")
+            except Exception as e:
+                print(f"❌ Error deleting Redis memory {key}: {e}")
+        
+        return deleted_count
+    except Exception as e:
+        print(f"❌ Redis deletion error: {e}")
+        return 0
+
+async def delete_from_chromadb(user_id: str, query: str, exact_match: bool = False) -> int:
+    """Delete memories from ChromaDB based on query."""
+    if not memory_collection:
+        return 0
+    try:
+        # First, find matching memories
+        results = memory_collection.query(
+            query_texts=[query],
+            n_results=100,
+            where={"user_id": user_id}
+        )
+        
+        ids_to_delete = []
+        if results["documents"] and results["documents"][0]:
+            for i, doc in enumerate(results["documents"][0]):
+                doc_lower = doc.lower()
+                query_lower = query.lower()
+                
+                should_delete = False
+                if exact_match:
+                    should_delete = doc_lower == query_lower
+                else:
+                    should_delete = query_lower in doc_lower
+                
+                if should_delete and results["ids"] and results["ids"][0]:
+                    ids_to_delete.append(results["ids"][0][i])
+                    print(f"🗑️ Will delete ChromaDB memory: {doc[:50]}...")
+        
+        # Delete the memories
+        if ids_to_delete:
+            memory_collection.delete(ids=ids_to_delete)
+        
+        return len(ids_to_delete)
+    except Exception as e:
+        print(f"❌ ChromaDB deletion error: {e}")
+        return 0
+
+async def clear_user_redis_memories(user_id: str) -> int:
+    """Clear all Redis memories for a user."""
+    if not redis_client:
+        return 0
+    try:
+        pattern = f"memory:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        if keys:
+            deleted_count = redis_client.delete(*keys)
+            print(f"🗑️ Cleared {deleted_count} Redis memories for user {user_id}")
+            return deleted_count
+        return 0
+    except Exception as e:
+        print(f"❌ Redis clear error: {e}")
+        return 0
+
+async def clear_user_chromadb_memories(user_id: str) -> int:
+    """Clear all ChromaDB memories for a user."""
+    if not memory_collection:
+        return 0
+    try:
+        # Get all documents for this user
+        results = memory_collection.get(where={"user_id": user_id})
+        
+        if results["ids"]:
+            memory_collection.delete(ids=results["ids"])
+            deleted_count = len(results["ids"])
+            print(f"🗑️ Cleared {deleted_count} ChromaDB memories for user {user_id}")
+            return deleted_count
+        return 0
+    except Exception as e:
+        print(f"❌ ChromaDB clear error: {e}")
+        return 0
+
+async def get_redis_memory_count(user_id: str) -> int:
+    """Get count of Redis memories for a user."""
+    if not redis_client:
+        return 0
+    try:
+        pattern = f"memory:{user_id}:*"
+        keys = redis_client.keys(pattern)
+        return len(keys)
+    except Exception as e:
+        print(f"❌ Redis count error: {e}")
+        return 0
+
+async def get_chromadb_memory_count(user_id: str) -> int:
+    """Get count of ChromaDB memories for a user."""
+    if not memory_collection:
+        return 0
+    try:
+        results = memory_collection.get(where={"user_id": user_id})
+        return len(results["ids"]) if results["ids"] else 0
+    except Exception as e:
+        print(f"❌ ChromaDB count error: {e}")
+        return 0
+
 def extract_memories(text: str) -> List[str]:
     """Extract memorable information from user text."""
     memories = []
     text_lower = text.lower()
+    
+    # Check for explicit memory requests first
+    if any(keyword in text_lower for keyword in ["remember that", "remember this", "don't forget", "save this", "store this"]):
+        # User explicitly wants to remember something
+        # Extract the content after the memory keyword
+        for keyword in ["remember that", "remember this", "don't forget", "save this", "store this"]:
+            if keyword in text_lower:
+                # Get the text after the keyword
+                parts = text_lower.split(keyword, 1)
+                if len(parts) > 1 and parts[1].strip():
+                    # Use the original text (with proper case) for the memory
+                    original_parts = text.split(keyword, 1)
+                    if len(original_parts) > 1:
+                        memory_content = original_parts[1].strip()
+                        if memory_content:
+                            memories.append(memory_content)
+                            return memories  # Return early to avoid other pattern matching
+        
+        # If we found an explicit memory request, also store the full text as fallback
+        if len(text.strip()) > 20:
+            memories.append(text.strip())
+            return memories
+    
     # Name extraction
     name_patterns = [
         r"my name is ([a-zA-Z\s]+)",
@@ -355,6 +700,7 @@ def extract_memories(text: str) -> List[str]:
             name = name.strip().title()
             if len(name) > 1 and name not in ["A", "An", "The"]:
                 memories.append(f"User's name is {name}")
+    
     # Work/profession extraction
     work_patterns = [
         r"i work (?:as |at |in )?([^.!?]+)",
@@ -371,12 +717,19 @@ def extract_memories(text: str) -> List[str]:
                 work_info = match.strip()
             if len(work_info) > 3:
                 memories.append(f"User works {work_info}")
+    
     # Personal interests and preferences
     if any(keyword in text_lower for keyword in ["i like", "i love", "i enjoy", "my favorite", "i prefer"]):
         memories.append(text.strip())
+    
     # Skills and experience
     if any(keyword in text_lower for keyword in ["i have experience", "i know", "i'm good at", "i specialize"]):
         memories.append(text.strip())
+    
+    # Schedule and time-related information
+    if any(keyword in text_lower for keyword in ["meeting", "appointment", "schedule", "every", "deadline", "due"]):
+        memories.append(text.strip())
+    
     # Location information
     location_patterns = [
         r"i live in ([^.!?]+)",
@@ -389,7 +742,27 @@ def extract_memories(text: str) -> List[str]:
             location = location.strip().title()
             if len(location) > 1:
                 memories.append(f"User lives in {location}")
+    
+    # Personal projects and commitments
+    if any(keyword in text_lower for keyword in ["project", "working on", "building", "creating"]):
+        memories.append(text.strip())
+    
+    # Important dates and events
+    if any(keyword in text_lower for keyword in ["birthday", "anniversary", "vacation", "trip", "event"]):
+        memories.append(text.strip())
+    
+    # General memorable statements (if not already captured)
+    memorable_indicators = [
+        "i have", "i will", "i need", "i want", "i'm going to", "i plan to",
+        "my", "important", "note that"
+    ]
+    if any(indicator in text_lower for indicator in memorable_indicators) and len(memories) == 0:
+        # Only add as general memory if no specific patterns matched
+        if len(text.strip()) > 10:  # Avoid very short statements
+            memories.append(text.strip())
+    
     return memories
+
 def calculate_relevance_score(content: str, query: str) -> float:
     """Calculate relevance score between content and query. ENHANCED for better matching."""
     content_lower = content.lower()
@@ -418,41 +791,12 @@ def calculate_relevance_score(content: str, query: str) -> float:
         # For these queries, give any stored memory some relevance
         score += 0.3
     
-    # Name-based queries
-    if "name" in query_lower and "name" in content_lower:
-        score += 0.4
-    
-    # Work-based queries  
-    if any(word in query_lower for word in ["work", "job", "career"]) and any(word in content_lower for word in ["work", "job", "career"]):
-        score += 0.4
-    
-    # Normalize by query length and ensure minimum relevance for any memory
-    normalized_score = min(score / max(total_words, 1), 1.0)
-    
-    # Give a small base score to any memory for broad queries
-    if "what do you know" in query_lower or "about me" in query_lower:
-        normalized_score = max(normalized_score, 0.15)
-    
-    return normalized_score
-async def get_redis_memory_count(user_id: str) -> int:
-    """Get count of memories in Redis for a user."""
-    if not redis_client:
-        return 0
-    try:
-        pattern = f"memory:{user_id}:*"
-        keys = redis_client.keys(pattern)
-        return len(keys)
-    except:
-        return 0
-async def get_chromadb_memory_count(user_id: str) -> int:
-    """Get count of memories in ChromaDB for a user."""
-    if not memory_collection:
-        return 0
-    try:
-        results = memory_collection.get(where={"user_id": user_id})
-        return len(results["ids"]) if results["ids"] else 0
-    except:
-        return 0
+    # Normalize score
+    return min(score / total_words, 1.0) if total_words > 0 else 0.0
+
+# End of Helper Functions
+# =======================
+
 @app.get("/debug/stats")
 async def debug_stats():
     """Debug endpoint to show current state of both storage systems."""
@@ -502,6 +846,12 @@ if __name__ == "__main__":
     print(f"   📚 ChromaDB (long-term): {CHROMA_HOST}:{CHROMA_PORT}")
     print("📡 Endpoints:")
     print("   POST /api/memory/retrieve")
+    print("   POST /api/memory/save")
+    print("   POST /api/memory/delete")
+    print("   POST /api/memory/forget")
+    print("   POST /api/memory/clear")
+    print("   GET  /api/memory/list/{user_id}")
     print("   POST /api/learning/process_interaction")
-    print("   GET /debug/stats")
+    print("   GET  /health")
+    print("   GET  /debug/stats")
     uvicorn.run(app, host="0.0.0.0", port=8000)
