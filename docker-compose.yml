@@ -56,7 +56,7 @@ services:
       dockerfile: Dockerfile.memory
     container_name: backend-memory-api
     ports:
-      - "8001:8000"
+      - "8001:8080"  # Use different internal port to avoid conflict with ChromaDB
     restart: always
     environment:
       - REDIS_URL=redis://redis:6379
@@ -83,15 +83,21 @@ services:
       - "3000:8080"
     restart: always
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - OPENAI_API_BASE_URLS=http://memory_api:8000
+      # Route ALL traffic through our memory API backend, not directly to Ollama
+      - OLLAMA_BASE_URL=http://memory_api:8080
+      - OPENAI_API_BASE_URLS=http://memory_api:8080
       - OPENAI_API_KEYS=memory-api-key
       - ENABLE_FUNCTIONS=true
       - ENABLE_COMMUNITY_SHARING=false
-      - WEBUI_AUTH=false
+      - WEBUI_AUTH=true
+      - ENABLE_SIGNUP=true
+      - DEFAULT_USER_ROLE=user
       - DEFAULT_MODELS=llama3.2:3b
+      # Disable direct Ollama access to force routing through backend
+      - ENABLE_OLLAMA_API=false
     volumes:
       - ./storage/openwebui:/app/backend/data
+      - ./memory/functions:/app/backend/data/functions:rw
     depends_on:
       - ollama
       - memory_api

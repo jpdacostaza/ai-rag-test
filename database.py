@@ -2,7 +2,7 @@ import json
 import logging
 
 from utilities.ai_tools import chunk_text
-from cache_manager import CacheManager
+from utilities.cache_manager import CacheManager
 from database_manager import DatabaseManager
 from error_handler import MemoryErrorHandler
 from error_handler import RedisConnectionHandler

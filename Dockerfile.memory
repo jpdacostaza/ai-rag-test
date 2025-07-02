@@ -12,21 +12,17 @@ RUN apt-get update && apt-get install -y \
 # Install Python dependencies
 RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb requests httpx
 
-# Copy all necessary files
+# Copy all necessary files for the memory API
 COPY memory/ /app/memory/
-COPY config.py /app/config.py
-COPY models.py /app/models.py
-COPY routes/ /app/routes/
-COPY services/ /app/services/
-COPY utilities/ /app/utilities/
-COPY scripts/ /app/scripts/
+COPY human_logging.py /app/human_logging.py
+COPY error_handler.py /app/error_handler.py
 COPY integrated_memory_startup.py /app/integrated_memory_startup.py
 
 # Create data directory
 RUN mkdir -p /app/data
 
 # Expose port
-EXPOSE 8000
+EXPOSE 8080
 
 # Run the integrated memory API with auto-setup
 CMD ["python", "/app/integrated_memory_startup.py"]

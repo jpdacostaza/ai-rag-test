@@ -1,6 +1,0 @@
-{
-  "id": "memory_pipeline_function",
-  "name": "Memory Pipeline",
-  "description": "Memory management for conversations",
-  "code": "# Memory Pipeline Function\n# This function manages conversation memory\n\ndef memory_pipeline(messages, user_id):\n    \"\"\"Process messages and manage memory\"\"\"\n    # This is a placeholder - actual processing happens via API\n    return messages"
-}

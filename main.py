@@ -32,10 +32,6 @@ from startup import startup_event
 
 # Import existing routers
 from model_manager import router as model_manager_router, initialize_model_cache
-from enhanced_integration import enhanced_router
-from feedback_router import feedback_router
-from adaptive_learning import adaptive_learning_system
-from routes.memory import memory_router
 
 # Import database and other dependencies
 from database_manager import db_manager, get_embedding, index_user_document, retrieve_user_memory
@@ -116,9 +112,6 @@ app.include_router(models_router)
 app.include_router(upload_router)
 app.include_router(debug_router)
 app.include_router(model_manager_router)
-app.include_router(enhanced_router)
-app.include_router(feedback_router)
-app.include_router(memory_router)
 
 
 # OpenAI-compatible chat completions endpoint

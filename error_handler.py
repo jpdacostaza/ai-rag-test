@@ -4,6 +4,7 @@ Provides centralized error handling, logging, and user-friendly error responses.
 """
 
 import logging
+import time
 import traceback
 from typing import Any
 from typing import Dict
@@ -189,45 +190,26 @@ class MemoryErrorHandler:
 
 
 class RedisConnectionHandler:
-    """Specialized error handler for Redis connection issues."""
+    """Handle Redis connection errors and retries."""
 
-    @staticmethod
-    def handle_redis_error(
-        error: Exception,
-        operation: str,  # "connect", "get", "set", "ping"
-        key: str = "",
-        user_id: str = "",
-        request_id: str = "",
-    ) -> None:
-        """Handle Redis connection errors gracefully."""
-        context = "Redis {operation} operation"
-        if key:
-            context += " for key: {key}"
+    def __init__(self, max_retries: int = 3):
+        self.max_retries = max_retries
 
-        log_error(error, context, user_id, request_id)
+    def handle_connection_error(self, error: Exception) -> bool:
+        """Handle Redis connection errors."""
+        log_error(error, "Redis connection failed")
+        return False
 
-        if RedisConnectionHandler.is_recoverable_error(error):
-            logging.warning("[REDIS] Connection issue detected - system will continue with degraded caching.")
-        else:
-            logging.warning("[REDIS] Operation failed but system continues: {error}")
-
-    @staticmethod
-    def is_recoverable_error(error: Exception) -> bool:
-        """Check if a Redis error is recoverable (connection-related)."""
-        error_str = str(error).lower()
-        recoverable_keywords = [
-            "connection",
-            "timeout",
-            "refused",
-            "unreachable",
-            "broken pipe",
-            "connection reset",
-            "socket",
-            "network",
-            "errno 32",
-            "connection lost",
-        ]
-        return any(keyword in error_str for keyword in recoverable_keywords)
+    def retry_operation(self, operation, *args, **kwargs):
+        """Retry Redis operations with exponential backoff."""
+        for attempt in range(self.max_retries):
+            try:
+                return operation(*args, **kwargs)
+            except redis.RedisError as e:
+                if attempt == self.max_retries - 1:
+                    raise e
+                time.sleep(2 ** attempt)
+        return None
 
 
 # --- Utility Functions ---

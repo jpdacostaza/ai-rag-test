@@ -1,7 +1,0 @@
-{
-  "model": "llama3.2:3b",
-  "messages": [
-    {"role": "user", "content": "Hello, how are you?"}
-  ],
-  "stream": false
-}

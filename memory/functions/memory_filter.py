@@ -22,13 +22,13 @@ except ImportError:
 
 class Valves(BaseModel):
     """Filter configuration valves."""
-    # Backend integration
-    memory_api_url: str = "http://memory_api:8000"
+    # Backend integration - use correct internal port for memory API  
+    memory_api_url: str = "http://memory_api:8080"
     
     # Memory settings
     enable_memory: bool = True
     max_memories: int = 3
-    memory_threshold: float = 0.7
+    memory_threshold: float = 0.01  # Lowered further to 0.01 for better recall
     
     # Debug
     debug: bool = True
@@ -44,17 +44,24 @@ class Filter:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] [{level}] [Memory Filter] {message}")
     
-    async def store_memory(self, user_id: str, content: str, metadata: Optional[Dict] = None) -> bool:
-        """Store memory via the memory API."""
+    def store_memory(self, user_id: str, content: str, metadata: Optional[Dict] = None) -> bool:
+        """Store memory via the memory API using learning endpoint."""
         try:
+            # Get conversation_id from metadata if available, or generate one
+            conversation_id = metadata.get("chat_id") if metadata else None
+            if not conversation_id:
+                conversation_id = f"conv_{int(time.time())}"
+            
             payload = {
                 "user_id": user_id,
-                "content": content,
-                "metadata": metadata or {}
+                "conversation_id": conversation_id,
+                "user_message": content,
+                "assistant_response": "",  # Will be filled in outlet
+                "context": metadata or {}
             }
             
             response = self.client.post(
-                f"{self.valves.memory_api_url}/api/memory/store",
+                f"{self.valves.memory_api_url}/api/learning/process_interaction",
                 json=payload
             )
             
@@ -70,7 +77,7 @@ class Filter:
             self.log(f"❌ Error storing memory: {e}", "ERROR")
             return False
     
-    async def retrieve_memories(self, user_id: str, query: str) -> List[Dict]:
+    def retrieve_memories(self, user_id: str, query: str) -> List[Dict]:
         """Retrieve relevant memories via the memory API."""
         try:
             payload = {
@@ -81,12 +88,13 @@ class Filter:
             }
             
             response = self.client.post(
-                f"{self.valves.memory_api_url}/api/memory/search",
+                f"{self.valves.memory_api_url}/api/memory/retrieve",
                 json=payload
             )
             
             if response.status_code == 200:
-                memories = response.json().get("memories", [])
+                data = response.json()
+                memories = data.get("memories", []) if isinstance(data, dict) else []
                 if self.valves.debug and memories:
                     self.log(f"📚 Retrieved {len(memories)} memories for user {user_id}")
                 return memories
@@ -107,8 +115,12 @@ class Filter:
             return body
         
         try:
-            # Extract user information
-            user_id = user.get("id") if user else "anonymous"
+            # Extract user ID using comprehensive method
+            user_id = self.extract_user_id(body, user)
+            
+            # Log for debugging
+            if self.valves.debug:
+                self.log(f"🔍 Processing inlet for user: {user_id}")
             
             # Get the current message
             messages = body.get("messages", [])
@@ -125,15 +137,7 @@ class Filter:
                 return body
             
             # Store the current message as a memory
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            # Store memory asynchronously
-            loop.run_until_complete(self.store_memory(
+            self.store_memory(
                 user_id=user_id,
                 content=user_content,
                 metadata={
@@ -141,10 +145,10 @@ class Filter:
                     "role": "user",
                     "chat_id": body.get("chat_id")
                 }
-            ))
+            )
             
             # Retrieve relevant memories
-            memories = loop.run_until_complete(self.retrieve_memories(user_id, user_content))
+            memories = self.retrieve_memories(user_id, user_content)
             
             # If we have relevant memories, inject them into the conversation
             if memories:
@@ -191,57 +195,88 @@ class Filter:
     def outlet(self, body: dict, user: Optional[Dict] = None) -> dict:
         """
         Filter function called after receiving the model's response.
-        This is where we can store the assistant's response as memory.
+        
+        IMPORTANT: We should NOT store assistant responses as user memories!
+        This was causing AI responses to be extracted as "user facts".
+        The inlet handles user message processing, outlet should be minimal.
         """
         if not self.valves.enable_memory:
             return body
         
         try:
-            # Extract user information
-            user_id = user.get("id") if user else "anonymous"
-            
-            # Get the assistant's response
-            messages = body.get("messages", [])
-            if not messages:
-                return body
-            
-            # Find the latest assistant message
-            latest_assistant_message = None
-            for message in reversed(messages):
-                if message.get("role") == "assistant":
-                    latest_assistant_message = message
-                    break
-            
-            if not latest_assistant_message:
-                return body
-            
-            assistant_content = latest_assistant_message.get("content", "")
-            if not assistant_content:
-                return body
-            
-            # Store the assistant's response as memory
-            import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            loop.run_until_complete(self.store_memory(
-                user_id=user_id,
-                content=assistant_content,
-                metadata={
-                    "timestamp": time.time(),
-                    "role": "assistant",
-                    "chat_id": body.get("chat_id")
-                }
-            ))
-            
             if self.valves.debug:
-                self.log(f"📝 Stored assistant response as memory for user {user_id}")
+                user_id = self.extract_user_id(body, user)
+                self.log(f"🔍 Outlet called for user: {user_id} (not processing - AI responses should not become memories)")
             
+            # Just return the body without processing AI responses as memories
             return body
             
         except Exception as e:
             self.log(f"❌ Error in outlet: {e}", "ERROR")
             return body
+    
+    def extract_user_id(self, body: dict, user: Optional[Dict] = None) -> str:
+        """Extract user ID using multiple fallback methods."""
+        
+        user_id = "anonymous"
+        
+        # Method 1: From user parameter (most reliable)
+        if user and isinstance(user, dict):
+            user_id = (user.get("id") or 
+                      user.get("user_id") or 
+                      user.get("email") or 
+                      user.get("name"))
+            if user_id and user_id != "anonymous":
+                if self.valves.debug:
+                    self.log(f"✅ User ID from user param: {user_id}")
+                return str(user_id)
+        
+        # Method 2: From body
+        if isinstance(body, dict):
+            # Try various body fields
+            user_candidates = [
+                body.get("user"),
+                body.get("user_id"), 
+                body.get("userId"),
+                body.get("user_email"),
+                body.get("userEmail")
+            ]
+            
+            for candidate in user_candidates:
+                if candidate:
+                    if isinstance(candidate, dict):
+                        extracted = (candidate.get("id") or 
+                                   candidate.get("email") or 
+                                   candidate.get("name"))
+                        if extracted:
+                            if self.valves.debug:
+                                self.log(f"✅ User ID from body: {extracted}")
+                            return str(extracted)
+                    else:
+                        if self.valves.debug:
+                            self.log(f"✅ User ID from body field: {candidate}")
+                        return str(candidate)
+            
+            # Method 3: Try to extract from chat metadata
+            chat_id = body.get("chat_id") or body.get("chatId")
+            if chat_id:
+                # Use chat_id as a user identifier (not ideal but better than anonymous)
+                user_id = f"chat_{chat_id}"
+                if self.valves.debug:
+                    self.log(f"🔄 Using chat ID as user ID: {user_id}")
+                return user_id
+            
+            # Method 4: Generate a session-based ID from messages if available
+            messages = body.get("messages", [])
+            if messages:
+                # Create a pseudo-user ID based on the first message timestamp and content
+                first_msg = messages[0]
+                content_hash = str(hash(str(first_msg.get("content", ""))[:50]))[-8:]
+                user_id = f"session_{content_hash}"
+                if self.valves.debug:
+                    self.log(f"🔄 Generated session user ID: {user_id}")
+                return user_id
+        
+        if self.valves.debug:
+            self.log(f"⚠️ Falling back to anonymous user")
+        return "anonymous"
