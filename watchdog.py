@@ -29,7 +29,15 @@ from database_manager import db_manager
 
 
 class HealthStatus(Enum):
-    """TODO: Add proper docstring for HealthStatus class."""
+    """
+    Enum class representing the health status of a service.
+    
+    This class defines the possible health states for services being monitored:
+    - HEALTHY: Service is running and healthy
+    - DEGRADED: Service is running but with reduced functionality
+    - UNHEALTHY: Service has encountered critical issues affecting operation
+    - UNKNOWN: Service status could not be determined
+    """
 
     HEALTHY = "healthy"
     DEGRADED = "degraded"
@@ -39,7 +47,16 @@ class HealthStatus(Enum):
 
 @dataclass
 class ServiceHealth:
-    """TODO: Add proper docstring for ServiceHealth class."""
+    """
+    Data class representing the health status information for a monitored service.
+    
+    Tracks important information about service health including:
+    - The current health status (healthy, degraded, unhealthy, or unknown)
+    - The service name and type
+    - Last check timestamp
+    - Details about the health status including metrics and error information
+    - Historical data for trend analysis
+    """
 
     service: str
     status: HealthStatus
@@ -112,7 +129,13 @@ class SubsystemMonitor:
     """Base class for monitoring individual subsystems."""
 
     def __init__(self, name: str, config: WatchdogConfig):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize a subsystem monitor.
+        
+        Args:
+            name (str): Name of the subsystem to monitor
+            config (WatchdogConfig): Configuration for the watchdog system
+        """
         self.name = name
         self.config = config
         self.consecutive_failures = 0
@@ -142,7 +165,12 @@ class RedisMonitor(SubsystemMonitor):
     """Monitor Redis connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize a Redis monitoring subsystem.
+        
+        Args:
+            config (WatchdogConfig): Configuration for the watchdog system
+        """
         super().__init__("Redis", config)
         self.redis_host = os.getenv("REDIS_HOST", "localhost")
         self.redis_port = int(os.getenv("REDIS_PORT", 6379))
@@ -205,7 +233,12 @@ class ChromaDBMonitor(SubsystemMonitor):
     """Monitor ChromaDB connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize a ChromaDB monitoring subsystem.
+        
+        Args:
+            config (WatchdogConfig): Configuration for the watchdog system
+        """
         super().__init__("ChromaDB", config)
         self.chroma_dir = os.getenv("CHROMA_DB_DIR", "./storage/chroma")
         self.use_http_chroma = os.getenv("USE_HTTP_CHROMA", "false").lower() == "true"
@@ -309,7 +342,12 @@ class OllamaMonitor(SubsystemMonitor):
     """Monitor Ollama API connectivity and performance."""
 
     def __init__(self, config: WatchdogConfig):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize an Ollama API monitoring subsystem.
+        
+        Args:
+            config (WatchdogConfig): Configuration for the watchdog system
+        """
         super().__init__("Ollama", config)
         self.ollama_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
         self.api_key = os.getenv("LLM_API_KEY")
@@ -373,7 +411,12 @@ class EmbeddingMonitor(SubsystemMonitor):
     """Monitor embedding model availability and performance."""
 
     def __init__(self, config: WatchdogConfig):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize an embedding model monitoring subsystem.
+        
+        Args:
+            config (WatchdogConfig): Configuration for the watchdog system
+        """
         super().__init__("Embeddings", config)
 
     async def check_health(self) -> ServiceHealth:
@@ -629,7 +672,12 @@ class SystemWatchdog:
         """Start monitoring in a background thread."""
 
         def run_monitoring():
-            """TODO: Add proper docstring for run_monitoring."""
+            """
+            Run the monitoring process asynchronously.
+            
+            This inner function is used to start the async monitoring loop
+            in a separate thread.
+            """
             asyncio.run(self.start_monitoring())
 
         monitoring_thread = threading.Thread(target=run_monitoring, daemon=True)

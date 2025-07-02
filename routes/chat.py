@@ -12,11 +12,15 @@ from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException
 
 from config import DEFAULT_SYSTEM_PROMPT
-from database_manager import db_manager, get_embedding, get_cache, set_cache
-from database import (
-    store_chat_history_async,
+from database_manager import (
+    db_manager, 
+    get_embedding, 
+    get_cache, 
+    set_cache,
+    store_chat_history,
     retrieve_user_memory,
     index_user_document,
+    get_chat_history
 )
 from error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
 from human_logging import log_service_status
@@ -96,7 +100,7 @@ def should_store_as_memory(message: str, response: str) -> bool:
     return False
 
 
-@chat_router.post("/chat", response_model=ChatResponse)
+@chat_router.post("/chat/completions", response_model=ChatResponse)
 async def chat_endpoint(chat: ChatRequest, request: Request):
     # Use request ID from middleware
     request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
@@ -180,7 +184,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
 
         # --- Retrieve chat history and memory ---
         async def get_history():
-            return await get_chat_history_async(db_manager, user_id, max_history=10)
+            return await get_chat_history(f"user:{user_id}", limit=10)
 
         try:
             history = await get_history()
@@ -346,7 +350,7 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 "assistant_response": str(user_response),
                 "timestamp": time.time(),
             }
-            await store_chat_history_async(db_manager, user_id, message_data)
+            await store_chat_history(f"user:{user_id}", [message_data])
         except Exception as e:
             logging.warning(f"[REDIS] Failed to store chat history for user {user_id}: {e}")
 

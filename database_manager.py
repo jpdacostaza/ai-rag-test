@@ -8,6 +8,7 @@ import os
 import time
 import json
 import asyncio
+import logging
 from datetime import datetime
 
 import chromadb
@@ -17,12 +18,13 @@ from sentence_transformers import SentenceTransformer
 from numpy.typing import NDArray
 import numpy as np
 
-from error_handler import RedisConnectionHandler
+from error_handler import RedisConnectionHandler, MemoryErrorHandler, safe_execute
 from human_logging import log_service_status
 from utilities.validation import DatabaseConfig, ChatMessage, validate_query_params
 from utilities.memory_pool import MemoryPool
 from utilities.memory_monitor import MemoryPressureMonitor
 from utilities.cache_manager import CacheManager
+from utilities.ai_tools import chunk_text
 
 # Alert manager integration
 try:
@@ -35,66 +37,157 @@ except ImportError:
     async def alert_service_down(service_name: str, duration_seconds: float):
         pass
 
+# Global database manager instance - initialized at module import time
+db_manager = None
+
+# Initialize global cache manager
+_cache_manager = None
+
+
+def initialize_database():
+    """Initialize the global database manager instance.
+    
+    This function ensures the database manager is instantiated only once.
+    It should be called early in the application startup sequence.
+    """
+    global db_manager
+    if db_manager is None:
+        db_manager = DatabaseManager()
+    return db_manager
+
 
 class ChromaClientProtocol(Protocol):
-    """TODO: Add proper docstring for ChromaClientProtocol class."""
+    """Protocol defining the interface for ChromaDB client interactions.
+    
+    This protocol defines the required methods for ChromaDB client integration,
+    allowing for type checking and interface consistency across the application.
+    It enables testing with mock implementations and abstracts the underlying ChromaDB client.
+    """
 
-    def get_or_create_collection(self, name: str, **kwargs: Any) -> "ChromaCollectionProtocol": ...
-    def list_collections(self) -> List[str]: ...
-    def heartbeat(self) -> bool: ...
+    def get_or_create_collection(self, name: str, **kwargs: Any) -> "ChromaCollectionProtocol": 
+        """Get an existing collection or create a new one with the specified name.
+        
+        Args:
+            name: The name of the collection to get or create
+            **kwargs: Additional arguments to pass to the collection creation
+            
+        Returns:
+            A ChromaCollection object that implements the ChromaCollectionProtocol
+        """
+        ...
+        
+    def list_collections(self) -> List[str]: 
+        """List all available collections in the ChromaDB instance.
+        
+        Returns:
+            A list of collection names as strings
+        """
+        ...
+        
+    def heartbeat(self) -> bool: 
+        """Check if the ChromaDB service is alive and responding.
+        
+        Returns:
+            True if the service is available, False otherwise
+        """
+        ...
 
 
 class ChromaCollectionProtocol(Protocol):
-    """TODO: Add proper docstring for get_or_create_collection."""
-
-    """TODO: Add proper docstring for list_collections."""
-    """TODO: Add proper docstring for heartbeat."""
-    """TODO: Add proper docstring for ChromaCollectionProtocol class."""
+    """Protocol defining the interface for ChromaDB collections.
+    
+    This protocol defines the required methods for interacting with ChromaDB collections,
+    ensuring type checking and consistent interface across the application.
+    It abstracts the underlying ChromaDB collection implementation and enables 
+    testing with mock implementations.
+    """
 
     def add(
         self, embeddings: List[List[float]], documents: List[str], metadatas: List[Dict[str, Any]], ids: List[str]
-    ) -> None: ...
-    def query(self, query_embeddings: List[List[float]], n_results: int, **kwargs: Any) -> Dict[str, List[Any]]: ...
+    ) -> None: 
+        """Add documents with their embeddings and metadata to the collection.
+        
+        Args:
+            embeddings: List of embedding vectors for the documents
+            documents: List of document texts to be stored
+            metadatas: List of metadata dictionaries for each document
+            ids: List of unique identifiers for each document
+        
+        Returns:
+            None
+        """
+        ...
+        
+    def query(self, query_embeddings: List[List[float]], n_results: int, **kwargs: Any) -> Dict[str, List[Any]]: 
+        """Query the collection for the most similar documents to the query embeddings.
+        
+        Args:
+            query_embeddings: List of embedding vectors to query against
+            n_results: Number of top results to return
+            **kwargs: Additional query parameters (e.g., where filters)
+        
+        Returns:
+            Dictionary with keys 'documents', 'metadatas', 'distances', and 'ids'
+        """
+        ...
 
 
 class ComponentHealth(TypedDict):
-    """TODO: Add proper docstring for add."""
+    """Type definition for health status of a database component.
+    
+    Used to represent the health status of individual database components
+    such as Redis, ChromaDB, or the embedding model service.
+    """
 
-    """TODO: Add proper docstring for query."""
-    """TODO: Add proper docstring for ComponentHealth class."""
-    status: str
-    details: str
+    status: str  # Status of the component (e.g., 'ok', 'error', 'degraded')
+    details: str  # Additional details about the component's status
 
 
 class DatabaseHealth(TypedDict):
-    """TODO: Add proper docstring for DatabaseHealth class."""
+    """Type definition for overall database health status.
+    
+    Aggregates the health status of all database components (Redis, ChromaDB, embeddings)
+    for system monitoring and health checks.
+    """
 
-    redis: ComponentHealth
-    chromadb: ComponentHealth
-    embeddings: ComponentHealth
+    redis: ComponentHealth      # Health status of Redis
+    chromadb: ComponentHealth   # Health status of ChromaDB
+    embeddings: ComponentHealth # Health status of embedding model
 
 
 class ChromaResults(TypedDict):
-    """TODO: Add proper docstring for ChromaResults class."""
+    """Type definition for raw results returned from ChromaDB queries.
+    
+    Represents the structure of results returned directly from ChromaDB's
+    query method, before any additional processing.
+    """
 
-    documents: List[List[str]]
-    metadatas: List[List[Dict[str, Any]]]
-    distances: List[List[float]]
-    ids: List[List[str]]
+    documents: List[List[str]]               # Nested list of document contents
+    metadatas: List[List[Dict[str, Any]]]    # Nested list of metadata dictionaries
+    distances: List[List[float]]             # Nested list of distance scores
+    ids: List[List[str]]                     # Nested list of document IDs
 
 
 class Match(TypedDict):
-    """TODO: Add proper docstring for Match class."""
+    """Type definition for a single document match from a memory query.
+    
+    Represents a processed result from a ChromaDB query, containing
+    the document content, metadata, and distance score.
+    """
 
-    document: str
-    metadata: Dict[str, Any]
-    distance: float
+    document: str               # The document content
+    metadata: Dict[str, Any]    # Metadata associated with the document
+    distance: float             # Distance/similarity score
 
 
 class QueryResponse(TypedDict):
-    """TODO: Add proper docstring for QueryResponse class."""
+    """Type definition for the response to a memory query.
+    
+    Used as the standardized format for returning memory query results
+    to the application, containing a list of matched documents.
+    """
 
-    matches: List[Match]
+    matches: List[Match]  # List of matched documents with metadata and scores
 
 
 class DatabaseManager:
@@ -658,7 +751,9 @@ class DatabaseManager:
                 return history
             except redis.RedisError as e:
                 log_service_status(
-                    "redis", "error", f"Cache error - failed to get history for chat_id: {chat_id}, error: {str(e)}"
+                    "redis",
+                    "error",
+                    f"Cache error - failed to get history for chat_id: {chat_id}, error: {str(e)}"
                 )
                 return []
 
@@ -1188,3 +1283,310 @@ async def retrieve_user_memory(user_id: str, query: str, n_results: int = 5) -> 
     except Exception as e:
         log_service_status("chromadb", "error", f"Error retrieving user memory: {str(e)}")
         return []
+
+
+async def index_document_chunks(user_id: str, doc_id: str, name: str, chunks: List[str]) -> bool:
+    """Index pre-chunked document content in the vector database."""
+    global db_manager
+    if not db_manager:
+        await initialize_database()
+        if not db_manager:
+            return False
+
+    # Ensure initialization is complete
+    await db_manager.ensure_initialized()
+
+    try:
+        if not await db_manager.is_chromadb_available() or not db_manager.is_embeddings_available():
+            log_service_status("memory", "warning", "ChromaDB or embeddings not available for document indexing")
+            return False
+
+        # Generate embeddings for all chunks
+        embeddings = []
+        for chunk in chunks:
+            embedding = await db_manager.get_embedding(chunk)
+            if embedding:
+                embeddings.append(embedding)
+            else:
+                log_service_status("memory", "error", f"Failed to generate embedding for chunk in doc_id={doc_id}")
+                return False
+
+        # Create IDs and metadata for chunks
+        chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
+        metadatas = [
+            {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i, "timestamp": datetime.now().isoformat()}
+            for i in range(len(chunks))
+        ]
+
+        # Add to ChromaDB
+        collection = db_manager.chroma_collection
+        if not collection:
+            return False
+
+        collection.add(embeddings=embeddings, documents=chunks, metadatas=metadatas, ids=chunk_ids)
+        log_service_status(
+            "memory", "info", f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}"
+        )
+        return True
+
+    except Exception as e:
+        log_service_status("memory", "error", f"Failed to index document chunks for doc_id={doc_id}: {str(e)}")
+        return False
+
+
+def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
+    """Embed and index a list of pre-chunked text documents for a user in chromadb.
+    
+    Args:
+        db_manager: The database manager instance
+        user_id: The ID of the user who owns the document
+        doc_id: Unique identifier for the document
+        name: Name or title of the document
+        chunks: List of text chunks to index
+        request_id: Optional request ID for tracking
+        
+    Returns:
+        True if indexing was successful, False otherwise
+    """
+    def _index_op():
+        """Index document chunks in ChromaDB.
+        
+        Embeds and stores document chunks in ChromaDB for the specified user,
+        with appropriate metadata for retrieval.
+        
+        Returns:
+            True if indexing was successful, False otherwise
+        """
+        if not db_manager.is_chromadb_available():
+            logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
+            return False
+
+        if not db_manager.is_embeddings_available():
+            logging.warning("[EMBEDDINGS] Embedding model not available, skipping document indexing")
+            return False
+
+        try:
+            # Set show_progress_bar to False for cleaner logs
+            embeddings = db_manager.embedding_model.encode(chunks, show_progress_bar=False).tolist()
+            logging.info(f"Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
+        except Exception as e:
+            logging.error(f"Failed to generate embeddings for doc_id={doc_id}: {e}")
+            raise e
+
+        chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
+        metadatas = [
+            {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i} for i in range(len(chunks))
+        ]
+
+        try:
+            db_manager.chroma_collection.add(
+                embeddings=embeddings, ids=chunk_ids, metadatas=metadatas, documents=chunks
+            )
+            logging.info(f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}")
+            return True
+        except Exception as e:
+            logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
+            raise e
+
+    return safe_execute(
+        _index_op,
+        fallback_value=False,
+        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "index_chunks", user_id, request_id),
+    )
+
+
+def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):
+    """Chunk, embed, and index a document for a specific user in chromadb.
+    
+    Args:
+        db_manager: The database manager instance
+        user_id: The ID of the user who owns the document
+        doc_id: Unique identifier for the document
+        name: Name or title of the document
+        text: The document text to index
+        chunk_size: Size of each text chunk (default: 1000)
+        chunk_overlap: Overlap between adjacent chunks (default: 200)
+        request_id: Optional request ID for tracking
+        
+    Returns:
+        True if indexing was successful, False otherwise
+    
+    Note: 
+        This is a convenience wrapper. For pre-chunked data, use index_document_chunks.
+    """
+    chunks = chunk_text(text, chunk_size, chunk_overlap)
+    if not chunks:
+        logging.warning(f"No chunks created for doc_id={doc_id}, user_id={user_id}")
+        return False
+
+    return index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id)
+
+
+def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
+    """Retrieve relevant memory chunks for a user from chromadb.
+    
+    Args:
+        db_manager: The database manager instance
+        user_id: The ID of the user whose memory to search
+        query_embedding: The embedding vector to search for similar documents
+        n_results: Number of results to return (default: 5)
+        request_id: Optional request ID for tracking
+        
+    Returns:
+        List of memory chunks with metadata and similarity scores
+    """
+    # Add logging for memory retrieval
+    logging.debug(f"retrieve_user_memory called with user_id={user_id}")
+
+    def _retrieve_memory():
+        """Retrieve relevant memory chunks for a user from ChromaDB.
+        
+        Searches for memory chunks relevant to the specified query embedding
+        and formats the results for use in the application.
+        
+        Returns:
+            List of formatted memory results with documents, metadata, and similarity scores
+        """
+        try:
+            # Synchronous check for ChromaDB availability
+            if db_manager.chroma_client is None or db_manager.chroma_collection is None:
+                logging.warning("[CHROMADB] chromadb not available, returning empty memory")
+                return []
+        except Exception as e:
+            logging.warning(f"[CHROMADB] Error checking availability: {str(e)}, returning empty memory")
+            return []
+
+        # Enhanced logging for debugging
+        logging.info(f"[MEMORY] 🔍 Starting memory retrieval for user_id={user_id}, n_results={n_results}")
+
+        # Ensure query_embedding is properly formatted
+        logging.debug(f"[MEMORY] 📊 Query embedding type: {type(query_embedding)}")
+
+        if query_embedding is None:
+            logging.error("[MEMORY] ❌ Query embedding is None")
+            return []
+        elif hasattr(query_embedding, "tolist"):
+            embedding_list = query_embedding.tolist()
+            logging.debug(
+                f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}"
+            )
+        elif hasattr(query_embedding, "__iter__") and not isinstance(query_embedding, str):
+            embedding_list = list(query_embedding)
+            logging.debug(f"[MEMORY] 📊 Converted iterable to list, length: {len(embedding_list)}")
+        else:
+            logging.error(f"[MEMORY] ❌ Invalid embedding format: {type(query_embedding)}")
+            return []
+
+        logging.debug(f"[MEMORY] 📐 Query embedding dimension: {len(embedding_list)}")
+
+        results = db_manager.chroma_collection.query(
+            query_embeddings=[embedding_list],
+            n_results=n_results,
+            where={"user_id": user_id},
+            include=["documents", "metadatas", "distances"],
+        )
+
+        logging.info(f"[MEMORY] 📊 chromadb query results: {results}")
+
+        docs = results.get("documents", [[]])[0] if results else []
+        metadatas = results.get("metadatas", [[]])[0] if results else []
+        distances = results.get("distances", [[]])[0] if results else []
+
+        logging.info(f"[MEMORY] ✅ Retrieved {len(docs)} memory chunks for user_id={user_id}")
+
+        # Use len() check instead of boolean check to avoid numpy array truth value error
+        if len(docs) > 0:
+            for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
+                similarity = 1 - distance if distance is not None else 0.0
+                logging.info(f"[MEMORY] 📄 Chunk {i+1}: similarity={similarity:.4f}, metadata={metadata}")
+                logging.debug(f"[MEMORY] 📄 Content: {doc[:100]}...")
+        else:
+            logging.warning(f"[MEMORY] ⚠️ No relevant memory found for user_id={user_id}")
+
+        # Return formatted results for semantic search
+        formatted_results = []
+
+        # Add user profile as highest priority context
+        try:
+            from user_profiles import user_profile_manager
+
+            user_profile = user_profile_manager.get_user_info(user_id)
+            if user_profile:
+                profile_context = user_profile_manager.build_context_for_llm(user_id)
+                if profile_context:
+                    formatted_results.append(
+                        {
+                            "document": f"User Profile: {profile_context}",
+                            "metadata": {"type": "user_profile", "user_id": user_id},
+                            "distance": 0.0,  # Highest relevance
+                        }
+                    )
+                    logging.info(f"[MEMORY] 👤 Added user profile context for {user_id}")
+        except ImportError:
+            logging.debug("[MEMORY] User profile system not available")
+        except Exception as e:
+            logging.warning(f"[MEMORY] Error adding user profile: {e}")
+
+        for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
+            similarity = 1 - distance if distance is not None else 0.0
+            formatted_results.append(
+                {"content": doc, "metadata": metadata, "similarity": similarity, "distance": distance, "rank": i + 1}
+            )
+
+        logging.info(f"[MEMORY] 📋 Returning {len(formatted_results)} formatted results")
+        return formatted_results
+
+    return safe_execute(
+        _retrieve_memory,
+        fallback_value=[],
+        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "retrieve", user_id, request_id),
+    )
+
+
+def get_embedding(db_manager, text, request_id=""):
+    """Get embedding vector for text using the embedding model.
+    
+    Args:
+        db_manager: The database manager instance
+        text: The text to generate an embedding for
+        request_id: Optional request ID for tracking
+        
+    Returns:
+        The embedding vector if successful, None otherwise
+    """
+    logging.critical(f"🔍 [DATABASE] get_embedding called with text: '{text[:50]}...'")
+
+    def _get_embedding():
+        """Generate an embedding vector for the given text using the embedding model.
+        
+        Converts text to a numerical embedding vector using the available
+        embedding model in the database manager.
+        
+        Returns:
+            A numerical embedding vector if successful, None otherwise
+        """
+        if not db_manager.is_embeddings_available():
+            logging.warning("[EMBEDDINGS] Embedding model not available")
+            logging.critical(f"❌ [DATABASE] Embedding model not available")
+            return None
+
+        logging.critical(f"🔍 [DATABASE] Generating embedding using model: {type(db_manager.embedding_model)}")
+        # Get the embedding and return the first element (single text input)
+        embedding = db_manager.embedding_model.encode([text])
+        logging.critical(f"🔍 [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}")
+        
+        if embedding is not None:
+            if hasattr(embedding, "__len__") and len(embedding) > 0:
+                result = embedding[0]
+                logging.critical(f"🔍 [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}")
+                return result
+            
+        logging.critical(f"❌ [DATABASE] Embedding invalid or empty")
+        return None
+
+    # Execute synchronously in the current thread
+    return _get_embedding()
+
+
+# Initialize the global database manager instance at module import time
+db_manager = DatabaseManager()

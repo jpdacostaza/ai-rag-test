@@ -2,7 +2,7 @@
 Debug routes for development and monitoring
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from typing import Dict, Any
 from datetime import datetime
 import psutil
@@ -105,29 +105,10 @@ async def get_config() -> Dict[str, Any]:
 
 
 @debug_router.get("/endpoints")
-async def list_endpoints() -> Dict[str, Any]:
-    """List all available endpoints"""
-    return {
-        "endpoints": {
-            "health": ["GET /health", "GET /"],
-            "chat": ["POST /chat"],
-            "upload": [
-                "POST /upload/document",
-                "POST /upload/search",
-                "POST /upload/file",
-                "GET /upload/health",
-                "GET /upload/formats",
-            ],
-            "models": ["GET /v1/models"],
-            "functions": ["Built-in OpenWebUI Functions system"],
-            "debug": [
-                "GET /debug/cache",
-                "POST /debug/cache/clear",
-                "GET /debug/memory",
-                "GET /debug/alerts",
-                "GET /debug/config",
-                "GET /debug/endpoints",
-            ],
-        },
-        "total_endpoints": 17,
-    }
+async def list_endpoints(request: Request) -> Dict[str, Any]:
+    """List all available endpoints dynamically"""
+    url_list = [
+        {"path": route.path, "name": route.name, "methods": list(route.methods)}
+        for route in request.app.routes
+    ]
+    return {"endpoints": url_list}

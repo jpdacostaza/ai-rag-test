@@ -17,8 +17,8 @@ ENV MKL_NUM_THREADS=1
 ENV NUMEXPR_NUM_THREADS=1
 ENV NUMBA_DISABLE_CUDA=1
 
-# Create llama user for Linux compatibility with home directory
-RUN groupadd -r llama && useradd -r -g llama -u 1000 -m -d /home/llama llama
+# Create backend user for Linux compatibility with home directory
+RUN groupadd -r backend && useradd -r -g backend -u 1000 -m -d /home/backend backend
 
 WORKDIR /opt/backend
 
@@ -38,26 +38,23 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Make startup script executable
-RUN chmod +x scripts/startup.sh
-
 # Create storage and cache directories with proper permissions
 RUN mkdir -p ./storage && \
     mkdir -p /opt/internal_cache/sentence_transformers && \
     mkdir -p /opt/cache/chroma/onnx_models && \
-    chown -R llama:llama /opt/backend && \
-    chown -R llama:llama /opt/internal_cache && \
-    chown -R llama:llama /opt/cache && \
-    chown -R llama:llama /home/llama && \
+    chown -R backend:backend /opt/backend && \
+    chown -R backend:backend /opt/internal_cache && \
+    chown -R backend:backend /opt/cache && \
+    chown -R backend:backend /home/backend && \
     chmod -R 755 /opt/backend && \
     chmod -R 755 /opt/internal_cache && \
     chmod -R 777 /opt/cache && \
-    chmod -R 755 /home/llama
+    chmod -R 755 /home/backend
 
-# Switch to llama user
-USER llama
+# Switch to backend user
+USER backend
 
-EXPOSE 8001
+EXPOSE 3000
 
-# Use the startup script for backend initialization
-CMD ["./scripts/startup.sh"]
+# Start the main FastAPI backend
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3000", "--workers", "1"]

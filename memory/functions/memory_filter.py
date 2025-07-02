@@ -4,6 +4,10 @@ OpenWebUI Memory Filter
 
 A memory filter for OpenWebUI that stores and retrieves conversation context.
 This filter integrates with our memory API to provide persistent memory across conversations.
+
+NOTE: This file serves as a fallback implementation that is only used if the primary
+memory_function.py file in the root directory is not available. In most cases, the 
+system will use the memory_function.py implementation instead.
 """
 
 import json

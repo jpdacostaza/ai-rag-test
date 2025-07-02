@@ -8,6 +8,8 @@ import httpx
 from fastapi import APIRouter
 from fastapi import HTTPException
 
+from error_handler import safe_execute, log_error
+
 router = APIRouter(tags=["Model Management"])
 
 # --- Configuration ---
@@ -23,6 +25,9 @@ _model_cache: Dict[str, Any] = {"data": [], "last_updated": 0, "ttl": 300}  # 5 
 async def refresh_model_cache(force: bool = False) -> None:
     """
     Refreshes the model cache from the Ollama API and local directories.
+    
+    Args:
+        force (bool, optional): If True, forces a refresh regardless of TTL. Defaults to False.
     """
     global _model_cache
     current_time = time.time()
@@ -31,12 +36,14 @@ async def refresh_model_cache(force: bool = False) -> None:
 
     logging.info("[MODELS] Refreshing model cache...")
     ollama_models = []
-    try:
+    
+    async def fetch_models():
+        """Helper function to fetch models from Ollama API"""
         async with httpx.AsyncClient() as client:
             resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
             resp.raise_for_status()
             models_data = resp.json().get("models", [])
-            ollama_models = [
+            return [
                 {
                     "id": model["name"],
                     "object": "model",
@@ -45,11 +52,19 @@ async def refresh_model_cache(force: bool = False) -> None:
                 }
                 for model in models_data
             ]
+    
+    # Use safe_execute for more consistent error handling
+    fetch_result = await safe_execute(
+        fetch_models,
+        fallback_value=[],
+        error_handler=lambda e: log_error(e, "Failed to refresh Ollama models")
+    )
+    
+    if fetch_result:
+        ollama_models = fetch_result
         logging.info(f"[MODELS] Successfully fetched {len(ollama_models)} models from Ollama.")
-    except httpx.RequestError as e:
-        logging.error(f"[MODELS] Failed to connect to Ollama to refresh models: {e}")
-    except Exception as e:
-        logging.error(f"[MODELS] An unexpected error occurred while fetching Ollama models: {e}")
+    else:
+        logging.warning("[MODELS] Unable to fetch models from Ollama, using empty list")
 
     # Combine with local models (if any)
     # custom_models = list_models_in_dir(CUSTOM_MODEL_DIR) # You can extend this
@@ -61,24 +76,31 @@ async def refresh_model_cache(force: bool = False) -> None:
 async def pull_model(model_name: str) -> bool:
     """
     Pull a model from Ollama registry if it's not available locally.
-    Returns True if model is successfully pulled or already available.
+    
+    Args:
+        model_name (str): The name of the model to pull (e.g., "llama3.2:3b")
+        
+    Returns:
+        bool: True if model is successfully pulled or already available, False otherwise.
     """
-    try:
+    async def do_pull():
+        """Helper function to pull model from Ollama registry"""
         logging.info(f"[MODELS] Pulling model {model_name} from Ollama registry...")
         async with httpx.AsyncClient(timeout=300.0) as client:  # 5 minute timeout for model downloads
             resp = await client.post(f"{OLLAMA_BASE_URL}/api/pull", json={"name": model_name}, timeout=300.0)
             resp.raise_for_status()
             logging.info(f"[MODELS] Successfully pulled model {model_name}")
             return True
-    except httpx.RequestError as e:
-        logging.error(f"[MODELS] Failed to connect to Ollama for model pull: {e}")
-        return False
-    except httpx.HTTPStatusError as e:
-        logging.error(f"[MODELS] Model pull failed with HTTP {e.response.status_code}: {e.response.text}")
-        return False
-    except Exception as e:
-        logging.error(f"[MODELS] Unexpected error during model pull: {e}")
-        return False
+    
+    # Use safe_execute for more consistent error handling
+    context = f"Pull model {model_name} from Ollama registry"
+    result = await safe_execute(
+        do_pull,
+        fallback_value=False,
+        error_handler=lambda e: log_error(e, context)
+    )
+    
+    return result
 
 
 async def ensure_model_available(model_name: str, auto_pull: bool = True) -> bool:

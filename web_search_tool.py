@@ -1,10 +1,11 @@
 """
-Web search tool placeholder.
-Provides basic web search functionality for chat enhancement.
+Web search tool.
+Provides web search functionality using utilities.ai_tools.
 """
 
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
+from utilities.ai_tools import web_search as ai_tools_web_search
 
 
 def should_trigger_web_search(query: str, response: str) -> bool:
@@ -61,16 +62,49 @@ async def search_web(query: str, max_results: int = 3) -> Dict[str, Any]:
     """
     logging.info(f"[WEB_SEARCH] Performing web search for: {query}")
     
-    # Placeholder implementation - would integrate with actual search API
-    # For now, return empty results to prevent errors
-    return {
-        "query": query,
-        "results": [],
-        "total_results": 0,
-        "search_time": 0.0,
-        "status": "disabled",
-        "message": "Web search functionality is currently disabled"
-    }
+    try:
+        # Use real web search from utilities.ai_tools
+        result = ai_tools_web_search(query, num_results=max_results)
+        
+        # Format the result into our expected structure
+        search_results = {
+            "query": query,
+            "results": [],
+            "total_results": 0,
+            "search_time": 0.0,
+            "status": "success",
+            "message": "Search completed successfully"
+        }
+        
+        # Check if we got a valid result string
+        if result and isinstance(result, str):
+            # Parse the result and add to our structure
+            # This is a simple implementation - in a real system you'd want 
+            # to parse structured data rather than text
+            search_results["results"] = [
+                {
+                    "title": "Search Result",
+                    "snippet": result,
+                    "url": "#"
+                }
+            ]
+            search_results["total_results"] = 1
+        else:
+            search_results["status"] = "no_results"
+            search_results["message"] = "No search results found"
+            
+        return search_results
+    
+    except Exception as e:
+        logging.error(f"[WEB_SEARCH] Error performing search: {str(e)}")
+        return {
+            "query": query,
+            "results": [],
+            "total_results": 0,
+            "search_time": 0.0,
+            "status": "error",
+            "message": f"Search error: {str(e)}"
+        }
 
 
 def format_web_results_for_chat(search_results: Dict[str, Any]) -> str:

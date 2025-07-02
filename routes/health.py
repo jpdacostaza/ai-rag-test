@@ -13,6 +13,8 @@ from config import get_app_start_time
 from database_manager import get_database_health
 from human_logging import log_service_status
 from models import HealthResponse, DetailedHealthResponse
+from watchdog import get_watchdog, get_health_status
+from storage_manager import StorageManager
 
 health_router = APIRouter()
 
@@ -27,42 +29,6 @@ def get_cache_manager():
     except Exception as e:
         log_service_status("cache", "error", f"Failed to get cache manager: {str(e)}")
         return None
-
-
-class MockWatchdog:
-    """Mock watchdog class."""
-
-    def __init__(self):
-        """TODO: Add proper docstring for __init__."""
-        self.monitors = []
-
-    def get_service_history(self, service_name: str, hours: int):
-        """TODO: Add proper docstring for get_service_history."""
-        return []
-
-
-def get_watchdog():
-    """Stub function to get watchdog."""
-    return MockWatchdog()
-
-
-async def get_health_status():
-    """Stub function for health status."""
-    return {}
-
-
-class StorageManager:
-    """Stub class for storage manager."""
-
-    @staticmethod
-    def get_storage_info():
-        """TODO: Add proper docstring for get_storage_info."""
-        return {"directories": {}}
-
-    @staticmethod
-    def validate_permissions():
-        """TODO: Add proper docstring for validate_permissions."""
-        return {}
 
 
 @health_router.get("/")

@@ -3,6 +3,7 @@ File upload and processing endpoints for the FastAPI LLM backend.
 Handles document uploads, processing, and integration with RAG system.
 """
 
+import logging
 import os
 from typing import Optional, Dict, Any
 
@@ -104,39 +105,39 @@ async def search_documents(
     user_id: str = Form(...),
     limit: int = Form(5, ge=1, le=50),  # Add validation for limit
 ):
-    """Search through uploaded documents using semantic search."""
-
-    # CRITICAL DEBUG: Add at the very start
-    import sys
-
-    sys.stderr.write(f"🚨🚨🚨 [UPLOAD] search_documents ENDPOINT CALLED with query='{query}'\n")
-    sys.stderr.flush()
-
+    """
+    Search through uploaded documents using semantic search.
+    
+    Args:
+        query: The search query text
+        user_id: ID of the user whose documents to search
+        limit: Maximum number of results to return (between 1 and 50)
+        
+    Returns:
+        JSONResponse with search results
+        
+    Raises:
+        HTTPException: If search fails
+    """
     request_id = os.urandom(8).hex()
     log_api_request("POST", "/upload/search", 202, 0)
-
-    # Add debug logging at the upload endpoint level
-    import logging
-
-    with open("/tmp/upload_debug.log", "a") as f:
-        f.write(f"🔍 [UPLOAD] search_documents called with query='{query}', user_id='{user_id}', limit={limit}\n")
-        f.write(f"🔍 [UPLOAD] rag_processor type: {type(rag_processor)}\n")
-        f.write(f"🔍 [UPLOAD] About to call rag_processor.semantic_search...\n")
-        f.flush()
-
-    logging.critical(f"🔍 [UPLOAD] search_documents called with query='{query}', user_id='{user_id}', limit={limit}")
-    logging.critical(f"🔍 [UPLOAD] rag_processor type: {type(rag_processor)}")
+    
+    logging.info(f"[UPLOAD] Search requested with query='{query}', user_id='{user_id}', limit={limit}")
 
     try:
-        with open("/tmp/upload_debug.log", "a") as f:
-            f.write(f"🔍 [UPLOAD] Calling semantic_search...\n")
-            f.flush()
-
         results = await rag_processor.semantic_search(query, user_id, limit)
+        
+        log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
 
-        with open("/tmp/upload_debug.log", "a") as f:
-            f.write(f"🔍 [UPLOAD] semantic_search returned {len(results)} results\n")
-            f.flush()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "query": query,
+                "results_count": len(results),
+                "results": results,
+            },
+        )
 
         log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
 
@@ -153,10 +154,6 @@ async def search_documents(
 
     except Exception as e:
         log_service_status("UPLOAD", "error", f"Error in search_documents: {e}")
-        with open("/tmp/upload_debug.log", "a") as f:
-            f.write(f"❌ [UPLOAD] Exception in search_documents: {type(e).__name__}: {e}\n")
-            f.flush()
-
         log_error(e, "search_documents", request_id)
         raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "search"))
 
@@ -165,7 +162,12 @@ async def search_documents(
 
 
 class DocumentUploadJSON(BaseModel):
-    """TODO: Add proper docstring for DocumentUploadJSON class."""
+    """
+    Schema for JSON-based document upload.
+    
+    This class defines the expected JSON structure for document upload requests,
+    including content, user identification, and optional metadata.
+    """
 
     content: str = Field(..., min_length=1, description="Document content")
     user_id: str = Field(..., description="User ID for isolation")
@@ -173,7 +175,12 @@ class DocumentUploadJSON(BaseModel):
 
 
 class DocumentSearchJSON(BaseModel):
-    """TODO: Add proper docstring for DocumentSearchJSON class."""
+    """
+    Schema for JSON-based document search requests.
+    
+    This class defines the expected JSON structure for document search requests,
+    including query text, user identification, and optional result limit.
+    """
 
     query: str = Field(..., min_length=1, description="Search query")
     user_id: str = Field(..., description="User ID for isolation")

@@ -25,7 +25,7 @@ from config import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
 from human_logging import log_api_request, log_service_status
 from models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
-from routes import health_router, chat_router, models_router, upload_router, debug_router
+from routes import health_router, chat_router, models_router, upload_router, debug_router, memory_router
 from services.llm_service import call_llm, call_llm_stream
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
@@ -111,6 +111,7 @@ app.include_router(models_router)
 # Include additional routers
 app.include_router(upload_router)
 app.include_router(debug_router)
+app.include_router(memory_router)
 app.include_router(model_manager_router)
 
 

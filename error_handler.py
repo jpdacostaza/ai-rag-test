@@ -235,10 +235,27 @@ def with_error_handling(error_message="An error occurred"):
     """Decorator for adding basic error handling to functions."""
 
     def decorator(func):
-        """TODO: Add proper docstring for decorator."""
+        """
+        Decorator that wraps a function with error handling.
+        
+        Args:
+            func: The function to wrap with error handling.
+            
+        Returns:
+            The wrapped function with error handling.
+        """
 
         def wrapper(*args, **kwargs):
-            """TODO: Add proper docstring for wrapper."""
+            """
+            Wrapper function that executes the decorated function with error handling.
+            
+            Args:
+                *args: Positional arguments to pass to the decorated function.
+                **kwargs: Keyword arguments to pass to the decorated function.
+                
+            Returns:
+                The result of the decorated function, or the error_message if an exception occurs.
+            """
             try:
                 return func(*args, **kwargs)
             except Exception as e:

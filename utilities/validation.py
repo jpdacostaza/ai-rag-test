@@ -17,14 +17,36 @@ class DatabaseConfig(BaseModel):
 
     @validator("redis_port", "chroma_port")
     def validate_port(cls, v):
-        """TODO: Add proper docstring for validate_port."""
+        """
+        Validate that port numbers are within valid range (1-65535).
+        
+        Args:
+            v (int, optional): The port number to validate
+            
+        Returns:
+            int: The validated port number
+            
+        Raises:
+            ValueError: If port number is not between 1 and 65535
+        """
         if v is not None and not (1 <= v <= 65535):
             raise ValueError("Port must be between 1 and 65535")
         return v
 
     @validator("redis_host", "chroma_host")
     def validate_host(cls, v):
-        """TODO: Add proper docstring for validate_host."""
+        """
+        Validate host names for database connections.
+        
+        Args:
+            v (str, optional): The hostname to validate
+            
+        Returns:
+            str: The validated hostname
+            
+        Raises:
+            ValueError: If hostname is not a string or has invalid format
+        """
         if v is not None:
             if not isinstance(v, str):
                 raise ValueError("Host must be a string")
@@ -42,7 +64,18 @@ class ChatMessage(BaseModel):
 
     @validator("content")
     def validate_content(cls, v):
-        """TODO: Add proper docstring for validate_content."""
+        """
+        Validate chat message content.
+        
+        Args:
+            v (str): The content string to validate
+            
+        Returns:
+            str: The validated content string
+            
+        Raises:
+            ValueError: If content is empty or exceeds 32KB size limit
+        """
         if not v or len(v.strip()) == 0:
             raise ValueError("Content cannot be empty")
         if len(v) > 32768:  # 32KB limit
@@ -51,7 +84,18 @@ class ChatMessage(BaseModel):
 
     @validator("metadata")
     def validate_metadata(cls, v):
-        """TODO: Add proper docstring for validate_metadata."""
+        """
+        Validate chat message metadata.
+        
+        Args:
+            v (Dict[str, Any]): The metadata dictionary to validate
+            
+        Returns:
+            Dict[str, Any]: The validated metadata dictionary
+            
+        Raises:
+            ValueError: If metadata is not a dictionary or exceeds 16KB size limit
+        """
         if not isinstance(v, dict):
             raise ValueError("Metadata must be a dictionary")
         # Check metadata size

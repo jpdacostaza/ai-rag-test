@@ -6,7 +6,18 @@ import re
 import logging
 from typing import Tuple, Optional, List, Dict, Any
 
-from utilities.ai_tools import convert_units, get_current_time, get_weather
+from utilities.ai_tools import (
+    convert_units,
+    get_current_time,
+    get_weather,
+    get_time_from_timeanddate,
+    wikipedia_search,
+    run_python_code,
+    get_system_info,
+    get_exchange_rate,
+    get_news,
+    web_search,
+)
 from error_handler import ToolErrorHandler, safe_execute
 from human_logging import log_service_status
 
@@ -106,39 +117,16 @@ class ToolService:
         # Extract country/location from message
         country = self._extract_location_from_message(message)
 
-        def get_timezone_time():
-            country_timezones = {
-                "netherlands": "Europe/Amsterdam",
-                "amsterdam": "Europe/Amsterdam",
-                "london": "Europe/London",
-                "uk": "Europe/London",
-                "new york": "America/New_York",
-                "tokyo": "Asia/Tokyo",
-                "paris": "Europe/Paris",
-                "berlin": "Europe/Berlin",
-                "moscow": "Europe/Moscow",
-                "sydney": "Australia/Sydney",
-            }
-
-            tz = country_timezones.get(country.lower(), None)
-            if tz:
-                return get_current_time(tz) + f" (timezone: {tz})", "geo_timezone"
-            else:
-                return self._get_time_from_timeanddate(country), "timeanddate.com"
-
-        result = safe_execute(
-            get_timezone_time,
-            fallback_value=(
-                ToolErrorHandler.handle_tool_error(
-                    Exception("Time lookup failed"), "time", user_id, country, request_id
-                ),
-                "error",
+        user_response = safe_execute(
+            get_time_from_timeanddate,
+            country,
+            fallback_value=ToolErrorHandler.handle_tool_error(
+                Exception("Time lookup failed"), "time", user_id, country, request_id
             ),
             error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "time", user_id, country, request_id),
         )
 
-        user_response, tool_name = result
-        debug_info.append(f"[TOOL] Used {tool_name} for {country}")
+        debug_info.append(f"[TOOL] Used timeanddate.com for {country}")
 
         return True, user_response, "time", debug_info
 
@@ -212,8 +200,16 @@ class ToolService:
         match = re.search(r"search (.+)", message, re.IGNORECASE)
         query = match.group(1) if match else message
 
-        # Placeholder implementation
-        user_response = "Web search is currently unavailable."
+        user_response = safe_execute(
+            web_search,
+            query,
+            fallback_value=ToolErrorHandler.handle_tool_error(
+                Exception("Web search failed"), "web_search", user_id, query, request_id
+            ),
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                e, "web_search", user_id, query, request_id
+            ),
+        )
 
         return True, user_response, "web_search", debug_info
 
@@ -225,7 +221,19 @@ class ToolService:
         logging.debug(system_msg)
         debug_info.append(system_msg)
 
-        user_response = "News lookup is currently unavailable."
+        match = re.search(r"news (?:about|on) (.+)", message, re.IGNORECASE)
+        category = match.group(1) if match else "general"
+
+        user_response = safe_execute(
+            get_news,
+            category,
+            fallback_value=ToolErrorHandler.handle_tool_error(
+                Exception("News lookup failed"), "news", user_id, category, request_id
+            ),
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                e, "news", user_id, category, request_id
+            ),
+        )
 
         return True, user_response, "news", debug_info
 
@@ -240,10 +248,24 @@ class ToolService:
         match = re.search(r"exchange rate ([a-zA-Z]{3}) to ([a-zA-Z]{3})", message, re.IGNORECASE)
 
         if match:
-            from_cur, to_cur = match.group(1), match.group(2)
-            user_response = f"Exchange rate lookup from {from_cur} to {to_cur} is currently unavailable."
+            from_cur, to_cur = match.group(1).upper(), match.group(2).upper()
+            user_response = safe_execute(
+                get_exchange_rate,
+                from_cur,
+                to_cur,
+                fallback_value=ToolErrorHandler.handle_tool_error(
+                    Exception("Exchange rate lookup failed"),
+                    "exchange_rate",
+                    user_id,
+                    f"{from_cur} to {to_cur}",
+                    request_id,
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "exchange_rate", user_id, f"{from_cur} to {to_cur}", request_id
+                ),
+            )
         else:
-            user_response = "Exchange rate lookup is currently unavailable."
+            user_response = "Please specify currencies like 'exchange rate USD to EUR'.
 
         return True, user_response, "exchange_rate", debug_info
 
@@ -255,7 +277,15 @@ class ToolService:
         logging.debug(system_msg)
         debug_info.append(system_msg)
 
-        user_response = "System info lookup is currently unavailable."
+        user_response = safe_execute(
+            get_system_info,
+            fallback_value=ToolErrorHandler.handle_tool_error(
+                Exception("System info lookup failed"), "system_info", user_id, "system", request_id
+            ),
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                e, "system_info", user_id, "system", request_id
+            ),
+        )
 
         return True, user_response, "system_info", debug_info
 
@@ -271,9 +301,22 @@ class ToolService:
         code = self._extract_python_code(message)
 
         if not code:
-            user_response = "Please provide Python code to execute."
+            user_response = "Please provide Python code to execute, e.g., using ```python ... ```."
         else:
-            user_response = "Python code execution is currently unavailable."
+            user_response = safe_execute(
+                run_python_code,
+                code,
+                fallback_value=ToolErrorHandler.handle_tool_error(
+                    Exception("Python execution failed"),
+                    "python_code_execution",
+                    user_id,
+                    "code",
+                    request_id,
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "python_code_execution", user_id, "code", request_id
+                ),
+            )
 
         return True, user_response, "python_code_execution", debug_info
 
@@ -288,9 +331,18 @@ class ToolService:
         # Extract search query
         query = message.lower().replace("wikipedia", "").replace("wiki", "").replace("search", "").strip()
         if not query:
-            query = "artificial intelligence"  # default
-
-        user_response = "Wikipedia search is currently unavailable."
+            user_response = "Please provide a topic to search on Wikipedia."
+        else:
+            user_response = safe_execute(
+                wikipedia_search,
+                query,
+                fallback_value=ToolErrorHandler.handle_tool_error(
+                    Exception("Wikipedia search failed"), "wikipedia", user_id, query, request_id
+                ),
+                error_handler=lambda e: ToolErrorHandler.handle_tool_error(
+                    e, "wikipedia", user_id, query, request_id
+                ),
+            )
 
         return True, user_response, "wikipedia", debug_info
 
@@ -323,24 +375,17 @@ class ToolService:
 
     def _extract_python_code(self, message: str) -> str:
         """Extract Python code from message."""
-        if "```python" in message:
-            # Extract code from code blocks
-            code_start = message.find("```python") + 9
-            code_end = message.find("```", code_start)
-            code = message[code_start:code_end].strip() if code_end != -1 else message[code_start:].strip()
+        # Improved regex to handle different markdown styles
+        match = re.search(r"```(?:python)?\s*([\s\S]+?)\s*```", message, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
         elif "run python" in message.lower():
-            code = message.split("run python", 1)[-1].strip()
+            return message.split("run python", 1)[-1].strip()
         elif message.lower().startswith("python "):
-            code = message.split("python ", 1)[-1].strip()
+            return message.split("python ", 1)[-1].strip()
         else:
-            # Try to extract any code-like text
-            code = message.strip()
-
-        return code
-
-    def _get_time_from_timeanddate(self, country: str) -> str:
-        """Stub function for time from timeanddate.com."""
-        return f"Time in {country}: Not available"
+            # Avoid returning the whole message if no clear code block is found
+            return ""
 
 
 # Global tool service instance

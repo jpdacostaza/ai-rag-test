@@ -9,9 +9,19 @@ from error_handler import RedisConnectionHandler
 from error_handler import safe_execute
 
 """
+DEPRECATED: This module is deprecated. Use database_manager.py instead.
+All functionality has been moved to database_manager.py to consolidate database operations.
+This file is kept for backward compatibility and will be removed in a future update.
+
 Database management module for the FastAPI LLM backend.
 Handles Redis (caching & chat history) and chromadb (semantic memory) operations.
 """
+
+# Display deprecation warning
+logging.warning(
+    "The database.py module is deprecated and will be removed in a future update. "
+    "Please use database_manager.py for all database operations."
+)
 
 
 # Global database manager instance
@@ -64,7 +74,17 @@ def get_cache(db_manager, cache_key, user_id="", request_id=""):
 
     # Fallback to direct Redis if cache manager unavailable
     def _get_cache_operation(redis_client):
-        """TODO: Add proper docstring for _get_cache_operation."""
+        """Execute a Redis cache retrieval operation.
+        
+        Retrieves a value from Redis using the specified cache key and handles
+        logging for cache hits and misses.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            The cached value as a string if found, None otherwise
+        """
         cached = redis_client.get(cache_key)
         if cached:
             logging.debug(f"[CACHE] HIT for key: {cache_key}")
@@ -88,7 +108,17 @@ def set_cache(db_manager, cache_key, value, ttl=600, user_id="", request_id=""):
 
     # Fallback to direct Redis if cache manager unavailable
     def _set_cache_operation(redis_client):
-        """TODO: Add proper docstring for _set_cache_operation."""
+        """Execute a Redis cache set operation.
+        
+        Stores a value in Redis with the specified cache key and TTL,
+        and handles logging for the operation.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            True if the operation was successful
+        """
         redis_client.setex(cache_key, ttl, value)
         logging.debug(f"[CACHE] SET for key: {cache_key}")
         return True
@@ -104,7 +134,17 @@ def store_chat_history(db_manager, user_id, message, max_history=20, request_id=
     """Store a chat message in Redis for a user (as a capped list) with automatic retry."""
 
     def _store_chat_operation(redis_client):
-        """TODO: Add proper docstring for _store_chat_operation."""
+        """Store a chat message in Redis for the specified user.
+        
+        Adds a message to the user's chat history list in Redis and
+        trims the list to maintain the maximum history size.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            True if the operation was successful
+        """
         key = f"chat_history:{user_id}"
         redis_client.rpush(key, json.dumps(message))
         redis_client.ltrim(key, -max_history, -1)
@@ -124,7 +164,17 @@ async def store_chat_history_async(db_manager, user_id, message, max_history=20,
     """Store a chat message in Redis for a user (as a capped list) with automatic retry (async version)."""
 
     def _store_chat_operation(redis_client):
-        """TODO: Add proper docstring for _store_chat_operation."""
+        """Store a chat message in Redis for the specified user.
+        
+        Adds a message to the user's chat history list in Redis and
+        trims the list to maintain the maximum history size.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            True if the operation was successful
+        """
         key = f"chat_history:{user_id}"
         redis_client.rpush(key, json.dumps(message))
         redis_client.ltrim(key, -max_history, -1)
@@ -143,7 +193,17 @@ def get_chat_history(db_manager, user_id, max_history=20, request_id=""):
     """Retrieve recent chat history for a user from Redis with automatic retry."""
 
     def _get_chat_operation(redis_client):
-        """TODO: Add proper docstring for _get_chat_operation."""
+        """Retrieve chat history for the specified user from Redis.
+        
+        Gets the user's chat history list from Redis and parses the
+        JSON messages into Python objects.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            List of parsed chat messages
+        """
         key = f"chat_history:{user_id}"
         history = redis_client.lrange(key, -max_history, -1)
         parsed_history = [json.loads(m) for m in history]
@@ -163,7 +223,17 @@ async def get_chat_history_async(db_manager, user_id, max_history=20, request_id
     """Retrieve recent chat history for a user from Redis with automatic retry (async version)."""
 
     def _get_chat_operation(redis_client):
-        """TODO: Add proper docstring for _get_chat_operation."""
+        """Retrieve chat history for the specified user from Redis.
+        
+        Gets the user's chat history list from Redis and parses the
+        JSON messages into Python objects.
+        
+        Args:
+            redis_client: The Redis client instance to use for the operation
+            
+        Returns:
+            List of parsed chat messages
+        """
         key = f"chat_history:{user_id}"
         history = redis_client.lrange(key, -max_history, -1)
         parsed_history = [json.loads(m) for m in history]
@@ -182,7 +252,14 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
     """Embed and index a list of pre-chunked text documents for a user in chromadb."""
 
     def _index_op():
-        """TODO: Add proper docstring for _index_op."""
+        """Index document chunks in ChromaDB.
+        
+        Embeds and stores document chunks in ChromaDB for the specified user,
+        with appropriate metadata for retrieval.
+        
+        Returns:
+            True if indexing was successful, False otherwise
+        """
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
             return False
@@ -247,7 +324,14 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
     logging.debug(f"retrieve_user_memory called with user_id={user_id}")
 
     def _retrieve_memory():
-        """TODO: Add proper docstring for _retrieve_memory."""
+        """Retrieve relevant memory chunks for a user from ChromaDB.
+        
+        Searches for memory chunks relevant to the specified query embedding
+        and formats the results for use in the application.
+        
+        Returns:
+            List of formatted memory results with documents, metadata, and similarity scores
+        """
         try:
             # Synchronous check for ChromaDB availability
             if db_manager.chroma_client is None or db_manager.chroma_collection is None:
@@ -351,7 +435,14 @@ def get_embedding(db_manager, text, request_id=""):
     logging.critical(f"🔍 [DATABASE] get_embedding called with text: '{text[:50]}...'")
 
     def _get_embedding():
-        """TODO: Add proper docstring for _get_embedding."""
+        """Generate an embedding vector for the given text using the embedding model.
+        
+        Converts text to a numerical embedding vector using the available
+        embedding model in the database manager.
+        
+        Returns:
+            A numerical embedding vector if successful, None otherwise
+        """
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")
             logging.critical(f"❌ [DATABASE] Embedding model not available")

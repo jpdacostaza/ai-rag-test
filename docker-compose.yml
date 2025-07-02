@@ -49,6 +49,46 @@ services:
     networks:
       - backend-net
 
+  # Main Backend API - Primary FastAPI application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend-main
+    ports:
+      - "3000:3000"
+    restart: always
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - DEFAULT_MODEL=llama3.2:3b
+      - EMBEDDING_MODEL=intfloat/e5-small-v2
+      - EMBEDDING_PROVIDER=huggingface
+      - USE_HTTP_CHROMA=true
+      - SENTENCE_TRANSFORMERS_HOME=./storage/models
+    volumes:
+      - ./storage/backend:/app/data
+      - ./storage/models:/app/models
+      - ./storage/.cache:/root/.cache
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
+
   # Integrated Memory API - Enhanced memory system with built-in auto-setup
   memory_api:
     build:
@@ -80,13 +120,13 @@ services:
     image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
     ports:
-      - "3000:8080"
+      - "8080:8080"
     restart: always
     environment:
-      # Route ALL traffic through our memory API backend, not directly to Ollama
-      - OLLAMA_BASE_URL=http://memory_api:8080
-      - OPENAI_API_BASE_URLS=http://memory_api:8080
-      - OPENAI_API_KEYS=memory-api-key
+      # Route through our main backend API
+      - OLLAMA_BASE_URL=http://backend:3000
+      - OPENAI_API_BASE_URLS=http://backend:3000
+      - OPENAI_API_KEYS=backend-api-key
       - ENABLE_FUNCTIONS=true
       - ENABLE_COMMUNITY_SHARING=false
       - WEBUI_AUTH=true
@@ -99,7 +139,7 @@ services:
       - ./storage/openwebui:/app/backend/data
       - ./memory/functions:/app/backend/data/functions:rw
     depends_on:
-      - ollama
+      - backend
       - memory_api
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health", "||", "exit", "1"]
@@ -109,6 +149,22 @@ services:
       start_period: 60s
     networks:
       - backend-net
+
+  # Function Installer - One-time installer for memory functions
+  function_installer:
+    build:
+      context: .
+      dockerfile: Dockerfile.function-installer
+    container_name: backend-function-installer
+    restart: "no"  # One-time container
+    environment:
+      - OPENWEBUI_URL=http://openwebui:8080
+    depends_on:
+      - openwebui
+    networks:
+      - backend-net
+    profiles:
+      - installer  # Optional profile
 
   # Watchtower - Automatic container updates (optional)
   watchtower:
