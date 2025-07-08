@@ -8,8 +8,9 @@ import time
 import uuid
 import hashlib
 from datetime import datetime
+from typing import Optional
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends, Body
 
 from config import DEFAULT_SYSTEM_PROMPT
 from database_manager import (
@@ -18,7 +19,6 @@ from database_manager import (
     get_cache, 
     set_cache,
     store_chat_history,
-    retrieve_user_memory,
     index_user_document,
     get_chat_history
 )
@@ -30,7 +30,69 @@ from services.tool_service import tool_service
 from user_profiles import user_profile_manager
 from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 
+# Import new memory system with fallback
+try:
+    from memory import MemoryService
+    MEMORY_SERVICE_AVAILABLE = True
+except ImportError:
+    MemoryService = None
+    MEMORY_SERVICE_AVAILABLE = False
+
 chat_router = APIRouter()
+
+
+def get_memory_service():
+    """Get memory service from main app."""
+    # Import here to avoid circular imports
+    from main import get_memory_service_or_legacy
+    return get_memory_service_or_legacy()
+
+
+# Helper function to retrieve memories using new or legacy system
+async def get_user_memories(user_id: str, query: str, memory_service = None, n_results: int = 3):
+    """
+    Retrieve user memories using new memory service or legacy fallback.
+    
+    Args:
+        user_id: User identifier
+        query: Query text
+        memory_service: Optional memory service instance
+        n_results: Number of results to return
+        
+    Returns:
+        List of memory chunks
+    """
+    if memory_service and MEMORY_SERVICE_AVAILABLE:
+        # Use new memory service
+        log_service_status("CHAT", "info", f"Using new memory service for user {user_id}")
+        memories = await memory_service.get_relevant_memories(
+            user_id=user_id,
+            query_text=query,
+            limit=n_results
+        )
+        
+        # Convert to legacy format for compatibility
+        memory_chunks = []
+        for memory in memories:
+            memory_chunks.append({
+                "document": memory.content,
+                "metadata": memory.metadata or {},
+                "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
+            })
+        return memory_chunks
+    else:
+        # Use legacy system - import here to avoid circular imports
+        log_service_status("CHAT", "info", f"Using legacy memory system for user {user_id}")
+        try:
+            from database_manager import retrieve_user_memory
+            query_emb = await get_embedding(query)
+            if query_emb is not None:
+                return retrieve_user_memory(db_manager, user_id, query_emb, n_results=n_results)
+            else:
+                return []
+        except Exception as e:
+            log_service_status("CHAT", "error", f"Failed to retrieve legacy memories: {e}")
+            return []
 
 
 # Stub functions
@@ -100,11 +162,31 @@ def should_store_as_memory(message: str, response: str) -> bool:
     return False
 
 
-@chat_router.post("/chat/completions", response_model=ChatResponse)
-async def chat_endpoint(chat: ChatRequest, request: Request):
+@chat_router.post("/chat/completions_legacy")
+async def chat_endpoint(request: Request, body: dict = Body(...)):
+    """
+    Chat endpoint that supports both legacy format (user_id, message) and OpenAI format (model, messages).
+    Automatically detects the format and handles accordingly.
+    """
     # Use request ID from middleware
     request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
     start_time = time.time()
+    
+    # Detect if this is OpenAI format (has 'model' and 'messages' fields) or legacy format (has 'user_id' and 'message')
+    if "model" in body and "messages" in body:
+        # OpenAI format - delegate to the OpenAI handler
+        from main import openai_chat_completions
+        return await openai_chat_completions(request, body)
+    
+    # Legacy format - validate and parse
+    try:
+        chat = ChatRequest(**body)
+    except Exception as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid request format. Expected either OpenAI format (model, messages) or legacy format (user_id, message). Error: {str(e)}"
+        )
+        
     print(f"[CONSOLE DEBUG] Chat endpoint called for user {chat.user_id}, message: {chat.message[:50]}...")
     logging.info(f"[DEBUG] Chat endpoint called for user {chat.user_id}")
 
@@ -214,9 +296,9 @@ async def chat_endpoint(chat: ChatRequest, request: Request):
                 print(f"[CONSOLE DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
                 logging.info(f"[DEBUG] Generated embedding for user {user_id}: {query_emb is not None}")
 
-                memory_chunks = (
-                    retrieve_user_memory(db_manager, user_id, query_emb, n_results=3) if query_emb is not None else []
-                )
+                # Get memory service from dependency injection
+                memory_service = get_memory_service()
+                memory_chunks = await get_user_memories(user_id, user_message, memory_service, n_results=3)
                 logging.info(
                     f"[DEBUG] Retrieved {len(memory_chunks) if memory_chunks else 0} memory chunks for user {user_id}"
                 )
