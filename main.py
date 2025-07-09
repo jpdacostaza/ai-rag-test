@@ -28,6 +28,7 @@ from human_logging import log_api_request, log_service_status
 from models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
 from routes import health_router, chat_router, models_router, upload_router, debug_router, memory_router
 from services.llm_service import call_llm, call_llm_stream
+print("[MAIN.PY] LLM service imported successfully!", flush=True)
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from startup import startup_event
 
@@ -270,7 +271,11 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 async for token in call_llm_stream(
                     stream_messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
                 ):
+                    # Debug: log what we receive from the stream
+                    log_service_status("STREAM", "debug", f"Received token: '{token}' (type: {type(token)})")
+                    
                     if not token:
+                        log_service_status("STREAM", "debug", "Skipping empty token")
                         continue
 
                     # Check if stream was stopped
@@ -289,6 +294,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     }
 
                     try:
+                        log_service_status("STREAM", "debug", f"Yielding SSE data: {json.dumps(data)}")
                         yield f"data: {json.dumps(data)}\n\n"
                     except Exception as e:
                         log_service_status("STREAM", "error", f"Error yielding token: {e}")
@@ -597,7 +603,11 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 async for token in call_llm_stream(
                     stream_messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
                 ):
+                    # Debug: log what we receive from the stream
+                    log_service_status("STREAM", "debug", f"Received token: '{token}' (type: {type(token)})")
+                    
                     if not token:
+                        log_service_status("STREAM", "debug", "Skipping empty token")
                         continue
 
                     # Check if stream was stopped
@@ -616,6 +626,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     }
 
                     try:
+                        log_service_status("STREAM", "debug", f"Yielding SSE data: {json.dumps(data)}")
                         yield f"data: {json.dumps(data)}\n\n"
                     except Exception as e:
                         log_service_status("STREAM", "error", f"Error yielding token: {e}")
@@ -780,109 +791,13 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 
-# Middleware for request tracking
-@app.middleware("http")
-async def request_middleware(request: Request, call_next):
-    """Enhanced middleware with request tracking and timing."""
-    # Generate unique request ID
-    request_id = str(uuid.uuid4())
-    request.state.request_id = request_id
+# Include route modules
+app.include_router(health_router)
+app.include_router(chat_router)
+app.include_router(models_router)
 
-    # Start timing
-    start_time = time.time()
-
-    # Log request start
-    log_service_status("REQUEST", "info", f"[{request_id}] {request.method} {request.url.path} - Started")
-
-    try:
-        # Process request
-        response = await call_next(request)
-
-        # Calculate timing
-        end_time = time.time()
-        response_time_ms = (end_time - start_time) * 1000
-
-        # Log successful completion
-        log_service_status(
-            "REQUEST",
-            "info",
-            f"[{request_id}] {request.method} {request.url.path} - "
-            f"Completed {response.status_code} in {response_time_ms:.2f}ms",
-        )
-
-        # Add timing headers
-        response.headers["X-Request-ID"] = request_id
-        response.headers["X-Process-Time"] = f"{response_time_ms:.2f}ms"
-
-        # Log API request for monitoring
-        log_api_request(request.method, request.url.path, response.status_code, response_time_ms)
-
-        return response
-
-    except Exception as e:
-        # Calculate timing for failed requests
-        end_time = time.time()
-        response_time_ms = (end_time - start_time) * 1000
-
-        # Log error
-        log_service_status(
-            "REQUEST",
-            "error",
-            f"[{request_id}] {request.method} {request.url.path} - " f"Failed after {response_time_ms:.2f}ms: {str(e)}",
-        )
-
-        # Re-raise to let exception handlers deal with it
-        raise
-
-
-@app.get("/debug/routes")
-async def debug_routes():
-    """Debug endpoint to list all available routes"""
-    routes = []
-    for route in app.routes:
-        try:
-            if hasattr(route, "path"):
-                path = getattr(route, "path", "unknown")
-                methods = getattr(route, "methods", {"GET"})
-                routes.append({"path": path, "methods": list(methods) if methods else ["GET"]})
-        except Exception:
-            continue
-    return {"total_routes": len(routes), "routes": sorted(routes, key=lambda x: x["path"])}
-
-
-# Global memory service instance
-global_memory_service = None
-
-
-def get_memory_service():
-    """
-    Dependency injection for memory service.
-    
-    Returns:
-        MemoryService: The global memory service instance or None if not available
-    """
-    return global_memory_service
-
-
-def get_memory_service_or_legacy():
-    """
-    Get memory service with fallback to legacy system.
-    
-    Returns:
-        MemoryService or None: Memory service if available, None for legacy fallback
-    """
-    if global_memory_service:
-        return global_memory_service
-    else:
-        log_service_status("MEMORY", "info", "Using legacy memory system")
-        return None
-
-
-def get_memory_service():
-    """
-    Dependency injection function for FastAPI routes.
-    
-    Returns:
-        MemoryService or None: Memory service instance
-    """
-    return get_memory_service_or_legacy()
+# Include additional routers
+app.include_router(upload_router)
+app.include_router(debug_router)
+app.include_router(memory_router)
+app.include_router(model_manager_router)
