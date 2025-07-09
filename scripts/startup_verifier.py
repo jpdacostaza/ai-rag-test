@@ -221,7 +221,6 @@ class StartupVerifier:
         possible_paths = [
             Path("/app/memory_function.py"),
             Path("./memory_function.py"),
-            Path("/app/memory/functions/memory_function.py"),
         ]
         
         for path in possible_paths:

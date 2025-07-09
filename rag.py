@@ -11,9 +11,17 @@ from fastapi import HTTPException, UploadFile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from database_manager import db_manager
-from database_manager import get_embedding, index_document_chunks, retrieve_user_memory
+from database_manager import get_embedding, index_document_chunks
 from error_handler import MemoryErrorHandler, safe_execute, log_error
 from human_logging import log_service_status
+
+# Import new memory system with fallback
+try:
+    from memory import MemoryService
+    MEMORY_SERVICE_AVAILABLE = True
+except ImportError:
+    MemoryService = None
+    MEMORY_SERVICE_AVAILABLE = False
 
 
 # RAG configuration constants
@@ -175,7 +183,7 @@ class RAGProcessor:
                 }
             )
 
-    async def semantic_search(self, query: str, user_id: str, limit: int = DEFAULT_SEARCH_LIMIT) -> List[Dict[str, Any]]:
+    async def semantic_search(self, query: str, user_id: str, limit: int = DEFAULT_SEARCH_LIMIT, memory_service=None) -> List[Dict[str, Any]]:
         """
         Perform semantic search across user's documents.
         
@@ -183,6 +191,7 @@ class RAGProcessor:
             query (str): The search query text
             user_id (str): The ID of the user whose documents to search
             limit (int, optional): Maximum number of results to return. Defaults to 5.
+            memory_service: Optional new memory service instance
             
         Returns:
             List[Dict[str, Any]]: A list of document chunks matching the query
@@ -204,55 +213,85 @@ class RAGProcessor:
             limit = max(1, min(limit, MAX_SEARCH_LIMIT))  # Keep limit between 1 and MAX_SEARCH_LIMIT
                 
             logging.info(f"[RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}")
-        
-        async def get_query_embedding():
-            """Helper function to get query embedding using safe execution"""
-            return get_embedding(db_manager, query)
             
-        async def retrieve_similar_documents(embedding):
-            """Helper function to retrieve similar documents using safe execution"""
-            return retrieve_user_memory(db_manager, user_id, embedding, limit)
-            
-        # Get query embedding with error handling
-        query_embedding = await safe_execute(
-            get_query_embedding,
-            fallback_value=None,
-            error_handler=lambda e: log_error(e, f"Failed to get embedding for query: {query[:50]}...")
-        )
-        
-        # Check if embedding is valid - avoid NumPy array truth value errors
-        embedding_valid = False
-        
-        if query_embedding is not None:
-            if hasattr(query_embedding, "size"):
-                # For NumPy arrays, check size safely
+            # Try new memory service first
+            if memory_service and MEMORY_SERVICE_AVAILABLE:
+                log_service_status("RAG", "info", "Using new memory service for semantic search")
                 try:
-                    embedding_valid = query_embedding.size > 0
-                except ValueError:
-                    embedding_valid = False
-            elif hasattr(query_embedding, "__len__"):
-                embedding_valid = len(query_embedding) > 0
-        
-        if not embedding_valid:
-            log_service_status("RAG", "warning", "Could not generate embedding for search query")
-            logging.warning("[RAG] Embedding is None or empty")
-            return []
-        
-        # Retrieve similar documents with error handling
-        results = await safe_execute(
-            lambda: retrieve_similar_documents(query_embedding),
-            fallback_value=[],
-            error_handler=lambda e: log_error(e, f"Failed to retrieve documents for user: {user_id}")
-        )
-        
-        # Log success status
-        log_service_status(
-            "RAG", 
-            "ready", 
-            f"Found {len(results)} relevant documents for query: {query[:50]}..."
-        )
-        return results
+                    memories = await memory_service.get_relevant_memories(
+                        user_id=user_id,
+                        query_text=query,
+                        limit=limit
+                    )
+                    
+                    # Convert to RAG format
+                    results = []
+                    for memory in memories:
+                        results.append({
+                            "document": memory.content,
+                            "metadata": memory.metadata or {},
+                            "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
+                        })
+                    
+                    log_service_status("RAG", "ready", f"Found {len(results)} relevant documents using new memory service")
+                    return results
+                    
+                except Exception as e:
+                    log_service_status("RAG", "warning", f"New memory service failed, falling back to legacy: {e}")
             
+            # Fallback to legacy system
+            log_service_status("RAG", "info", "Using legacy memory system for semantic search")
+            
+            async def get_query_embedding():
+                """Helper function to get query embedding using safe execution"""
+                return get_embedding(db_manager, query)
+                
+            async def retrieve_similar_documents(embedding):
+                """Helper function to retrieve similar documents using safe execution"""
+                # Import here to avoid circular imports
+                from database_manager import retrieve_user_memory
+                return retrieve_user_memory(db_manager, user_id, embedding, limit)
+                
+            # Get query embedding with error handling
+            query_embedding = await safe_execute(
+                get_query_embedding,
+                fallback_value=None,
+                error_handler=lambda e: log_error(e, f"Failed to get embedding for query: {query[:50]}...")
+            )
+            
+            # Check if embedding is valid - avoid NumPy array truth value errors
+            embedding_valid = False
+            
+            if query_embedding is not None:
+                if hasattr(query_embedding, "size"):
+                    # For NumPy arrays, check size safely
+                    try:
+                        embedding_valid = query_embedding.size > 0
+                    except ValueError:
+                        embedding_valid = False
+                elif hasattr(query_embedding, "__len__"):
+                    embedding_valid = len(query_embedding) > 0
+            
+            if not embedding_valid:
+                log_service_status("RAG", "warning", "Could not generate embedding for search query")
+                logging.warning("[RAG] Embedding is None or empty")
+                return []
+            
+            # Retrieve similar documents with error handling
+            results = await safe_execute(
+                lambda: retrieve_similar_documents(query_embedding),
+                fallback_value=[],
+                error_handler=lambda e: log_error(e, f"Failed to retrieve documents for user: {user_id}")
+            )
+            
+            # Log success status
+            log_service_status(
+                "RAG", 
+                "ready", 
+                f"Found {len(results)} relevant documents for query: {query[:50]}..."
+            )
+            return results
+                
         except Exception as e:
             error_context = f"Semantic search for query '{query[:30]}...'"
             log_service_status("RAG", "error", f"Semantic search error: {str(e)}")

@@ -22,7 +22,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from database_manager import db_manager, retrieve_user_memory, get_embedding, index_document_chunks
+from database_manager import db_manager, get_embedding, index_document_chunks
 from error_handler import MemoryErrorHandler
 from human_logging import log_service_status
 
@@ -225,7 +225,13 @@ class ConversationAnalyzer:
             if query_embedding is None or (hasattr(query_embedding, "size") and query_embedding.size == 0):
                 return 0.5  # Neutral score if can't get embedding
 
-            recent_memories = retrieve_user_memory(db_manager, user_id, query_embedding, n_results=3)
+            # Import here to avoid circular imports
+            try:
+                from database_manager import retrieve_user_memory
+                recent_memories = retrieve_user_memory(db_manager, user_id, query_embedding, n_results=3)
+            except Exception as e:
+                log_service_status("ADAPTIVE_LEARNING", "warning", f"Could not retrieve memories: {e}")
+                return 0.5
 
             if not recent_memories:
                 return 0.5  # No context available

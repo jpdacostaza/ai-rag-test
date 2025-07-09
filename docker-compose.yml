@@ -123,10 +123,10 @@ services:
       - "8080:8080"
     restart: always
     environment:
-      # Route through our main backend API
-      - OLLAMA_BASE_URL=http://backend:3000
-      - OPENAI_API_BASE_URLS=http://backend:3000
+      # Route through our main backend API using the working v1 endpoint
+      - OPENAI_API_BASE_URLS=http://backend:3000/v1
       - OPENAI_API_KEYS=backend-api-key
+      - OLLAMA_BASE_URL=http://backend:3000/v1
       - ENABLE_FUNCTIONS=true
       - ENABLE_COMMUNITY_SHARING=false
       - WEBUI_AUTH=true

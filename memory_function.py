@@ -5,12 +5,13 @@ Enhanced Memory Function for OpenWebUI
 A comprehensive memory system that integrates with the backend memory API
 to provide persistent conversation context and learning capabilities.
 
+This function uses the separated memory architecture for better maintainability.
+
 NOTE: This is the primary memory function file used by the system.
 The file at memory/functions/memory_filter.py serves as a fallback
 in case this file is not available.
 """
 
-import json
 import time
 import uuid
 from typing import Dict, List, Optional, Any
@@ -23,6 +24,14 @@ except ImportError:
     import sys
     subprocess.check_call([sys.executable, "-m", "pip", "install", "httpx"])
     import httpx
+
+# Import our separated memory components
+try:
+    from memory import MemoryService, MemoryConfig
+except ImportError:
+    # Fallback for when memory module is not properly installed
+    MemoryService = None
+    MemoryConfig = None
 
 
 class Valves(BaseModel):
@@ -45,12 +54,107 @@ class Valves(BaseModel):
     debug: bool = False
 
 
+class MemoryAPIClient:
+    """Client for interacting with the Memory API."""
+
+    def __init__(self, base_url: str, timeout: float = 10.0, debug_log: callable = None):
+        self.base_url = base_url
+        self.timeout = timeout
+        self.log = debug_log if debug_log else lambda msg, level: None
+
+    async def retrieve_memories(self, user_id: str, query: str, limit: int, threshold: float) -> List[dict]:
+        """Retrieve relevant memories from the memory API."""
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    f"{self.base_url}/api/memory/retrieve",
+                    json={
+                        "user_id": user_id,
+                        "query": query,
+                        "limit": limit,
+                        "threshold": threshold
+                    }
+                )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("memories", [])
+                else:
+                    self.log(f"Memory retrieval failed: {response.status_code}", "ERROR")
+                    
+        except Exception as e:
+            self.log(f"Error retrieving memories: {str(e)}", "ERROR")
+            
+        return []
+
+    async def store_interaction(self, user_id: str, messages: List[dict]) -> bool:
+        """Store learning interaction in the memory system."""
+        try:
+            user_message, assistant_response = self._extract_interaction(messages)
+            
+            if user_message and assistant_response:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    response = await client.post(
+                        f"{self.base_url}/api/learning/process_interaction",
+                        json={
+                            "user_id": user_id,
+                            "conversation_id": str(uuid.uuid4()),
+                            "user_message": user_message,
+                            "assistant_response": assistant_response,
+                            "timestamp": time.time(),
+                            "source": "openwebui_function"
+                        }
+                    )
+                    
+                    if response.status_code == 200:
+                        self.log("Learning interaction stored successfully")
+                        return True
+                    else:
+                        self.log(f"Learning storage failed: {response.status_code}", "ERROR")
+                        
+        except Exception as e:
+            self.log(f"Error storing learning interaction: {str(e)}", "ERROR")
+        
+        return False
+
+    def _extract_interaction(self, messages: List[dict]) -> tuple[str, str]:
+        """Extract user and assistant messages from a list of messages."""
+        user_message = ""
+        assistant_response = ""
+        for msg in reversed(messages):
+            if msg.get("role") == "user" and not user_message:
+                user_message = msg.get("content", "")
+            elif msg.get("role") == "assistant" and not assistant_response:
+                assistant_response = msg.get("content", "")
+        return user_message, assistant_response
+
+
 class Filter:
-    """Enhanced Memory Filter for OpenWebUI."""
+    """Enhanced Memory Filter for OpenWebUI using separated memory architecture."""
     
     def __init__(self):
         self.valves = Valves()
-        self.conversation_count = {}
+        self.conversation_count = {}  # Legacy fallback support
+        
+        # Initialize memory service with proper separation of concerns
+        if MemoryService and MemoryConfig:
+            config = MemoryConfig(
+                api_url=self.valves.memory_api_url,
+                timeout=10.0,
+                max_memories=self.valves.max_memories,
+                relevance_threshold=self.valves.memory_threshold,
+                auto_store_enabled=self.valves.enable_learning,
+                auto_store_threshold=self.valves.auto_store_threshold,
+                debug_enabled=self.valves.debug
+            )
+            self.memory_service = MemoryService(config, self.log)
+        else:
+            # Fallback to legacy implementation
+            self.memory_service = None
+            self.memory_client = MemoryAPIClient(
+                base_url=self.valves.memory_api_url, 
+                debug_log=self.log
+            )
         
     def log(self, message: str, level: str = "INFO"):
         """Log messages with timestamp."""
@@ -64,33 +168,39 @@ class Filter:
             return body
             
         try:
-            # Extract user information
             user_id = self._get_user_id(user)
             messages = body.get("messages", [])
             
-            if not messages:
-                return body
-                
-            # Get the latest user message
-            latest_message = None
-            for msg in reversed(messages):
-                if msg.get("role") == "user":
-                    latest_message = msg.get("content", "")
-                    break
-                    
+            latest_message = self._get_latest_user_message(messages)
             if not latest_message:
                 return body
                 
             self.log(f"Processing message for user {user_id}: {latest_message[:100]}...")
             
-            # Retrieve relevant memories
-            memories = await self._retrieve_memories(user_id, latest_message)
-            
-            if memories:
-                # Inject memories into the conversation
-                memory_context = self._format_memories(memories)
-                body = self._inject_memory_context(body, memory_context)
-                self.log(f"Injected {len(memories)} memories into conversation")
+            # Use new memory service if available, otherwise fallback
+            if self.memory_service:
+                memories = await self.memory_service.get_relevant_memories(
+                    user_id=user_id,
+                    query_text=latest_message
+                )
+                
+                if memories:
+                    memory_context = self.memory_service.format_memories_for_injection(memories)
+                    body = self.memory_service.inject_memory_context(body, memory_context)
+                    self.log(f"Injected {len(memories)} memories into conversation")
+            else:
+                # Legacy fallback
+                memories = await self.memory_client.retrieve_memories(
+                    user_id=user_id,
+                    query=latest_message,
+                    limit=self.valves.max_memories,
+                    threshold=self.valves.memory_threshold
+                )
+                
+                if memories:
+                    memory_context = self._format_memories(memories)
+                    body = self._inject_memory_context(body, memory_context)
+                    self.log(f"Injected {len(memories)} memories into conversation")
             
         except Exception as e:
             self.log(f"Error in inlet: {str(e)}", "ERROR")
@@ -106,13 +216,16 @@ class Filter:
             user_id = self._get_user_id(user)
             messages = body.get("messages", [])
             
-            # Track conversation count for auto-storage
-            self.conversation_count[user_id] = self.conversation_count.get(user_id, 0) + 1
-            
-            # Store learning data if threshold met
-            if self.conversation_count[user_id] >= self.valves.auto_store_threshold:
-                await self._store_learning_interaction(user_id, messages)
-                self.conversation_count[user_id] = 0  # Reset counter
+            # Use new memory service if available, otherwise fallback  
+            if self.memory_service:
+                await self.memory_service.track_conversation_and_store(user_id, messages)
+            else:
+                # Legacy fallback
+                self.conversation_count[user_id] = self.conversation_count.get(user_id, 0) + 1
+                
+                if self.conversation_count[user_id] >= self.valves.auto_store_threshold:
+                    await self.memory_client.store_interaction(user_id, messages)
+                    self.conversation_count[user_id] = 0
                 
         except Exception as e:
             self.log(f"Error in outlet: {str(e)}", "ERROR")
@@ -125,65 +238,12 @@ class Filter:
             return user.get("id", user.get("user_id", "anonymous"))
         return "anonymous"
     
-    async def _retrieve_memories(self, user_id: str, query: str) -> List[dict]:
-        """Retrieve relevant memories from the memory API."""
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.valves.memory_api_url}/api/memory/retrieve",
-                    json={
-                        "user_id": user_id,
-                        "query": query,
-                        "limit": self.valves.max_memories,
-                        "threshold": self.valves.memory_threshold
-                    }
-                )
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    return data.get("memories", [])
-                else:
-                    self.log(f"Memory retrieval failed: {response.status_code}", "ERROR")
-                    
-        except Exception as e:
-            self.log(f"Error retrieving memories: {str(e)}", "ERROR")
-            
-        return []
-    
-    async def _store_learning_interaction(self, user_id: str, messages: List[dict]):
-        """Store learning interaction in the memory system."""
-        try:
-            # Extract user and assistant messages
-            user_message = ""
-            assistant_response = ""
-            
-            for msg in reversed(messages):
-                if msg.get("role") == "user" and not user_message:
-                    user_message = msg.get("content", "")
-                elif msg.get("role") == "assistant" and not assistant_response:
-                    assistant_response = msg.get("content", "")
-                    
-            if user_message and assistant_response:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.post(
-                        f"{self.valves.memory_api_url}/api/learning/process_interaction",
-                        json={
-                            "user_id": user_id,
-                            "conversation_id": str(uuid.uuid4()),
-                            "user_message": user_message,
-                            "assistant_response": assistant_response,
-                            "timestamp": time.time(),
-                            "source": "openwebui_function"
-                        }
-                    )
-                    
-                    if response.status_code == 200:
-                        self.log("Learning interaction stored successfully")
-                    else:
-                        self.log(f"Learning storage failed: {response.status_code}", "ERROR")
-                        
-        except Exception as e:
-            self.log(f"Error storing learning interaction: {str(e)}", "ERROR")
+    def _get_latest_user_message(self, messages: List[dict]) -> Optional[str]:
+        """Get the content of the latest user message."""
+        for msg in reversed(messages):
+            if msg.get("role") == "user":
+                return msg.get("content")
+        return None
     
     def _format_memories(self, memories: List[dict]) -> str:
         """Format memories for injection into conversation."""

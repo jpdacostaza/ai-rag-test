@@ -12,6 +12,7 @@ from fastapi import File
 from fastapi import Form
 from fastapi import HTTPException
 from fastapi import UploadFile
+from fastapi import Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -20,6 +21,13 @@ from error_handler import log_error
 from human_logging import log_api_request
 from human_logging import log_service_status
 from rag import rag_processor
+
+
+def get_memory_service():
+    """Get memory service from main app."""
+    # Import here to avoid circular imports
+    from main import get_memory_service_or_legacy
+    return get_memory_service_or_legacy()
 
 # Create router for upload endpoints
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
@@ -104,6 +112,7 @@ async def search_documents(
     query: str = Form(...),
     user_id: str = Form(...),
     limit: int = Form(5, ge=1, le=50),  # Add validation for limit
+    memory_service=Depends(get_memory_service)
 ):
     """
     Search through uploaded documents using semantic search.
@@ -125,7 +134,7 @@ async def search_documents(
     logging.info(f"[UPLOAD] Search requested with query='{query}', user_id='{user_id}', limit={limit}")
 
     try:
-        results = await rag_processor.semantic_search(query, user_id, limit)
+        results = await rag_processor.semantic_search(query, user_id, limit, memory_service)
         
         log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
 
@@ -230,13 +239,21 @@ async def upload_document_json(upload: DocumentUploadJSON):
 
 
 @upload_router.post("/search_json")
-async def search_documents_json(search: DocumentSearchJSON):
+async def search_documents_json(search: DocumentSearchJSON, memory_service=Depends(get_memory_service)):
     """Search documents via JSON payload for testing."""
     try:
         # Call the existing search function
-        result = await search_documents(query=search.query, user_id=search.user_id, limit=search.limit or 5)
-
-        return result
+        results = await rag_processor.semantic_search(search.query, search.user_id, search.limit or 5, memory_service)
+        
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "query": search.query,
+                "results_count": len(results),
+                "results": results,
+            },
+        )
 
     except Exception as e:
         log_service_status("UPLOAD", "error", f"Error in search_documents_json: {e}")

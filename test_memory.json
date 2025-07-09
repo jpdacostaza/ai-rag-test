@@ -1,0 +1,6 @@
+{
+  "user_id": "test_user",
+  "query": "hello world",
+  "limit": 3,
+  "threshold": 0.1
+}

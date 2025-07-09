@@ -265,7 +265,7 @@ class ToolService:
                 ),
             )
         else:
-            user_response = "Please specify currencies like 'exchange rate USD to EUR'.
+            user_response = "Please specify currencies like 'exchange rate USD to EUR'."
 
         return True, user_response, "exchange_rate", debug_info
 

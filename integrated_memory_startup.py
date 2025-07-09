@@ -31,7 +31,7 @@ from concurrent.futures import ThreadPoolExecutor
 OLLAMA_API = "http://ollama:11434"
 OPENWEBUI_API = "http://openwebui:8080"
 OPENWEBUI_DB_PATH = "/tmp/openwebui/webui.db"
-MEMORY_FUNCTION_PATH = "/app/memory/functions/memory_function.py"
+MEMORY_FUNCTION_PATH = "/app/memory_function.py"
 DEFAULT_MODEL = "llama3.2:3b"
 FALLBACK_MODELS = ["phi3:mini", "gemma2:2b"]
 MAX_RETRIES = 20
@@ -385,7 +385,7 @@ class IntegratedMemoryAPI:
             
             # Start uvicorn in a separate thread
             def run_api():
-                uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
+                uvicorn.run(app, host="0.0.0.0", port=8080, log_level="info")
             
             api_thread = threading.Thread(target=run_api, daemon=True)
             api_thread.start()

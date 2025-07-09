@@ -55,23 +55,26 @@ class LLMService:
 
     async def call_ollama_llm(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> str:
         """
-        Asynchronously calls the Ollama API using the chat endpoint for better control.
+        Asynchronously calls the Ollama API using the chat endpoint.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            model: Optional model name, defaults to configured default model
+            
+        Returns:
+            str: The response content from the LLM
+            
+        Raises:
+            Exception: If connection fails or API returns an error
         """
         model = model or self.default_model
 
-        # Debug logging to see what messages are being sent
-        logging.debug(f"[DEBUG] Sending {len(messages)} messages to Ollama model {model}")
-        for i, msg in enumerate(messages):
-            logging.debug(f"[DEBUG] Message {i}: role='{msg.get('role')}', content='{msg.get('content', '')[:100]}...'")
-
-        # Use Ollama's chat endpoint which provides better control over system prompts
         payload = {
             "model": model,
             "messages": messages,
             "stream": False,
             "options": {"temperature": 0.7, "top_p": 0.9},
         }
-        timeout = LLM_TIMEOUT
 
         try:
             # Configure optimized timeouts and connection pooling
@@ -89,10 +92,7 @@ class LLMService:
                 response = await client.post(f"{self.ollama_url}/api/chat", json=payload)
                 response.raise_for_status()
                 data = response.json()
-                llm_response = data.get("message", {}).get("content", "")
-                logging.debug(f"[DEBUG] Ollama response length: {len(llm_response)} chars")
-                logging.debug(f"[DEBUG] Ollama response content: '{llm_response[:200]}...'")
-                return llm_response
+                return data.get("message", {}).get("content", "")
         except httpx.RequestError as e:
             log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
             raise Exception(f"Cannot connect to Ollama service at {self.ollama_url}") from e
@@ -113,6 +113,18 @@ class LLMService:
     ) -> str:
         """
         Asynchronously calls an OpenAI-compatible API.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            model: Optional model name, defaults to configured default model
+            api_url: Optional API URL, defaults to configured OpenAI base URL
+            api_key: Optional API key, defaults to configured OpenAI API key
+            
+        Returns:
+            str: The response content from the LLM
+            
+        Raises:
+            Exception: If connection fails or API returns an error
         """
         model = model or self.default_model
         api_url = api_url or OPENAI_API_BASE_URL
