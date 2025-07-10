@@ -18,7 +18,9 @@ from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
 import httpx
 import uvicorn
 # Database imports
@@ -56,27 +58,86 @@ chroma_client = None
 memory_collection = None
 ollama_client = None
 class MemoryRetrieveRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     query: str
     limit: int = 5
     threshold: float = 0.01  # FIXED: Lowered further to 0.01 for better recall
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
 class MemorySaveRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     content: str
     metadata: Optional[Dict[str, Any]] = None
     category: Optional[str] = "explicit"
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
 class MemoryDeleteRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     query: str  # What to search for to delete
     exact_match: bool = False  # If True, delete exact matches only
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
 class MemoryForgetRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     content: str  # Specific content to forget
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
 class MemoryClearRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     confirm: bool = False  # Safety flag
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
+class MemoryPurgeRequest(BaseModel):
+    confirm_purge: bool = Field(..., description="Must be True to proceed with purge")
+    admin_key: Optional[str] = Field(None, description="Optional admin key for additional security")
+    i_understand_this_deletes_everything: bool = Field(..., description="Final confirmation flag")
+    
+    @field_validator('confirm_purge')
+    @classmethod
+    def validate_confirm_purge(cls, v):
+        if not v:
+            raise ValueError('confirm_purge must be True to proceed')
+        return v
+    
+    @field_validator('i_understand_this_deletes_everything')
+    @classmethod
+    def validate_final_confirm(cls, v):
+        if not v:
+            raise ValueError('i_understand_this_deletes_everything must be True to proceed')
+        return v
+
 class LearningInteractionRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     conversation_id: str
     user_message: str
     assistant_response: Optional[str] = None
@@ -85,9 +146,24 @@ class LearningInteractionRequest(BaseModel):
     context: Optional[Dict[str, Any]] = None
     timestamp: Optional[str] = None
     source: Optional[str] = "function"
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
+
 class DocumentLearningRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(..., description="User identifier")
     document: Dict[str, Any]
+    
+    @field_validator('user_id')
+    @classmethod
+    def validate_user_id(cls, v):
+        if not v or not v.strip():
+            raise ValueError('user_id must not be empty')
+        return v.strip()
 # Chat Completion Proxy Models
 class ChatMessage(BaseModel):
     role: str
@@ -143,7 +219,7 @@ async def initialize_databases():
             metadata={"description": "Long-term user memory storage"}
         )
         print(f"✅ ChromaDB connected at {CHROMA_HOST}:{CHROMA_PORT}")
-        print(f"📚 Memory collection has {memory_collection.count()} documents")
+        print(f"📚 Memory collection has {memory_collection.count()} memories")
     except Exception as e:
         print(f"❌ ChromaDB connection failed: {e}")
         print("⚠️ Falling back to simple storage for long-term memory")
@@ -466,6 +542,7 @@ async def retrieve_from_redis(user_id: str, query: str) -> List[Dict[str, Any]]:
                 if memory_data:
                     memory = json.loads(memory_data)
                     memories.append({
+                        "user_id": user_id,  # Include user_id for MemoryRecord validation
                         "content": memory.get("content", ""),
                         "metadata": memory.get("metadata", {}),
                         "timestamp": memory.get("timestamp", 0),
@@ -495,6 +572,7 @@ async def retrieve_from_chromadb(user_id: str, query: str, limit: int) -> List[D
             for i, doc in enumerate(results["documents"][0]):
                 metadata = results["metadatas"][0][i] if results["metadatas"] and results["metadatas"][0] else {}
                 memories.append({
+                    "user_id": user_id,  # Include user_id for MemoryRecord validation
                     "content": doc,
                     "metadata": metadata,
                     "timestamp": metadata.get("timestamp", 0),
@@ -693,8 +771,8 @@ def extract_memories(text: str) -> List[str]:
     
     # Enhanced AI response detection - don't extract memories from AI messages
     ai_indicators = [
-        # Common AI response patterns
-        "i don't have", "i can't", "i'm a", "i am a", "as an ai", "as a language model", 
+        # Common AI response patterns - more specific to avoid false positives
+        "i don't have", "i can't", "as an ai", "as a language model", 
         "i don't know", "i can help", "i'm here to", "let me", "would you like", 
         "i understand", "i recall", "i remember", "from our conversation",
         "hello!", "hi there", "how can i", "what can i", "nice to meet you",
@@ -1222,19 +1300,136 @@ async def openai_models():
         print(f"❌ Models error: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get models: {str(e)}")
 
-if __name__ == "__main__":
-    print("🚀 Starting Enhanced Memory API Server with Redis + ChromaDB...")
-    print("🏪 Storage Systems:")
-    print(f"   📱 Redis (short-term): {REDIS_HOST}:{REDIS_PORT}")
-    print(f"   📚 ChromaDB (long-term): {CHROMA_HOST}:{CHROMA_PORT}")
-    print("📡 Endpoints:")
-    print("   POST /api/memory/retrieve")
-    print("   POST /api/memory/save")
-    print("   POST /api/memory/delete")
-    print("   POST /api/memory/forget")
-    print("   POST /api/memory/clear")
-    print("   GET  /api/memory/list/{user_id}")
-    print("   POST /api/learning/process_interaction")
-    print("   GET  /health")
-    print("   GET  /debug/stats")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+# Add validation error handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors with detailed logging."""
+    try:
+        body = await request.body()
+        print(f"❌ VALIDATION ERROR:")
+        print(f"   URL: {request.url}")
+        print(f"   Method: {request.method}")
+        print(f"   Headers: {dict(request.headers)}")
+        print(f"   Body: {body.decode('utf-8') if body else 'No body'}")
+        print(f"   Errors: {exc.errors()}")
+    except Exception as e:
+        print(f"❌ Error capturing validation details: {e}")
+    
+    # Convert errors to serializable format
+    serializable_errors = []
+    for error in exc.errors():
+        serializable_error = {
+            "type": error.get("type", "validation_error"),
+            "loc": error.get("loc", []),
+            "msg": str(error.get("msg", "Validation error")),
+            "input": str(error.get("input", "")) if error.get("input") is not None else None
+        }
+        serializable_errors.append(serializable_error)
+    
+    return JSONResponse(
+        status_code=422,
+        content={"detail": serializable_errors}
+    )
+
+@app.delete("/memory/{user_id}")
+async def clear_user_memory(user_id: str) -> Dict[str, Any]:
+    """Clear all memory for a specific user."""
+    try:
+        request = MemoryClearRequest(user_id=user_id)
+        
+        # Clear from Redis and ChromaDB
+        redis_deleted = await clear_user_redis_memories(request.user_id)
+        chromadb_deleted = await clear_user_chromadb_memories(request.user_id)
+        deleted_count = redis_deleted + chromadb_deleted
+        
+        print(f"✅ Cleared {deleted_count} memories for user {request.user_id} (Redis: {redis_deleted}, ChromaDB: {chromadb_deleted})")
+        
+        return {
+            "status": "success",
+            "message": f"Cleared {deleted_count} memories for user: {request.user_id}",
+            "user_id": request.user_id,
+            "deleted_count": deleted_count,
+            "redis_deleted": redis_deleted,
+            "chromadb_deleted": chromadb_deleted
+        }
+    except Exception as e:
+        print(f"❌ Error clearing memory for user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/purge-all")
+async def purge_all_memory(request: MemoryPurgeRequest) -> Dict[str, Any]:
+    """ADMIN ONLY: Purge ALL memory from Redis and ChromaDB - IRREVERSIBLE!"""
+    try:
+        # Optional admin key check
+        admin_key = os.getenv("MEMORY_ADMIN_KEY")
+        if admin_key and request.admin_key != admin_key:
+            raise HTTPException(status_code=403, detail="Invalid admin key")
+        
+        # Access global database clients
+        global redis_client, chroma_client
+        
+        stats = {
+            "redis_cleared": False,
+            "chromadb_cleared": False,
+            "errors": []
+        }
+        
+        # Clear Redis
+        try:
+            if redis_client:
+                redis_client.flushall()
+                stats["redis_cleared"] = True
+                print("⚠️ ADMIN ACTION: All Redis memory purged")
+            else:
+                stats["errors"].append("Redis client not available")
+        except Exception as e:
+            stats["errors"].append(f"Redis clear error: {str(e)}")
+            print(f"❌ Error clearing Redis: {e}")
+        
+        # Clear ChromaDB
+        try:
+            if chroma_client:
+                # Get all collections and delete them
+                collections = chroma_client.list_collections()
+                for collection in collections:
+                    chroma_client.delete_collection(collection.name)
+                stats["chromadb_cleared"] = True
+                print("⚠️ ADMIN ACTION: All ChromaDB collections purged")
+            else:
+                stats["errors"].append("ChromaDB client not available")
+        except Exception as e:
+            stats["errors"].append(f"ChromaDB clear error: {str(e)}")
+            print(f"❌ Error clearing ChromaDB: {e}")
+        
+        success = stats["redis_cleared"] and stats["chromadb_cleared"]
+        
+        return {
+            "status": "success" if success else "partial_success",
+            "message": "All memory databases purged" if success else "Partial purge completed with errors",
+            "details": stats,
+            "timestamp": datetime.now().isoformat(),
+            "warning": "ALL USER DATA HAS BEEN PERMANENTLY DELETED"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error during memory purge: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/learning/{user_id}")
+async def get_learning_data(user_id: str) -> Dict[str, Any]:
+    """Get learning data for a user."""
+    try:
+        if not user_id or not user_id.strip():
+            raise HTTPException(status_code=400, detail="user_id is required")
+        
+        # This endpoint is a placeholder for future learning analytics
+        return {
+            "user_id": user_id.strip(),
+            "message": "Learning data endpoint - not yet implemented",
+            "status": "placeholder"
+        }
+    except Exception as e:
+        print(f"❌ Error getting learning data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

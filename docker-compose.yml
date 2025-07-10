@@ -69,6 +69,10 @@ services:
       - EMBEDDING_PROVIDER=huggingface
       - USE_HTTP_CHROMA=true
       - SENTENCE_TRANSFORMERS_HOME=./storage/models
+      - MEMORY_API_URL=http://memory_api:8080
+      - MEMORY_AUTO_STORE=true
+      - MEMORY_AUTO_STORE_THRESHOLD=1
+      - MEMORY_DEBUG=true
     volumes:
       - ./storage/backend:/app/data
       - ./storage/models:/app/models

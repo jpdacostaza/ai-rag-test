@@ -1,0 +1,11 @@
+{
+  "model": "llama3.2:3b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello! My name is Alice and I'm a software engineer. I love working with Python and AI technologies."
+    }
+  ],
+  "stream": false,
+  "user": "alice_test"
+}

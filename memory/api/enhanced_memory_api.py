@@ -114,7 +114,7 @@ async def initialize_databases():
             metadata={"description": "Long-term user memory storage"}
         )
         print(f"✅ ChromaDB connected at {CHROMA_HOST}:{CHROMA_PORT}")
-        print(f"📚 Memory collection has {memory_collection.count()} documents")
+        print(f"📚 Memory collection has {memory_collection.count()} memories")
     except Exception as e:
         print(f"❌ ChromaDB connection failed: {e}")
         print("⚠️ Falling back to simple storage for long-term memory")

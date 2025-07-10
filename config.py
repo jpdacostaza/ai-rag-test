@@ -37,7 +37,7 @@ WRITE_TIMEOUT = int(os.getenv("WRITE_TIMEOUT", "5"))  # Write timeout
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
-CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8002"))  # Fixed: ChromaDB runs on port 8002 in docker-compose
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))  # Fixed: ChromaDB runs on port 8000 in docker-compose
 USE_HTTP_CHROMA = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
 
 # Embedding configuration

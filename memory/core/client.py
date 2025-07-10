@@ -43,10 +43,18 @@ class MemoryClient(IMemoryProvider):
             MemoryResponse with retrieved memories or empty response on error
         """
         try:
+            # Convert query_text to query for API compatibility
+            api_request = {
+                "user_id": query.user_id,
+                "query": query.query_text,  # API expects 'query' not 'query_text'
+                "limit": query.limit,
+                "threshold": query.threshold
+            }
+            
             async with httpx.AsyncClient(timeout=self.config.timeout) as client:
                 response = await client.post(
                     f"{self.config.api_url}/api/memory/retrieve",
-                    json=query.dict()
+                    json=api_request
                 )
                 
                 if response.status_code == 200:
@@ -60,10 +68,16 @@ class MemoryClient(IMemoryProvider):
                         total_count=len(memories)
                     )
                 else:
-                    self.log(f"Memory retrieval failed: {response.status_code}", "ERROR")
+                    error_details = f"Status: {response.status_code}"
+                    try:
+                        error_data = response.json()
+                        error_details += f", Response: {error_data}"
+                    except:
+                        error_details += f", Text: {response.text}"
+                    self.log(f"Memory retrieval failed: {error_details}", "ERROR")
                     return MemoryResponse(
                         success=False,
-                        error=f"API returned status {response.status_code}"
+                        error=f"API returned status {response.status_code}: {error_details}"
                     )
                     
         except Exception as e:
@@ -84,17 +98,31 @@ class MemoryClient(IMemoryProvider):
             bool: Success status
         """
         try:
+            # Convert MemoryRecord to MemorySaveRequest format expected by API
+            api_request = {
+                "user_id": memory.user_id,
+                "content": memory.content,
+                "metadata": memory.metadata or {},
+                "category": memory.metadata.get("category", "explicit") if memory.metadata else "explicit"
+            }
+            
             async with httpx.AsyncClient(timeout=self.config.timeout) as client:
                 response = await client.post(
-                    f"{self.config.api_url}/api/memory/store",
-                    json=memory.dict(exclude_none=True)
+                    f"{self.config.api_url}/api/memory/save",  # API uses 'save' not 'store'
+                    json=api_request
                 )
                 
                 success = response.status_code == 200
                 if success:
                     self.log("Memory stored successfully")
                 else:
-                    self.log(f"Memory storage failed: {response.status_code}", "ERROR")
+                    error_details = f"Status: {response.status_code}"
+                    try:
+                        error_data = response.json()
+                        error_details += f", Response: {error_data}"
+                    except:
+                        error_details += f", Text: {response.text}"
+                    self.log(f"Memory storage failed: {error_details}", "ERROR")
                     
                 return success
                 
@@ -113,10 +141,23 @@ class MemoryClient(IMemoryProvider):
             bool: Success status
         """
         try:
+            # Convert interaction to API format
+            api_request = {
+                "user_id": interaction.user_id,
+                "conversation_id": interaction.conversation_id,
+                "user_message": interaction.user_message,
+                "assistant_response": interaction.assistant_response or "",
+                "response_time": 1.0,  # Default value
+                "tools_used": [],  # Default empty list
+                "context": interaction.metadata or {},  # Use metadata as context
+                "timestamp": str(int(interaction.timestamp)) if interaction.timestamp else None,
+                "source": interaction.source or "openwebui"
+            }
+            
             async with httpx.AsyncClient(timeout=self.config.timeout) as client:
                 response = await client.post(
                     f"{self.config.api_url}/api/learning/process_interaction",
-                    json=interaction.dict()
+                    json={k: v for k, v in api_request.items() if v is not None}
                 )
                 
                 success = response.status_code == 200

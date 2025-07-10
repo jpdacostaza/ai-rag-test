@@ -1,0 +1,6 @@
+{
+  "user_id": "bob@example.com",
+  "query": "data scientist",
+  "limit": 10,
+  "threshold": 0.001
+}

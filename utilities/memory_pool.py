@@ -13,7 +13,11 @@ class MemoryObject:
     """Base class for pooled memory objects."""
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize a new memory object for pooling.
+        
+        Sets up default attributes for content, metadata, and access tracking.
+        """
         self.content: Any = None
         self.metadata: Dict[str, Any] = {}
         self.last_access: datetime = datetime.now()
@@ -31,7 +35,13 @@ class MemoryPool:
     """Thread-safe memory pool for object reuse."""
 
     def __init__(self, max_size: int = 1000, cleanup_interval: int = 300):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize the memory pool.
+        
+        Args:
+            max_size (int): Maximum number of objects to keep in pool. Defaults to 1000.
+            cleanup_interval (int): Cleanup interval in seconds. Defaults to 300.
+        """
         self.max_size = max_size
         self.cleanup_interval = cleanup_interval
         self.pools: Dict[str, deque] = {}

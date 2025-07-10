@@ -65,34 +65,38 @@ async def get_user_memories(user_id: str, query: str, memory_service = None, n_r
     if memory_service and MEMORY_SERVICE_AVAILABLE:
         # Use new memory service
         log_service_status("CHAT", "info", f"Using new memory service for user {user_id}")
-        memories = await memory_service.get_relevant_memories(
-            user_id=user_id,
-            query_text=query,
-            limit=n_results
-        )
-        
-        # Convert to legacy format for compatibility
-        memory_chunks = []
-        for memory in memories:
-            memory_chunks.append({
-                "document": memory.content,
-                "metadata": memory.metadata or {},
-                "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
-            })
-        return memory_chunks
-    else:
-        # Use legacy system - import here to avoid circular imports
-        log_service_status("CHAT", "info", f"Using legacy memory system for user {user_id}")
         try:
-            from database_manager import retrieve_user_memory
-            query_emb = await get_embedding(query)
-            if query_emb is not None:
-                return retrieve_user_memory(db_manager, user_id, query_emb, n_results=n_results)
-            else:
-                return []
+            memories = await memory_service.get_relevant_memories(
+                user_id=user_id,
+                query_text=query,
+                limit=n_results
+            )
+            
+            # Convert to legacy format for compatibility
+            memory_chunks = []
+            for memory in memories:
+                memory_chunks.append({
+                    "document": memory.content,
+                    "metadata": memory.metadata or {},
+                    "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
+                })
+            return memory_chunks
         except Exception as e:
-            log_service_status("CHAT", "error", f"Failed to retrieve legacy memories: {e}")
+            log_service_status("CHAT", "warning", f"New memory service failed, using legacy fallback: {e}")
+            # Fall through to legacy system
+    
+    # Use legacy system - import here to avoid circular imports
+    log_service_status("CHAT", "info", f"Using legacy memory system for user {user_id}")
+    try:
+        from database_manager import retrieve_user_memory
+        query_emb = await get_embedding(query)
+        if query_emb is not None:
+            return await retrieve_user_memory(db_manager, user_id, query_emb, n_results=n_results)
+        else:
             return []
+    except Exception as e:
+        log_service_status("CHAT", "error", f"Legacy memory retrieval failed: {e}")
+        return []
 
 
 # Stub functions
@@ -202,7 +206,7 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
         # Extract and save user information from message
         user_info = user_profile_manager.extract_user_info(user_message)
         if user_info:
-            user_profile_manager.save_user_info(user_id, user_info)
+            user_profile_manager.update_profile(user_id, user_info)
             log_service_status("memory", "info", f"Saved user info for {user_id}: {user_info}")
 
         # Check cache first - unified cache implementation
@@ -443,13 +447,65 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
             print(f"[CONSOLE DEBUG] Storing conversation as long-term memory for user {user_id}")
 
             def store_memory():
-                """TODO: Add proper docstring for store_memory."""
-                # Create a memory document from the conversation
-                memory_text = f"User: {user_message}\nAssistant: {str(user_response)}"
-                doc_id = f"chat_{user_id}_{int(time.time())}"
-                chunks_stored = index_user_document(db_manager, user_id, doc_id, "chat_conversation", memory_text)
-                logging.info(f"[MEMORY] Stored conversation as memory ({chunks_stored} chunks) for user {user_id}")
-                debug_info.append(f"[MEMORY] Stored as long-term memory ({chunks_stored} chunks)")
+                """
+                Store the current conversation as long-term memory.
+                
+                Creates a memory document from the user message and assistant response,
+                then indexes it for future retrieval. Used for important conversations
+                that should be remembered across sessions.
+                """
+                import asyncio
+                
+                async def async_store_memory():
+                    # Try new memory service first
+                    memory_service = get_memory_service()
+                    stored_via_new_service = False
+                    
+                    if memory_service and MEMORY_SERVICE_AVAILABLE:
+                        try:
+                            # Create a structured memory for better retrieval
+                            memory_content = f"User: {user_message}\nAssistant: {str(user_response)}"
+                            success = await memory_service.store_conversation_memory(
+                                user_id=user_id,
+                                content=memory_content,
+                                metadata={
+                                    "type": "chat_conversation",
+                                    "timestamp": time.time(),
+                                    "user_message": user_message,
+                                    "assistant_response": str(user_response)
+                                }
+                            )
+                            if success:
+                                stored_via_new_service = True
+                                logging.info(f"[MEMORY] Stored conversation via new memory service for user {user_id}")
+                                debug_info.append("[MEMORY] Stored via new memory service")
+                        except Exception as e:
+                            logging.warning(f"[MEMORY] New memory service failed: {e}")
+                    
+                    # Fallback to legacy system if new service failed or not available
+                    if not stored_via_new_service:
+                        memory_text = f"User: {user_message}\nAssistant: {str(user_response)}"
+                        doc_id = f"chat_{user_id}_{int(time.time())}"
+                        chunks_stored = index_user_document(db_manager, user_id, doc_id, "chat_conversation", memory_text)
+                        logging.info(f"[MEMORY] Stored conversation as memory ({chunks_stored} chunks) for user {user_id}")
+                        debug_info.append(f"[MEMORY] Stored as long-term memory ({chunks_stored} chunks)")
+                
+                # Run the async function
+                try:
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # Create a task if we're in an async context
+                        asyncio.create_task(async_store_memory())
+                    else:
+                        loop.run_until_complete(async_store_memory())
+                except Exception as e:
+                    logging.error(f"[MEMORY] Failed to store memory: {e}")
+                    # Fallback to legacy system only
+                    memory_text = f"User: {user_message}\nAssistant: {str(user_response)}"
+                    doc_id = f"chat_{user_id}_{int(time.time())}"
+                    chunks_stored = index_user_document(db_manager, user_id, doc_id, "chat_conversation", memory_text)
+                    logging.info(f"[MEMORY] Stored conversation as memory ({chunks_stored} chunks) for user {user_id}")
+                    debug_info.append(f"[MEMORY] Stored as long-term memory ({chunks_stored} chunks)")
 
             safe_execute(
                 store_memory,

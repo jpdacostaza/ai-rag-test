@@ -20,7 +20,12 @@ headers = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KE
 
 
 def print_section(title):
-    """TODO: Add proper docstring for print_section."""
+    """
+    Print a formatted section header for test output.
+    
+    Args:
+        title (str): The title to display in the section header
+    """
     print(f"\n{'='*60}")
     print(f"🔍 {title}")
     print(f"{'='*60}")
@@ -103,7 +108,12 @@ def find_endpoint_definitions():
 
 
 def main():
-    """TODO: Add proper docstring for main."""
+    """
+    Main function to run comprehensive endpoint validation.
+    
+    Performs route discovery, endpoint testing, and generates a detailed
+    validation report for the backend API endpoints.
+    """
     print("🚀 FOCUSED ENDPOINT VALIDATION")
     print(f"🎯 Target: {BASE_URL}")
 

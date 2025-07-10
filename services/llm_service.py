@@ -81,24 +81,21 @@ class LLMService:
         }
 
         try:
-            # Configure optimized timeouts and connection pooling
-            timeout = httpx.Timeout(
-                timeout=LLM_TIMEOUT, connect=CONNECTION_TIMEOUT, read=READ_TIMEOUT, write=WRITE_TIMEOUT
-            )
-
-            limits = httpx.Limits(
-                max_keepalive_connections=MAX_KEEPALIVE_CONNECTIONS,
-                max_connections=CONNECTION_POOL_SIZE,
-                keepalive_expiry=30.0,
-            )
-
-            async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
+            log_service_status("OLLAMA", "debug", f"Attempting connection to {self.ollama_url}/api/chat")
+            
+            # Try with simpler timeout configuration for debugging
+            timeout = httpx.Timeout(timeout=60.0, connect=10.0)
+            
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                log_service_status("OLLAMA", "debug", f"HTTPX client created, sending POST request")
                 response = await client.post(f"{self.ollama_url}/api/chat", json=payload)
+                log_service_status("OLLAMA", "debug", f"Response received with status: {response.status_code}")
                 response.raise_for_status()
                 data = response.json()
                 return data.get("message", {}).get("content", "")
         except httpx.RequestError as e:
             log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
+            log_service_status("OLLAMA", "debug", f"RequestError details: {type(e).__name__}: {str(e)}")
             raise Exception(f"Cannot connect to Ollama service at {self.ollama_url}") from e
         except httpx.HTTPStatusError as e:
             log_service_status(
@@ -210,51 +207,73 @@ class LLMService:
         session_id: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """
-        TEMPORARY TEST VERSION - generates intelligent test responses based on user input
-        """
-        print(f"[CONSOLE DEBUG] TEST: Starting test Ollama stream", flush=True)
-        log_service_status("OLLAMA", "info", "TEST: Starting test Ollama stream")
+        Asynchronously calls the Ollama API using the chat endpoint with streaming.
         
-        # Get the last user message to generate a relevant response
-        user_message = ""
-        if messages:
-            for msg in reversed(messages):
-                if msg.get("role") == "user":
-                    user_message = msg.get("content", "").lower()
-                    break
-        
-        print(f"[CONSOLE DEBUG] TEST: User message: '{user_message}'", flush=True)
-        
-        # Generate appropriate test response based on user input
-        if "name" in user_message and ("j.p" in user_message or "jp" in user_message):
-            response_tokens = ["Hello", " J.P.!", " Nice", " to", " meet", " you.", " I'll", " remember", " that", " you", " work", " at", " Swift.", " How", " can", " I", " help", " you", " today?"]
-        elif "remember" in user_message:
-            response_tokens = ["Yes,", " I", " can", " remember", " that", " information.", " I'll", " keep", " it", " in", " mind", " for", " our", " conversation."]
-        elif "hello" in user_message or "hi" in user_message:
-            response_tokens = ["Hello!", " How", " can", " I", " assist", " you", " today?"]
-        elif "say exactly" in user_message:
-            # Extract what they want us to say exactly
-            try:
-                exact_text = user_message.split("say exactly:")[-1].strip()
-                if exact_text:
-                    response_tokens = exact_text.split()
-                else:
-                    response_tokens = ["Hello", " world"]
-            except:
-                response_tokens = ["Hello", " world"]
-        else:
-            # Default intelligent response
-            response_tokens = ["I", " understand", " your", " message.", " This", " is", " a", " test", " response", " from", " the", " simulated", " LLM."]
-        
-        # Yield the response tokens with realistic timing
-        for i, token in enumerate(response_tokens):
-            print(f"[CONSOLE DEBUG] TEST: Yielding token {i}: '{token}'", flush=True)
-            log_service_status("OLLAMA", "debug", f"TEST: Yielding token {i}: '{token}'")
-            yield token
-            await asyncio.sleep(0.05)  # Slightly faster for better UX
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            model: Optional model name, defaults to configured default model
+            stop_event: Optional event to stop streaming
+            session_id: Optional session identifier for tracking
             
-        print(f"[CONSOLE DEBUG] TEST: Completed test stream", flush=True)
-        log_service_status("OLLAMA", "info", "TEST: Completed test stream")
+        Yields:
+            str: Individual tokens from the LLM response
+            
+        Raises:
+            Exception: If connection fails or API returns an error
+        """
+        model = model or self.default_model
+        
+        payload = {
+            "model": model,
+            "messages": messages,
+            "stream": True,
+            "options": {"temperature": 0.7, "top_p": 0.9},
+        }
+
+        try:
+            log_service_status("OLLAMA", "info", f"Starting Ollama stream for model {model}")
+            
+            # Try with simpler timeout configuration for debugging
+            timeout = httpx.Timeout(timeout=60.0, connect=10.0)
+            
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                log_service_status("OLLAMA", "debug", f"HTTPX client created for streaming, sending POST request")
+                async with client.stream("POST", f"{self.ollama_url}/api/chat", json=payload) as response:
+                    log_service_status("OLLAMA", "debug", f"Stream response received with status: {response.status_code}")
+                    response.raise_for_status()
+                    
+                    async for line in response.aiter_lines():
+                        if stop_event and stop_event.is_set():
+                            log_service_status("OLLAMA", "info", "Stream stopped by stop event")
+                            break
+                            
+                        if line.strip():
+                            try:
+                                data = json.loads(line)
+                                if "message" in data and "content" in data["message"]:
+                                    content = data["message"]["content"]
+                                    if content:
+                                        yield content
+                                        
+                                # Check if streaming is done
+                                if data.get("done", False):
+                                    log_service_status("OLLAMA", "info", "Ollama stream completed successfully")
+                                    break
+                                    
+                            except json.JSONDecodeError:
+                                # Skip malformed JSON lines
+                                continue
+                                
+        except httpx.RequestError as e:
+            log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
+            raise Exception(f"Cannot connect to Ollama service at {self.ollama_url}") from e
+        except httpx.HTTPStatusError as e:
+            log_service_status(
+                "OLLAMA",
+                "failed", 
+                f"Ollama API returned an error: {e.response.status_code} - {e.response.text}",
+            )
+            raise
 
     async def call_openai_llm_stream(
         self,
