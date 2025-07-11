@@ -1,6 +1,0 @@
-{
-  "user_id": "alice@example.com",
-  "query": "Bob data scientist MIT",
-  "limit": 10,
-  "threshold": 0.001
-}

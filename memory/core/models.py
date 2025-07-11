@@ -5,6 +5,7 @@ Memory Data Models
 Pydantic models for memory operations.
 """
 
+import os
 from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -19,7 +20,7 @@ class MemoryConfig(BaseModel):
     
     # Memory Settings
     max_memories: int = 5
-    relevance_threshold: float = 0.1
+    relevance_threshold: float = float(os.getenv('MEMORY_RETRIEVAL_THRESHOLD', '0.001'))
     
     # Learning Settings
     auto_store_enabled: bool = True
@@ -35,7 +36,7 @@ class MemoryQuery(BaseModel):
     user_id: str = Field(..., description="User identifier")
     query_text: str = Field(..., description="Query text for similarity search")
     limit: int = Field(default=5, description="Maximum number of memories to retrieve")
-    threshold: float = Field(default=0.1, description="Minimum relevance threshold")
+    threshold: float = Field(default=float(os.getenv('MEMORY_RETRIEVAL_THRESHOLD', '0.001')), description="Minimum relevance threshold")
     filters: Optional[Dict[str, Any]] = Field(default=None, description="Additional filters")
 
 

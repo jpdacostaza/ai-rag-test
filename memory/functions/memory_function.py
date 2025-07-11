@@ -44,7 +44,7 @@ class Valves(BaseModel):
     # Memory Settings
     enable_memory: bool = True
     max_memories: int = 5
-    memory_threshold: float = 0.1
+    memory_threshold: float = 0.05  # Lower threshold for better memory recall
     
     # Learning Settings
     enable_learning: bool = True
@@ -165,13 +165,15 @@ class Filter:
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
         """Process incoming messages to inject relevant memories."""
         self.log("INLET: Function called", "DEBUG")
+        self.log(f"INLET: Full body received: {body}", "DEBUG")
+        self.log(f"INLET: User object received: {user}", "DEBUG")
         
         if not self.valves.enable_memory:
             self.log("INLET: Memory disabled, skipping", "DEBUG")
             return body
             
         try:
-            user_id = self._get_user_id(user)
+            user_id = self._get_user_id(user, body)
             messages = body.get("messages", [])
             
             latest_message = self._get_latest_user_message(messages)
@@ -220,13 +222,15 @@ class Filter:
     async def outlet(self, body: dict, user: Optional[dict] = None) -> dict:
         """Process outgoing messages to store learning data."""
         self.log("OUTLET: Function called", "DEBUG")
+        self.log(f"OUTLET: Full body received: {body}", "DEBUG") 
+        self.log(f"OUTLET: User object received: {user}", "DEBUG")
         
         if not self.valves.enable_learning:
             self.log("OUTLET: Learning disabled, skipping", "DEBUG")
             return body
             
         try:
-            user_id = self._get_user_id(user)
+            user_id = self._get_user_id(user, body)
             messages = body.get("messages", [])
             
             self.log(f"OUTLET: Processing for user {user_id}, messages count: {len(messages)}")
@@ -255,11 +259,57 @@ class Filter:
             
         return body
     
-    def _get_user_id(self, user: Optional[dict]) -> str:
-        """Extract user ID from user object."""
+    def _get_user_id(self, user: Optional[dict], body: Optional[dict] = None) -> str:
+        """Extract user ID from user object with fallback options."""
+        self.log(f"DEBUG: Raw user object received: {user}", "DEBUG")
+        self.log(f"DEBUG: Body keys available: {list(body.keys()) if body else 'None'}", "DEBUG")
+        
+        # First, try to get user info from the user object
         if user and isinstance(user, dict):
-            return user.get("id", user.get("user_id", "anonymous"))
-        return "anonymous"
+            # Try multiple possible user ID fields in order of preference
+            user_id = (
+                user.get("id") or 
+                user.get("user_id") or 
+                user.get("email") or 
+                user.get("username") or
+                user.get("sub") or  # JWT subject
+                None
+            )
+            if user_id:
+                self.log(f"DEBUG: Extracted user_id '{user_id}' from user object", "DEBUG")
+                return str(user_id)
+        
+        # Try to extract user info from the request body
+        if body and isinstance(body, dict):
+            # Check for user info in various places in the body
+            user_from_body = (
+                body.get("user") or
+                body.get("user_id") or 
+                body.get("metadata", {}).get("user_id") or
+                body.get("chat_id") or  # Sometimes chat ID contains user info
+                None
+            )
+            if user_from_body:
+                self.log(f"DEBUG: Found user info in body: '{user_from_body}'", "DEBUG")
+                if isinstance(user_from_body, dict):
+                    extracted_id = (
+                        user_from_body.get("id") or
+                        user_from_body.get("email") or
+                        user_from_body.get("username") or
+                        str(user_from_body)
+                    )
+                    if extracted_id:
+                        self.log(f"DEBUG: Extracted user_id '{extracted_id}' from body", "DEBUG")
+                        return str(extracted_id)
+                else:
+                    self.log(f"DEBUG: Using user_id '{user_from_body}' from body", "DEBUG")
+                    return str(user_from_body)
+        
+        # For OpenWebUI, if no user context is provided, try to create a consistent
+        # session-based ID rather than using "anonymous" which fragments memory
+        session_id = "openwebui_default_user"  # Consistent default for OpenWebUI
+        self.log(f"DEBUG: No user identification found, using session-based user_id '{session_id}'", "DEBUG")
+        return session_id
     
     def _get_latest_user_message(self, messages: List[dict]) -> Optional[str]:
         """Get the content of the latest user message."""

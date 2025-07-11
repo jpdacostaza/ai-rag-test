@@ -56,7 +56,7 @@ class MemoryRetrieveRequest(BaseModel):
     user_id: str
     query: str
     limit: int = 5
-    threshold: float = 0.1  # FIXED: Lowered from 0.7 to 0.1
+    threshold: float = float(os.getenv('MEMORY_RETRIEVAL_THRESHOLD', '0.001'))  # Use environment variable
 class LearningInteractionRequest(BaseModel):
     user_id: str
     conversation_id: str

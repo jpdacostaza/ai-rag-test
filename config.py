@@ -12,16 +12,35 @@ from human_logging import log_service_status
 # Application startup time
 _APP_START_TIME = time.time()
 
-# Model configuration
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")
+# Model configuration - Using local Ollama models only (free)
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")  # Free local model
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"
+USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"  # Default to local Ollama
 
-# OpenAI API configuration
+# OpenAI API configuration - Enhanced for memory/RAG testing
 OPENAI_API_BASE_URL = os.getenv("OPENAI_API_BASE_URL", "https://api.openai.com/v1")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_API_MAX_TOKENS = int(os.getenv("OPENAI_API_MAX_TOKENS", "4096"))
+OPENAI_API_MAX_TOKENS = int(os.getenv("OPENAI_API_MAX_TOKENS", "8192"))  # Increased for better context handling
 OPENAI_API_TIMEOUT = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
+
+# Memory/RAG optimized context settings
+DEFAULT_CONTEXT_LENGTH = int(os.getenv("DEFAULT_CONTEXT_LENGTH", "8192"))  # Minimum for good RAG performance
+MEMORY_CONTEXT_LENGTH = int(os.getenv("MEMORY_CONTEXT_LENGTH", "16384"))  # For memory-heavy operations
+
+# Additional Memory System Enhancements - Cross-session persistence
+MEMORY_RETRIEVAL_THRESHOLD = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", "0.001"))  # Very low for cross-session
+MEMORY_MAX_DOCUMENTS = int(os.getenv("MEMORY_MAX_DOCUMENTS", "30"))  # More documents for better context
+MEMORY_HYBRID_SEARCH = os.getenv("MEMORY_HYBRID_SEARCH", "true").lower() == "true"
+ENABLE_CROSS_SESSION_MEMORY = os.getenv("ENABLE_CROSS_SESSION_MEMORY", "true").lower() == "true"
+PERSISTENT_USER_MEMORY = os.getenv("PERSISTENT_USER_MEMORY", "true").lower() == "true"
+
+# System prompt enhancement for memory context validation
+MEMORY_SYSTEM_PROMPT = os.getenv("MEMORY_SYSTEM_PROMPT", 
+    "You are an AI assistant with access to conversation memory and context. "
+    "When relevant information from memory is available, acknowledge and use it naturally in your responses. "
+    "If you have stored information about the user (name, workplace, preferences, etc.), reference it appropriately. "
+    "Always validate that you're incorporating memory context when it's relevant to the conversation."
+)
 
 # LLM timeout settings
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "30"))  # Reduced from 180 to 30 seconds
@@ -40,11 +59,18 @@ CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))  # Fixed: ChromaDB runs on port 8000 in docker-compose
 USE_HTTP_CHROMA = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
 
-# Embedding configuration
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "intfloat/e5-small-v2")  # Default: Use e5-small-v2 from HuggingFace
-EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "huggingface")  # Options: "huggingface", "ollama"
+# Embedding configuration - Optimized for memory/RAG performance
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")  # Community recommended: Better for RAG
+EMBEDDING_PROVIDER = os.getenv("EMBEDDING_PROVIDER", "ollama")  # Use ollama for nomic-embed-text
 SENTENCE_TRANSFORMERS_HOME = os.getenv("SENTENCE_TRANSFORMERS_HOME", "./storage/models")
 AUTO_PULL_MODELS = os.getenv("AUTO_PULL_MODELS", "true").lower() == "true"  # Automatically pull missing models
+
+# RAG/Memory optimization settings - Optimized for cross-session memory
+RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "1000"))  # Smaller chunks for better matching
+RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "100"))  # Smaller overlap
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "20"))  # More results for cross-session
+RAG_MINIMUM_SCORE = float(os.getenv("RAG_MINIMUM_SCORE", "0.001"))  # Very low threshold
+RAG_HYBRID_SEARCH = os.getenv("RAG_HYBRID_SEARCH", "true").lower() == "true"  # Enable hybrid search
 
 # Cache configuration
 CACHE_TTL = int(os.getenv("CACHE_TTL", "600"))  # 10 minutes default

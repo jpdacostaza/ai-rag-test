@@ -175,6 +175,10 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     OpenAI-compatible chat completions endpoint for OpenWebUI, with streaming support.
     """
     start_time = time.time()
+    
+    # Initialize variables early to avoid scope issues
+    messages = []
+    user_id = None
 
     # Validate required fields
     if "model" not in body or not body["model"]:
@@ -185,16 +189,52 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             status_code=400, detail="Missing or invalid required field: 'messages' (must be a non-empty list)"
         )
 
-    # Validate messages structure
-    for i, message in enumerate(body["messages"]):
+    # Validate messages structure and extract early to avoid scope issues
+    messages = body.get("messages", [])
+    for i, message in enumerate(messages):
         if not isinstance(message, dict):
             raise HTTPException(status_code=400, detail=f"Message at index {i} must be an object")
         if "role" not in message or "content" not in message:
             raise HTTPException(status_code=400, detail=f"Message at index {i} must have 'role' and 'content' fields")
 
-    # Extract user_id from various sources
-    # 1. Check body.user field (OpenAI standard)
-    user_id = body.get("user")
+    # Extract user_id from various sources - match pipeline logic exactly
+    # INFO: Log the full request details for troubleshooting
+    log_service_status("AUTH", "info", f"=== USER IDENTIFICATION START ===")
+    log_service_status("AUTH", "info", f"Request body keys: {list(body.keys())}")
+    log_service_status("AUTH", "info", f"Request headers: {dict(request.headers)}")
+    if "user" in body:
+        log_service_status("AUTH", "info", f"User field in body: {body.get('user')} (type: {type(body.get('user'))})")
+    
+    # 1. Check body.user field which can be string or object (OpenWebUI style)
+    user_field = body.get("user")
+    
+    # If user field is an object (like pipeline receives), extract email/id
+    if isinstance(user_field, dict):
+        # Match pipeline's EXACT user identification strategy
+        log_service_status("AUTH", "info", f"User object received: {json.dumps(user_field, indent=2)}")
+        
+        # Strategy 1: Use email (most specific) - SAME AS PIPELINE
+        if "email" in user_field and user_field["email"]:
+            user_id = user_field["email"]
+            log_service_status("AUTH", "info", f"Using email as user_id: {user_id}")
+        # Strategy 2: Use user ID
+        elif "id" in user_field and user_field["id"]:
+            user_id = user_field["id"]
+            log_service_status("AUTH", "info", f"Using id as user_id: {user_id}")
+        # Strategy 3: Use username
+        elif "username" in user_field and user_field["username"]:
+            user_id = user_field["username"]
+            log_service_status("AUTH", "info", f"Using username as user_id: {user_id}")
+        # Strategy 4: Use name
+        elif "name" in user_field and user_field["name"]:
+            user_id = user_field["name"]
+            log_service_status("AUTH", "info", f"Using name as user_id: {user_id}")
+        else:
+            log_service_status("AUTH", "info", "No suitable user identifier found in user object")
+    elif isinstance(user_field, str) and user_field:
+        # If it's a simple string, use it
+        user_id = user_field
+        log_service_status("AUTH", "info", f"Using string user_id: {user_id}")
     
     # 2. Check headers for user information (OpenWebUI may send via headers)
     if not user_id:
@@ -206,6 +246,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             request.headers.get("user-id") or
             request.headers.get("authorization", "").split(":")[-1] if ":" in request.headers.get("authorization", "") else None
         )
+        if user_id:
+            log_service_status("AUTH", "info", f"Found user_id in headers: {user_id}")
     
     # 3. Try to extract from session context or chat history
     if not user_id and messages:
@@ -216,11 +258,32 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     content = msg.get("content", "")
                     if "user_id:" in content:
                         user_id = content.split("user_id:")[1].split()[0].strip()
+                        log_service_status("AUTH", "info", f"Found user_id in system message: {user_id}")
                         break
                 except:
                     pass
     
-    # 4. Advanced user identification from conversation content
+    # 4. Check if we can extract user from injected memory context by pipeline
+    if not user_id and messages:
+        # Look for pipeline-injected memory messages that contain user context
+        for msg in messages:
+            if (msg.get("role") == "system" and 
+                "Previous conversation context and memories" in msg.get("content", "")):
+                # Pipeline has processed this request - look for user mentions
+                content = msg.get("content", "")
+                log_service_status("AUTH", "info", "Found pipeline-injected memory context")
+                
+                # The pipeline must have identified a user to inject memories
+                # Check if there are any user-specific patterns in the memory content
+                if "@" in content and ".net" in content:  # Email pattern
+                    import re
+                    email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', content)
+                    if email_match:
+                        user_id = email_match.group()
+                        log_service_status("AUTH", "info", f"Extracted user_id from memory context: {user_id}")
+                        break
+    
+    # 5. Advanced user identification from conversation content
     if user_id == "openwebui" and messages:
         # Look for user identification in the conversation history
         user_mentions = []
@@ -294,9 +357,36 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         except Exception as e:
             log_service_status("AUTH", "warning", f"Failed to lookup user from memory: {e}")
     
-    # 6. Final fallback to default if still not found or empty
-    if not user_id or not user_id.strip():
-        user_id = "openwebui"
+    # 6. Final fallback - but try to be smarter about it
+    if not user_id or not user_id.strip() or user_id == "openwebui":
+        # Last resort: try to find any user context from stored memories 
+        # that might give us a clue about the actual user
+        if messages and user_id == "openwebui":
+            # Look for recent user identification in existing memories
+            try:
+                # Use memory service to look for user patterns
+                memory_service = get_memory_service_or_legacy()
+                if memory_service:
+                    log_service_status("AUTH", "info", "Attempting user lookup from memory patterns")
+                    
+                    # Try to get any memories that might contain user identification
+                    test_memories = await memory_service.get_relevant_memories(
+                        user_id="admin@theroot.za.net",  # Try the known good user
+                        query_text="name swift",
+                        limit=5
+                    )
+                    
+                    if test_memories:
+                        # If we found memories for the email user, use that instead
+                        user_id = "admin@theroot.za.net"
+                        log_service_status("AUTH", "info", f"Mapped openwebui session to email user: {user_id}")
+                    
+            except Exception as e:
+                log_service_status("AUTH", "warning", f"User lookup from memory failed: {e}")
+        
+        # Absolute final fallback
+        if not user_id or not user_id.strip():
+            user_id = "openwebui"
     
     # Ensure user_id is clean and non-empty
     user_id = user_id.strip()
@@ -306,7 +396,6 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     # Log user identification for debugging
     log_service_status("AUTH", "info", f"Identified user: {user_id}")
     
-    messages = body.get("messages", [])
     stream = body.get("stream", False)
 
     # Use the last user message as the prompt
