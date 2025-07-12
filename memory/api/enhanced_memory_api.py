@@ -257,8 +257,12 @@ async def process_interaction(request: LearningInteractionRequest = Body(...)):
         }
         # Extract memories from the user message
         extracted_memories = extract_memories(request.user_message)
+        
+        # Deduplicate memories before storing
+        unique_memories = await deduplicate_memories(extracted_memories, request.user_id)
+        
         memories_stored = 0
-        for memory_text in extracted_memories:
+        for memory_text in unique_memories:
             # Store in short-term memory (Redis) first
             if await store_to_redis(request.user_id, memory_text, interaction):
                 memories_stored += 1
@@ -296,6 +300,29 @@ async def store_explicit_memory(request: ExplicitMemoryRequest = Body(...)):
         print(f"💾 EXPLICIT MEMORY request for user {request.user_id}")
         print(f"   Content: {request.content[:100]}...")
         
+        print(f"🔍 About to check for duplicates...")
+        # Check for duplicate before storing explicit memory
+        if await check_duplicate_memory(request.user_id, request.content, similarity_threshold=0.90):
+            print(f"🔄 Explicit memory already exists, skipping storage")
+            # Get current memory counts for response
+            short_term_count = await get_redis_memory_count(request.user_id)
+            long_term_count = await get_chromadb_memory_count(request.user_id)
+            
+            return {
+                "status": "duplicate_detected",
+                "user_id": request.user_id,
+                "stored": False,
+                "new_memories": 0,
+                "explicit": True,
+                "priority": "high",
+                "message": "Memory already exists",
+                "total_memories": {
+                    "short_term": short_term_count,
+                    "long_term": long_term_count,
+                    "total": short_term_count + long_term_count
+                }
+            }
+        
         # Create high-priority interaction for explicit memory
         interaction = {
             "user_id": request.user_id,
@@ -305,12 +332,18 @@ async def store_explicit_memory(request: ExplicitMemoryRequest = Body(...)):
             "timestamp": time.time(),
             "source": request.source,
             "priority": "high",
-            "explicit": True
+            "explicit": "true"  # Convert boolean to string for Redis compatibility
         }
         
-        # Add metadata if provided
+        # Add metadata if provided (sanitize boolean values for Redis compatibility)
         if request.metadata:
-            interaction.update(request.metadata)
+            sanitized_metadata = {}
+            for key, value in request.metadata.items():
+                if isinstance(value, bool):
+                    sanitized_metadata[key] = "true" if value else "false"
+                else:
+                    sanitized_metadata[key] = str(value)  # Convert all to strings for Redis
+            interaction.update(sanitized_metadata)
         
         # Store directly to both short-term and long-term storage for explicit memories
         memories_stored = 0
@@ -357,20 +390,31 @@ async def store_explicit_to_redis(user_id: str, content: str, interaction: Dict[
         memory_id = str(uuid.uuid4())
         key = f"memory:explicit:{user_id}:{memory_id}"
         memory_data = {
-            "content": content,
-            "timestamp": interaction["timestamp"],
-            "conversation_id": interaction["conversation_id"],
-            "access_count": 0,
-            "source": interaction["source"],
+            "content": str(content),
+            "timestamp": str(interaction["timestamp"]),
+            "conversation_id": str(interaction["conversation_id"]),
+            "access_count": "0",
+            "source": str(interaction["source"]),
             "priority": "high",
-            "explicit": True
+            "explicit": "true"  # Convert boolean to string
         }
+        
         redis_client.hset(key, mapping=memory_data)
         # Extended TTL for explicit memories (7 days instead of default)
         redis_client.expire(key, 7 * 24 * 3600)  # 7 days
+        print(f"💾 Stored explicit short-term memory in Redis: {content[:50]}...")
         return True
     except Exception as e:
-        print(f"❌ Explicit Redis storage error: {e}")
+        error_msg = str(e)
+        # Only log non-boolean type errors as these might be serious
+        if "Invalid input of type: 'bool'" in error_msg:
+            # This is a known issue that doesn't affect functionality
+            # Redis storage fails but ChromaDB storage will handle it
+            print(f"⚠️ Redis boolean type issue (non-critical): {error_msg}")
+        else:
+            # Log other errors as they might be important
+            print(f"❌ Explicit Redis storage error: {e}")
+        # Even if Redis fails, continue with ChromaDB storage
         return False
 
 async def store_explicit_to_chromadb(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
@@ -379,17 +423,41 @@ async def store_explicit_to_chromadb(user_id: str, content: str, interaction: Di
         return False
     try:
         memory_id = str(uuid.uuid4())
+        
+        # Convert string boolean back to actual boolean for ChromaDB
+        is_explicit = interaction.get("explicit", "false")
+        if isinstance(is_explicit, str):
+            is_explicit = is_explicit.lower() == "true"
+        
+        # Create base metadata
+        metadata = {
+            "user_id": user_id,
+            "timestamp": interaction["timestamp"],
+            "conversation_id": interaction["conversation_id"],
+            "source": interaction["source"],
+            "priority": "high",
+            "explicit": is_explicit,  # Convert back to boolean for ChromaDB
+            "access_count": 0
+        }
+        
+        # Add any additional metadata from the interaction (converted back to appropriate types)
+        for key, value in interaction.items():
+            if key not in metadata and key not in ["user_id", "user_message", "assistant_response"]:
+                # Convert string booleans back to actual booleans for ChromaDB
+                if isinstance(value, str) and value.lower() in ["true", "false"]:
+                    metadata[key] = value.lower() == "true"
+                elif isinstance(value, str) and value.replace(".", "").replace("-", "").isdigit():
+                    # Try to convert back to number if it looks like one
+                    try:
+                        metadata[key] = float(value) if "." in value else int(value)
+                    except ValueError:
+                        metadata[key] = value
+                else:
+                    metadata[key] = value
+        
         memory_collection.add(
             documents=[content],
-            metadatas=[{
-                "user_id": user_id,
-                "timestamp": interaction["timestamp"],
-                "conversation_id": interaction["conversation_id"],
-                "source": interaction["source"],
-                "priority": "high",
-                "explicit": True,
-                "access_count": 0
-            }],
+            metadatas=[metadata],
             ids=[memory_id]
         )
         print(f"💾 Stored explicit long-term memory: {content[:50]}...")
@@ -403,28 +471,37 @@ async def retrieve_from_redis(user_id: str, query: str) -> List[Dict[str, Any]]:
     if not redis_client:
         return []
     try:
-        # Get all memory keys for this user
-        pattern = f"memory:{user_id}:*"
-        keys = redis_client.keys(pattern)
+        # Get all memory keys for this user (both regular and explicit)
+        patterns = [f"memory:{user_id}:*", f"memory:explicit:{user_id}:*"]
         memories = []
-        for key in keys:
-            memory_data = redis_client.hgetall(key)
-            if memory_data:
-                memories.append({
-                    "content": memory_data.get("content", ""),
-                    "metadata": {
-                        "type": "short_term",
-                        "timestamp": float(memory_data.get("timestamp", 0)),
-                        "access_count": int(memory_data.get("access_count", 0)),
-                        "conversation_id": memory_data.get("conversation_id", "")
-                    }
-                })
-                # Increment access count
-                redis_client.hincrby(key, "access_count", 1)
-                # Check if this memory should be promoted to long-term storage
-                access_count = int(memory_data.get("access_count", 0)) + 1
-                if access_count >= LONG_TERM_THRESHOLD:
-                    await promote_to_long_term(user_id, memory_data)
+        
+        for pattern in patterns:
+            keys = redis_client.keys(pattern)
+            for key in keys:
+                memory_data = redis_client.hgetall(key)
+                if memory_data:
+                    # Handle the explicit flag properly
+                    is_explicit = memory_data.get("explicit", "false").lower() == "true"
+                    memory_type = "explicit" if is_explicit else "short_term"
+                    
+                    memories.append({
+                        "content": memory_data.get("content", ""),
+                        "metadata": {
+                            "type": memory_type,
+                            "timestamp": float(memory_data.get("timestamp", 0)),
+                            "access_count": int(memory_data.get("access_count", 0)),
+                            "conversation_id": memory_data.get("conversation_id", ""),
+                            "explicit": is_explicit,
+                            "priority": memory_data.get("priority", "normal")
+                        }
+                    })
+                    # Increment access count
+                    redis_client.hincrby(key, "access_count", 1)
+                    # Check if this memory should be promoted to long-term storage
+                    access_count = int(memory_data.get("access_count", 0)) + 1
+                    if access_count >= LONG_TERM_THRESHOLD:
+                        await promote_to_long_term(user_id, memory_data)
+        
         return memories
     except Exception as e:
         print(f"❌ Redis retrieval error: {e}")
@@ -465,11 +542,11 @@ async def store_to_redis(user_id: str, content: str, interaction: Dict[str, Any]
         memory_id = str(uuid.uuid4())
         key = f"memory:{user_id}:{memory_id}"
         memory_data = {
-            "content": content,
-            "timestamp": interaction["timestamp"],
-            "conversation_id": interaction["conversation_id"],
-            "access_count": 0,
-            "source": interaction["source"]
+            "content": str(content),
+            "timestamp": str(interaction["timestamp"]),
+            "conversation_id": str(interaction["conversation_id"]),
+            "access_count": "0",
+            "source": str(interaction["source"])
         }
         redis_client.hset(key, mapping=memory_data)
         redis_client.expire(key, SHORT_TERM_TTL)
@@ -483,16 +560,29 @@ async def promote_to_long_term(user_id: str, memory_data: Dict[str, Any]):
         return
     try:
         memory_id = str(uuid.uuid4())
+        
+        # Convert Redis string values back to appropriate types
+        timestamp = float(memory_data.get("timestamp", 0))
+        access_count = int(memory_data.get("access_count", 0))
+        is_explicit = memory_data.get("explicit", "false").lower() == "true"
+        
+        metadata = {
+            "user_id": user_id,
+            "timestamp": timestamp,
+            "conversation_id": str(memory_data.get("conversation_id", "")),
+            "promoted_at": time.time(),
+            "access_count": access_count,
+            "source": str(memory_data.get("source", "unknown"))
+        }
+        
+        # Add explicit flag if it exists
+        if is_explicit:
+            metadata["explicit"] = True
+            metadata["priority"] = "high"
+        
         memory_collection.add(
-            documents=[memory_data["content"]],
-            metadatas=[{
-                "user_id": user_id,
-                "timestamp": memory_data["timestamp"],
-                "conversation_id": memory_data["conversation_id"],
-                "promoted_at": time.time(),
-                "access_count": memory_data.get("access_count", 0),
-                "source": memory_data.get("source", "unknown")
-            }],
+            documents=[str(memory_data["content"])],
+            metadatas=[metadata],
             ids=[memory_id]
         )
         print(f"⬆️ Promoted memory to long-term storage: {memory_data['content'][:50]}...")
@@ -1028,3 +1118,183 @@ def extract_technical_expertise(text: str) -> List[str]:
     except Exception as e:
         print(f"❌ Error extracting technical expertise: {e}")
         return []
+
+async def check_duplicate_memory(user_id: str, content: str, similarity_threshold: float = 0.85) -> bool:
+    """
+    Check if a memory is a duplicate of existing memories.
+    Returns True if duplicate found, False if unique.
+    """
+    try:
+        print(f"🔍 Checking for duplicates: '{content[:50]}...' (threshold: {similarity_threshold})")
+        content_lower = content.lower().strip()
+        
+        # Skip very short content
+        if len(content_lower) < 10:
+            print(f"⚠️ Content too short, skipping duplicate check")
+            return False
+        
+        # Get existing memories from both Redis and ChromaDB
+        existing_memories = []
+        
+        # Check Redis memories
+        if redis_client:
+            print(f"🔍 Checking Redis for existing memories...")
+            patterns = [f"memory:{user_id}:*", f"memory:explicit:{user_id}:*"]
+            for pattern in patterns:
+                keys = redis_client.keys(pattern)
+                print(f"   Found {len(keys)} keys for pattern '{pattern}'")
+                for key in keys:
+                    memory_data = redis_client.hgetall(key)
+                    if memory_data and memory_data.get("content"):
+                        existing_memories.append(memory_data["content"])
+                        print(f"   Added Redis memory: '{memory_data['content'][:50]}...'")
+        
+        # Check ChromaDB memories
+        if memory_collection:
+            print(f"🔍 Checking ChromaDB for existing memories...")
+            try:
+                results = memory_collection.get(where={"user_id": user_id})
+                if results and results["documents"]:
+                    print(f"   Found {len(results['documents'])} ChromaDB memories")
+                    existing_memories.extend(results["documents"])
+                    for doc in results["documents"][:3]:  # Show first 3
+                        print(f"   Added ChromaDB memory: '{doc[:50]}...'")
+            except Exception as e:
+                print(f"⚠️ ChromaDB duplicate check error: {e}")
+        
+        print(f"🔍 Total existing memories to check: {len(existing_memories)}")
+        
+        # Check for duplicates
+        for i, existing in enumerate(existing_memories):
+            similarity = calculate_content_similarity(content_lower, existing.lower())
+            print(f"   Memory {i+1}: similarity = {similarity:.3f}")
+            if similarity >= similarity_threshold:
+                print(f"🔄 Duplicate memory detected: '{content[:50]}...' similar to '{existing[:50]}...' (score: {similarity:.3f})")
+                return True
+        
+        print(f"✅ No duplicates found, content is unique")
+        return False
+        
+    except Exception as e:
+        print(f"❌ Error checking for duplicates: {e}")
+        return False  # If error, allow storage to be safe
+
+def calculate_content_similarity(content1: str, content2: str) -> float:
+    """
+    Calculate similarity between two pieces of content.
+    Returns a score between 0.0 and 1.0.
+    """
+    try:
+        # Normalize content
+        content1 = content1.strip().lower()
+        content2 = content2.strip().lower()
+        
+        # Exact match
+        if content1 == content2:
+            return 1.0
+        
+        # Length difference check
+        len_diff = abs(len(content1) - len(content2))
+        max_len = max(len(content1), len(content2))
+        if max_len > 0 and len_diff / max_len > 0.5:
+            return 0.0  # Very different lengths
+        
+        # Word-based similarity
+        words1 = set(content1.split())
+        words2 = set(content2.split())
+        
+        if not words1 or not words2:
+            return 0.0
+        
+        # Jaccard similarity (intersection over union)
+        intersection = words1.intersection(words2)
+        union = words1.union(words2)
+        jaccard_score = len(intersection) / len(union) if union else 0.0
+        
+        # Additional checks for similar patterns
+        
+        # Check for name similarity patterns
+        if "name is" in content1 and "name is" in content2:
+            # Extract names and compare
+            name1 = extract_name_from_content(content1)
+            name2 = extract_name_from_content(content2)
+            if name1 and name2 and name1.lower() == name2.lower():
+                return 0.95  # Very similar name memories
+        
+        # Check for work similarity patterns
+        if any(work_term in content1 for work_term in ["work", "job", "company"]) and \
+           any(work_term in content2 for work_term in ["work", "job", "company"]):
+            work_words1 = extract_work_terms(content1)
+            work_words2 = extract_work_terms(content2)
+            if work_words1.intersection(work_words2):
+                jaccard_score += 0.2  # Boost for work-related similarities
+        
+        # Check for technical skill similarities
+        tech_terms = {"technical", "support", "network", "server", "system", "software", "hardware"}
+        tech1 = words1.intersection(tech_terms)
+        tech2 = words2.intersection(tech_terms)
+        if tech1 and tech2 and tech1 == tech2:
+            jaccard_score += 0.15  # Boost for technical similarities
+        
+        return min(jaccard_score, 1.0)
+        
+    except Exception as e:
+        print(f"❌ Error calculating similarity: {e}")
+        return 0.0
+
+def extract_name_from_content(content: str) -> str:
+    """Extract name from memory content."""
+    import re
+    name_patterns = [
+        r"name is ([a-zA-Z\s.]+)",
+        r"i'm ([a-zA-Z\s.]+)",
+        r"call me ([a-zA-Z\s.]+)"
+    ]
+    for pattern in name_patterns:
+        match = re.search(pattern, content.lower())
+        if match:
+            return match.group(1).strip()
+    return ""
+
+def extract_work_terms(content: str) -> set:
+    """Extract work-related terms from content."""
+    work_keywords = {
+        "technician", "specialist", "administrator", "manager", "coordinator", 
+        "analyst", "engineer", "consultant", "support", "service", "maintenance",
+        "company", "corporation", "business", "office", "workplace", "employer"
+    }
+    words = set(content.lower().split())
+    return words.intersection(work_keywords)
+
+async def deduplicate_memories(memories: List[str], user_id: str) -> List[str]:
+    """
+    Remove duplicates from a list of memories before storing.
+    """
+    try:
+        unique_memories = []
+        
+        for memory in memories:
+            is_duplicate = False
+            
+            # Check against other memories in this batch
+            for existing in unique_memories:
+                if calculate_content_similarity(memory.lower(), existing.lower()) >= 0.85:
+                    print(f"🔄 Removing duplicate from batch: '{memory[:50]}...'")
+                    is_duplicate = True
+                    break
+            
+            # Check against existing stored memories
+            if not is_duplicate:
+                is_duplicate = await check_duplicate_memory(user_id, memory)
+            
+            if not is_duplicate:
+                unique_memories.append(memory)
+            else:
+                print(f"🔄 Skipping duplicate memory: '{memory[:50]}...'")
+        
+        print(f"📝 Deduplicated {len(memories)} → {len(unique_memories)} memories")
+        return unique_memories
+        
+    except Exception as e:
+        print(f"❌ Error deduplicating memories: {e}")
+        return memories  # Return original list if error

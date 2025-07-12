@@ -183,7 +183,8 @@ services:
       - MAX_MEMORIES=20
       - DEBUG_MODE=true
     volumes:
-      - ./storage/pipelines:/app/pipelines
+      - ./pipelines:/app/pipelines  # Single unified pipelines directory
+      - ./config:/app/config:ro  # Mount config directory for persona files
     depends_on:
       - backend
       - memory_api
