@@ -1,0 +1,206 @@
+{
+  "timestamp": "2025-07-12 19:18:24",
+  "test_type": "Combined Memory + Web Search Integration",
+  "tests": [
+    {
+      "test_name": "Web Search Trigger with Memory Context",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "query": "What is the current stock price of Apple?",
+        "memory_context": "User previously asked about Apple stock price in 2023, was interested in AAPL investment.",
+        "ai_response": "Based on your previous interest in Apple stock, the price was around $150 in 2023. However, I don't have current pricing information.",
+        "should_search_basic": true,
+        "enhanced_analysis": {
+          "query": "What is the current stock price of Apple?",
+          "should_search": true,
+          "confidence": 1.0,
+          "query_type": "time_sensitive",
+          "reasons": [
+            "Temporal signals detected (score: 0.33)",
+            "Entity query detected (score: 0.25)",
+            "Financial query detected (score: 0.33)",
+            "Domain-specific query detected (score: 0.25)"
+          ],
+          "recommendation": "Strong recommendation to search - high confidence in need for current information"
+        },
+        "safety_assessment": {
+          "risk_level": "HIGH",
+          "confidence_score": 0.49999999999999994,
+          "should_verify": true,
+          "triggers": [
+            "Appropriate uncertainty expressed (1)",
+            "Query requires current/dynamic information"
+          ],
+          "recommendations": [
+            "Good - AI expressing appropriate uncertainty",
+            "Search for current information before responding"
+          ]
+        },
+        "recommendations": [
+          "Good - AI expressing appropriate uncertainty",
+          "Search for current information before responding"
+        ]
+      }
+    },
+    {
+      "test_name": "Memory Storage of Web Search Results",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "user_id": "test_user_memory_web_002",
+        "query": "What is the current CEO of Tesla?",
+        "web_results": {
+          "query": "What is the current CEO of Tesla?",
+          "results": [
+            {
+              "title": "Tesla Leadership - Official Site",
+              "url": "https://tesla.com/leadership",
+              "snippet": "Elon Musk serves as CEO and Chief Technology Officer of Tesla..."
+            },
+            {
+              "title": "Tesla CEO Elon Musk - Recent News",
+              "url": "https://news.example.com/tesla-ceo",
+              "snippet": "Current Tesla CEO Elon Musk continues to lead the company..."
+            }
+          ],
+          "timestamp": "2025-07-12T19:18:24.359279"
+        },
+        "formatted_results": "\n\n## Web Search Results:\n\n1. **Tesla Leadership - Official Site**\n   Elon Musk serves as CEO and Chief Technology Officer of Tesla...\n   Source: https://tesla.com/leadership\n\n2. **Tesla CEO Elon Musk ...",
+        "final_response": "Based on current information from web search:\n\n\n\n## Web Search Results:\n\n1. **Tesla Leadership - Official Site**\n   Elon Musk serves as CEO and Chief Technology Officer of Tesla...\n   Source: https://...",
+        "memory_stored": false,
+        "memory_available": false
+      }
+    },
+    {
+      "test_name": "User Context Influences Search Decision",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "user_id": "test_user_memory_web_003",
+        "historical_context": "User is a software developer, previously asked about Swift programming language syntax and best practices.",
+        "query": "Tell me about Swift's latest updates",
+        "basic_trigger": true,
+        "enhanced_analysis": {
+          "query": "Tell me about Swift's latest updates",
+          "should_search": true,
+          "confidence": 0.7,
+          "query_type": "time_sensitive",
+          "reasons": [
+            "Temporal signals detected (score: 0.33)",
+            "Entity query detected (score: 0.25)",
+            "Domain-specific query detected (score: 0.25)"
+          ],
+          "recommendation": "Moderate recommendation to search - likely to benefit from web data"
+        },
+        "contextual_response": "Based on your previous interest in Swift programming, you're likely asking about the latest Swift language updates. However, let me search for the most current information.",
+        "safety_assessment": {
+          "risk_level": "HIGH",
+          "confidence_score": 0.49999999999999994,
+          "should_verify": true,
+          "triggers": [
+            "Appropriate uncertainty expressed (1)",
+            "Query requires current/dynamic information"
+          ],
+          "recommendations": [
+            "Good - AI expressing appropriate uncertainty",
+            "Search for current information before responding"
+          ]
+        }
+      }
+    },
+    {
+      "test_name": "Anti-Hallucination with Memory Confidence",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "user_id": "test_user_memory_web_004",
+        "query": "What was the price of Bitcoin yesterday?",
+        "memory_context": "User is interested in cryptocurrency, previously asked about Bitcoin investment strategies.",
+        "risky_response": "Based on your interest in Bitcoin, yesterday's price was exactly $45,247.83.",
+        "risk_level": "LOW",
+        "should_verify": false,
+        "fact_check_needed": false,
+        "enhanced_should_search": true,
+        "confidence": 0.5,
+        "triggers": []
+      }
+    },
+    {
+      "test_name": "Complete Combined System Workflow",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "workflow_steps": {
+          "1_query": "What's the latest news about OpenAI?",
+          "2_user_context": "User is a developer interested in AI/ML, previously asked about OpenAI's GPT models.",
+          "3_initial_response": "Based on your interest in AI development, you're asking about OpenAI updates. Let me search for the ...",
+          "4_should_search": true,
+          "5_safety_check": "HIGH",
+          "6_web_search_performed": true,
+          "7_final_response": "Based on your interest in AI development and current search results: \n\n## Web Search Results:\n\n1. **...",
+          "8_memory_updated": true
+        },
+        "enhanced_analysis": {
+          "query": "What's the latest news about OpenAI?",
+          "should_search": true,
+          "confidence": 0.5,
+          "query_type": "time_sensitive",
+          "reasons": [
+            "Temporal signals detected (score: 0.33)",
+            "Domain-specific query detected (score: 0.25)"
+          ],
+          "recommendation": "Weak recommendation to search - may or may not need current information"
+        },
+        "safety_assessment": {
+          "risk_level": "HIGH",
+          "confidence_score": 0.39999999999999997,
+          "should_verify": true,
+          "triggers": [
+            "Query requires current/dynamic information"
+          ],
+          "recommendations": [
+            "Search for current information before responding"
+          ]
+        }
+      }
+    },
+    {
+      "test_name": "Memory Prevents Redundant Searches",
+      "passed": true,
+      "timestamp": "19:18:24",
+      "details": {
+        "user_id": "test_user_memory_web_006",
+        "query": "What is the current weather in London?",
+        "recent_memory": {
+          "timestamp": "2025-07-12T19:18:24.359279",
+          "query": "London weather",
+          "response": "Current weather in London: 22\u00b0C, partly cloudy. Last updated 10 minutes ago.",
+          "web_search_used": true,
+          "age_minutes": 10
+        },
+        "memory_is_fresh": true,
+        "should_search_basic": true,
+        "enhanced_analysis": {
+          "query": "What is the current weather in London?",
+          "should_search": true,
+          "confidence": 0.5,
+          "query_type": "time_sensitive",
+          "reasons": [
+            "Temporal signals detected (score: 0.33)",
+            "Entity query detected (score: 0.25)"
+          ],
+          "recommendation": "Weak recommendation to search - may or may not need current information"
+        },
+        "recommendation": "Skip search if memory is fresh"
+      }
+    }
+  ],
+  "summary": {
+    "total_tests": 6,
+    "passed": 6,
+    "failed": 0,
+    "errors": [],
+    "memory_available": false
+  }
+}

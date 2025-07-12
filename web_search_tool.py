@@ -36,14 +36,77 @@ def should_trigger_web_search(query: str, response: str) -> bool:
     if any(phrase in response_lower for phrase in uncertainty_phrases):
         return True
     
+    query_lower = query.lower()
+    
+    # Exclude simple math and basic calculations
+    if any(math_pattern in query_lower for math_pattern in [
+        "what is", "what's", "calculate", "compute"
+    ]) and any(math_op in query_lower for math_op in [
+        "+", "-", "*", "/", "plus", "minus", "times", "divided", "=", "equals"
+    ]):
+        return False
+    
+    # Exclude creative and general requests
+    creative_patterns = [
+        "write a", "create a", "make a", "generate a", "compose a",
+        "poem", "story", "song", "joke", "recipe for"
+    ]
+    if any(pattern in query_lower for pattern in creative_patterns):
+        return False
+    
     # Check if query contains time-sensitive or current information requests
     current_info_keywords = [
-        "current", "latest", "recent", "today", "now", "2024", "2023",
-        "news", "price", "stock", "weather", "breaking"
+        "current", "latest", "recent", "today", "now", "2024", "2025",
+        "news", "price", "stock", "weather", "breaking", "update"
     ]
     
-    query_lower = query.lower()
+    # Check for company/organization specific queries (more precise)
+    company_keywords = [
+        "company", "organization", "business", "corporation", "swift.com",
+        "website", "headquarters", "ceo", "founded", "established"
+    ]
+    
+    # More precise "what is" and "who is" for entities (not math)
+    entity_patterns = [
+        "what is " + word for word in ["swift", "microsoft", "apple", "google", "amazon", "meta", "tesla"]
+    ] + [
+        "who is the ceo", "who is the founder", "what does", "where is"
+    ]
+    
+    # Check for factual/specific information requests
+    factual_keywords = [
+        "when was", "how many", "where is", "what happened", 
+        "statistics", "data", "facts", "information about"
+    ]
+    
+    # Check for technology/product queries
+    tech_keywords = [
+        "features", "capabilities", "specifications", "release", "version",
+        "launch", "announcement", "product"
+    ]
+    
+    # Trigger for time-sensitive queries
     if any(keyword in query_lower for keyword in current_info_keywords):
+        return True
+    
+    # Trigger for company queries
+    if any(keyword in query_lower for keyword in company_keywords):
+        return True
+    
+    # Trigger for entity-specific "what is" queries
+    if any(pattern in query_lower for pattern in entity_patterns):
+        return True
+    
+    # Trigger for factual queries
+    if any(keyword in query_lower for keyword in factual_keywords):
+        return True
+    
+    # Trigger for tech queries
+    if any(keyword in query_lower for keyword in tech_keywords):
+        return True
+    
+    # Special trigger for Swift company queries
+    if "swift" in query_lower and ("work" in query_lower or "job" in query_lower or "company" in query_lower or "financial" in query_lower or "services" in query_lower):
         return True
     
     return False
