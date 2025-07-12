@@ -202,36 +202,37 @@ class Pipeline:
                 return message.get("content", "")
         return ""
     
-    def get_user_identifier(self, __user__: Dict) -> str:
-        """Get user identifier with proper authentication context and validation."""
-        # Debug: Log the complete user object
-        self.log(f"🔍 DEBUG: Received __user__ object: {__user__}")
+    def get_user_identifier(self, __user__: Dict) -> Optional[str]:
+        """Get user identifier with strict authentication validation - no fallbacks."""
+        # Debug: Log the complete user object (only if debug enabled)
+        if self.valves.debug:
+            self.log(f"🔍 DEBUG: Received __user__ object: {__user__}")
         
-        if __user__ and isinstance(__user__, dict):
-            # Try different user identification methods
-            user_id = (
-                __user__.get("id") or 
-                __user__.get("email") or 
-                __user__.get("username") or 
-                __user__.get("name")
-            )
-            if user_id:
-                user_id_str = str(user_id)
-                
-                # Validate user ID format
-                if self._is_valid_user_id(user_id_str):
-                    self.log(f"✅ USER ID EXTRACTED: {user_id_str}")
-                    return user_id_str
-                else:
-                    self.log(f"⚠️ Invalid user ID format: {user_id_str}")
-            else:
-                self.log(f"⚠️ No user ID found in user object keys: {list(__user__.keys())}")
-        else:
-            self.log(f"❌ Invalid or missing __user__ object: {type(__user__)}")
+        if not __user__ or not isinstance(__user__, dict):
+            self.log(f"❌ AUTHENTICATION REQUIRED: Invalid or missing user object: {type(__user__)}", "ERROR")
+            return None
         
-        # Fallback - pipeline has better context than functions
-        self.log(f"⚠️ Using fallback user ID: pipeline_default_user")
-        return "pipeline_default_user"
+        # Try different user identification methods (prioritized)
+        user_id = (
+            __user__.get("id") or 
+            __user__.get("email") or 
+            __user__.get("username") or 
+            __user__.get("name")
+        )
+        
+        if not user_id:
+            self.log(f"❌ AUTHENTICATION REQUIRED: No user ID found in user object keys: {list(__user__.keys())}", "ERROR")
+            return None
+        
+        user_id_str = str(user_id)
+        
+        # Validate user ID format
+        if not self._is_valid_user_id(user_id_str):
+            self.log(f"❌ AUTHENTICATION REQUIRED: Invalid user ID format: {user_id_str}", "ERROR")
+            return None
+        
+        self.log(f"✅ USER AUTHENTICATED: {user_id_str}")
+        return user_id_str
     
     def _is_valid_user_id(self, user_id: str) -> bool:
         """Validate user ID format and structure."""
@@ -282,8 +283,14 @@ class Pipeline:
             if not messages:
                 return body
             
-            # Get user identifier with validation
+            # Get user identifier with strict validation (no fallbacks)
             user_id = self.get_user_identifier(__user__)
+            
+            # If no valid user ID, block memory functionality but allow basic conversation
+            if not user_id:
+                self.log(f"🚨 AUTHENTICATION REQUIRED: Memory functionality disabled - no valid user ID provided", "ERROR")
+                # Return body unchanged - conversation continues but without memory
+                return body
             
             # Validate session consistency
             if not self._validate_session_consistency(user_id, body):
@@ -433,8 +440,13 @@ class Pipeline:
             if not messages:
                 return body
             
-            # Get user identifier with validation
+            # Get user identifier with strict validation (no fallbacks)
             user_id = self.get_user_identifier(__user__)
+            
+            # If no valid user ID, skip memory storage but allow response to pass through
+            if not user_id:
+                self.log(f"🚨 AUTHENTICATION REQUIRED: Skipping memory storage - no valid user ID provided", "ERROR")
+                return body
             
             # Validate session consistency
             if not self._validate_session_consistency(user_id, body):
@@ -515,8 +527,11 @@ class Pipeline:
             self.log(f"Error validating interaction content: {e}", "ERROR")
             return True  # Allow storage on validation error
     
-    def _validate_session_consistency(self, user_id: str, body: Dict) -> bool:
+    def _validate_session_consistency(self, user_id: Optional[str], body: Dict) -> bool:
         """Validate that user ID is consistent with session context."""
+        if not user_id:
+            return False  # No user ID = no session consistency
+            
         try:
             # Extract conversation/session identifiers from the request
             messages = body.get("messages", [])
@@ -611,14 +626,12 @@ class Pipeline:
         except Exception as e:
             self.log(f"Error registering session: {e}", "ERROR")
     
-    def _verify_user_memory_access(self, user_id: str) -> bool:
+    def _verify_user_memory_access(self, user_id: Optional[str]) -> bool:
         """Verify user has legitimate access to memory system."""
-        try:
-            # Basic validation checks
-            if user_id == "pipeline_default_user":
-                self.log(f"⚠️ Using fallback user ID - limited memory access")
-                return True  # Allow but log
+        if not user_id:
+            return False  # No user ID = no memory access
             
+        try:
             # Check for obviously invalid user IDs
             if not user_id or len(user_id) < 3:
                 self.log(f"❌ Invalid user ID for memory access: {user_id}", "ERROR")
