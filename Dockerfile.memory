@@ -17,7 +17,7 @@ COPY memory/ /app/memory/
 COPY human_logging.py /app/human_logging.py
 COPY error_handler.py /app/error_handler.py
 COPY integrated_memory_startup.py /app/integrated_memory_startup.py
-COPY memory_function.py /app/memory_function.py
+# Memory function is now in memory/functions/memory_function.py (copied with memory/ directory)
 
 # Create data directory
 RUN mkdir -p /app/data

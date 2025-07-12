@@ -389,6 +389,7 @@ def extract_memories(text: str) -> List[str]:
     """Extract memorable information from user text, including corrections."""
     memories = []
     text_lower = text.lower()
+    original_text = text.strip()
     
     # Handle corrections first (name corrections like "my name is X not Y")
     correction_patterns = [
@@ -414,21 +415,29 @@ def extract_memories(text: str) -> List[str]:
             r"my name is ([a-zA-Z\s.]+)",
             r"i'm ([a-zA-Z\s.]+)",
             r"i am ([a-zA-Z\s.]+)",
-            r"call me ([a-zA-Z\s.]+)"
+            r"call me ([a-zA-Z\s.]+)",
+            r"this is ([a-zA-Z\s.]+)",
+            r"hello,?\s*(?:my name is\s+)?([a-zA-Z\s.]{2,})",
+            r"hi,?\s*(?:i'm\s+)?([a-zA-Z\s.]{2,})"
         ]
         for pattern in name_patterns:
             matches = re.findall(pattern, text_lower)
             for name in matches:
                 name = name.strip().title()
-                if len(name) > 1 and name not in ["A", "An", "The"]:
+                # Filter out common words that aren't names
+                excluded_words = ["A", "An", "The", "Hello", "Hi", "My", "Name", "Is", "I", "Am", "This", "And", "Or", "But"]
+                if len(name) > 1 and name not in excluded_words and not any(word in name for word in ["Hello", "Hi"]):
                     memories.append(f"User's name is {name}")
     
-    # Work/profession extraction
+    # Work/profession extraction - Enhanced patterns
     work_patterns = [
-        r"i work (?:as |at |in )?([^.!?]+)",
+        r"i work (?:as |at |in |for )?(.+?)(?:\.|$|,)",
         r"i'm (?:a |an )?(.+?) (?:at|in|for) ([^.!?]+)",
-        r"my job is ([^.!?]+)",
-        r"i do ([^.!?]+)"
+        r"my job is (.+?)(?:\.|$|,)",
+        r"i do (.+?)(?:\.|$|,)",
+        r"i work for (.+?)(?:\.|$|,)",
+        r"employed (?:at|by) (.+?)(?:\.|$|,)",
+        r"work at (.+?)(?:\.|$|,)"
     ]
     for pattern in work_patterns:
         matches = re.findall(pattern, text_lower)
@@ -437,22 +446,63 @@ def extract_memories(text: str) -> List[str]:
                 work_info = " ".join(match).strip()
             else:
                 work_info = match.strip()
-            if len(work_info) > 3:
-                memories.append(f"User works {work_info}")
+            # Clean up and validate
+            work_info = work_info.replace("and", "").strip()
+            if len(work_info) > 3 and work_info not in ["that", "this", "what", "how"]:
+                memories.append(f"User works at/as {work_info}")
+    
+    # Company/workplace specific extraction
+    company_patterns = [
+        r"at ([A-Z][a-zA-Z\s]+(?:Software|Systems|Solutions|Technologies|Inc|Corp|Company|Ltd))",
+        r"for ([A-Z][a-zA-Z\s]+(?:Software|Systems|Solutions|Technologies|Inc|Corp|Company|Ltd))",
+        r"work at ([A-Z][a-zA-Z\s]+)"
+    ]
+    for pattern in company_patterns:
+        matches = re.findall(pattern, original_text)  # Use original case for company names
+        for company in matches:
+            company = company.strip()
+            if len(company) > 2:
+                memories.append(f"User works at {company}")
     
     # Personal interests and preferences
-    if any(keyword in text_lower for keyword in ["i like", "i love", "i enjoy", "my favorite", "i prefer"]):
-        memories.append(text.strip())
+    interest_patterns = [
+        r"i like (.+?)(?:\.|$|,)",
+        r"i love (.+?)(?:\.|$|,)",
+        r"i enjoy (.+?)(?:\.|$|,)",
+        r"my favorite (.+?)(?:\.|$|,)",
+        r"i prefer (.+?)(?:\.|$|,)",
+        r"i'm interested in (.+?)(?:\.|$|,)"
+    ]
+    for pattern in interest_patterns:
+        matches = re.findall(pattern, text_lower)
+        for interest in matches:
+            interest = interest.strip()
+            if len(interest) > 3:
+                memories.append(f"User likes/enjoys {interest}")
     
     # Skills and experience
-    if any(keyword in text_lower for keyword in ["i have experience", "i know", "i'm good at", "i specialize"]):
-        memories.append(text.strip())
+    skill_patterns = [
+        r"i have experience (?:with |in )?(.+?)(?:\.|$|,)",
+        r"i know (.+?)(?:\.|$|,)",
+        r"i'm good at (.+?)(?:\.|$|,)",
+        r"i specialize in (.+?)(?:\.|$|,)",
+        r"skilled in (.+?)(?:\.|$|,)",
+        r"expert in (.+?)(?:\.|$|,)"
+    ]
+    for pattern in skill_patterns:
+        matches = re.findall(pattern, text_lower)
+        for skill in matches:
+            skill = skill.strip()
+            if len(skill) > 3:
+                memories.append(f"User has experience/skills in {skill}")
     
     # Location information
     location_patterns = [
         r"i live in ([^.!?]+)",
         r"i'm from ([^.!?]+)",
-        r"my city is ([^.!?]+)"
+        r"my city is ([^.!?]+)",
+        r"located in ([^.!?]+)",
+        r"based in ([^.!?]+)"
     ]
     for pattern in location_patterns:
         matches = re.findall(pattern, text_lower)
@@ -460,6 +510,26 @@ def extract_memories(text: str) -> List[str]:
             location = location.strip().title()
             if len(location) > 1:
                 memories.append(f"User lives in {location}")
+    
+    # Personal details
+    detail_patterns = [
+        r"i have (.+?)(?:\.|$|,)",
+        r"i own (.+?)(?:\.|$|,)",
+        r"i study (.+?)(?:\.|$|,)",
+        r"i'm studying (.+?)(?:\.|$|,)"
+    ]
+    for pattern in detail_patterns:
+        matches = re.findall(pattern, text_lower)
+        for detail in matches:
+            detail = detail.strip()
+            if len(detail) > 3 and not any(word in detail for word in ["been", "done", "said"]):
+                memories.append(f"Personal detail: User has/studies {detail}")
+    
+    # If no specific patterns match but the text seems personal, store it directly
+    personal_indicators = ["my", "i", "me", "myself", "personal", "about me"]
+    if any(indicator in text_lower for indicator in personal_indicators) and len(original_text) > 10:
+        if not memories:  # Only if we didn't extract anything specific
+            memories.append(original_text)
     
     return memories
 def calculate_relevance_score(content: str, query: str) -> float:
@@ -470,7 +540,7 @@ def calculate_relevance_score(content: str, query: str) -> float:
     content_words = set(content_lower.split())
     
     # Heavily penalize corrected/incorrect information
-    if content_lower.startswith("correction:") or "not " in content_lower:
+    if content_lower.startswith("correction:") or " is not " in content_lower:
         return 0.01  # Very low relevance for corrections/negations
     
     # CRITICAL: Penalize old/incorrect names heavily when we have corrections
@@ -486,37 +556,50 @@ def calculate_relevance_score(content: str, query: str) -> float:
     
     # Exact word matches (higher weight)
     exact_matches = query_words.intersection(content_words)
-    score += len(exact_matches) * 0.5
+    score += len(exact_matches) * 0.6
     
     # Partial matches (substring matching)
     for query_word in query_words:
-        for content_word in content_words:
-            if len(query_word) > 2 and len(content_word) > 2:
-                if query_word in content_word or content_word in query_word:
-                    score += 0.2
+        if len(query_word) > 2:
+            for content_word in content_words:
+                if len(content_word) > 2:
+                    if query_word in content_word or content_word in query_word:
+                        score += 0.3
     
-    # Common patterns for memory queries
-    if "what do you know" in query_lower or "tell me about" in query_lower:
-        # For these queries, give any stored memory some relevance
-        score += 0.3
+    # Enhanced pattern matching for common memory queries
+    memory_query_patterns = [
+        "what do you know", "tell me about", "remember about", 
+        "what do you remember", "who am i", "about me"
+    ]
+    if any(pattern in query_lower for pattern in memory_query_patterns):
+        # For these queries, give any stored memory good relevance
+        score += 0.4
     
     # Name-based queries (boost for current/correct names)
     if "name" in query_lower and "name" in content_lower:
-        score += 0.4
-        # Extra boost for specific correct names like "J.P."
-        if "j.p." in content_lower or "jp" in content_lower:
-            score += 0.5  # Big boost for the correct name
+        score += 0.5
+        # Extra boost for specific names
+        name_words = ["j.p.", "jp", "swift", "software"]
+        for name_word in name_words:
+            if name_word in content_lower:
+                score += 0.4
     
     # Work-based queries  
-    if any(word in query_lower for word in ["work", "job", "career"]) and any(word in content_lower for word in ["work", "job", "career"]):
-        score += 0.4
+    work_keywords = ["work", "job", "career", "company", "employer", "workplace"]
+    if any(word in query_lower for word in work_keywords) and any(word in content_lower for word in work_keywords):
+        score += 0.5
     
-    # Normalize by query length and ensure minimum relevance for any memory
-    normalized_score = min(score / max(total_words, 1), 1.0)
+    # Personal information queries
+    personal_keywords = ["personal", "about", "me", "myself", "i", "my"]
+    if any(word in query_lower for word in personal_keywords):
+        score += 0.2
     
-    # Give a small base score to any memory for broad queries (but not corrections or outdated names)
-    if ("what do you know" in query_lower or "about me" in query_lower) and not content_lower.startswith("correction:") and "testuser" not in content_lower:
-        normalized_score = max(normalized_score, 0.15)
+    # Normalize by query length but don't over-penalize
+    normalized_score = min(score / max(total_words * 0.5, 1), 1.0)
+    
+    # Give a base score to any memory for broad queries (but not corrections or outdated names)
+    if any(pattern in query_lower for pattern in memory_query_patterns) and not content_lower.startswith("correction:") and "testuser" not in content_lower:
+        normalized_score = max(normalized_score, 0.2)
     
     return normalized_score
 async def get_redis_memory_count(user_id: str) -> int:

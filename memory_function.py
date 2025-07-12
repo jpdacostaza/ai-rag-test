@@ -7,16 +7,6 @@ to provide persistent conversation context and learning capabilities.
 
 This function uses the separated memory architecture for better maintainability.
 
-⚠️  IMPORTANT NOTE: 
-This function has limitations with user identification due to OpenWebUI's function architecture.
-For proper user authentication and memory isolation, use the Pipelines version instead:
-- File: memory_pipeline.py  
-- Setup: Run setup_complete_memory.ps1 (installs both Function + Pipeline)
-- Pipeline Setup: Run setup_memory_pipelines.ps1 (Pipeline only)
-
-OpenWebUI Functions don't receive authenticated user context, while Pipelines do.
-This means all users will share the same memory space with Functions.
-
 NOTE: This is the primary memory function file used by the system.
 The file at memory/functions/memory_filter.py serves as a fallback
 in case this file is not available.

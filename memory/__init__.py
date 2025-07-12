@@ -9,7 +9,7 @@ This module contains all memory-related functionality including:
 - Separated core memory logic
 """
 
-from .api.main import app as memory_api_app
+from .api.enhanced_memory_api import app as memory_api_app
 from .core import MemoryClient, MemoryConfig, MemoryQuery, MemoryRecord, MemoryResponse, IMemoryProvider
 from .service import MemoryService
 from .providers import MemoryProviderFactory

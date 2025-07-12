@@ -34,8 +34,8 @@ class Pipeline:
             **{
                 "pipelines": ["*"],  # Apply to all models
                 "backend_url": os.getenv("BACKEND_URL", "http://memory_api:8080"),
-                "memory_threshold": float(os.getenv("MEMORY_THRESHOLD", "0.05")),
-                "max_memories": int(os.getenv("MAX_MEMORIES", "10")),
+                "memory_threshold": float(os.getenv("MEMORY_THRESHOLD", "0.001")),  # Very low threshold for better recall
+                "max_memories": int(os.getenv("MAX_MEMORIES", "15")),  # Increased for better context
                 "debug": os.getenv("DEBUG_MODE", "true").lower() == "true",
             }
         )
@@ -172,23 +172,44 @@ class Pipeline:
                 memories = await self._retrieve_memories(user_id, conversation_id, query)
                 
                 if memories:
-                    # Inject memories into the conversation
-                    memory_context = "\n".join([
-                        f"[Memory {i+1}]: {memory.get('content', '')}"
-                        for i, memory in enumerate(memories)
-                    ])
+                    # Create better formatted memory context
+                    memory_context_parts = []
+                    memory_context_parts.append("=== PREVIOUS CONVERSATION CONTEXT ===")
                     
-                    # Add memory context as a system message
+                    for i, memory in enumerate(memories, 1):
+                        content = memory.get('content', '')
+                        timestamp = memory.get('metadata', {}).get('timestamp', 0)
+                        memory_type = memory.get('metadata', {}).get('type', 'unknown')
+                        
+                        # Format timestamp if available
+                        time_info = ""
+                        if timestamp:
+                            try:
+                                import datetime
+                                dt = datetime.datetime.fromtimestamp(float(timestamp))
+                                time_info = f" (from {dt.strftime('%Y-%m-%d %H:%M')})"
+                            except:
+                                pass
+                        
+                        memory_context_parts.append(f"{i}. {content}{time_info}")
+                    
+                    memory_context_parts.append("=== END CONTEXT ===")
+                    memory_context_parts.append("")
+                    memory_context_parts.append("Use this context to provide personalized and coherent responses. Reference relevant information naturally when appropriate.")
+                    
+                    memory_context = "\n".join(memory_context_parts)
+                    
+                    # Add memory context as a system message before the user message
                     memory_message = {
                         "role": "system",
-                        "content": f"Previous conversation context and memories:\n{memory_context}\n\nUse this context to provide more personalized and coherent responses."
+                        "content": memory_context
                     }
                     
                     # Insert memory context before the latest user message
                     messages.insert(-1, memory_message)
                     body["messages"] = messages
                     
-                    self.log(f"Injected {len(memories)} memories into conversation")
+                    self.log(f"Injected {len(memories)} memories into conversation with enhanced formatting")
         
         return body
 
