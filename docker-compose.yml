@@ -219,6 +219,7 @@ services:
     # Installer now enabled - Pipeline file already exists
 
   # Watchtower - Automatic container updates (optional)
+  # Monitors OpenWebUI, ChromaDB, Redis, Ollama, and Pipelines containers
   watchtower:
     image: containrrr/watchtower:latest
     container_name: backend-watchtower
@@ -229,6 +230,8 @@ services:
       - WATCHTOWER_POLL_INTERVAL=3600  # Check every hour
       - WATCHTOWER_CLEANUP=true
       - WATCHTOWER_INCLUDE_RESTARTING=true
+      # Monitor external services only (not custom backend/memory components)
+    command: backend-openwebui backend-chroma backend-redis backend-ollama backend-pipelines
     networks:
       - backend-net
     profiles:
