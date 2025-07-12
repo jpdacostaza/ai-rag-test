@@ -83,7 +83,7 @@ Write-Host "- Memory API logs: docker logs backend-memory-api" -ForegroundColor 
 Write-Host "- Backend logs: docker logs backend-main" -ForegroundColor White
 Write-Host ""
 Write-Host "💡 Memory System Features:" -ForegroundColor Cyan
-Write-Host "- Functions: Basic memory (all users share openwebui_default_user)" -ForegroundColor White
+Write-Host "- Functions: DISABLED (Enhanced Memory Pipeline provides proper user isolation)" -ForegroundColor White
 Write-Host "- Pipelines: Advanced memory (proper user isolation by email/ID)" -ForegroundColor White
 Write-Host ""
 Write-Host "✅ Complete memory system setup finished!" -ForegroundColor Green

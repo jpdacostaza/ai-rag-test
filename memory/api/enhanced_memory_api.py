@@ -75,6 +75,7 @@ class ExplicitMemoryRequest(BaseModel):
     content: str
     source: Optional[str] = "explicit_command"
     conversation_id: Optional[str] = "manual"
+    metadata: Optional[Dict[str, Any]] = None  # Added support for metadata
 class ForgetMemoryRequest(BaseModel):
     user_id: str
     forget_query: str  # What to forget (e.g., "my job", "my name", "everything about work")
@@ -285,6 +286,118 @@ async def process_interaction(request: LearningInteractionRequest = Body(...)):
             "user_id": request.user_id,
             "processed": False
         }
+
+@app.post("/api/memory/store_explicit")
+async def store_explicit_memory(request: ExplicitMemoryRequest = Body(...)):
+    """
+    Store explicit memory with high priority - triggered by 'remember this', 'save this', etc.
+    """
+    try:
+        print(f"💾 EXPLICIT MEMORY request for user {request.user_id}")
+        print(f"   Content: {request.content[:100]}...")
+        
+        # Create high-priority interaction for explicit memory
+        interaction = {
+            "user_id": request.user_id,
+            "conversation_id": request.conversation_id,
+            "user_message": f"EXPLICIT: {request.content}",
+            "assistant_response": "I will remember this important information.",
+            "timestamp": time.time(),
+            "source": request.source,
+            "priority": "high",
+            "explicit": True
+        }
+        
+        # Add metadata if provided
+        if request.metadata:
+            interaction.update(request.metadata)
+        
+        # Store directly to both short-term and long-term storage for explicit memories
+        memories_stored = 0
+        
+        # 1. Store in Redis (short-term) with extended TTL for explicit memories
+        if await store_explicit_to_redis(request.user_id, request.content, interaction):
+            memories_stored += 1
+            print(f"💾 Stored explicit short-term memory: {request.content[:50]}...")
+        
+        # 2. Store directly in ChromaDB (long-term) for immediate persistence
+        if await store_explicit_to_chromadb(request.user_id, request.content, interaction):
+            memories_stored += 1
+            print(f"💾 Stored explicit long-term memory: {request.content[:50]}...")
+        
+        # Get updated memory counts
+        short_term_count = await get_redis_memory_count(request.user_id)
+        long_term_count = await get_chromadb_memory_count(request.user_id)
+        
+        print(f"✅ Explicit memory storage complete - {memories_stored} new memories")
+        
+        return {
+            "status": "success",
+            "user_id": request.user_id,
+            "stored": True,
+            "new_memories": memories_stored,
+            "explicit": True,
+            "priority": "high",
+            "total_memories": {
+                "short_term": short_term_count,
+                "long_term": long_term_count,
+                "total": short_term_count + long_term_count
+            }
+        }
+        
+    except Exception as e:
+        print(f"❌ Explicit memory storage error: {e}")
+        raise HTTPException(status_code=500, detail=f"Explicit memory storage failed: {str(e)}")
+
+async def store_explicit_to_redis(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
+    """Store explicit memory in Redis with extended TTL."""
+    if not redis_client:
+        return False
+    try:
+        memory_id = str(uuid.uuid4())
+        key = f"memory:explicit:{user_id}:{memory_id}"
+        memory_data = {
+            "content": content,
+            "timestamp": interaction["timestamp"],
+            "conversation_id": interaction["conversation_id"],
+            "access_count": 0,
+            "source": interaction["source"],
+            "priority": "high",
+            "explicit": True
+        }
+        redis_client.hset(key, mapping=memory_data)
+        # Extended TTL for explicit memories (7 days instead of default)
+        redis_client.expire(key, 7 * 24 * 3600)  # 7 days
+        return True
+    except Exception as e:
+        print(f"❌ Explicit Redis storage error: {e}")
+        return False
+
+async def store_explicit_to_chromadb(user_id: str, content: str, interaction: Dict[str, Any]) -> bool:
+    """Store explicit memory directly in ChromaDB for immediate persistence."""
+    if not memory_collection:
+        return False
+    try:
+        memory_id = str(uuid.uuid4())
+        memory_collection.add(
+            documents=[content],
+            metadatas=[{
+                "user_id": user_id,
+                "timestamp": interaction["timestamp"],
+                "conversation_id": interaction["conversation_id"],
+                "source": interaction["source"],
+                "priority": "high",
+                "explicit": True,
+                "access_count": 0
+            }],
+            ids=[memory_id]
+        )
+        print(f"💾 Stored explicit long-term memory: {content[:50]}...")
+        return True
+    except Exception as e:
+        print(f"❌ Explicit ChromaDB storage error: {e}")
+        return False
+
 async def retrieve_from_redis(user_id: str, query: str) -> List[Dict[str, Any]]:
     """Retrieve memories from Redis short-term storage."""
     if not redis_client:
@@ -386,10 +499,36 @@ async def promote_to_long_term(user_id: str, memory_data: Dict[str, Any]):
     except Exception as e:
         print(f"❌ Long-term promotion error: {e}")
 def extract_memories(text: str) -> List[str]:
-    """Extract memorable information from user text, including corrections."""
+    """
+    Enhanced memory extraction for comprehensive document and CV content analysis.
+    
+    This function now properly extracts:
+    - CV and resume content
+    - Technical skills and expertise
+    - Job responsibilities and experience
+    - Professional qualifications
+    - Personal details and preferences
+    - Complex document structures
+    """
     memories = []
     text_lower = text.lower()
     original_text = text.strip()
+    
+    # 🔥 NEW: CV/Resume Document Detection and Processing
+    if any(indicator in text_lower for indicator in [
+        'cv', 'resume', 'curriculum vitae', 'work experience', 'professional experience',
+        'skills and expertise', 'technical skills', 'job responsibilities', 'qualifications',
+        'education', 'certifications', 'portfolio', 'work history'
+    ]):
+        print(f"📄 CV/Resume document detected - extracting comprehensive professional information")
+        
+        # Extract entire document as structured memory
+        memories.extend(extract_cv_content(original_text))
+        
+        # Also extract specific professional elements
+        memories.extend(extract_professional_skills(original_text))
+        memories.extend(extract_job_responsibilities(original_text))
+        memories.extend(extract_technical_expertise(original_text))
     
     # Handle corrections first (name corrections like "my name is X not Y")
     correction_patterns = [
@@ -525,12 +664,39 @@ def extract_memories(text: str) -> List[str]:
             if len(detail) > 3 and not any(word in detail for word in ["been", "done", "said"]):
                 memories.append(f"Personal detail: User has/studies {detail}")
     
+    # 🔥 ENHANCED: Extract any substantial content that wasn't caught by patterns
+    if len(original_text) > 50:  # Substantial content
+        # Split into sentences and extract meaningful ones
+        sentences = original_text.split('.')
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) > 20 and any(word in sentence.lower() for word in [
+                'experience', 'work', 'skill', 'knowledge', 'responsible', 'manage', 
+                'support', 'technical', 'professional', 'qualification', 'training',
+                'project', 'system', 'network', 'server', 'software', 'hardware'
+            ]):
+                memories.append(f"Professional Context: {sentence}")
+    
+    # 🔥 ENHANCED: Capture detailed descriptions and explanations
+    if len(original_text) > 100:  # Very detailed content
+        # Extract paragraphs or long descriptions
+        paragraphs = original_text.split('\n')
+        for para in paragraphs:
+            para = para.strip()
+            if len(para) > 30:  # Meaningful paragraph
+                memories.append(f"Detailed Information: {para}")
+    
     # If no specific patterns match but the text seems personal, store it directly
     personal_indicators = ["my", "i", "me", "myself", "personal", "about me"]
     if any(indicator in text_lower for indicator in personal_indicators) and len(original_text) > 10:
         if not memories:  # Only if we didn't extract anything specific
             memories.append(original_text)
     
+    # 🔥 FINAL SAFETY NET: If we have substantial content but no memories, store it
+    if not memories and len(original_text) > 20:
+        memories.append(f"User Information: {original_text}")
+    
+    print(f"📝 Total memories extracted: {len(memories)}")
     return memories
 def calculate_relevance_score(content: str, query: str) -> float:
     """Calculate relevance score between content and query. ENHANCED for better matching."""
@@ -663,13 +829,202 @@ async def debug_stats():
         except Exception as e:
             stats["chromadb"]["error"] = str(e)
     return stats
-if __name__ == "__main__":
-    print("🚀 Starting Enhanced Memory API Server with Redis + ChromaDB...")
-    print("🏪 Storage Systems:")
-    print(f"   📱 Redis (short-term): {REDIS_HOST}:{REDIS_PORT}")
-    print(f"   📚 ChromaDB (long-term): {CHROMA_HOST}:{CHROMA_PORT}")
-    print("📡 Endpoints:")
-    print("   POST /api/memory/retrieve")
-    print("   POST /api/learning/process_interaction")
-    print("   GET /debug/stats")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+def extract_cv_content(text: str) -> List[str]:
+    """Extract comprehensive CV/resume content with structured information."""
+    cv_memories = []
+    
+    try:
+        # Split text into logical sections for better processing
+        sections = text.split('\n')
+        current_section = ""
+        
+        for line in sections:
+            line = line.strip()
+            if len(line) < 3:
+                continue
+                
+            # Detect section headers and content
+            if any(keyword in line.lower() for keyword in [
+                'experience', 'skills', 'education', 'qualifications', 'responsibilities',
+                'achievements', 'projects', 'certifications', 'summary', 'profile'
+            ]):
+                current_section = line
+                if len(line) > 10:  # Substantial section header
+                    cv_memories.append(f"CV Section: {line}")
+            else:
+                # Extract substantial content lines
+                if len(line) > 15 and not line.startswith(('•', '-', '*')):
+                    cv_memories.append(f"Professional Info: {line}")
+                elif len(line) > 10:  # Shorter but meaningful content
+                    cv_memories.append(f"CV Detail: {line}")
+        
+        # Extract entire meaningful chunks (paragraphs)
+        paragraphs = text.split('\n\n')
+        for para in paragraphs:
+            para = para.strip()
+            if len(para) > 50:  # Substantial paragraphs
+                cv_memories.append(f"CV Content: {para}")
+        
+        print(f"📄 Extracted {len(cv_memories)} CV content memories")
+        return cv_memories
+        
+    except Exception as e:
+        print(f"❌ Error extracting CV content: {e}")
+        return [f"CV Document: {text}"]  # Fallback to store entire text
+
+def extract_professional_skills(text: str) -> List[str]:
+    """Extract technical and professional skills from text."""
+    skills_memories = []
+    text_lower = text.lower()
+    
+    try:
+        # Technical skill patterns
+        technical_patterns = [
+            r'(networking|network administration|server support|desktop support)',
+            r'(point of sale|pos|retail systems|payment processing)',
+            r'(technical support|it support|help desk|troubleshooting)',
+            r'(system administration|server management|infrastructure)',
+            r'(hardware|software|installation|configuration|maintenance)',
+            r'(windows|linux|mac os|operating systems|os support)',
+            r'(database|sql|mysql|postgresql|oracle)',
+            r'(programming|coding|development|scripting)',
+            r'(security|cybersecurity|network security|data protection)',
+            r'(cloud|aws|azure|google cloud|saas|iaas)',
+            r'(virtualization|vmware|hyper-v|containers|docker)',
+            r'(monitoring|performance|optimization|analysis)'
+        ]
+        
+        for pattern in technical_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                skills_memories.append(f"Technical Skill: {match.title()}")
+        
+        # Professional competencies
+        professional_patterns = [
+            r'(customer service|client support|user support)',
+            r'(project management|team leadership|coordination)',
+            r'(communication|presentation|documentation|training)',
+            r'(problem solving|analytical|critical thinking)',
+            r'(multitasking|time management|organization)',
+            r'(collaboration|teamwork|cross-functional)'
+        ]
+        
+        for pattern in professional_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                skills_memories.append(f"Professional Skill: {match.title()}")
+        
+        # Extract explicit skill mentions
+        skill_indicators = ['skills:', 'expertise:', 'proficient in:', 'experience with:', 'knowledge of:']
+        for indicator in skill_indicators:
+            if indicator in text_lower:
+                # Find text after the indicator
+                start_idx = text_lower.find(indicator)
+                skill_text = text[start_idx:start_idx + 200]  # Get next 200 chars
+                skills_memories.append(f"Skills Section: {skill_text}")
+        
+        print(f"🛠️ Extracted {len(skills_memories)} professional skills")
+        return skills_memories
+        
+    except Exception as e:
+        print(f"❌ Error extracting professional skills: {e}")
+        return []
+
+def extract_job_responsibilities(text: str) -> List[str]:
+    """Extract job responsibilities and work experience details."""
+    responsibility_memories = []
+    text_lower = text.lower()
+    
+    try:
+        # Responsibility indicators
+        responsibility_patterns = [
+            r'responsible for (.+?)(?:\.|$|\n)',
+            r'duties include (.+?)(?:\.|$|\n)',
+            r'key responsibilities (.+?)(?:\.|$|\n)',
+            r'experience in (.+?)(?:\.|$|\n)',
+            r'performed (.+?)(?:\.|$|\n)',
+            r'managed (.+?)(?:\.|$|\n)',
+            r'developed (.+?)(?:\.|$|\n)',
+            r'implemented (.+?)(?:\.|$|\n)',
+            r'maintained (.+?)(?:\.|$|\n)',
+            r'supported (.+?)(?:\.|$|\n)',
+            r'coordinated (.+?)(?:\.|$|\n)',
+            r'administered (.+?)(?:\.|$|\n)'
+        ]
+        
+        for pattern in responsibility_patterns:
+            matches = re.findall(pattern, text_lower, re.MULTILINE)
+            for match in matches:
+                if len(match.strip()) > 10:
+                    responsibility_memories.append(f"Job Responsibility: {match.strip()}")
+        
+        # Extract job positions and companies
+        position_patterns = [
+            r'(technician|specialist|administrator|manager|coordinator|analyst|engineer|consultant)',
+            r'(support|service|maintenance|installation|configuration|troubleshooting)',
+            r'(junior|senior|lead|principal|chief|head of|director of)'
+        ]
+        
+        for pattern in position_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                responsibility_memories.append(f"Job Role: {match.title()}")
+        
+        print(f"💼 Extracted {len(responsibility_memories)} job responsibilities")
+        return responsibility_memories
+        
+    except Exception as e:
+        print(f"❌ Error extracting job responsibilities: {e}")
+        return []
+
+def extract_technical_expertise(text: str) -> List[str]:
+    """Extract detailed technical expertise and certifications."""
+    expertise_memories = []
+    text_lower = text.lower()
+    
+    try:
+        # Technical domains
+        technical_domains = [
+            'network administration', 'server support', 'desktop support', 'help desk',
+            'point of sale systems', 'retail technology', 'payment processing',
+            'hardware troubleshooting', 'software installation', 'system configuration',
+            'user training', 'technical documentation', 'incident resolution',
+            'performance monitoring', 'backup and recovery', 'security protocols'
+        ]
+        
+        for domain in technical_domains:
+            if domain in text_lower:
+                expertise_memories.append(f"Technical Expertise: {domain.title()}")
+        
+        # Certification patterns
+        cert_patterns = [
+            r'(certified|certification|credential|license|qualification)',
+            r'(comptia|cisco|microsoft|apple|linux|vmware|aws|azure)',
+            r'(a\+|network\+|security\+|server\+|cloud\+)',
+            r'(mcsa|mcse|ccna|ccnp|ccie|rhce|vcp)'
+        ]
+        
+        for pattern in cert_patterns:
+            matches = re.findall(pattern, text_lower, re.IGNORECASE)
+            for match in matches:
+                expertise_memories.append(f"Certification/Qualification: {match.upper()}")
+        
+        # Extract years of experience
+        experience_patterns = [
+            r'(\d+)\s*(?:years?|yrs?)\s*(?:of\s*)?(?:experience|exp)',
+            r'(\d+)\+\s*years?',
+            r'over\s*(\d+)\s*years?'
+        ]
+        
+        for pattern in experience_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                expertise_memories.append(f"Experience Level: {match} years")
+        
+        print(f"🎯 Extracted {len(expertise_memories)} technical expertise items")
+        return expertise_memories
+        
+    except Exception as e:
+        print(f"❌ Error extracting technical expertise: {e}")
+        return []

@@ -119,8 +119,14 @@ class Filter:
             return body
         
         try:
-            # Extract user ID using comprehensive method
+            # Extract user ID using strict authentication
             user_id = self.extract_user_id(body, user)
+            
+            # If no valid user ID, skip memory functionality
+            if not user_id:
+                if self.valves.debug:
+                    self.log(f"🚨 No valid user authentication - memory functionality disabled")
+                return body
             
             # Log for debugging
             if self.valves.debug:
@@ -208,8 +214,16 @@ class Filter:
             return body
         
         try:
+            # Extract user ID using strict authentication
+            user_id = self.extract_user_id(body, user)
+            
+            # If no valid user ID, skip memory functionality
+            if not user_id:
+                if self.valves.debug:
+                    self.log(f"🚨 No valid user authentication - memory functionality disabled")
+                return body
+            
             if self.valves.debug:
-                user_id = self.extract_user_id(body, user)
                 self.log(f"🔍 Outlet called for user: {user_id} (not processing - AI responses should not become memories)")
             
             # Just return the body without processing AI responses as memories
@@ -219,10 +233,8 @@ class Filter:
             self.log(f"❌ Error in outlet: {e}", "ERROR")
             return body
     
-    def extract_user_id(self, body: dict, user: Optional[Dict] = None) -> str:
-        """Extract user ID using multiple fallback methods."""
-        
-        user_id = "anonymous"
+    def extract_user_id(self, body: dict, user: Optional[Dict] = None) -> Optional[str]:
+        """Extract user ID using strict authentication - no fallbacks."""
         
         # Method 1: From user parameter (most reliable)
         if user and isinstance(user, dict):
@@ -230,10 +242,10 @@ class Filter:
                       user.get("user_id") or 
                       user.get("email") or 
                       user.get("name"))
-            if user_id and user_id != "anonymous":
+            if user_id and str(user_id).strip():
                 if self.valves.debug:
                     self.log(f"✅ User ID from user param: {user_id}")
-                return str(user_id)
+                return str(user_id).strip()
         
         # Method 2: From body
         if isinstance(body, dict):
@@ -252,35 +264,16 @@ class Filter:
                         extracted = (candidate.get("id") or 
                                    candidate.get("email") or 
                                    candidate.get("name"))
-                        if extracted:
+                        if extracted and str(extracted).strip():
                             if self.valves.debug:
                                 self.log(f"✅ User ID from body: {extracted}")
-                            return str(extracted)
-                    else:
+                            return str(extracted).strip()
+                    elif str(candidate).strip():
                         if self.valves.debug:
                             self.log(f"✅ User ID from body field: {candidate}")
-                        return str(candidate)
-            
-            # Method 3: Try to extract from chat metadata
-            chat_id = body.get("chat_id") or body.get("chatId")
-            if chat_id:
-                # Use chat_id as a user identifier (not ideal but better than anonymous)
-                user_id = f"chat_{chat_id}"
-                if self.valves.debug:
-                    self.log(f"🔄 Using chat ID as user ID: {user_id}")
-                return user_id
-            
-            # Method 4: Generate a session-based ID from messages if available
-            messages = body.get("messages", [])
-            if messages:
-                # Create a pseudo-user ID based on the first message timestamp and content
-                first_msg = messages[0]
-                content_hash = str(hash(str(first_msg.get("content", ""))[:50]))[-8:]
-                user_id = f"session_{content_hash}"
-                if self.valves.debug:
-                    self.log(f"🔄 Generated session user ID: {user_id}")
-                return user_id
+                        return str(candidate).strip()
         
+        # ⚠️ NO FALLBACKS - Enhanced Memory Pipeline handles proper authentication
         if self.valves.debug:
-            self.log(f"⚠️ Falling back to anonymous user")
-        return "anonymous"
+            self.log(f"❌ No valid user authentication found - memory functionality disabled")
+        return None

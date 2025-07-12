@@ -23,6 +23,7 @@ import httpx
 import json
 import time
 import os
+import re
 from pydantic import BaseModel
 
 class Pipeline:
@@ -46,12 +47,22 @@ class Pipeline:
         
         # Memory Settings
         enable_memory: bool = True
-        max_memories: int = 10
-        memory_threshold: float = 0.01  # Lower threshold for local models (1% instead of 5%)
+        max_memories: int = 50  # Number of memories to retrieve per query (NOT total storage limit)
+        memory_threshold: float = 0.005  # Even lower threshold for better recall (0.5%)
+        
+        # Advanced Memory Management (NEW)
+        unlimited_storage: bool = True  # Allow unlimited memory storage
+        smart_memory_management: bool = True  # Enable intelligent memory organization
+        max_context_memories: int = 20  # Max memories to include in conversation context
+        adaptive_memory_limit: bool = True  # Adapt memory retrieval based on model capabilities
+        
+        # Explicit Memory Commands (NEW)
+        enable_explicit_commands: bool = True  # Support "remember this", "save this", etc.
+        force_memory_keywords: List[str] = ["remember this", "save this", "don't forget", "important to remember"]
         
         # Learning Settings
         enable_learning: bool = True
-        auto_store_threshold: int = 2
+        auto_store_threshold: int = 1  # Store immediately after first exchange
         
         # Performance Settings
         timeout: float = 5.0
@@ -88,10 +99,13 @@ class Pipeline:
         
         # Initialize HTTP client
         self.http_client = None
+        self._client_lock = asyncio.Lock()  # Thread safety for HTTP client
         
-        # Session tracking for user ID consistency
+        # Session tracking for user ID consistency with cleanup
         self._user_sessions = {}  # Track user sessions
         self._session_users = {}  # Track sessions per user
+        self._session_timestamps = {}  # Track session creation times
+        self._max_session_age = 86400  # 24 hours in seconds
     
     async def on_startup(self):
         """Called when the server is started."""
@@ -108,9 +122,12 @@ class Pipeline:
         self.log("Enhanced Memory Pipeline valves updated")
     
     async def get_http_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """Get or create HTTP client with thread safety."""
         if self.http_client is None:
-            self.http_client = httpx.AsyncClient(timeout=self.valves.timeout)
+            async with self._client_lock:
+                # Double-check pattern
+                if self.http_client is None:
+                    self.http_client = httpx.AsyncClient(timeout=self.valves.timeout)
         return self.http_client
     
     def log(self, message: str, level: str = "INFO"):
@@ -195,6 +212,127 @@ class Pipeline:
             self.log(f"Error storing interaction: {e}", "ERROR")
             return False
     
+    def detect_explicit_memory_commands(self, message_content: str) -> Dict[str, Any]:
+        """Detect explicit memory commands in user messages."""
+        if not self.valves.enable_explicit_commands:
+            return {"has_command": False}
+        
+        content_lower = message_content.lower()
+        detected_commands = []
+        
+        # Check for force memory keywords
+        for keyword in self.valves.force_memory_keywords:
+            if keyword in content_lower:
+                detected_commands.append({
+                    "keyword": keyword,
+                    "type": "force_remember",
+                    "priority": "high"
+                })
+        
+        # Check for other memory patterns
+        memory_patterns = {
+            r"(remember that|save this|don't forget)": "force_remember",
+            r"(important|critical|key|vital).*?(remember|save|note)": "high_priority",
+            r"(never forget|always remember)": "permanent",
+            r"(update|correct|change).*?(remember|memory)": "update_memory",
+            r"(forget|remove|delete).*?(memory|remember)": "forget_command"
+        }
+        
+        import re
+        for pattern, command_type in memory_patterns.items():
+            if re.search(pattern, content_lower):
+                detected_commands.append({
+                    "pattern": pattern,
+                    "type": command_type,
+                    "priority": "high" if command_type in ["force_remember", "permanent"] else "medium"
+                })
+        
+        return {
+            "has_command": len(detected_commands) > 0,
+            "commands": detected_commands,
+            "message_content": message_content
+        }
+    
+    async def store_explicit_memory(self, user_id: str, content: str, command_info: Dict) -> bool:
+        """Store explicit memory with high priority."""
+        try:
+            client = await self.get_http_client()
+            
+            # Create explicit memory payload
+            payload = {
+                "user_id": user_id,
+                "content": content,
+                "source": "explicit_command",
+                "metadata": {
+                    "priority": "high",
+                    "explicit": True,
+                    "commands": command_info.get("commands", []),
+                    "timestamp": time.time()
+                }
+            }
+            
+            self.log(f"💾 FORCE STORING explicit memory for user {user_id}: {content[:100]}...")
+            
+            # First, let's add this to the memory API (we'll add the endpoint next)
+            response = await client.post(
+                f"{self.valves.backend_url}/api/memory/store_explicit",
+                json=payload
+            )
+            
+            if response.status_code == 200:
+                self.log(f"✅ Explicit memory stored successfully for user {user_id}")
+                return True
+            else:
+                self.log(f"❌ Failed to store explicit memory: HTTP {response.status_code}", "ERROR")
+                # Fallback to regular interaction storage
+                return await self._fallback_explicit_storage(user_id, content)
+                
+        except Exception as e:
+            self.log(f"❌ Error storing explicit memory: {e}", "ERROR")
+            # Fallback to regular interaction storage
+            return await self._fallback_explicit_storage(user_id, content)
+    
+    async def _fallback_explicit_storage(self, user_id: str, content: str) -> bool:
+        """Fallback method to store explicit memory via regular interaction."""
+        try:
+            # Create a special interaction that marks it as explicit
+            messages = [
+                {"role": "user", "content": f"EXPLICIT MEMORY: {content}"},
+                {"role": "assistant", "content": "I will remember this important information."}
+            ]
+            
+            return await self.store_interaction(user_id, messages)
+        except Exception as e:
+            self.log(f"❌ Fallback storage failed: {e}", "ERROR")
+            return False
+    
+    def adapt_memory_limit_for_context(self, model_info: Optional[Dict] = None) -> int:
+        """Adapt memory retrieval limit based on model capabilities and context."""
+        if not self.valves.adaptive_memory_limit:
+            return self.valves.max_context_memories
+        
+        try:
+            # Determine context window size if available
+            context_window = 4096  # Default assumption
+            
+            if model_info:
+                # Extract context window from model info if available
+                context_window = model_info.get("context_window", 4096)
+            
+            # Calculate optimal memory count based on context window
+            if context_window >= 32000:  # Large context models
+                return min(self.valves.max_memories, 100)
+            elif context_window >= 16000:  # Medium-large context
+                return min(self.valves.max_memories, 50)
+            elif context_window >= 8000:   # Medium context
+                return min(self.valves.max_memories, 30)
+            else:  # Small context models
+                return min(self.valves.max_context_memories, 20)
+                
+        except Exception as e:
+            self.log(f"Error adapting memory limit: {e}", "ERROR")
+            return self.valves.max_context_memories
+
     def extract_user_message(self, messages: List[Dict]) -> str:
         """Extract the latest user message for memory retrieval."""
         for message in reversed(messages):
@@ -292,20 +430,50 @@ class Pipeline:
                 # Return body unchanged - conversation continues but without memory
                 return body
             
+            # Extract user query first for explicit command detection
+            user_query = self.extract_user_message(messages)
+            if not user_query:
+                return body
+
+            # 🔥 NEW: Check for document content FIRST (CV, resume, etc.)
+            document_info = self.detect_document_content(messages)
+            if document_info.get('is_document'):
+                self.log(f"📄 DOCUMENT DETECTED for user {user_id}: {document_info.get('document_types', [])}")
+                # Process document for enhanced memory storage
+                await self.process_document_content(user_id, document_info)
+
+            # 🔥 NEW: Check for explicit memory commands SECOND
+            if self.valves.enable_explicit_commands:
+                explicit_command = self.detect_explicit_memory_commands(user_query)
+                if explicit_command["has_command"]:
+                    self.log(f"🚨 EXPLICIT MEMORY COMMAND detected for user {user_id}: {explicit_command}")
+                    
+                    # Store the explicit memory immediately
+                    stored = await self.store_explicit_memory(user_id, user_query, explicit_command)
+                    if stored:
+                        self.log(f"✅ EXPLICIT MEMORY stored successfully for user {user_id}")
+                        
+                        # Add a system message to acknowledge the explicit memory
+                        acknowledgment_msg = {
+                            "role": "system",
+                            "content": f"🧠 EXPLICIT MEMORY STORED: I will remember '{user_query}' with high priority. This has been saved to both short-term and long-term memory for immediate availability in future conversations."
+                        }
+                        messages.insert(0, acknowledgment_msg)
+                    else:
+                        self.log(f"❌ EXPLICIT MEMORY storage failed for user {user_id}", "ERROR")
+            
             # Validate session consistency
             if not self._validate_session_consistency(user_id, body):
                 self.log(f"🚨 Session validation failed for user {user_id}", "ERROR")
                 # Continue with limited functionality rather than blocking
             
+            # Cleanup old sessions to prevent memory leaks
+            self._cleanup_old_sessions()
+            
             # Verify user memory access rights
             if not self._verify_user_memory_access(user_id):
                 self.log(f"❌ Memory access denied for user {user_id}", "ERROR")
                 return body  # Block memory access but allow conversation
-            
-            # Extract user query
-            user_query = self.extract_user_message(messages)
-            if not user_query:
-                return body
             
             # Additional validation: ensure query is reasonable
             if len(user_query.strip()) < 3:
@@ -318,8 +486,20 @@ class Pipeline:
             # Log memory access attempt
             self.log(f"🔍 Memory access for user {user_id}, query: {user_query[:50]}... (enhanced: {enhanced_query[:50]}...)")
             
+            # 🔥 NEW: Adapt memory retrieval limit based on model capabilities
+            adaptive_limit = self.adapt_memory_limit_for_context()
+            if adaptive_limit != self.valves.max_memories:
+                self.log(f"📊 Adapted memory limit from {self.valves.max_memories} to {adaptive_limit} for optimal context")
+                # Temporarily override the limit for this request
+                original_limit = self.valves.max_memories
+                self.valves.max_memories = adaptive_limit
+            
             # Retrieve relevant memories
             memories = await self.get_user_memories(user_id, enhanced_query)
+            
+            # Restore original limit if changed
+            if 'original_limit' in locals():
+                self.valves.max_memories = original_limit
             
             # Always inject enhanced persona, regardless of memory availability
             memory_context = ""
@@ -626,489 +806,199 @@ class Pipeline:
         except Exception as e:
             self.log(f"Error registering session: {e}", "ERROR")
     
-    def _verify_user_memory_access(self, user_id: Optional[str]) -> bool:
-        """Verify user has legitimate access to memory system."""
-        if not user_id:
-            return False  # No user ID = no memory access
-            
+    def _cleanup_old_sessions(self):
+        """Clean up old sessions to prevent memory leak."""
         try:
-            # Check for obviously invalid user IDs
-            if not user_id or len(user_id) < 3:
-                self.log(f"❌ Invalid user ID for memory access: {user_id}", "ERROR")
+            current_time = time.time()
+            sessions_to_remove = []
+            
+            for session_key, timestamp in self._session_timestamps.items():
+                if current_time - timestamp > self._max_session_age:
+                    sessions_to_remove.append(session_key)
+            
+            for session_key in sessions_to_remove:
+                # Remove from session_users
+                if session_key in self._session_users:
+                    user_id = self._session_users[session_key]
+                    del self._session_users[session_key]
+                    
+                    # Remove from user_sessions
+                    if user_id in self._user_sessions:
+                        self._user_sessions[user_id].discard(session_key)
+                        if not self._user_sessions[user_id]:
+                            del self._user_sessions[user_id]
+                
+                # Remove timestamp
+                del self._session_timestamps[session_key]
+            
+            if sessions_to_remove:
+                self.log(f"🧹 Cleaned up {len(sessions_to_remove)} old sessions")
+                
+        except Exception as e:
+            self.log(f"Error cleaning up sessions: {e}", "ERROR")
+    
+    def detect_document_content(self, messages: List[Dict]) -> Dict[str, Any]:
+        """Detect if messages contain document content (CV, resume, etc.)."""
+        document_indicators = {
+            'cv_patterns': ['curriculum vitae', 'resume', 'cv', 'professional experience', 'work experience'],
+            'technical_patterns': ['technical skills', 'programming languages', 'technologies', 'certifications'],
+            'job_patterns': ['job title', 'position', 'responsibilities', 'duties', 'role'],
+            'education_patterns': ['education', 'degree', 'university', 'qualification']
+        }
+        
+        for message in messages:
+            if message.get('role') == 'user':
+                content_lower = message.get('content', '').lower()
+                
+                # Check for document indicators
+                detected_types = []
+                for doc_type, patterns in document_indicators.items():
+                    if any(pattern in content_lower for pattern in patterns):
+                        detected_types.append(doc_type)
+                
+                # If multiple indicators found, likely a document
+                if len(detected_types) >= 2:
+                    return {
+                        'is_document': True,
+                        'document_types': detected_types,
+                        'content': message.get('content', '')
+                    }
+        
+        return {'is_document': False}
+
+    async def process_document_content(self, user_id: str, document_info: Dict) -> bool:
+        """Process detected document content for enhanced memory storage."""
+        try:
+            if not document_info.get('is_document'):
                 return False
             
-            # Check against known malicious patterns
-            suspicious_patterns = ["admin", "root", "system", "test123", "user123"]
-            if user_id.lower() in suspicious_patterns:
-                self.log(f"🚨 Suspicious user ID detected: {user_id}", "ERROR")
-                return False
+            self.log(f"📄 DOCUMENT DETECTED for user {user_id}: {document_info.get('document_types', [])}")
             
-            self.log(f"✅ User memory access verified for: {user_id}")
-            return True
+            # Store as high-priority explicit memory
+            return await self.store_explicit_memory(
+                user_id=user_id,
+                content=document_info.get('content', ''),
+                command_info={
+                    'commands': [{'type': 'document_storage', 'priority': 'high'}],
+                    'document_types': document_info.get('document_types', [])
+                }
+            )
             
         except Exception as e:
-            self.log(f"Error verifying user memory access: {e}", "ERROR")
+            self.log(f"Error processing document content: {e}", "ERROR")
             return False
-    
-    def _calculate_memory_quality(self, memories: List[Dict]) -> int:
-        """Calculate memory quality score (1-10) based on various factors."""
+
+    def _create_model_compatible_system_message(self, memory_context: str, user_id: str, memory_quality_score: int) -> str:
+        """Create a system message that works with any model type."""
         try:
-            if not memories:
-                return 0
-            
-            quality_score = 5  # Base score
-            
-            # Factor 1: Number of memories (more = better context)
-            memory_count = len(memories)
-            if memory_count >= 5:
-                quality_score += 2
-            elif memory_count >= 3:
-                quality_score += 1
-            
-            # Factor 2: Memory content richness
-            total_content_length = sum(len(mem.get('content', '')) for mem in memories)
-            avg_content_length = total_content_length / memory_count if memory_count > 0 else 0
-            
-            if avg_content_length > 100:
-                quality_score += 2
-            elif avg_content_length > 50:
-                quality_score += 1
-            
-            # Factor 3: Memory diversity (different types of information)
-            content_keywords = set()
-            for memory in memories:
-                content = memory.get('content', '').lower()
-                # Check for different types of information
-                if any(word in content for word in ['name', 'called', 'am']):
-                    content_keywords.add('identity')
-                if any(word in content for word in ['work', 'job', 'company', 'profession']):
-                    content_keywords.add('professional')
-                if any(word in content for word in ['like', 'prefer', 'favorite', 'enjoy']):
-                    content_keywords.add('preferences')
-                if any(word in content for word in ['live', 'location', 'from', 'city']):
-                    content_keywords.add('location')
-                if any(word in content for word in ['project', 'working on', 'building']):
-                    content_keywords.add('projects')
-            
-            # Bonus for diverse information types
-            if len(content_keywords) >= 3:
-                quality_score += 1
-            
-            # Ensure score stays within bounds
-            return min(10, max(1, quality_score))
-            
-        except Exception as e:
-            self.log(f"Error calculating memory quality: {e}", "ERROR")
-            return 5  # Default score on error
-    
-    def _extract_user_context(self, memories: List[Dict]) -> str:
-        """Extract key user context from memories for enhanced personalization."""
-        try:
-            if not memories:
-                return "No previous context available"
-            
-            context_elements = []
-            
-            # Extract identity information
-            identity_info = []
-            professional_info = []
-            preference_info = []
-            project_info = []
-            
-            for memory in memories:
-                content = memory.get('content', '').lower()
-                
-                # Identity extraction
-                if any(word in content for word in ['name is', 'called', 'i am', "i'm"]):
-                    identity_info.append(memory.get('content', ''))
-                
-                # Professional extraction
-                if any(word in content for word in ['work at', 'job', 'company', 'profession']):
-                    professional_info.append(memory.get('content', ''))
-                
-                # Preferences extraction
-                if any(word in content for word in ['like', 'prefer', 'favorite', 'enjoy', 'love']):
-                    preference_info.append(memory.get('content', ''))
-                
-                # Project extraction
-                if any(word in content for word in ['project', 'working on', 'building', 'developing']):
-                    project_info.append(memory.get('content', ''))
-            
-            # Build context summary
-            if identity_info:
-                context_elements.append(f"Identity: {identity_info[0][:100]}...")
-            if professional_info:
-                context_elements.append(f"Professional: {professional_info[0][:100]}...")
-            if preference_info:
-                context_elements.append(f"Preferences: {preference_info[0][:100]}...")
-            if project_info:
-                context_elements.append(f"Projects: {project_info[0][:100]}...")
-            
-            if context_elements:
-                return " | ".join(context_elements)
-            else:
-                return f"General context from {len(memories)} previous interactions"
-                
-        except Exception as e:
-            self.log(f"Error extracting user context: {e}", "ERROR")
-            return "Context extraction error"
-    
-    def _load_persona_config(self) -> Dict[str, Any]:
-        """Load persona configuration for enhanced memory integration."""
-        try:
-            import json
-            
-            # Try to load persona configuration from mounted config (fallback only)
-            possible_paths = [
-                "/app/backend/config/persona.json",  # Docker backend mount path
-                "config/persona.json",  # Local development path
-                "/opt/backend/config/persona.json",  # Alternative Docker path
-            ]
-            
-            persona_path = None
-            for path in possible_paths:
-                if os.path.exists(path):
-                    persona_path = path
-                    break
-            
-            if persona_path:
-                with open(persona_path, "r", encoding="utf-8") as f:
-                    persona_config = json.load(f)
-                    self.log(f"✅ Loaded persona configuration from {persona_path}")
-                    return persona_config
-            else:
-                self.log(f"⚠️ Persona file not found in any expected location, using defaults")
-                return {}
-                
-        except Exception as e:
-            self.log(f"❌ Error loading persona config: {e}", "ERROR")
-            return {}
-    
-    def _get_base_persona_prompt(self) -> str:
-        """Get base persona prompt that works with any model."""
-        try:
-            # Use embedded enhanced persona v3.0.0 directly (bypasses Docker mount issues)
-            enhanced_persona = """You are an advanced AI assistant with comprehensive memory capabilities and persistent learning, designed for seamless integration with OpenWebUI. You maintain personalized relationships with each user through their unique OpenWebUI user ID and comprehensive memory system.
-
-**🧠 CRITICAL MEMORY SYSTEM INSTRUCTIONS - ABSOLUTE PRIORITY 🧠**:
-
-1. **MEMORY DETECTION & IMMEDIATE RESPONSE**: When you receive ANY system message containing:
-   - "🧠 CRITICAL MEMORY INSTRUCTIONS"
-   - "MEMORIES FROM PREVIOUS CONVERSATIONS:"
-   - "Memory:" or "Relevant memories"
-   - "Based on these memories"
-   
-   **YOU MUST IMMEDIATELY**:
-   - Acknowledge the memories FIRST in your response
-   - Reference specific details to prove recognition
-   - Show continuity with previous conversations
-   - Use memories to inform your entire response
-
-2. **MANDATORY MEMORY ACKNOWLEDGMENT PATTERNS**:
-   - "I remember you! [specific detail from memory]"
-   - "Hello again [name/identifier]! Last time we [previous activity]"
-   - "Based on our previous conversations about [topic], I know you [detail]"
-   - "I recall that you [specific memory], so [relevant connection]"
-
-3. **ENHANCED MEMORY INTEGRATION TECHNIQUES** (inspired by ChatGPT and Mem0 best practices):
-   - **Contextual Referencing**: Connect new topics to previous discussions
-   - **Preference Application**: Use remembered preferences to tailor responses
-   - **Emotional Continuity**: Maintain consistent tone based on relationship history
-   - **Progressive Building**: Build upon previously established knowledge
-   - **Proactive Suggestions**: Offer relevant help based on memory patterns
-
-4. **MULTI-LEVEL MEMORY PROCESSING** (following Mem0 architecture):
-   - **User Level**: Personal details, preferences, communication style
-   - **Session Level**: Current conversation context and immediate needs
-   - **Agent Level**: Learned patterns about interaction preferences
-   - **Temporal Level**: Time-sensitive information like deadlines and events
-
-5. **MEMORY QUALITY VALIDATION**:
-   - Confirm accuracy of retrieved memories
-   - Ask for updates when information might be outdated
-   - Validate conflicting information with the user
-   - Prioritize recent memories over older ones when conflicts arise
-
-**🔍 ADVANCED MEMORY VALIDATION PROTOCOL 🔍**:
-
-For memory testing and validation:
-- **Memory Receipt Confirmation**: "I received [X] memories about you covering [topics]"
-- **Identity Validation**: "You're [identifier], and I remember [specific detail]"
-- **Continuity Check**: "Our conversation history shows [pattern/trend]"
-- **Memory Quality Report**: "The most relevant memory is [detail] from [timeframe]"
-- **Update Suggestions**: "Should I update my memory about [topic] based on this conversation?"
-
-**🚀 ENHANCED MEMORY CAPABILITIES v3.0** (inspired by industry best practices):
-
-**Core Memory Features**:
-- **Intelligent Memory Extraction**: Automatically identifies and saves important information
-- **Semantic Memory Search**: Natural language queries to find relevant memories
-- **Memory Hierarchies**: Personal > Professional > Preferences > Context
-- **Temporal Memory Management**: Time-aware memory retrieval and aging
-- **Cross-Session Persistence**: Seamless continuity across all interactions
-- **Memory Confidence Scoring**: Quality assessment for retrieved memories
-- **Adaptive Memory Strategies**: Learning optimal memory patterns per user
-
-**Advanced Memory Operations**:
-- **Explicit Storage**: "Remember this", "Don't forget", "Save for later"
-- **Smart Categorization**: Automatic tagging and organization
-- **Memory Synthesis**: Combining related memories for deeper insights
-- **Proactive Reminders**: Surface relevant memories at appropriate times
-- **Memory Validation**: Cross-reference and verify information accuracy
-- **Selective Forgetting**: Remove outdated or incorrect information
-
-**Memory-Enhanced Interaction Patterns**:
-- **Personalized Greetings**: Reference recent activities or ongoing projects
-- **Context-Aware Responses**: Tailor communication style to user preferences
-- **Proactive Assistance**: Anticipate needs based on memory patterns
-- **Relationship Building**: Deepen understanding through cumulative interactions
-- **Intelligent Follow-ups**: Reference previous conversations naturally
-
-**🛡️ ENHANCED SECURITY & PRIVACY 🛡️**:
-- **User Isolation**: Complete memory separation between users
-- **Memory Ownership Validation**: Ensure users only access their memories
-- **Sensitive Content Filtering**: Block storage of passwords, tokens, secrets
-- **Session Integrity**: Validate user identity across conversations
-- **Privacy Controls**: Respect user preferences for memory retention
-- **Audit Trail**: Track memory operations for transparency
-
-**💡 MEMORY-DRIVEN PERSONALIZATION TECHNIQUES**:
-
-1. **Communication Style Adaptation**:
-   - Formal vs. casual tone based on user preference
-   - Technical vs. simple explanations per user background
-   - Humor and personality matching
-
-2. **Content Personalization**:
-   - Reference user's interests and expertise
-   - Suggest relevant tools and resources
-   - Adapt examples to user's context
-
-3. **Workflow Optimization**:
-   - Remember preferred formats and structures
-   - Anticipate common requests and patterns
-   - Streamline repetitive tasks
-
-4. **Relationship Development**:
-   - Build rapport through shared conversation history
-   - Show growth in understanding over time
-   - Demonstrate care through remembered details
-
-**🔧 MEMORY SYSTEM ARCHITECTURE** (inspired by Mem0 and OpenAI approaches):
-- **Dual Storage**: Redis (fast access) + ChromaDB (semantic search)
-- **Multi-Modal Memory**: Text, preferences, behavioral patterns
-- **Memory Embeddings**: Vector representations for similarity search
-- **Memory Clustering**: Group related memories for better retrieval
-- **Memory Compression**: Efficient storage of long conversation histories
-- **Memory Synchronization**: Real-time updates across all systems
-
-**📊 MEMORY PERFORMANCE OPTIMIZATION**:
-- **Sub-200ms Memory Retrieval**: Optimized for real-time conversations
-- **Intelligent Caching**: Frequently accessed memories stay readily available
-- **Lazy Loading**: Load additional context only when needed
-- **Memory Ranking**: Prioritize most relevant memories for responses
-- **Batch Processing**: Efficient memory updates for conversation flows
-
-**🎯 CRITICAL SUCCESS METRICS**:
-- **Memory Acknowledgment Rate**: 100% when memories are provided
-- **Continuity Score**: Seamless conversation flow across sessions
-- **Personalization Quality**: Tailored responses based on user memories
-- **Memory Accuracy**: Correct information retrieval and application
-- **User Satisfaction**: Improved experience through memory-enhanced interactions
-
-**RESPONSE EXECUTION PROTOCOL**:
-1. **Memory Check**: Scan for any memory-related system messages
-2. **Memory Integration**: If memories found, acknowledge and integrate immediately
-3. **Personalized Response**: Use memories to inform tone, content, and approach
-4. **Memory Update**: Consider what new information should be remembered
-5. **Continuity Maintenance**: Ensure response feels like continuation of relationship
-
-**ENHANCED DEBUGGING & VALIDATION**:
-When testing memory functionality:
-- **Memory Inventory**: "I have access to [X] memories about you"
-- **Specific Recall**: "I specifically remember [detailed memory]"
-- **Application Demo**: "Based on this memory, I suggest [personalized action]"
-- **Quality Assessment**: "This memory seems [accurate/outdated/incomplete]"
-- **Update Requests**: "Should I remember [new information] for future conversations?"
-
-**LATEST ENHANCEMENTS (January 2025)**:
-- **Memory-First Response Architecture**: Memories take absolute priority in responses
-- **Advanced Personalization Patterns**: Inspired by ChatGPT and Mem0 best practices
-- **Multi-Level Memory Processing**: User, Session, Agent, and Temporal memory layers
-- **Enhanced Validation Protocols**: Comprehensive memory quality and accuracy checks
-- **Proactive Memory Management**: Intelligent suggestions for memory updates and improvements
-- **Industry-Leading Memory Integration**: Implementing proven patterns from top AI memory systems
-
-**UNIVERSAL MODEL COMPATIBILITY**: This system works with any AI model (local/cloud, small/large).
-**MEMORY PRIORITY**: Always acknowledge and use provided memories for personalized responses."""
-
-            # Check prompt size and adapt for model compatibility
-            prompt_length = len(enhanced_persona)
-            estimated_tokens = prompt_length // 4  # Rough estimation: 1 token ≈ 4 chars
-            
-            self.log(f"📏 Enhanced Persona v3.0.0: {prompt_length} chars (~{estimated_tokens} tokens)")
-            
-            # For smaller models or large prompts, use condensed version
-            if estimated_tokens > 1500:  # Conservative limit for broad compatibility
-                self.log("📏 Using condensed persona for better model compatibility")
-                return self._get_condensed_persona_prompt()
-            else:
-                self.log("📏 Using full Enhanced Persona v3.0.0")
-                return enhanced_persona
-                
-        except Exception as e:
-            self.log(f"Error getting enhanced persona prompt: {e}", "ERROR")
-            return self._get_condensed_persona_prompt()
-    
-    def _get_condensed_persona_prompt(self) -> str:
-        """Get a condensed persona prompt optimized for any model (including smaller ones)."""
-        return """You are an advanced AI assistant with comprehensive memory capabilities.
-
-🧠 CRITICAL MEMORY INSTRUCTIONS:
-
-When you receive system messages with "MEMORIES FROM PREVIOUS CONVERSATIONS" or "🧠 CRITICAL MEMORY":
-
-MANDATORY REQUIREMENTS:
-1. START response with: "I remember you! [specific detail from memory]"
-2. Reference specific details from memories to prove recognition
-3. Use memories to maintain conversation continuity and personalization
-4. Connect current topics to previous conversations
-
-MEMORY INTEGRATION:
-- Personalize communication style based on remembered preferences
-- Reference past decisions, projects, and interests
-- Build upon established knowledge and rapport
-- Show relationship progression over time
-
-UNIVERSAL COMPATIBILITY: This system works with any AI model (local/cloud, small/large).
-MEMORY PRIORITY: Always acknowledge and use provided memories for personalized responses.
-
-You excel at remembering users across conversations and providing contextual, personalized assistance."""
-    
-    def _create_model_compatible_system_message(self, memory_context: str, user_id: str, memory_quality: int) -> str:
-        """Create a system message that works with any model architecture."""
-        try:
-            # Get base persona instructions (automatically adapted for model size)
             base_persona = self._get_base_persona_prompt()
             
-            # Determine if we have memories or not
-            has_memories = bool(memory_context and memory_context.strip())
-            
-            # Estimate total message size for model compatibility
-            memory_size = len(memory_context) if has_memories else 0
-            persona_size = len(base_persona)
-            
-            self.log(f"📊 Message composition: Persona {persona_size} chars, Memory {memory_size} chars, Has memories: {has_memories}")
-            
-            # Create universal message based on memory availability
-            if self.valves.integrate_persona and base_persona:
-                if has_memories:
-                    if self.valves.persona_priority == "memory_first":
-                        # Memory takes absolute priority - optimized for all models
-                        system_message = f"""🧠 MEMORY-ENHANCED AI ASSISTANT 🧠
+            if memory_context:
+                # Include memories with clear instructions
+                return f"""{base_persona}
 
-CRITICAL: You have access to memories from previous conversations with this user.
-
-🧠 MEMORIES FROM PREVIOUS CONVERSATIONS:
-{memory_context}
-
-MANDATORY RESPONSE PROTOCOL:
-1. START with: "I remember you! [specific detail from memory]"
-2. Reference specific details to prove recognition
-3. Use memories for personalized responses
-4. Maintain conversation continuity
-
-QUALITY: {memory_quality}/10 | USER: {user_id} | COMPATIBLE: All Models
-
-{base_persona[:500] if len(base_persona) > 500 else base_persona}"""
-                    
-                    elif self.valves.persona_priority == "balanced":
-                        # Balanced integration - good for medium-context models
-                        system_message = f"""🧠 ENHANCED AI WITH MEMORY & PERSONA 🧠
-
-{base_persona}
-
-🧠 MEMORY CONTEXT (Quality: {memory_quality}/10):
-{memory_context}
-
-Integrate these memories with your persona for personalized responses."""
-                    
-                    else:  # persona_first
-                        # Persona first - good for large-context models
-                        system_message = f"""{base_persona}
-
-🧠 ADDITIONAL MEMORY CONTEXT:
-{memory_context}
-
-Use this memory information to enhance responses while maintaining your persona."""
-                
-                else:
-                    # No memories - use enhanced persona only
-                    system_message = f"""🧠 ENHANCED AI ASSISTANT 🧠
-
-{base_persona}
-
-UNIVERSAL COMPATIBILITY: This system works with any AI model (local/cloud, small/large).
-NEW USER: No previous memories found. Be helpful and start building rapport for future conversations.
-
-You excel at providing contextual, personalized assistance and will remember this conversation for next time."""
-            
-            else:
-                if has_memories:
-                    # Memory-only mode (fallback for any model)
-                    system_message = f"""🧠 AI ASSISTANT WITH MEMORY 🧠
+🧠 CRITICAL MEMORY INSTRUCTIONS - YOU MUST ACKNOWLEDGE THESE MEMORIES:
 
 MEMORIES FROM PREVIOUS CONVERSATIONS:
 {memory_context}
 
-INSTRUCTIONS:
-- Acknowledge these memories in your response
-- Reference specific details to show recognition
-- Use memories to provide personalized assistance
-- Maintain continuity from previous conversations
+Based on these memories, you should:
+1. Acknowledge that you remember the user
+2. Reference specific details from the memories
+3. Show continuity from previous conversations
+4. Use this context to personalize your responses
 
-UNIVERSAL COMPATIBILITY: Works with any AI model."""
-                else:
-                    # No persona, no memories - basic fallback
-                    system_message = """🧠 AI ASSISTANT 🧠
+Memory Quality Score: {memory_quality_score}/10
+User ID: {user_id}"""
+            else:
+                # No memories yet - encourage initial learning
+                return f"""{base_persona}
 
-Hello! I'm here to assist you. This is our first conversation together, so I'll start learning about you to provide better help in future interactions.
-
-UNIVERSAL COMPATIBILITY: Works with any AI model."""
+📝 NEW USER DETECTED: This is a new conversation with user {user_id}. 
+Please:
+1. Learn about the user through conversation
+2. Remember important details they share
+3. Build a personalized relationship over time"""
+                
+        except Exception as e:
+            self.log(f"Error creating system message: {e}", "ERROR")
+            return self._get_base_persona_prompt()
+    
+    def _verify_user_memory_access(self, user_id: str) -> bool:
+        """Verify that the user has access to memory functionality."""
+        try:
+            # Basic validation - ensure user ID is valid
+            if not user_id or not self._is_valid_user_id(user_id):
+                return False
             
-            # Final size check and optimization
-            total_size = len(system_message)
-            estimated_tokens = total_size // 4
-            
-            self.log(f"📏 Final system message: {total_size} chars (~{estimated_tokens} tokens)")
-            
-            # If still too large for very small models, use ultra-condensed version
-            if estimated_tokens > 2000:
-                self.log("📏 Creating ultra-condensed version for maximum compatibility")
-                if has_memories:
-                    system_message = f"""🧠 MEMORY SYSTEM ACTIVE
-
-MEMORIES: {memory_context[:800]}...
-
-REQUIRED: Start with "I remember you!" and reference specific memory details.
-Use memories for personalized responses. Quality: {memory_quality}/10"""
-                else:
-                    system_message = f"""🧠 ENHANCED AI ASSISTANT
-
-{base_persona[:800] if base_persona else 'You are a helpful AI assistant.'}...
-
-NEW USER: Be helpful and start building rapport. Remember this conversation for next time."""
-            
-            return system_message
+            # For now, allow all validated users
+            # This could be extended with role-based access control
+            return True
             
         except Exception as e:
-            self.log(f"❌ Error creating system message: {e}", "ERROR")
-            # Ultra-simple fallback that works with any model
-            has_memories_fallback = bool(memory_context and memory_context.strip())
-            if has_memories_fallback:
-                return f"""You have memories from previous conversations:
-{memory_context[:500]}
+            self.log(f"Error verifying memory access for user {user_id}: {e}", "ERROR")
+            return False
 
-Please acknowledge these memories and use them in your response."""
-            else:
-                return "You are a helpful AI assistant. Be friendly and remember this conversation for future interactions."
+    def _calculate_memory_quality(self, memories: List[Dict]) -> int:
+        """Calculate quality score for retrieved memories."""
+        try:
+            if not memories:
+                return 0
+            
+            # Simple quality scoring based on memory attributes
+            total_score = 0
+            for memory in memories:
+                score = 5  # Base score
+                
+                # Boost for recent memories
+                if memory.get('timestamp'):
+                    # Add recency bonus (this would need proper timestamp parsing)
+                    score += 2
+                
+                # Boost for explicit/high priority memories
+                if memory.get('metadata', {}).get('explicit'):
+                    score += 3
+                
+                total_score += min(score, 10)  # Cap at 10
+            
+            return min(total_score // len(memories), 10)  # Average, capped at 10
+            
+        except Exception as e:
+            self.log(f"Error calculating memory quality: {e}", "ERROR")
+            return 5  # Default average score
+
+    def _extract_user_context(self, memories: List[Dict]) -> Dict[str, Any]:
+        """Extract user context from memories for personalization."""
+        try:
+            context = {
+                'name': None,
+                'preferences': [],
+                'expertise': [],
+                'recent_topics': []
+            }
+            
+            for memory in memories:
+                content = memory.get('content', '').lower()
+                
+                # Extract name patterns
+                if 'name is' in content or 'call me' in content:
+                    # Simple name extraction (this could be improved)
+                    words = content.split()
+                    if 'name is' in content:
+                        idx = words.index('is')
+                        if idx + 1 < len(words):
+                            context['name'] = words[idx + 1].title()
+                
+                # Extract expertise/job related info
+                if any(term in content for term in ['work', 'job', 'career', 'expertise']):
+                    context['expertise'].append(memory.get('content', ''))
+                
+                # Extract preferences
+                if any(term in content for term in ['prefer', 'like', 'favorite', 'enjoy']):
+                    context['preferences'].append(memory.get('content', ''))
+            
+            return context
+            
+        except Exception as e:
+            self.log(f"Error extracting user context: {e}", "ERROR")
+            return {}

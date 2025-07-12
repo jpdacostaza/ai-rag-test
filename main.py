@@ -283,118 +283,27 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         log_service_status("AUTH", "info", f"Extracted user_id from memory context: {user_id}")
                         break
     
-    # 5. Advanced user identification from conversation content
-    if user_id == "openwebui" and messages:
-        # Look for user identification in the conversation history
-        user_mentions = []
-        for msg in messages:
-            content = msg.get("content", "").lower()
-            
-            # Look for name introductions
-            patterns = [
-                r"my name is ([a-zA-Z\.]+)",
-                r"i'm ([a-zA-Z\.]+)",
-                r"i am ([a-zA-Z\.]+)",
-                r"call me ([a-zA-Z\.]+)",
-                r"this is ([a-zA-Z\.]+)"
-            ]
-            
-            import re
-            for pattern in patterns:
-                match = re.search(pattern, content)
-                if match:
-                    potential_name = match.group(1).strip()
-                    if len(potential_name) > 1 and potential_name not in ["user", "person", "someone"]:
-                        user_mentions.append(potential_name)
-        
-        # Use the most recent/common name mention
-        if user_mentions:
-            user_id = user_mentions[-1]  # Use the last mentioned name
-            log_service_status("AUTH", "info", f"Identified user from conversation: {user_id}")
+    # 5. Enhanced user identification: DISABLED - Enhanced Memory Pipeline handles this
+    # Conversation-based user extraction disabled for security - no pseudo-user creation
     
-    # 5. Enhanced user identification: map generic session to actual user from memory
-    if user_id == "openwebui" and messages:
-        try:
-            from memory.core.client import MemoryClient
-            from memory.core.models import MemoryConfig, MemoryQuery
-            
-            # Create memory client
-            memory_config = MemoryConfig(api_url="http://memory_api:8080", timeout=5.0)
-            memory_client = MemoryClient(memory_config)
-            
-            # Search for user identification in existing memories
-            identity_query = MemoryQuery(
-                user_id="openwebui",
-                query_text="name is swift developer apple",
-                limit=10,
-                threshold=0.01
-            )
-            
-            memory_response = await memory_client.retrieve_memories(identity_query)
-            
-            if memory_response.success and memory_response.memories:
-                for memory in memory_response.memories:
-                    content_lower = memory.content.lower()
-                    # Look for name patterns in stored memories
-                    import re
-                    name_patterns = [
-                        r"name is ([a-zA-Z\.]+)",
-                        r"i'm ([a-zA-Z\.]+)",
-                        r"user's name is ([a-zA-Z\.]+)",
-                        r"my name is ([a-zA-Z\.]+)"
-                    ]
-                    
-                    for pattern in name_patterns:
-                        match = re.search(pattern, content_lower)
-                        if match:
-                            potential_user = match.group(1).strip()
-                            if len(potential_user) > 1 and potential_user != "user":
-                                user_id = potential_user
-                                log_service_status("AUTH", "info", f"Mapped session 'openwebui' to user: {user_id}")
-                                break
-                    if user_id != "openwebui":
-                        break
-        except Exception as e:
-            log_service_status("AUTH", "warning", f"Failed to lookup user from memory: {e}")
-    
-    # 6. Final fallback - but try to be smarter about it
+    # 6. Final authentication validation
     if not user_id or not user_id.strip() or user_id == "openwebui":
-        # Last resort: try to find any user context from stored memories 
-        # that might give us a clue about the actual user
-        if messages and user_id == "openwebui":
-            # Look for recent user identification in existing memories
-            try:
-                # Use memory service to look for user patterns
-                memory_service = get_memory_service_or_legacy()
-                if memory_service:
-                    log_service_status("AUTH", "info", "Attempting user lookup from memory patterns")
-                    
-                    # Try to get any memories that might contain user identification
-                    test_memories = await memory_service.get_relevant_memories(
-                        user_id="admin@theroot.za.net",  # Try the known good user
-                        query_text="name swift",
-                        limit=5
-                    )
-                    
-                    if test_memories:
-                        # If we found memories for the email user, use that instead
-                        user_id = "admin@theroot.za.net"
-                        log_service_status("AUTH", "info", f"Mapped openwebui session to email user: {user_id}")
-                    
-            except Exception as e:
-                log_service_status("AUTH", "warning", f"User lookup from memory failed: {e}")
-        
-        # Absolute final fallback
-        if not user_id or not user_id.strip():
-            user_id = "openwebui"
+        # ⚠️ SECURITY WARNING: No valid user authentication found
+        # Enhanced Memory Pipeline will handle user identification properly
+        log_service_status("AUTH", "warning", f"No valid user authentication - Enhanced Memory Pipeline required for memory functionality")
+        user_id = None  # Return None instead of "openwebui" fallback
     
     # Ensure user_id is clean and non-empty
-    user_id = user_id.strip()
-    if not user_id:
-        user_id = "openwebui"
+    if user_id:
+        user_id = user_id.strip()
+        if not user_id:
+            user_id = None
     
     # Log user identification for debugging
-    log_service_status("AUTH", "info", f"Identified user: {user_id}")
+    if user_id:
+        log_service_status("AUTH", "info", f"Identified user: {user_id}")
+    else:
+        log_service_status("AUTH", "warning", "No user authentication - memory functionality disabled")
     
     stream = body.get("stream", False)
 

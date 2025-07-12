@@ -28,8 +28,8 @@ DEFAULT_CONTEXT_LENGTH = int(os.getenv("DEFAULT_CONTEXT_LENGTH", "8192"))  # Min
 MEMORY_CONTEXT_LENGTH = int(os.getenv("MEMORY_CONTEXT_LENGTH", "16384"))  # For memory-heavy operations
 
 # Additional Memory System Enhancements - Cross-session persistence
-MEMORY_RETRIEVAL_THRESHOLD = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", "0.001"))  # Very low for cross-session
-MEMORY_MAX_DOCUMENTS = int(os.getenv("MEMORY_MAX_DOCUMENTS", "30"))  # More documents for better context
+MEMORY_RETRIEVAL_THRESHOLD = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", "0.0005"))  # Even lower for better recall
+MEMORY_MAX_DOCUMENTS = int(os.getenv("MEMORY_MAX_DOCUMENTS", "50"))  # Increased from 30 to 50
 MEMORY_HYBRID_SEARCH = os.getenv("MEMORY_HYBRID_SEARCH", "true").lower() == "true"
 ENABLE_CROSS_SESSION_MEMORY = os.getenv("ENABLE_CROSS_SESSION_MEMORY", "true").lower() == "true"
 PERSISTENT_USER_MEMORY = os.getenv("PERSISTENT_USER_MEMORY", "true").lower() == "true"
@@ -68,8 +68,8 @@ AUTO_PULL_MODELS = os.getenv("AUTO_PULL_MODELS", "true").lower() == "true"  # Au
 # RAG/Memory optimization settings - Optimized for cross-session memory
 RAG_CHUNK_SIZE = int(os.getenv("RAG_CHUNK_SIZE", "1000"))  # Smaller chunks for better matching
 RAG_CHUNK_OVERLAP = int(os.getenv("RAG_CHUNK_OVERLAP", "100"))  # Smaller overlap
-RAG_TOP_K = int(os.getenv("RAG_TOP_K", "20"))  # More results for cross-session
-RAG_MINIMUM_SCORE = float(os.getenv("RAG_MINIMUM_SCORE", "0.001"))  # Very low threshold
+RAG_TOP_K = int(os.getenv("RAG_TOP_K", "30"))  # Increased from 20 to 30 for more results
+RAG_MINIMUM_SCORE = float(os.getenv("RAG_MINIMUM_SCORE", "0.0005"))  # Even lower threshold
 RAG_HYBRID_SEARCH = os.getenv("RAG_HYBRID_SEARCH", "true").lower() == "true"  # Enable hybrid search
 
 # Cache configuration

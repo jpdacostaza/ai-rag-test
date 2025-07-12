@@ -17,8 +17,7 @@ COPY scripts/auto_install_function.py /scripts/auto_install_function.py
 COPY scripts/auto_install_pipeline.py /scripts/auto_install_pipeline.py
 COPY scripts/unified_installer.py /scripts/unified_installer.py
 COPY memory/functions/memory_function.py /app/memory_function.py
-# Copy the pipeline file we just created
-COPY storage/pipelines/enhanced_memory_pipeline.py /app/memory_pipeline.py
+# Note: Enhanced Memory Pipeline will be manually installed after clean setup
 
 # Set executable permissions
 RUN chmod +x /scripts/*.py
