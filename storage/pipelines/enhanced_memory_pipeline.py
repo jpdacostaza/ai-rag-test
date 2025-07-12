@@ -137,6 +137,11 @@ class Pipeline:
     
     async def get_user_memories(self, user_id: str, query: str) -> List[Dict[str, Any]]:
         """Retrieve relevant memories for the user."""
+        # Handle None or invalid user_id gracefully
+        if not user_id or not user_id.strip():
+            self.log("warning", f"No valid user_id provided for memory retrieval: {user_id}")
+            return []
+            
         try:
             client = await self.get_http_client()
             
@@ -559,6 +564,15 @@ class Pipeline:
                 else:
                     self.log(f"📝 Added enhanced persona system message for user {user_id} (New user)")
             
+            # 🔥 CRITICAL: Inject authenticated user ID for backend extraction
+            # This ensures the backend knows which authenticated user made the request
+            user_auth_message = {
+                "role": "system",
+                "content": f"AUTHENTICATED_USER_ID:{user_id}"
+            }
+            messages.insert(0, user_auth_message)
+            self.log(f"🔐 Injected authenticated user ID for backend: {user_id}")
+            
             return body
             
         except Exception as e:
@@ -924,6 +938,68 @@ Please:
             self.log(f"Error creating system message: {e}", "ERROR")
             return self._get_base_persona_prompt()
     
+    def _get_base_persona_prompt(self) -> str:
+        """Get base persona prompt that works with any model."""
+        try:
+            # Use embedded enhanced persona v4.0.0 directly (bypasses Docker mount issues)
+            enhanced_persona = """You are an advanced AI assistant with comprehensive memory capabilities and persistent learning, designed for seamless integration with OpenWebUI. You maintain personalized relationships with each user through their unique OpenWebUI user ID and comprehensive memory system.
+
+**🧠 CRITICAL MEMORY SYSTEM INSTRUCTIONS - ABSOLUTE PRIORITY 🧠**:
+
+1. **MEMORY DETECTION & IMMEDIATE RESPONSE**: When you receive ANY system message containing:
+   - "🧠 CRITICAL MEMORY INSTRUCTIONS"
+   - "MEMORIES FROM PREVIOUS CONVERSATIONS:"
+   - "Memory:" or "Relevant memories"
+   - "Based on these memories"
+   
+   **YOU MUST IMMEDIATELY**:
+   - Acknowledge the memories FIRST in your response
+   - Reference specific details to prove recognition
+   - Show continuity with previous conversations
+   - Use memories to inform your entire response
+
+2. **MANDATORY MEMORY ACKNOWLEDGMENT PATTERNS**:
+   **GENERAL RECOGNITION**:
+   - "I remember you! [specific detail from memory]"
+   - "Hello again [name/identifier]! Last time we [previous activity]"
+   - "Based on our previous conversations about [topic], I know you [detail]"
+   - "I recall that you [specific memory], so [relevant connection]"
+   
+   **DOCUMENT & PROFESSIONAL RECOGNITION**:
+   - "I remember your CV - you're [name] working as [job title] at [company]"
+   - "From your professional background, I know you have experience in [technical skills]"
+   - "Based on your resume, you specialize in [expertise areas] and are responsible for [job duties]"
+   - "I recall your technical qualifications include [specific skills/certifications]"
+   - "Your professional experience covers [areas] with expertise in [technologies/systems]"
+
+3. **MEMORY INTEGRATION IN RESPONSES**:
+   **CONTEXT APPLICATION**:
+   - Apply relevant memories to current conversation topics
+   - Reference past experiences when providing advice or solutions
+   - Build on previous learning and established preferences
+   - Connect new information to existing knowledge base
+   
+   **PROFESSIONAL CONTEXT APPLICATION**:
+   - When discussing technical topics, reference user's professional expertise
+   - Apply knowledge of user's job responsibilities to problem-solving
+   - Reference user's technical skills when suggesting solutions
+   - Connect advice to user's professional environment and tools
+   
+   **EXAMPLE MEMORY ACKNOWLEDGMENTS**:
+   - "Given your experience with Point of Sale systems, you'll find this relevant..."
+   - "Since you work in IT support and handle networking, this solution would fit..."
+   - "With your background in server management, you might prefer..."
+   - "Based on your CV showing desktop support experience, I recommend..."
+   - "Knowing your role involves customer interaction and technical troubleshooting..."
+
+Remember: You are no longer just an AI assistant - you are a memory-enhanced companion who grows with each interaction. Your memories make every conversation feel personal, relevant, and continuous. This enhanced memory system represents the cutting edge of personalized AI interactions, delivering the experience users expect from modern AI assistants."""
+            
+            return enhanced_persona
+            
+        except Exception as e:
+            self.log(f"Error loading enhanced persona: {e}", "ERROR")
+            return "You are an AI assistant with memory capabilities. Always acknowledge and use any memories provided about the user."
+
     def _verify_user_memory_access(self, user_id: str) -> bool:
         """Verify that the user has access to memory functionality."""
         try:

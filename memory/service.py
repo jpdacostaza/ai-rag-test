@@ -58,20 +58,29 @@ class MemoryService:
         Returns:
             List of relevant memory records
         """
-        query = MemoryQuery(
-            user_id=user_id,
-            query_text=query_text,
-            limit=limit or self.config.max_memories,
-            threshold=threshold or self.config.relevance_threshold
-        )
+        # Validate user_id
+        if not user_id or not user_id.strip():
+            self.log(f"Invalid user_id provided for memory retrieval: {user_id}", "WARNING")
+            return []
         
-        response = await self.provider.retrieve_memories(query)
-        
-        if response.success:
-            self.log(f"Retrieved {len(response.memories)} memories for user {user_id}")
-            return response.memories
-        else:
-            self.log(f"Failed to retrieve memories: {response.error}", "ERROR")
+        try:
+            query = MemoryQuery(
+                user_id=user_id.strip(),
+                query_text=query_text,
+                limit=limit or self.config.max_memories,
+                threshold=threshold or self.config.relevance_threshold
+            )
+            
+            response = await self.provider.retrieve_memories(query)
+            
+            if response.success:
+                self.log(f"Retrieved {len(response.memories)} memories for user {user_id}")
+                return response.memories
+            else:
+                self.log(f"Failed to retrieve memories: {response.error}", "ERROR")
+                return []
+        except Exception as e:
+            self.log(f"Error in get_relevant_memories: {e}", "ERROR")
             return []
     
     async def store_conversation_memory(

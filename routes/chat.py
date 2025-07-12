@@ -49,7 +49,7 @@ def get_memory_service():
 
 
 # Helper function to retrieve memories using new or legacy system
-async def get_user_memories(user_id: str, query: str, memory_service = None, n_results: int = 3):
+async def get_user_memories(user_id: Optional[str], query: str, memory_service = None, n_results: int = 3):
     """
     Retrieve user memories using new memory service or legacy fallback.
     
@@ -62,6 +62,11 @@ async def get_user_memories(user_id: str, query: str, memory_service = None, n_r
     Returns:
         List of memory chunks
     """
+    # Handle None or invalid user_id gracefully
+    if not user_id or not user_id.strip():
+        log_service_status("CHAT", "warning", f"No valid user_id provided for memory retrieval: {user_id}")
+        return []
+    
     if memory_service and MEMORY_SERVICE_AVAILABLE:
         # Use new memory service
         log_service_status("CHAT", "info", f"Using new memory service for user {user_id}")
@@ -164,6 +169,85 @@ def should_store_as_memory(message: str, response: str) -> bool:
         return True
 
     return False
+
+
+def validate_openwebui_user_id(user_id: str) -> bool:
+    """
+    Validate that the user ID is a proper OpenWebUI user identifier.
+    
+    Args:
+        user_id: The user identifier to validate
+        
+    Returns:
+        bool: True if valid OpenWebUI user ID
+    """
+    if not user_id or len(user_id) < 3:
+        return False
+    
+    # Check for common invalid patterns
+    invalid_patterns = ["undefined", "null", "none", "", "anonymous", "guest"]
+    if user_id.lower() in invalid_patterns:
+        return False
+    
+    # Valid patterns for OpenWebUI users:
+    # 1. UUID format (standard OpenWebUI user IDs)
+    # 2. Email format 
+    # 3. Username format (alphanumeric with underscores/hyphens)
+    import re
+    
+    # UUID pattern
+    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    if re.match(uuid_pattern, user_id, re.IGNORECASE):
+        return True
+    
+    # Email pattern
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    if re.match(email_pattern, user_id):
+        return True
+    
+    # Username pattern (alphanumeric with common separators, 3+ chars)
+    username_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._-]{2,}[a-zA-Z0-9]$'
+    if re.match(username_pattern, user_id):
+        return True
+    
+    # Reject session-based fallback IDs (these should not be used for real users)
+    if user_id.startswith(("session_", "auth_", "temp_")):
+        log_service_status("CHAT", "warning", f"Rejecting fallback user ID: {user_id}")
+        return False
+    
+    return False
+
+
+def extract_authenticated_user_id(messages: list) -> Optional[str]:
+    """
+    Extract the authenticated user ID injected by the Enhanced Memory Pipeline.
+    
+    Args:
+        messages: List of messages from the request
+        
+    Returns:
+        Optional[str]: The authenticated user ID if found
+    """
+    if not messages:
+        return None
+    
+    # Look for pipeline-injected authenticated user ID
+    for msg in messages:
+        if (msg.get("role") == "system" and 
+            msg.get("content", "").startswith("AUTHENTICATED_USER_ID:")):
+            try:
+                content = msg.get("content", "")
+                pipeline_user_id = content.replace("AUTHENTICATED_USER_ID:", "").strip()
+                
+                if pipeline_user_id and validate_openwebui_user_id(pipeline_user_id):
+                    log_service_status("CHAT", "info", f"✅ Found valid authenticated user ID: {pipeline_user_id}")
+                    return pipeline_user_id
+                else:
+                    log_service_status("CHAT", "warning", f"❌ Invalid user ID from pipeline: {pipeline_user_id}")
+            except Exception as e:
+                log_service_status("CHAT", "error", f"Failed to extract pipeline user ID: {e}")
+    
+    return None
 
 
 @chat_router.post("/chat/completions_legacy")

@@ -249,7 +249,23 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         if user_id:
             log_service_status("AUTH", "info", f"Found user_id in headers: {user_id}")
     
-    # 3. Try to extract from session context or chat history
+    # 3. PRIORITY: Extract authenticated user ID injected by Enhanced Memory Pipeline
+    if not user_id and messages:
+        # Look for pipeline-injected authenticated user ID (highest priority)
+        for msg in messages:
+            if (msg.get("role") == "system" and 
+                msg.get("content", "").startswith("AUTHENTICATED_USER_ID:")):
+                try:
+                    content = msg.get("content", "")
+                    pipeline_user_id = content.replace("AUTHENTICATED_USER_ID:", "").strip()
+                    if pipeline_user_id:
+                        user_id = pipeline_user_id
+                        log_service_status("AUTH", "info", f"✅ Found AUTHENTICATED user_id from pipeline: {user_id}")
+                        break
+                except Exception as e:
+                    log_service_status("AUTH", "warning", f"Failed to extract pipeline user ID: {e}")
+    
+    # 4. Fallback: Try to extract from session context or chat history
     if not user_id and messages:
         # Look for user identification in system messages or metadata
         for msg in messages:
@@ -263,7 +279,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 except:
                     pass
     
-    # 4. Check if we can extract user from injected memory context by pipeline
+    # 5. Check if we can extract user from injected memory context by pipeline
     if not user_id and messages:
         # Look for pipeline-injected memory messages that contain user context
         for msg in messages:
@@ -283,15 +299,34 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         log_service_status("AUTH", "info", f"Extracted user_id from memory context: {user_id}")
                         break
     
-    # 5. Enhanced user identification: DISABLED - Enhanced Memory Pipeline handles this
+    # 6. Enhanced user identification: DISABLED - Enhanced Memory Pipeline handles this
     # Conversation-based user extraction disabled for security - no pseudo-user creation
     
-    # 6. Final authentication validation
-    if not user_id or not user_id.strip() or user_id == "openwebui":
-        # ⚠️ SECURITY WARNING: No valid user authentication found
-        # Enhanced Memory Pipeline will handle user identification properly
-        log_service_status("AUTH", "warning", f"No valid user authentication - Enhanced Memory Pipeline required for memory functionality")
-        user_id = None  # Return None instead of "openwebui" fallback
+    # 7. Final authentication validation
+    if not user_id or not user_id.strip():
+        # ⚠️ TEMPORARY SOLUTION: OpenWebUI is not sending user authentication
+        # Generate a session-based user ID for memory functionality
+        # In production, OpenWebUI should be configured to send proper user authentication
+        
+        # Try to extract from authorization header first
+        auth_header = request.headers.get("authorization", "")
+        if auth_header and "Bearer" in auth_header:
+            # Extract token part after Bearer
+            token = auth_header.replace("Bearer ", "").strip()
+            if token and token != "backend-api-key":  # Skip generic API keys
+                user_id = f"auth_{token[:16]}"  # Use first 16 chars of token as user ID
+                log_service_status("AUTH", "info", f"Generated user_id from auth token: {user_id}")
+        
+        # If still no user_id, generate session-based ID
+        if not user_id:
+            # Generate a consistent user ID based on request characteristics
+            # This ensures same user gets same ID across requests in same session
+            import hashlib
+            session_data = f"{request.client.host if request.client else 'unknown'}_{request.headers.get('user-agent', 'unknown')}"
+            session_hash = hashlib.md5(session_data.encode()).hexdigest()[:16]
+            user_id = f"session_{session_hash}"
+            log_service_status("AUTH", "warning", f"No user authentication from OpenWebUI - generated session ID: {user_id}")
+            log_service_status("AUTH", "warning", "OpenWebUI should be configured to send proper user authentication")
     
     # Ensure user_id is clean and non-empty
     if user_id:
