@@ -43,18 +43,10 @@ try:
     config = get_config()
     auth_manager = None
 except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Backend config not available, using pipeline fallback: {e}")
-    # Fallback to pipeline configuration
-    try:
-        sys.path.insert(0, '/app/pipelines')
-        from config import get_config
-        print("[MEMORY PIPELINE INFO] Pipeline config loaded successfully")
-        config = get_config()
-        auth_manager = None
-    except ImportError as fallback_e:
-        print(f"[MEMORY PIPELINE INFO] Pipeline config also failed, using minimal fallback: {fallback_e}")
-        config = None
-        auth_manager = None
+    print(f"[MEMORY PIPELINE INFO] Backend config not available, using fallback: {e}")
+    # Fallback to local configuration
+    config = None
+    auth_manager = None
 
 # Import web search tools (using correct paths)
 web_search_available = False
@@ -200,21 +192,12 @@ class Pipeline:
         try:
             # LOG EVERY REQUEST that comes through the pipeline
             self.log("🔥 INLET CALLED - Pipeline is processing a request")
-            
-            # Enhanced debugging for persona/model changes
             if self.valves.debug_mode:
                 messages = body.get("messages", [])
-                model_info = body.get("model", "unknown")
-                self.log(f"📊 Request details: model={model_info}, {len(messages)} messages")
-                
                 for i, msg in enumerate(messages):
                     if msg.get("role") == "user":
                         content = msg.get("content", "")[:100]  # First 100 chars
                         self.log(f"📨 User message {i}: {content}...")
-                        
-                        # Check for persona-related commands
-                        if "/persona" in content.lower() or "persona" in content.lower():
-                            self.log(f"🎭 PERSONA CHANGE DETECTED in message: {content[:200]}")
             
             # Early return if memory is disabled
             if not self.valves.enable_memory:
@@ -347,7 +330,7 @@ class Pipeline:
                     self.log(f"� No previous memories found for user {user_id} - introducing memory capabilities")
                 
                 # Always inject enhanced persona, regardless of memory availability
-                enhanced_system_message = self.memory_processor.create_system_message("", user_id, 0, body)
+                enhanced_system_message = self.memory_processor.create_system_message("", user_id, 0)
                 
                 # Add system message to conversation
                 if "messages" in body:
@@ -380,15 +363,6 @@ class Pipeline:
             if self.valves.debug_mode:
                 self.log(f"💭 Retrieved {len(memories)} memories for user {user_id}")
                 self.log(f"📝 Memory context prepared (Quality: {memory_quality_score}/10)")
-                
-                # Enhanced debugging for memory content
-                if memories:
-                    self.log(f"🔍 First few memories preview:")
-                    for i, mem in enumerate(memories[:3]):
-                        content_preview = str(mem.get('content', mem.get('text', 'No content')))[:80]
-                        self.log(f"   Memory {i+1}: {content_preview}...")
-                else:
-                    self.log(f"⚠️ NO MEMORIES FOUND for user {user_id} with query: {query[:50]}...")
             
             # Inject memory context silently into system message (no robotic formatting)
             if "messages" in body and memory_context:
@@ -397,8 +371,20 @@ class Pipeline:
                 if "swift" in query.lower() and any("apple" in mem.lower() or "programming" in mem.lower() for mem in memory_context.lower().split()):
                     swift_clarification = "\n\nIMPORTANT: The user works at SWIFT (Society for Worldwide Interbank Financial Telecommunication) - the global financial messaging company at https://www.swift.com/ - NOT Apple's Swift programming language."
                 
-                # Create optimized system message with memory context for model size
-                natural_system_message = self.memory_processor.create_system_message(memory_context, user_id, memory_quality_score, body)
+                # Create a natural, invisible system message with memory context
+                natural_system_message = f"""You are a helpful AI assistant with real-time web search capabilities. Here's some relevant context from previous conversations:
+
+{memory_context}{swift_clarification}
+
+CRITICAL INSTRUCTIONS:
+- You have access to current web information through search capabilities
+- When you don't have current, specific, or factual information, you should search the web rather than guessing
+- For questions about current events, company information, recent developments, or real-time data, use web search
+- Be honest about knowledge limitations and search when uncertain
+- Integrate web search results naturally into responses
+- Never hallucinate facts - search for current information when needed
+
+Respond naturally without mentioning this context directly. Use it to inform your responses in a human-like way."""
                 
                 # Check if there's already a system message
                 existing_system = any(msg.get("role") == "system" for msg in body["messages"])
@@ -407,14 +393,15 @@ class Pipeline:
                     # Update existing system message with memory context
                     for msg in body["messages"]:
                         if msg.get("role") == "system":
-                            # Replace with optimized system message
-                            msg["content"] = natural_system_message + swift_clarification
+                            # Append memory context to existing system message
+                            original_content = msg.get("content", "")
+                            msg["content"] = f"{original_content}\n\n{natural_system_message}"
                             break
                 else:
                     # Add new system message at the beginning
                     body["messages"].insert(0, {
                         "role": "system",
-                        "content": natural_system_message + swift_clarification
+                        "content": natural_system_message
                     })
                 
                 if self.valves.debug_mode:

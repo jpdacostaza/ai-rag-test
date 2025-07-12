@@ -65,19 +65,21 @@ class MemoryAPIClient:
             payload = {
                 "user_id": user_id,
                 "query": query,
-                "max_memories": max_memories
+                "limit": max_memories,
+                "threshold": 0.001  # Low threshold for better recall
             }
             
             if self.debug:
                 self.log(f"Fetching memories for user {user_id}: {len(query)} chars query")
             
             response = await client.post(
-                f"{self.backend_url}/api/memory/search",
+                f"{self.backend_url}/api/memory/retrieve",
                 json=payload
             )
             
             if response.status_code == 200:
-                memories = response.json()
+                response_data = response.json()
+                memories = response_data.get("memories", [])
                 if self.debug:
                     self.log(f"Retrieved {len(memories)} memories for user {user_id}")
                 return memories
@@ -96,11 +98,14 @@ class MemoryAPIClient:
         try:
             client = await self.get_client()
             
+            import uuid
             payload = {
                 "user_id": user_id,
+                "conversation_id": str(uuid.uuid4()),  # Generate unique conversation ID
                 "user_message": user_message,
-                "assistant_message": assistant_message,
-                "timestamp": time.time()
+                "assistant_response": assistant_message,  # Changed from assistant_message
+                "timestamp": str(int(time.time())),  # Convert to string as expected
+                "source": "enhanced_memory_pipeline"
             }
             
             if self.debug:

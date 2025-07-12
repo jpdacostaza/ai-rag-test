@@ -55,9 +55,15 @@ WRITE_TIMEOUT = int(os.getenv("WRITE_TIMEOUT", "5"))  # Write timeout
 # Database configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))  # Fixed: ChromaDB runs on port 8000 in docker-compose
 USE_HTTP_CHROMA = os.getenv("USE_HTTP_CHROMA", "true").lower() == "true"
+
+# Memory API configuration
+MEMORY_API_URL = os.getenv("MEMORY_API_URL", "http://backend-memory-api")
+MEMORY_API_PORT = int(os.getenv("MEMORY_API_PORT", "8080"))
+MEMORY_API_BASE_URL = f"{MEMORY_API_URL}:{MEMORY_API_PORT}"
 
 # Embedding configuration - Optimized for memory/RAG performance
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")  # Community recommended: Better for RAG
@@ -82,6 +88,11 @@ SESSION_CLEANUP_INTERVAL = int(os.getenv("SESSION_CLEANUP_INTERVAL", "3600"))  #
 # Connection pool settings
 CONNECTION_POOL_SIZE = int(os.getenv("CONNECTION_POOL_SIZE", "10"))
 MAX_KEEPALIVE_CONNECTIONS = int(os.getenv("MAX_KEEPALIVE_CONNECTIONS", "5"))
+
+# Persona optimization settings for different model sizes
+USE_SMALL_MODEL_PERSONA = os.getenv("USE_SMALL_MODEL_PERSONA", "true").lower()  # auto, true, false
+SMALL_MODEL_CONTEXT_LIMIT = int(os.getenv("SMALL_MODEL_CONTEXT_LIMIT", "2048"))  # Context limit for small models
+PERSONA_OPTIMIZATION_MODE = os.getenv("PERSONA_OPTIMIZATION_MODE", "auto")  # auto, small, full
 
 
 def get_app_start_time():
@@ -148,3 +159,55 @@ def load_persona():
 
 # Default system prompt
 DEFAULT_SYSTEM_PROMPT = load_persona()
+
+def get_config():
+    """
+    Get configuration dictionary for pipeline access.
+    Returns a dictionary with all relevant configuration values.
+    """
+    return {
+        # Model configuration
+        "DEFAULT_MODEL": DEFAULT_MODEL,
+        "OLLAMA_BASE_URL": OLLAMA_BASE_URL,
+        "USE_OLLAMA": USE_OLLAMA,
+        
+        # Memory/RAG settings
+        "DEFAULT_CONTEXT_LENGTH": DEFAULT_CONTEXT_LENGTH,
+        "MEMORY_CONTEXT_LENGTH": MEMORY_CONTEXT_LENGTH,
+        "MEMORY_RETRIEVAL_THRESHOLD": MEMORY_RETRIEVAL_THRESHOLD,
+        "MEMORY_MAX_DOCUMENTS": MEMORY_MAX_DOCUMENTS,
+        "MEMORY_HYBRID_SEARCH": MEMORY_HYBRID_SEARCH,
+        "ENABLE_CROSS_SESSION_MEMORY": ENABLE_CROSS_SESSION_MEMORY,
+        "PERSISTENT_USER_MEMORY": PERSISTENT_USER_MEMORY,
+        "MEMORY_SYSTEM_PROMPT": MEMORY_SYSTEM_PROMPT,
+        
+        # Performance settings
+        "LLM_TIMEOUT": LLM_TIMEOUT,
+        "API_TIMEOUT": API_TIMEOUT,
+        "WEB_SEARCH_TIMEOUT": WEB_SEARCH_TIMEOUT,
+        
+        # Persona settings
+        "USE_SMALL_MODEL_PERSONA": USE_SMALL_MODEL_PERSONA,
+        "SMALL_MODEL_CONTEXT_LIMIT": SMALL_MODEL_CONTEXT_LIMIT,
+        "PERSONA_OPTIMIZATION_MODE": PERSONA_OPTIMIZATION_MODE,
+        
+        # Database settings
+        "REDIS_HOST": REDIS_HOST,
+        "REDIS_PORT": REDIS_PORT,
+        "REDIS_DB": REDIS_DB,
+        "CHROMA_HOST": CHROMA_HOST,
+        "CHROMA_PORT": CHROMA_PORT,
+        "USE_HTTP_CHROMA": USE_HTTP_CHROMA,
+        
+        # Memory API settings
+        "MEMORY_API_URL": MEMORY_API_URL,
+        "MEMORY_API_PORT": MEMORY_API_PORT,
+        "MEMORY_API_BASE_URL": MEMORY_API_BASE_URL,
+        
+        # Embedding settings
+        "EMBEDDING_MODEL": EMBEDDING_MODEL,
+        "EMBEDDING_PROVIDER": EMBEDDING_PROVIDER,
+        
+        # System settings
+        "DEFAULT_SYSTEM_PROMPT": DEFAULT_SYSTEM_PROMPT,
+    }

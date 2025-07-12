@@ -10,6 +10,14 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, UploadFile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+# Add PDF processing capability
+try:
+    import PyPDF2
+    PDF_PROCESSING_AVAILABLE = True
+except ImportError:
+    PDF_PROCESSING_AVAILABLE = False
+    logging.warning("PyPDF2 not available - PDF processing disabled")
+
 from database_manager import db_manager
 from database_manager import get_embedding, index_document_chunks
 from error_handler import MemoryErrorHandler, safe_execute, log_error
@@ -55,6 +63,79 @@ class RAGProcessor:
             separators=["\n\n", "\n", " ", ""],
         )
 
+    def extract_pdf_text(self, file_content: bytes) -> str:
+        """
+        Extract text from PDF file content.
+        
+        Args:
+            file_content (bytes): The PDF file content as bytes
+            
+        Returns:
+            str: Extracted text from the PDF
+            
+        Raises:
+            Exception: If PDF text extraction fails
+        """
+        if not PDF_PROCESSING_AVAILABLE:
+            raise Exception("PDF processing not available - PyPDF2 not installed")
+        
+        try:
+            import io
+            pdf_file = io.BytesIO(file_content)
+            pdf_reader = PyPDF2.PdfReader(pdf_file)
+            
+            text = ""
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += f"\n--- Page {page_num + 1} ---\n"
+                        text += page_text
+                except Exception as e:
+                    logging.warning(f"Failed to extract text from page {page_num + 1}: {e}")
+                    continue
+            
+            if not text.strip():
+                raise Exception("No text could be extracted from PDF")
+                
+            return text.strip()
+            
+        except Exception as e:
+            logging.error(f"PDF text extraction failed: {e}")
+            raise Exception(f"Failed to extract text from PDF: {str(e)}")
+
+    async def extract_file_content(self, file: UploadFile) -> str:
+        """
+        Extract text content from uploaded file based on file type.
+        
+        Args:
+            file (UploadFile): The uploaded file
+            
+        Returns:
+            str: Extracted text content
+            
+        Raises:
+            Exception: If content extraction fails
+        """
+        file_content = await file.read()
+        
+        # Reset file position for potential re-reading
+        await file.seek(0)
+        
+        # Handle PDF files
+        if file.content_type == "application/pdf":
+            return self.extract_pdf_text(file_content)
+        
+        # Handle text-based files (default)
+        try:
+            return file_content.decode("utf-8")
+        except UnicodeDecodeError:
+            # Try with different encoding
+            try:
+                return file_content.decode("latin-1")
+            except Exception as e:
+                raise Exception(f"Failed to decode text file: {str(e)}")
+
     async def process_document(self, file: UploadFile, user_id: str) -> Dict[str, Any]:
         """
         Process uploaded document and store in vector database.
@@ -81,34 +162,29 @@ class RAGProcessor:
                     "error": "Missing filename",
                 }
                 
-            # Check if file type is supported (basic check for text-based files)
-            supported_extensions = ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.csv', '.xml', '.log']
+            # Check if file type is supported
+            supported_extensions = ['.txt', '.md', '.py', '.js', '.html', '.css', '.json', '.csv', '.xml', '.log', '.pdf']
             file_ext = '.' + file.filename.split('.')[-1].lower() if '.' in file.filename else ''
+            
+            # Log file type for debugging
+            logging.info(f"[RAG] Processing file: {file.filename}, content_type: {file.content_type}, extension: {file_ext}")
+            
             if file_ext and file_ext not in supported_extensions:
                 logging.warning(f"[RAG] Potentially unsupported file type: {file_ext}")
-            
-            # Helper function for file reading with error handling
-            async def read_file_content():
-                """Read and decode file content"""
-                content = await file.read()
-                return content.decode("utf-8")
-                
-            # Read file content with error handling
-            text = await safe_execute(
-                read_file_content,
-                fallback_value=None,
-                error_handler=lambda e: log_error(e, f"Failed to read file {file.filename}")
-            )
-            
-            if text is None:
-                log_service_status("RAG", "error", f"Failed to read content from {file.filename}")
+
+            # Extract content based on file type
+            try:
+                text = await self.extract_file_content(file)
+                logging.info(f"[RAG] Extracted {len(text)} characters from {file.filename}")
+            except Exception as e:
+                log_service_status("RAG", "error", f"Failed to extract content from {file.filename}: {str(e)}")
                 return {
                     "document_id": None,
                     "filename": file.filename,
                     "chunks_processed": 0,
                     "total_chunks": 0,
                     "status": "failed",
-                    "error": "Failed to read document content",
+                    "error": f"Content extraction failed: {str(e)}",
                 }
 
             # Split into chunks with error handling
@@ -152,6 +228,10 @@ class RAGProcessor:
             )
 
             success_count = len(chunks) if success else 0
+
+            # If this appears to be a resume/CV, also save it to memory system
+            if success and self._is_resume_document(file.filename, text):
+                await self._save_resume_to_memory(user_id, text, file.filename)
 
             log_service_status(
                 "RAG",
@@ -300,6 +380,135 @@ class RAGProcessor:
             # Return empty results instead of raising exception to avoid breaking the chat flow
             logging.error(f"[RAG] Semantic search failed: {str(e)}")
             return []
+
+    def _is_resume_document(self, filename: str, content: str) -> bool:
+        """
+        Detect if the document appears to be a resume/CV.
+        
+        Args:
+            filename (str): The filename
+            content (str): The document content
+            
+        Returns:
+            bool: True if this appears to be a resume
+        """
+        filename_lower = filename.lower()
+        content_lower = content.lower()
+        
+        # Check filename for resume indicators
+        resume_filename_keywords = ['resume', 'cv', 'curriculum']
+        if any(keyword in filename_lower for keyword in resume_filename_keywords):
+            return True
+        
+        # Check content for resume indicators
+        resume_content_keywords = [
+            'experience', 'education', 'skills', 'work history',
+            'employment', 'career', 'qualifications', 'achievements',
+            'professional summary', 'objective', 'contact information'
+        ]
+        
+        keyword_count = sum(1 for keyword in resume_content_keywords if keyword in content_lower)
+        
+        # If we find multiple resume keywords, it's likely a resume
+        return keyword_count >= 3
+
+    async def _save_resume_to_memory(self, user_id: str, content: str, filename: str):
+        """
+        Save resume content to the memory system.
+        
+        Args:
+            user_id (str): The user ID
+            content (str): The resume content
+            filename (str): The filename
+        """
+        try:
+            # Import adaptive learning system
+            from adaptive_learning import adaptive_learning_system
+            
+            # Extract key sections from resume
+            resume_summary = self._extract_resume_summary(content)
+            
+            # Save to memory with metadata
+            metadata = {
+                "type": "resume",
+                "filename": filename,
+                "processed_at": "auto_extracted"
+            }
+            
+            log_service_status("RAG", "info", f"Saving resume {filename} to memory for user {user_id}")
+            
+            document_id = await adaptive_learning_system.add_document_to_memory(
+                user_id=user_id,
+                document_content=resume_summary,
+                metadata=metadata
+            )
+            
+            log_service_status("RAG", "ready", f"Resume {filename} saved to memory with ID: {document_id}")
+            
+        except Exception as e:
+            log_service_status("RAG", "warning", f"Failed to save resume to memory: {str(e)}")
+            logging.warning(f"Resume memory save failed: {e}")
+
+    def _extract_resume_summary(self, content: str) -> str:
+        """
+        Extract key information from resume content for memory storage.
+        
+        Args:
+            content (str): The full resume content
+            
+        Returns:
+            str: Summarized key information from the resume
+        """
+        lines = content.split('\n')
+        summary_parts = []
+        
+        # Try to extract name (usually in first few lines)
+        for i, line in enumerate(lines[:5]):
+            line = line.strip()
+            if line and len(line) < 50 and not any(char.isdigit() for char in line[:10]):
+                # Likely a name if it's short, near the top, and doesn't start with numbers
+                if not any(keyword in line.lower() for keyword in ['email', '@', 'phone', 'address', 'linkedin']):
+                    summary_parts.append(f"Name: {line}")
+                    break
+        
+        # Extract contact information
+        for line in lines[:20]:  # Check first 20 lines for contact info
+            line = line.strip()
+            if '@' in line and '.' in line:  # Email
+                summary_parts.append(f"Email: {line}")
+            elif 'phone' in line.lower() or (any(char.isdigit() for char in line) and len([c for c in line if c.isdigit()]) >= 7):
+                summary_parts.append(f"Phone: {line}")
+        
+        # Extract sections
+        current_section = ""
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if this line is a section header
+            if self._is_section_header(line):
+                current_section = line.lower()
+            elif current_section:
+                # Add content from important sections
+                if any(section in current_section for section in ['experience', 'work', 'employment', 'education', 'skills']):
+                    if len(line) > 10 and len(summary_parts) < 20:  # Limit summary length
+                        summary_parts.append(f"{current_section.title()}: {line}")
+        
+        return "\n".join(summary_parts[:15])  # Limit to first 15 key points
+
+    def _is_section_header(self, line: str) -> bool:
+        """Check if a line appears to be a section header."""
+        line_lower = line.lower()
+        headers = [
+            'experience', 'work experience', 'employment', 'career',
+            'education', 'academic background', 'qualifications',
+            'skills', 'technical skills', 'core competencies',
+            'achievements', 'accomplishments', 'awards',
+            'contact', 'contact information', 'personal details'
+        ]
+        
+        return any(header in line_lower for header in headers) and len(line) < 50
 
 
 # Global RAG processor instance

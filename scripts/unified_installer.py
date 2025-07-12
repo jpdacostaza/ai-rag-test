@@ -90,52 +90,151 @@ class UnifiedMemoryInstaller:
             return False
     
     def install_pipeline_file(self) -> bool:
-        """Install Enhanced Memory Pipeline using file-based method."""
-        self.log("🔧 Installing Enhanced Memory Pipeline (file-based)...")
+        """Install Enhanced Memory Pipeline using file-based method - ZERO CONFIG."""
+        self.log("🔧 Installing Enhanced Memory Pipeline (automatic file-based)...")
         
         try:
-            # The pipeline will be installed by mounting the file directly
-            # This is the correct method according to Pipelines documentation
+            # Try to find the pipeline file in different locations
+            pipeline_source_paths = [
+                "/app/enhanced_memory_pipeline.py",  # Primary location (from Dockerfile)
+                "/app/memory_pipeline.py",  # Alternative name
+                "./pipelines/enhanced_memory_pipeline.py",  # Local relative path
+            ]
             
-            with open("/app/memory_pipeline.py", "r") as f:
-                pipeline_code = f.read()
+            pipeline_code = None
+            source_path = None
             
-            # Check if we can access the pipelines directory (mounted volume)
+            for path in pipeline_source_paths:
+                try:
+                    if os.path.exists(path):
+                        with open(path, "r") as f:
+                            pipeline_code = f.read()
+                            source_path = path
+                            self.log(f"✅ Found pipeline source at: {path}")
+                            break
+                except Exception as e:
+                    self.log(f"Checking {path}: {e}", "DEBUG")
+                    continue
+            
+            if not pipeline_code:
+                # If no source file found, create a basic pipeline from memory
+                self.log("⚠️ No pipeline source file found, creating from template", "WARN")
+                pipeline_code = self._get_pipeline_template()
+                if not pipeline_code:
+                    self.log("❌ Could not create pipeline - no template available", "ERROR")
+                    return False
+            
+            # Install to pipelines directory (mounted volume)
             pipelines_dir = "/app/pipelines"
-            if os.path.exists(pipelines_dir):
-                self.log(f"✅ Found pipelines directory: {pipelines_dir}")
-                
-                # Copy the pipeline file
-                pipeline_file = os.path.join(pipelines_dir, "enhanced_memory_pipeline.py")
+            
+            # Ensure the pipelines directory exists
+            if not os.path.exists(pipelines_dir):
+                try:
+                    os.makedirs(pipelines_dir, exist_ok=True)
+                    self.log(f"✅ Created pipelines directory: {pipelines_dir}")
+                except Exception as e:
+                    self.log(f"❌ Could not create pipelines directory: {e}", "ERROR")
+                    return False
+            
+            # Write the pipeline file
+            pipeline_file = os.path.join(pipelines_dir, "enhanced_memory_pipeline.py")
+            try:
                 with open(pipeline_file, "w") as f:
                     f.write(pipeline_code)
                 
-                self.log(f"✅ Pipeline file installed: {pipeline_file}")
+                self.log(f"✅ Pipeline file installed successfully: {pipeline_file}")
+                self.log(f"✅ Source: {source_path if source_path else 'generated template'}")
                 self.log("🔄 Pipeline will be automatically loaded by the Pipelines service")
-                return True
-            else:
-                self.log("⚠️ Pipelines directory not found - using manual installation method", "WARN")
                 
-                self.log("📋 Manual Installation Instructions for Enhanced Memory Pipeline:")
-                self.log("=" * 70)
-                self.log("1. Copy the pipeline code below")
-                self.log("2. Save it as 'enhanced_memory_pipeline.py'")
-                self.log("3. Copy the file to your Pipelines container:")
-                self.log("   docker cp enhanced_memory_pipeline.py pipelines:/app/pipelines/")
-                self.log("4. Restart the Pipelines container:")
-                self.log("   docker restart pipelines")
-                self.log("=" * 70)
-                self.log("📄 Pipeline Code (copy everything between the markers):")
-                self.log("--- START PIPELINE CODE ---")
-                self.log(pipeline_code)
-                self.log("--- END PIPELINE CODE ---")
-                self.log("=" * 70)
-                
-                return True
+                # Verify the file was written correctly
+                if os.path.exists(pipeline_file):
+                    file_size = os.path.getsize(pipeline_file)
+                    self.log(f"✅ Verification: Pipeline file size {file_size} bytes")
+                    return True
+                else:
+                    self.log("❌ Verification failed: Pipeline file not found after write", "ERROR")
+                    return False
+                    
+            except Exception as e:
+                self.log(f"❌ Error writing pipeline file: {e}", "ERROR")
+                return False
                 
         except Exception as e:
-            self.log(f"❌ Pipeline installation error: {str(e)}", "ERROR")
+            self.log(f"❌ Pipeline installation error: {e}", "ERROR")
             return False
+    
+    def install_pipeline_manual(self):
+        """Provide manual installation instructions for the pipeline."""
+        self.log("📋 Manual Installation Instructions for Enhanced Memory Pipeline:")
+        self.log("=" * 70)
+        self.log("1. The pipeline file should be copied from the host to the pipelines container")
+        self.log("2. Run this command from your backend directory:")
+        self.log("   docker cp pipelines/enhanced_memory_pipeline.py backend-pipelines:/app/pipelines/")
+        self.log("3. Restart the Pipelines container:")
+        self.log("   docker restart backend-pipelines")
+        self.log("4. Verify installation by checking:")
+        self.log("   http://localhost:9099/")
+        self.log("=" * 70)
+    
+    def _get_pipeline_template(self) -> str:
+        """Get a basic pipeline template if the source file is not found."""
+        return '''"""
+Enhanced Memory Pipeline for OpenWebUI
+=====================================
+Auto-generated pipeline template for memory functionality.
+"""
+
+from typing import List, Union, Generator, Iterator
+import os
+import httpx
+import asyncio
+from pydantic import BaseModel
+
+class Pipeline:
+    """Enhanced Memory Pipeline with automatic backend integration."""
+    
+    class Valves(BaseModel):
+        """Configuration valves for the memory pipeline."""
+        backend_url: str = "http://backend:3000"
+        memory_api_url: str = "http://memory_api:8080"
+        enable_memory: bool = True
+        enable_learning: bool = True
+        debug: bool = True
+    
+    def __init__(self):
+        self.valves = self.Valves()
+        self.id = "enhanced_memory_pipeline"
+        self.name = "Enhanced Memory Pipeline"
+        self.description = "AI memory system with learning capabilities"
+
+    async def on_startup(self):
+        """Called when the pipeline starts."""
+        print("🚀 Enhanced Memory Pipeline - Auto-generated template loaded")
+
+    async def on_shutdown(self):
+        """Called when the pipeline shuts down."""
+        print("🛑 Enhanced Memory Pipeline - Shutting down")
+
+    def pipe(
+        self, user_message: str, model_id: str, messages: List[dict], body: dict
+    ) -> Union[str, Generator, Iterator]:
+        """Process the user message with memory enhancement."""
+        
+        if not self.valves.enable_memory:
+            return body
+            
+        try:
+            # Basic memory integration (simplified template)
+            if self.valves.debug:
+                print(f"🧠 Memory Pipeline: Processing message for model {model_id}")
+            
+            # This is a template - full functionality requires the complete pipeline file
+            return body
+            
+        except Exception as e:
+            print(f"❌ Memory Pipeline Error: {e}")
+            return body
+'''
     
     async def run_installation(self):
         """Run the complete installation process."""
