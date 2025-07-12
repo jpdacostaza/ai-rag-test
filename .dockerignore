@@ -12,12 +12,22 @@ venv/
 .env
 .venv/
 
-# Storage and cache directories
-storage/
+# Storage and cache directories (exclude most but allow essential pipeline files)
+storage/backend/
+storage/chroma/
+storage/models/
+storage/ollama/
+storage/openwebui/
+storage/redis/
+storage/.cache/
+storage/memory/
 data/
 logs/
 backups/
 env_backups/
+
+# Allow essential pipeline files for Docker builds
+!storage/pipelines/enhanced_memory_pipeline.py
 
 # Docker files
 docker-compose*.yml

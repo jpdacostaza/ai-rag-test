@@ -1,1 +1,1 @@
-{"pipelines": ["*"], "priority": 0, "backend_url": "http://memory_api:8080", "memory_threshold": 0.001, "max_memories": 20, "debug": true}
+{}

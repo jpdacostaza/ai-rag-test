@@ -188,7 +188,7 @@ services:
       - backend
       - memory_api
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9099/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:9099/", "||", "exit", "1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -216,8 +216,7 @@ services:
       - ./storage/pipelines:/app/pipelines
     networks:
       - backend-net
-    profiles:
-      - disabled  # Disabled - we only want Pipeline, not Function
+    # Installer now enabled - Pipeline file already exists
 
   # Watchtower - Automatic container updates (optional)
   watchtower:

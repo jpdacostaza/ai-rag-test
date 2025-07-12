@@ -910,9 +910,9 @@ class DatabaseManager:
         try:
             if not self.embedding_model:
                 return False
-            # Try a simple encoding as a health check
-            await asyncio.to_thread(self.embedding_model.encode, ["test"])
-            return True
+            # Try a simple embedding generation as a health check
+            embedding = await self.get_embedding("test")
+            return embedding is not None
         except Exception:
             return False
 

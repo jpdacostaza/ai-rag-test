@@ -59,9 +59,13 @@ class MemoryClient(IMemoryProvider):
                 
                 if response.status_code == 200:
                     data = response.json()
-                    memories = [
-                        MemoryRecord(**memory) for memory in data.get("memories", [])
-                    ]
+                    memories = []
+                    for memory in data.get("memories", []):
+                        # Add user_id to each memory record since API doesn't include it
+                        memory_data = memory.copy()
+                        memory_data["user_id"] = query.user_id
+                        memories.append(MemoryRecord(**memory_data))
+                    
                     return MemoryResponse(
                         success=True,
                         memories=memories,

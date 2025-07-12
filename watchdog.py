@@ -424,32 +424,45 @@ class EmbeddingMonitor(SubsystemMonitor):
 
         try:
             # Import here to avoid circular imports
+            from database_manager import db_manager
+
+            # Check if database manager is available
+            if db_manager is None:
+                raise Exception("Database manager not available")
 
             # Check if embedding model is loaded
-            if not db_manager.is_embeddings_available() or db_manager.embedding_model is None:
-                raise Exception("Embedding model not loaded")
+            if not db_manager.is_embeddings_available():
+                raise Exception("Embedding model not available")
 
-            # Test embedding generation with a simple text
+            # Test embedding generation with a simple text using proper database manager method
             test_text = "health check test"
-            embedding_model = db_manager.embedding_model
-            test_embedding = await asyncio.to_thread(embedding_model.encode, [test_text])
+            test_embedding = await db_manager.get_embedding(test_text)
 
             # Verify embedding was generated successfully
-            if test_embedding is None or len(test_embedding) == 0:
+            if test_embedding is None:
                 raise Exception("Failed to generate test embedding")
 
             # Check embedding dimensions (should be > 0)
-            embedding_dim = len(test_embedding[0]) if len(test_embedding) > 0 else 0
+            embedding_dim = len(test_embedding) if test_embedding is not None else 0
             if embedding_dim == 0:
                 raise Exception("Generated embedding has invalid dimensions")
 
             self._record_success()
             response_time = (time.time() - start_time) * 1000
 
+            # Get model information safely
+            model_name = "Unknown"
+            if hasattr(db_manager, 'embedding_model') and db_manager.embedding_model:
+                if hasattr(db_manager.embedding_model, 'model_name'):
+                    model_name = db_manager.embedding_model.model_name
+                else:
+                    model_name = str(db_manager.embedding_model)
+
             metadata = {
-                "model_name": getattr(embedding_model, "model_name", "Unknown"),
+                "model_name": model_name,
                 "embedding_dimensions": embedding_dim,
                 "test_embedding_size": len(test_embedding),
+                "embedding_provider": getattr(db_manager, 'embedding_provider', 'unknown'),
             }
 
             return ServiceHealth(
@@ -529,7 +542,7 @@ class SystemWatchdog:
                     status=HealthStatus.UNKNOWN,
                     last_check=datetime.now(),
                     response_time_ms=0,
-                    error_message="Unexpected error: {str(result)}",
+                    error_message=f"Unexpected error: {str(result)}",
                 )
             else:
                 results[monitor.name] = result
@@ -743,7 +756,7 @@ if __name__ == "__main__":
                 print()
 
             # Overall status
-            watchdog.get_system_status()
-            print("Overall Status: {status['overall_status']}")
+            status = watchdog.get_system_status()
+            print(f"Overall Status: {status['overall_status']}")
 
     asyncio.run(main())
