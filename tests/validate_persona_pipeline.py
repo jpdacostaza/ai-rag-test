@@ -13,10 +13,12 @@ import sys
 from pathlib import Path
 
 def validate_persona_file():
-    """Validate the persona.json file structure and content."""
-    print("🔍 Validating Enhanced Persona v3.0.0 configuration...")
+    """Validate the persona_enhanced.json file structure and content."""
+    print("🔍 Validating Enhanced Persona v3.2.0 configuration...")
     
-    persona_path = "config/persona.json"
+    # Get the correct path relative to the script location
+    script_dir = Path(__file__).parent.parent
+    persona_path = script_dir / "config" / "persona_enhanced.json"
     
     try:
         # Check file exists
@@ -91,7 +93,8 @@ def validate_pipeline_integration():
     """Validate that the pipeline can integrate with any model."""
     print("\n🔍 Validating pipeline integration...")
     
-    pipeline_path = "storage/pipelines/enhanced_memory_pipeline.py"
+    script_dir = Path(__file__).parent.parent
+    pipeline_path = script_dir / "pipelines" / "enhanced_memory_pipeline.py"
     
     try:
         # Check pipeline file exists
@@ -189,7 +192,9 @@ def validate_model_compatibility():
         
         # Test persona prompt size compatibility
         try:
-            with open("config/persona.json", 'r', encoding='utf-8') as f:
+            script_dir = Path(__file__).parent.parent
+            persona_path = script_dir / "config" / "persona_enhanced.json"
+            with open(persona_path, 'r', encoding='utf-8') as f:
                 persona = json.load(f)
             
             system_prompt = persona["system_prompt"]
@@ -228,7 +233,9 @@ def validate_memory_instructions():
     print("\n🔍 Validating memory instructions...")
     
     try:
-        with open("config/persona.json", 'r', encoding='utf-8') as f:
+        script_dir = Path(__file__).parent.parent
+        persona_path = script_dir / "config" / "persona_enhanced.json"
+        with open(persona_path, 'r', encoding='utf-8') as f:
             persona = json.load(f)
         
         system_prompt = persona["system_prompt"]

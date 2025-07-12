@@ -114,13 +114,21 @@
     
     "models": {
       "primary_llm": "llama3.2:3b",
-      "available_models": ["mistral:7b-instruct-v0.3-q4_k_m", "llama3.2:3b", "llama3.2:1b"],
-      "embedding_model": "all-MiniLM-L6-v2",
+      "available_models": [
+        "gemma2:2b", 
+        "qwen2.5:3b", 
+        "qwen2.5:3b-instruct", 
+        "llama3.2:3b", 
+        "nomic-embed-text:latest"
+      ],
+      "embedding_model": "nomic-embed-text:latest",
       "memory_threshold": 0.01,
       "fallback_llms": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"],
       "api_support": ["ollama", "openai_compatible"],
       "auto_download": true,
-      "status": "optimized_for_memory"
+      "model_selection": "automatic_best_fit",
+      "universal_compatibility": true,
+      "status": "optimized_for_all_models"
     },
     
     "architecture": {
@@ -179,42 +187,51 @@
       "gemma2": {
         "variants": ["2b", "9b", "27b"],
         "strengths": ["reasoning", "coding", "instruction_following"],
-        "optimization": "enhanced_context_awareness",
+        "optimization": "enhanced_context_awareness_with_structured_prompts",
         "memory_integration": "optimized_for_gemma_architecture",
-        "web_search": "enhanced_result_synthesis"
+        "web_search": "enhanced_result_synthesis",
+        "status": "active_available"
       },
       "qwen2.5": {
-        "variants": ["3b", "7b", "14b", "32b"],
-        "strengths": ["multilingual", "reasoning", "coding", "mathematics"],
-        "optimization": "advanced_multilingual_memory",
+        "variants": ["3b", "3b-instruct", "7b", "14b", "32b"],
+        "strengths": ["multilingual", "reasoning", "coding", "mathematics", "instruction_following"],
+        "optimization": "advanced_multilingual_memory_with_instruction_tuning",
         "memory_integration": "context_sensitive_retrieval",
-        "web_search": "multilingual_search_enhancement"
+        "web_search": "multilingual_search_enhancement",
+        "status": "active_available_instruct_optimized"
       },
       "llama3.2": {
         "variants": ["1b", "3b", "11b", "70b"],
         "strengths": ["conversation", "reasoning", "tool_use"],
-        "optimization": "enhanced_tool_integration",
+        "optimization": "enhanced_tool_integration_with_natural_flow",
         "memory_integration": "seamless_context_flow",
-        "web_search": "intelligent_tool_selection"
+        "web_search": "intelligent_tool_selection",
+        "status": "active_available"
       },
       "nomic_embed": {
         "variants": ["latest"],
-        "purpose": "embedding_generation",
-        "optimization": "memory_search_enhancement",
-        "integration": "semantic_similarity_boost"
+        "purpose": "embedding_generation_semantic_search",
+        "optimization": "memory_search_enhancement_universal_compatibility",
+        "integration": "semantic_similarity_boost_across_all_models",
+        "status": "active_available"
       }
     },
     "adaptive_prompting": {
-      "gemma2_specific": "Leverage strong instruction following and reasoning capabilities",
-      "qwen2.5_specific": "Utilize multilingual context and mathematical reasoning",
-      "llama3.2_specific": "Maximize conversational flow and tool integration",
-      "general_optimization": "Adapt response style based on model capabilities"
+      "gemma2_specific": "Leverage strong instruction following and analytical reasoning capabilities for precise structured responses",
+      "qwen2.5_specific": "Utilize multilingual context, mathematical reasoning, and enhanced instruction following",
+      "qwen2.5_instruct_specific": "Maximize instruction-tuned capabilities for optimal task completion and detailed responses",
+      "llama3.2_specific": "Maximize conversational flow, tool integration, and adaptive assistance",
+      "general_optimization": "Dynamically adapt response style and approach based on model capabilities and user context",
+      "universal_compatibility": "Maintain consistent quality and helpfulness across all model architectures"
     },
     "performance_tuning": {
-      "context_length_management": "dynamic_based_on_model",
-      "memory_chunk_sizing": "optimized_per_model_architecture",
-      "response_formatting": "tailored_to_model_strengths",
-      "web_search_integration": "model_aware_result_synthesis"
+      "context_length_management": "dynamic_optimization_based_on_model_architecture",
+      "memory_chunk_sizing": "model_specific_optimization_for_best_retrieval",
+      "response_formatting": "tailored_to_leverage_individual_model_strengths",
+      "web_search_integration": "model_aware_synthesis_and_summarization",
+      "universal_compatibility": "seamless_experience_across_all_available_models",
+      "fallback_handling": "graceful_model_switching_with_context_preservation",
+      "instruction_optimization": "enhanced_for_instruct_tuned_variants"
     }
   },
 
@@ -232,8 +249,14 @@
     "memory_acknowledgment": "mandatory_enforced",
     "continuity_patterns": "best_practice_implemented",
     "current_information": "web_search_enabled",
-    "model_support": "multi_model_optimized",
-    "active_models": ["gemma2:2b", "qwen2.5:3b", "llama3.2:3b", "nomic-embed-text"],
+    "model_support": "universal_multi_model_optimized_with_instruct_variants",
+    "active_models": [
+      "gemma2:2b", 
+      "qwen2.5:3b", 
+      "qwen2.5:3b-instruct", 
+      "llama3.2:3b", 
+      "nomic-embed-text:latest"
+    ],
     "model_optimizations": "architecture_specific_enhancements",
     "industry_inspiration": ["ChatGPT", "Mem0", "Claude", "Local_LLaMA_community", "Google_Gemma", "Alibaba_Qwen", "Meta_Llama"]
   }

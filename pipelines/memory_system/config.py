@@ -49,7 +49,7 @@ class MemoryValves(BaseModel):
     cache_duration: int = 300  # seconds to cache user memories
     
     # Persona Integration
-    integrate_persona: bool = True  # Integrate with persona.json configuration
+    integrate_persona: bool = True  # Integrate with persona_enhanced.json configuration
     persona_priority: str = "memory_first"  # memory_first, balanced, persona_first
     
     # Model Compatibility
