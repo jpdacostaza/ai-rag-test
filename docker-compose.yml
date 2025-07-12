@@ -90,7 +90,7 @@ services:
       ollama:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -161,7 +161,7 @@ services:
       - memory_api
       - pipelines
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -188,7 +188,7 @@ services:
       - backend
       - memory_api
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9099/", "||", "exit", "1"]
+      test: ["CMD", "curl", "-f", "http://localhost:9099/"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -207,10 +207,8 @@ services:
       - OPENWEBUI_URL=http://openwebui:8080
       - PIPELINES_URL=http://pipelines:9099
     depends_on:
-      openwebui:
-        condition: service_healthy
-      pipelines:
-        condition: service_started
+      - openwebui
+      - pipelines
     volumes:
       # Mount the same pipelines directory as the pipelines service
       - ./storage/pipelines:/app/pipelines
@@ -234,8 +232,6 @@ services:
     command: backend-openwebui backend-chroma backend-redis backend-ollama backend-pipelines
     networks:
       - backend-net
-    profiles:
-      - optional  # Disabled by default
 
 networks:
   backend-net:
