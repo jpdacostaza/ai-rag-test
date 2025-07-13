@@ -1,0 +1,151 @@
+{
+  "session_id": "d0f31a15",
+  "timestamp": "2025-07-13T15:36:54.801013",
+  "summary": {
+    "tests_passed": 8,
+    "tests_total": 8,
+    "success_rate": 100.0,
+    "total_errors": 0,
+    "performance_metrics": 5
+  },
+  "test_results": [
+    {
+      "test_name": "Enhanced Service Health",
+      "success": true,
+      "duration_ms": 154.32262420654297,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 154.3ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Performance Baseline",
+      "success": true,
+      "duration_ms": 13246.378660202026,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 13246.4ms",
+      "recovery_tested": false,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Data Consistency",
+      "success": true,
+      "duration_ms": 3091.5675163269043,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 3091.6ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Ollama Integration",
+      "success": true,
+      "duration_ms": 14944.145202636719,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 14944.1ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Memory API Advanced",
+      "success": true,
+      "duration_ms": 4068.234443664551,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 4068.2ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Pipeline Integration",
+      "success": true,
+      "duration_ms": 50.3382682800293,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 50.3ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "OpenWebUI Advanced",
+      "success": true,
+      "duration_ms": 58.259010314941406,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 58.3ms",
+      "recovery_tested": true,
+      "stress_tested": false
+    },
+    {
+      "test_name": "Full System Stress",
+      "success": true,
+      "duration_ms": 15081.52961730957,
+      "errors": [],
+      "performance_metrics": [],
+      "details": "Test completed in 15081.5ms",
+      "recovery_tested": false,
+      "stress_tested": false
+    }
+  ],
+  "errors": [],
+  "performance_metrics": [
+    {
+      "service": "openwebui",
+      "endpoint": "/health",
+      "method": "GET",
+      "response_time_ms": 15.190839767456055,
+      "status_code": 200,
+      "timestamp": "2025-07-13T15:35:48.060843",
+      "payload_size_bytes": 0,
+      "memory_usage_mb": 20103.53515625,
+      "cpu_usage_percent": 12.5
+    },
+    {
+      "service": "pipelines",
+      "endpoint": "/health",
+      "method": "GET",
+      "response_time_ms": 7.063388824462891,
+      "status_code": 200,
+      "timestamp": "2025-07-13T15:35:48.070847",
+      "payload_size_bytes": 0,
+      "memory_usage_mb": 20103.93359375,
+      "cpu_usage_percent": 0.0
+    },
+    {
+      "service": "memory_api",
+      "endpoint": "/health",
+      "method": "GET",
+      "response_time_ms": 6.911993026733398,
+      "status_code": 200,
+      "timestamp": "2025-07-13T15:35:48.081895",
+      "payload_size_bytes": 0,
+      "memory_usage_mb": 20103.91015625,
+      "cpu_usage_percent": 0.0
+    },
+    {
+      "service": "ollama",
+      "endpoint": "/health",
+      "method": "GET",
+      "response_time_ms": 54.785728454589844,
+      "status_code": 200,
+      "timestamp": "2025-07-13T15:35:48.143607",
+      "payload_size_bytes": 0,
+      "memory_usage_mb": 20105.26953125,
+      "cpu_usage_percent": 52.3
+    },
+    {
+      "service": "chroma",
+      "endpoint": "/health",
+      "method": "GET",
+      "response_time_ms": 7.377862930297852,
+      "status_code": 200,
+      "timestamp": "2025-07-13T15:35:48.154989",
+      "payload_size_bytes": 0,
+      "memory_usage_mb": 20105.40234375,
+      "cpu_usage_percent": 12.5
+    }
+  ]
+}

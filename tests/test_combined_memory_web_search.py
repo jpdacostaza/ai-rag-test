@@ -31,15 +31,15 @@ from datetime import datetime
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import web search components
-from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
-from enhanced_web_search_trigger import analyze_search_trigger
+from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
+from scripts.enhanced_web_search_trigger import analyze_search_trigger
 from pipelines.anti_hallucination_module import assess_response_safety, should_fact_check
 
 # Import memory components
 try:
-    from memory_function import MemoryFunction
+    # from memory_function import MemoryFunction  # REMOVED: File deleted - using Enhanced Memory Pipeline
     from enhanced_integration import EnhancedMemoryIntegration
-    from models import UserInfo, ChatRequest
+    from models.models import UserInfo, ChatRequest
     from routes.chat import extract_authenticated_user_id
     MEMORY_AVAILABLE = True
 except ImportError as e:

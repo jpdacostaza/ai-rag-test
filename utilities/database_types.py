@@ -5,6 +5,9 @@ Type definitions and interfaces for the database manager.
 from typing import Protocol, Optional, Any, Dict, List, TypeVar, Generic
 from datetime import datetime
 import chromadb
+import asyncio
+
+from utilities.connection_factory import get_connection_factory
 
 T = TypeVar("T")
 
@@ -59,19 +62,20 @@ class CacheManager(Generic[T]):
 
 
 class ChromaDBClient:
-    """Type-safe ChromaDB client wrapper."""
+    """Type-safe ChromaDB client wrapper using DatabaseConnectionFactory."""
 
-    def __init__(self, settings: chromadb.Settings):
-        """TODO: Add proper docstring for __init__."""
+    def __init__(self, settings: Optional[chromadb.Settings] = None):
+        """Initialize ChromaDB client with DatabaseConnectionFactory."""
         self.settings = settings
         self.client: Optional[chromadb.Client] = None
         self.collections: Dict[str, chromadb.Collection] = {}
+        self.connection_factory = get_connection_factory()
 
-    def connect(self) -> bool:
-        """Connect to ChromaDB."""
+    async def connect(self) -> bool:
+        """Connect to ChromaDB using DatabaseConnectionFactory."""
         try:
-            self.client = chromadb.Client(self.settings)
-            return True
+            self.client = await self.connection_factory.create_chroma_connection(connection_name="database_types_client")
+            return self.client is not None
         except Exception:
             return False
 
@@ -101,6 +105,14 @@ class ChromaDBClient:
             raise RuntimeError("Not connected to ChromaDB")
 
         return self.client.list_collections()
+
+    @staticmethod
+    async def create_client() -> Optional['ChromaDBClient']:
+        """Factory method to create a connected ChromaDB client."""
+        client = ChromaDBClient()
+        if await client.connect():
+            return client
+        return None
 
 
 class DatabaseManagerTypes:

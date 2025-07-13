@@ -1,0 +1,332 @@
+version: '3.8'
+
+services:
+  # 1. Redis - Cache and message broker (FIRST - foundation layer)
+  redis:
+    image: redis:7-alpine
+    container_name: backend-redis
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - ./storage/redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - backend-net
+
+  # 2. ChromaDB - Vector database for embeddings (SECOND - data foundation)
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: backend-chroma
+    ports:
+      - "8000:8000"
+    restart: always
+    volumes:
+      - ./storage/chroma:/chroma/chroma
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - backend-net
+
+  # 3. Ollama - Language model service (THIRD - AI foundation)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: backend-ollama
+    ports:
+      - "11434:11434"
+    restart: always
+    volumes:
+      - ./storage/ollama:/root/.ollama
+    environment:
+      - OLLAMA_ORIGINS="*"
+      - OLLAMA_HOST=0.0.0.0:11434
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep ollama || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
+
+  # 4. Backend API - Main FastAPI application (FOURTH - core backend services)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend-main
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    stop_grace_period: 30s
+    env_file:
+      - .env
+    environment:
+      - ENV=production
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - .:/app
+      - ./storage/backend:/app/data
+      - ./storage/models:/app/models
+      - ./storage/.cache:/root/.cache
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health/simple"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 120s
+    networks:
+      - backend-net
+
+  # 5. Memory API - Memory management service (FIFTH - advanced features)
+  memory-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.memory
+    container_name: backend-memory-api
+    ports:
+      - "5001:5001"
+    restart: unless-stopped
+    environment:
+      - ENV=production
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chroma:8000
+      - OLLAMA_API=http://ollama:11434
+      - OPENWEBUI_API=http://openwebui:8080
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - ./storage/memory:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
+
+  # 6. Pipelines - Data processing pipelines (SIXTH - processing layer)
+  pipelines:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend-pipelines
+    ports:
+      - "9099:9099"
+    restart: unless-stopped
+    environment:
+      - ENV=production
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - .:/app
+      - ./storage/pipelines:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+    command: ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9099"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9099/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    networks:
+      - backend-net
+
+  # 7. Open WebUI - User interface (SEVENTH - interface layer)
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: backend-openwebui
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_SECRET_KEY=your-secret-key-here
+      - CHROMA_HTTP_HOST=chroma
+      - CHROMA_HTTP_PORT=8000
+      - RAG_EMBEDDING_ENGINE=ollama
+      - PDF_EXTRACT_IMAGES=true
+      - ENABLE_RAG_WEB_SEARCH=true
+    volumes:
+      - ./storage/openwebui:/app/backend/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
+
+  # 8. Memory Installer - Installation and setup service (EIGHTH - setup services)
+  memory_installer:
+    build:
+      context: .
+      dockerfile: Dockerfile.unified-installer
+    container_name: backend-memory-installer
+    restart: "no"
+    environment:
+      - ENV=production
+      - REDIS_URL=redis://redis:6379
+      - CHROMA_URL=http://chroma:8000
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - ./storage/installer:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+      openwebui:
+        condition: service_healthy
+    networks:
+      - backend-net
+
+  # 9. API Gateway - Request routing and management (NINTH - gateway layer)
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: backend-api-gateway
+    ports:
+      - "8090:8090"
+    restart: unless-stopped
+    environment:
+      - ENV=production
+      - PYTHONPATH=/app
+      - REDIS_URL=redis://redis:6379
+      - BACKEND_URL=http://backend:3000
+      - MEMORY_API_URL=http://memory-api:5001
+    volumes:
+      - .:/app
+      - ./storage/gateway:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+      openwebui:
+        condition: service_healthy
+    command: ["python", "-m", "uvicorn", "gateway:app", "--host", "0.0.0.0", "--port", "8090"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
+
+  # 10. Watchtower - Container updates and monitoring (TENTH - maintenance layer)
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: backend-watchtower
+    restart: unless-stopped
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+      - WATCHTOWER_INCLUDE_STOPPED=true
+      - WATCHTOWER_REVIVE_STOPPED=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+      openwebui:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - backend-net
+
+networks:
+  backend-net:
+    driver: bridge
+    name: backend-net
+
+volumes:
+  redis_data:
+  chroma_data:
+  ollama_data:
+  backend_data:

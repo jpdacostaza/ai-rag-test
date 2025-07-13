@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from human_logging import log_service_status
+from core.human_logging import log_service_status
 import wikipedia
 from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -118,8 +118,7 @@ def chunk_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> L
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
             length_function=len,
-            separators=["\n\n", "\n", " ", ""],
-        )
+            separators=["\n\n", "\n", " ", ""])
         chunks = text_splitter.split_text(text)
         logging.debug(f"[CHUNKING] Created {len(chunks)} chunks from text of length {len(text)}")
         return chunks

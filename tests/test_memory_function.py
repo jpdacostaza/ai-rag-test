@@ -12,8 +12,10 @@ import time
 from unittest.mock import Mock, AsyncMock, patch
 
 # Test imports - handle import errors gracefully
+# CLEANUP: memory_function.py removed - superseded by Enhanced Memory Pipeline
 try:
-    from memory_function import MemoryFunction, Valves
+    # from memory_function import MemoryFunction, Valves  # REMOVED: File deleted
+    raise ImportError("memory_function.py has been removed - using Enhanced Memory Pipeline")
     MEMORY_FUNCTION_AVAILABLE = True
 except ImportError:
     MEMORY_FUNCTION_AVAILABLE = False

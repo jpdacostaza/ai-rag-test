@@ -9,7 +9,7 @@ import time
 from typing import AsyncGenerator, List, Dict, Any, Optional
 
 import httpx
-from config import (
+from config.config_unified import (
     DEFAULT_MODEL,
     OLLAMA_BASE_URL,
     USE_OLLAMA,
@@ -22,9 +22,9 @@ from config import (
     READ_TIMEOUT,
     WRITE_TIMEOUT,
     CONNECTION_POOL_SIZE,
-    MAX_KEEPALIVE_CONNECTIONS,
-)
-from human_logging import log_service_status
+    MAX_KEEPALIVE_CONNECTIONS)
+from core.human_logging import log_service_status
+from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
 
 
 class LLMService:
@@ -45,8 +45,7 @@ class LLMService:
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
         api_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-    ) -> str:
+        api_key: Optional[str] = None) -> str:
         """
         Calls an LLM API (Ollama or OpenAI) with the provided messages and returns the response.
         """
@@ -57,6 +56,9 @@ class LLMService:
         else:
             return await self.call_openai_llm(messages, model, api_url, api_key)
 
+    @handle_llm_errors(
+        operation_name="call_ollama_llm"
+    )
     async def call_ollama_llm(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> str:
         """
         Asynchronously calls the Ollama API using the chat endpoint.
@@ -80,38 +82,28 @@ class LLMService:
             "options": {"temperature": 0.7, "top_p": 0.9},
         }
 
-        try:
-            log_service_status("OLLAMA", "debug", f"Attempting connection to {self.ollama_url}/api/chat")
-            
-            # Try with simpler timeout configuration for debugging
-            timeout = httpx.Timeout(timeout=60.0, connect=10.0)
-            
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                log_service_status("OLLAMA", "debug", f"HTTPX client created, sending POST request")
-                response = await client.post(f"{self.ollama_url}/api/chat", json=payload)
-                log_service_status("OLLAMA", "debug", f"Response received with status: {response.status_code}")
-                response.raise_for_status()
-                data = response.json()
-                return data.get("message", {}).get("content", "")
-        except httpx.RequestError as e:
-            log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
-            log_service_status("OLLAMA", "debug", f"RequestError details: {type(e).__name__}: {str(e)}")
-            raise Exception(f"Cannot connect to Ollama service at {self.ollama_url}") from e
-        except httpx.HTTPStatusError as e:
-            log_service_status(
-                "OLLAMA",
-                "failed",
-                f"Ollama API returned an error: {e.response.status_code} - {e.response.text}",
-            )
-            raise
+        log_service_status("OLLAMA", "debug", f"Attempting connection to {self.ollama_url}/api/chat")
+        
+        # Try with simpler timeout configuration for debugging
+        timeout = httpx.Timeout(timeout=60.0, connect=10.0)
+        
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            log_service_status("OLLAMA", "debug", f"HTTPX client created, sending POST request")
+            response = await client.post(f"{self.ollama_url}/api/chat", json=payload)
+            log_service_status("OLLAMA", "debug", f"Response received with status: {response.status_code}")
+            response.raise_for_status()
+            data = response.json()
+            return data.get("message", {}).get("content", "")
 
+    @handle_llm_errors(
+        operation_name="call_openai_llm"
+    )
     async def call_openai_llm(
         self,
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
         api_url: Optional[str] = None,
-        api_key: Optional[str] = None,
-    ) -> str:
+        api_key: Optional[str] = None) -> str:
         """
         Asynchronously calls an OpenAI-compatible API.
         
@@ -144,34 +136,25 @@ class LLMService:
         }
         timeout = OPENAI_API_TIMEOUT
 
-        try:
-            # Configure optimized timeouts and connection pooling
-            timeout = httpx.Timeout(
-                timeout=OPENAI_API_TIMEOUT, connect=CONNECTION_TIMEOUT, read=READ_TIMEOUT, write=WRITE_TIMEOUT
-            )
+        # Configure optimized timeouts and connection pooling
+        timeout = httpx.Timeout(
+            timeout=OPENAI_API_TIMEOUT, connect=CONNECTION_TIMEOUT, read=READ_TIMEOUT, write=WRITE_TIMEOUT
+        )
 
-            limits = httpx.Limits(
-                max_keepalive_connections=MAX_KEEPALIVE_CONNECTIONS,
-                max_connections=CONNECTION_POOL_SIZE,
-                keepalive_expiry=30.0,
-            )
+        limits = httpx.Limits(
+            max_keepalive_connections=MAX_KEEPALIVE_CONNECTIONS,
+            max_connections=CONNECTION_POOL_SIZE,
+            keepalive_expiry=30.0)
 
-            async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
-                resp = await client.post(api_url, headers=headers, json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-                return data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        except httpx.RequestError as e:
-            log_service_status("OPENAI", "failed", f"Connection to OpenAI API at {api_url} failed: {e}")
-            raise Exception(f"Cannot connect to OpenAI service at {api_url}") from e
-        except httpx.HTTPStatusError as e:
-            log_service_status(
-                "OPENAI",
-                "failed",
-                f"OpenAI API returned an error: {e.response.status_code} - {e.response.text}",
-            )
-            raise
+        async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
+            resp = await client.post(api_url, headers=headers, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
+    @handle_llm_errors(
+        operation_name="call_llm_stream"
+    )
     async def call_llm_stream(
         self,
         messages: List[Dict[str, Any]],
@@ -179,8 +162,7 @@ class LLMService:
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
         stop_event=None,
-        session_id: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         Streams tokens from an LLM API (Ollama or OpenAI) in real time.
         """
@@ -204,8 +186,7 @@ class LLMService:
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
         stop_event=None,
-        session_id: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         Asynchronously calls the Ollama API using the chat endpoint with streaming.
         
@@ -271,8 +252,7 @@ class LLMService:
             log_service_status(
                 "OLLAMA",
                 "failed", 
-                f"Ollama API returned an error: {e.response.status_code} - {e.response.text}",
-            )
+                f"Ollama API returned an error: {e.response.status_code} - {e.response.text}")
             raise
 
     async def call_openai_llm_stream(
@@ -282,8 +262,7 @@ class LLMService:
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
         stop_event=None,
-        session_id: Optional[str] = None,
-    ) -> AsyncGenerator[str, None]:
+        session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
         Asynchronously streams tokens from an OpenAI-compatible API with proper resource management.
         """
@@ -353,7 +332,7 @@ class LLMService:
         """
         Get embeddings for text using Ollama.
         """
-        from config import EMBEDDING_MODEL
+        from config.config_unified import EMBEDDING_MODEL
 
         model = model or EMBEDDING_MODEL
 
@@ -396,8 +375,7 @@ async def call_llm(
     messages: List[Dict[str, Any]],
     model: Optional[str] = None,
     api_url: Optional[str] = None,
-    api_key: Optional[str] = None,
-) -> str:
+    api_key: Optional[str] = None) -> str:
     """Convenience function for LLM calls."""
     return await llm_service.call_llm(messages, model, api_url, api_key)
 
@@ -408,8 +386,7 @@ async def call_llm_stream(
     api_url: Optional[str] = None,
     api_key: Optional[str] = None,
     stop_event=None,
-    session_id: Optional[str] = None,
-) -> AsyncGenerator[str, None]:
+    session_id: Optional[str] = None) -> AsyncGenerator[str, None]:
     """Convenience function for LLM streaming."""
     import time
     current_time = int(time.time())

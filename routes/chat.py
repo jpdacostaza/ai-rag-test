@@ -12,8 +12,8 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Body
 
-from config import DEFAULT_SYSTEM_PROMPT
-from database_manager import (
+from config.config_unified import DEFAULT_SYSTEM_PROMPT
+from services.database_manager import (
     db_manager, 
     get_embedding, 
     get_cache, 
@@ -22,17 +22,21 @@ from database_manager import (
     index_user_document,
     get_chat_history
 )
-from error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
-from human_logging import log_service_status
-from models import ChatRequest, ChatResponse
+from core.error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
+from core.human_logging import log_service_status
+from models.models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service
-from user_profiles import user_profile_manager
-from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
+from services.user_profiles import user_profile_manager
+from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 
-# Import new memory system with fallback
+# Import consolidation frameworks
+from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
+from services.auth_validator import AuthValidator
+
+# Import memory service with fallback
 try:
-    from memory import MemoryService
+    from services.memory_service import MemoryService
     MEMORY_SERVICE_AVAILABLE = True
 except ImportError:
     MemoryService = None
@@ -44,73 +48,75 @@ chat_router = APIRouter()
 def get_memory_service():
     """Get memory service from main app."""
     # Import here to avoid circular imports
-    from main import get_memory_service_or_legacy
+    from core.main import get_memory_service_or_legacy
     return get_memory_service_or_legacy()
 
 
-# Helper function to retrieve memories using new or legacy system
+# Helper function to retrieve memories using unified memory service
+@handle_service_errors(
+    operation_name="get_user_memories",
+    config=ErrorHandlerConfig(
+        max_retries=1,
+        log_traceback=True)
+)
 async def get_user_memories(user_id: Optional[str], query: str, memory_service = None, n_results: int = 3):
     """
-    Retrieve user memories using new memory service or legacy fallback.
+    Retrieve user memories using unified memory service with AuthValidator.
     
     Args:
         user_id: User identifier
         query: Query text
-        memory_service: Optional memory service instance
+        memory_service: Memory service instance (will fallback if None)
         n_results: Number of results to return
         
     Returns:
-        List of memory chunks
+        List of memory chunks in legacy format for compatibility
     """
-    # Handle None or invalid user_id gracefully
-    if not user_id or not user_id.strip():
-        log_service_status("CHAT", "warning", f"No valid user_id provided for memory retrieval: {user_id}")
+    # Use AuthValidator for consistent user validation
+    auth_validator = AuthValidator()
+    validated_user = await auth_validator.extract_and_validate_user({"id": user_id})
+    
+    if not validated_user or not validated_user.user_id:
+        log_service_status("CHAT", "warning", f"Invalid user_id for memory retrieval: {user_id}")
         return []
+
+    # Get memory service if not provided
+    if not memory_service:
+        memory_service = get_memory_service()
     
-    if memory_service and MEMORY_SERVICE_AVAILABLE:
-        # Use new memory service
-        log_service_status("CHAT", "info", f"Using new memory service for user {user_id}")
-        try:
-            memories = await memory_service.get_relevant_memories(
-                user_id=user_id,
-                query_text=query,
-                limit=n_results
-            )
-            
-            # Convert to legacy format for compatibility
-            memory_chunks = []
-            for memory in memories:
-                memory_chunks.append({
-                    "document": memory.content,
-                    "metadata": memory.metadata or {},
-                    "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
-                })
-            return memory_chunks
-        except Exception as e:
-            log_service_status("CHAT", "warning", f"New memory service failed, using legacy fallback: {e}")
-            # Fall through to legacy system
-    
-    # Use legacy system - import here to avoid circular imports
-    log_service_status("CHAT", "info", f"Using legacy memory system for user {user_id}")
-    try:
-        from database_manager import retrieve_user_memory
-        query_emb = await get_embedding(query)
-        if query_emb is not None:
-            return await retrieve_user_memory(db_manager, user_id, query_emb, n_results=n_results)
-        else:
-            return []
-    except Exception as e:
-        log_service_status("CHAT", "error", f"Legacy memory retrieval failed: {e}")
+    if memory_service:
+        # Use unified memory service (with built-in fallback handling)
+        log_service_status("CHAT", "info", f"Using unified memory service for user {validated_user.user_id}")
+        memories = await memory_service.get_relevant_memories(
+            user_id=validated_user.user_id,
+            context=query,
+            max_memories=n_results
+        )
+        
+        # Convert to legacy format for compatibility
+        memory_chunks = []
+        for memory in memories:
+            memory_chunks.append({
+                "document": memory.content,
+                "metadata": memory.metadata or {},
+                "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
+            })
+        return memory_chunks
+    else:
+        log_service_status("CHAT", "warning", "Memory service not available, no memories returned")
         return []
 
 
 # Stub functions
+@handle_service_errors(
+    operation_name="get_cache_manager",
+    config=ErrorHandlerConfig(
+        max_retries=1,
+        log_traceback=True)
+)
 def get_cache_manager():
     """Get cache manager from database_manager."""
-    try:
-        return get_cache()
-    except Exception:
-        return None
+    return get_cache()
 
 
 def generate_cache_key(user_id: str, message: str) -> str:
@@ -173,7 +179,7 @@ def should_store_as_memory(message: str, response: str) -> bool:
 
 def validate_openwebui_user_id(user_id: str) -> bool:
     """
-    Validate that the user ID is a proper OpenWebUI user identifier.
+    Legacy wrapper for AuthValidator compatibility.
     
     Args:
         user_id: The user identifier to validate
@@ -181,41 +187,9 @@ def validate_openwebui_user_id(user_id: str) -> bool:
     Returns:
         bool: True if valid OpenWebUI user ID
     """
-    if not user_id or len(user_id) < 3:
-        return False
-    
-    # Check for common invalid patterns
-    invalid_patterns = ["undefined", "null", "none", "", "anonymous", "guest"]
-    if user_id.lower() in invalid_patterns:
-        return False
-    
-    # Valid patterns for OpenWebUI users:
-    # 1. UUID format (standard OpenWebUI user IDs)
-    # 2. Email format 
-    # 3. Username format (alphanumeric with underscores/hyphens)
-    import re
-    
-    # UUID pattern
-    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
-    if re.match(uuid_pattern, user_id, re.IGNORECASE):
-        return True
-    
-    # Email pattern
-    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-    if re.match(email_pattern, user_id):
-        return True
-    
-    # Username pattern (alphanumeric with common separators, 3+ chars)
-    username_pattern = r'^[a-zA-Z0-9][a-zA-Z0-9._-]{2,}[a-zA-Z0-9]$'
-    if re.match(username_pattern, user_id):
-        return True
-    
-    # Reject session-based fallback IDs (these should not be used for real users)
-    if user_id.startswith(("session_", "auth_", "temp_")):
-        log_service_status("CHAT", "warning", f"Rejecting fallback user ID: {user_id}")
-        return False
-    
-    return False
+    # Use AuthValidator for consistent validation
+    auth_validator = AuthValidator()
+    return auth_validator.is_valid_user_id(user_id)
 
 
 def extract_authenticated_user_id(messages: list) -> Optional[str]:
@@ -251,6 +225,9 @@ def extract_authenticated_user_id(messages: list) -> Optional[str]:
 
 
 @chat_router.post("/chat/completions_legacy")
+@handle_api_errors(
+    operation_name="chat_endpoint"
+)
 async def chat_endpoint(request: Request, body: dict = Body(...)):
     """
     Chat endpoint that supports both legacy format (user_id, message) and OpenAI format (model, messages).
@@ -263,7 +240,7 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
     # Detect if this is OpenAI format (has 'model' and 'messages' fields) or legacy format (has 'user_id' and 'message')
     if "model" in body and "messages" in body:
         # OpenAI format - delegate to the OpenAI handler
-        from main import openai_chat_completions
+        from core.main import openai_chat_completions
         return await openai_chat_completions(request, body)
     
     # Legacy format - validate and parse
@@ -333,8 +310,7 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
                     log_service_status(
                         "api",
                         "info",
-                        f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)",
-                    )
+                        f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)")
                     return ChatResponse(**cached_data)
                 elif cached_response and str(cached_response).strip():
                     # Handle old string-based cache entries
@@ -343,8 +319,7 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
                     log_service_status(
                         "api",
                         "info",
-                        f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)",
-                    )
+                        f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms (cached)")
                     return ChatResponse(response=str(cached_response))
             except Exception as cache_error:
                 log_service_status("cache", "warning", f"Cache check failed: {str(cache_error)}")
@@ -595,8 +570,7 @@ async def chat_endpoint(request: Request, body: dict = Body(...)):
                 store_memory,
                 error_handler=lambda e: MemoryErrorHandler.handle_memory_error(
                     e, "store_conversation", user_id, request_id
-                ),
-            )
+                ))
         else:
             print(f"[CONSOLE DEBUG] Conversation not stored as memory (no personal info detected)")
 

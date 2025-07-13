@@ -23,7 +23,7 @@ def test_basic_functionality():
     try:
         # Test 1: Basic web search trigger
         print("\n1. Testing Web Search Trigger...")
-        from web_search_tool import should_trigger_web_search
+        from utilities.web_search_tool import should_trigger_web_search
         
         test_cases = [
             ("What is the current stock price of Apple?", "I don't have current pricing info", True),
@@ -45,7 +45,7 @@ def test_basic_functionality():
         
         # Test 2: Enhanced trigger system
         print("\n2. Testing Enhanced Trigger System...")
-        from enhanced_web_search_trigger import analyze_search_trigger
+        from scripts.enhanced_web_search_trigger import analyze_search_trigger
         
         analysis = analyze_search_trigger("What is the current stock price of Apple?", "")
         print(f"   Enhanced Analysis: should_search={analysis['should_search']}, confidence={analysis['confidence']:.2f}")

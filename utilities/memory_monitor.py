@@ -10,7 +10,7 @@ from datetime import datetime
 import json
 from pathlib import Path
 
-from human_logging import log_service_status
+from core.human_logging import log_service_status
 
 
 class MemoryPressureMonitor:
@@ -148,8 +148,7 @@ class MemoryPressureMonitor:
                         "history": self._pressure_history[-120:],  # Last hour
                     },
                     f,
-                    indent=2,
-                )
+                    indent=2)
 
     async def get_pressure_stats(self):
         """Get memory pressure statistics."""

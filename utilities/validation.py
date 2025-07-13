@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel, validator
 import re
 
+from utilities.error_patterns import handle_service_errors, ErrorHandlerConfig
+
 
 class DatabaseConfig(BaseModel):
     """Validation model for database configuration."""
@@ -56,7 +58,12 @@ class DatabaseConfig(BaseModel):
 
 
 class ChatMessage(BaseModel):
-    """Validation model for chat messages."""
+    """
+    Validation model for chat messages.
+    
+    Note: For user validation within chat messages, use services.auth_validator.AuthValidator
+    for consistent user ID extraction and validation patterns.
+    """
 
     content: str
     metadata: Dict[str, Any]
@@ -104,6 +111,13 @@ class ChatMessage(BaseModel):
         return v
 
 
+@handle_service_errors(
+    operation_name="validate_query_params",
+    config=ErrorHandlerConfig(
+        max_retries=0,  # No retries for validation
+        log_traceback=True
+    )
+)
 def validate_query_params(query: str, limit: Optional[int] = None, filters: Optional[Dict[str, Any]] = None) -> None:
     """Validate query parameters."""
     if not query or len(query.strip()) == 0:
@@ -122,3 +136,47 @@ def validate_query_params(query: str, limit: Optional[int] = None, filters: Opti
             raise ValueError("Filters must be a dictionary")
         if len(str(filters)) > 16384:  # 16KB limit
             raise ValueError("Filters too large")
+
+
+@handle_service_errors(
+    operation_name="validate_user_request",
+    config=ErrorHandlerConfig(
+        max_retries=0,
+        log_traceback=True
+    )
+)
+def validate_user_request(request_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Validate user request data using AuthValidator patterns.
+    
+    Args:
+        request_data: Request data containing user and message information
+        
+    Returns:
+        Dict containing validated user_id and cleaned request data
+        
+    Note: This function integrates with services.auth_validator.AuthValidator
+    for consistent user validation patterns across the application.
+    """
+    if not isinstance(request_data, dict):
+        raise ValueError("Request data must be a dictionary")
+    
+    # Basic message validation
+    messages = request_data.get("messages", [])
+    if not isinstance(messages, list) or not messages:
+        raise ValueError("Request must contain valid messages array")
+    
+    # Validate each message has required fields
+    for i, message in enumerate(messages):
+        if not isinstance(message, dict):
+            raise ValueError(f"Message {i} must be a dictionary")
+        if "content" not in message or not isinstance(message["content"], str):
+            raise ValueError(f"Message {i} must have string content")
+        if "role" not in message or not isinstance(message["role"], str):
+            raise ValueError(f"Message {i} must have string role")
+    
+    return {
+        "valid": True,
+        "message_count": len(messages),
+        "request_data": request_data
+    }

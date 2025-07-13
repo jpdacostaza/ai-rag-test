@@ -22,6 +22,25 @@ from pathlib import Path
 from typing import Optional
 import httpx
 
+# Import error handling patterns for startup verification consistency
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from utilities.error_patterns import (
+        handle_service_errors, handle_database_errors, handle_api_errors
+    )
+    from utilities.connection_factory import DatabaseConnectionFactory
+    ERROR_PATTERNS_AVAILABLE = True
+except ImportError:
+    ERROR_PATTERNS_AVAILABLE = False
+    # Fallback decorators for standalone script usage
+    def handle_service_errors(func):
+        return func
+    def handle_database_errors(func):
+        return func
+    def handle_api_errors(func):
+        return func
+    DatabaseConnectionFactory = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +56,7 @@ class StartupVerifier:
         self.db_path = "/tmp/openwebui/webui.db"
         self.default_model = "llama3.2:3b"
         
+    @handle_service_errors
     async def run_startup_verification(self) -> bool:
         """Run startup verification and auto-fixing"""
         logger.info("🔍 Starting startup verification...")
@@ -63,6 +83,7 @@ class StartupVerifier:
             logger.error(f"❌ Startup verification error: {str(e)}")
             return False
 
+    @handle_api_errors
     async def wait_for_services(self) -> bool:
         """Wait for essential services"""
         logger.info("⏳ Waiting for services...")
@@ -94,6 +115,7 @@ class StartupVerifier:
         
         return True
 
+    @handle_api_errors
     async def verify_and_fix_model(self) -> bool:
         """Verify model exists, download if missing"""
         logger.info(f"🤖 Verifying model {self.default_model}...")
@@ -130,6 +152,7 @@ class StartupVerifier:
             logger.error(f"❌ Model verification error: {str(e)}")
             return False
 
+    @handle_database_errors
     async def verify_and_fix_function(self) -> bool:
         """Verify function exists and is active, install if missing"""
         logger.info("🔧 Verifying memory function...")
@@ -143,7 +166,7 @@ class StartupVerifier:
             cursor = conn.cursor()
             
             # Check if function exists and is active
-            cursor.execute("SELECT id, is_active, is_global FROM function WHERE id = ?", ("memory_function",))
+            cursor.execute("SELECT id, is_active, is_global FROM function WHERE id = ?", ("memory_function"))
             result = cursor.fetchone()
             
             if result:
@@ -176,6 +199,7 @@ class StartupVerifier:
             logger.error(f"❌ Function verification error: {str(e)}")
             return False
 
+    @handle_database_errors
     async def install_missing_function(self, cursor) -> bool:
         """Install missing function"""
         try:

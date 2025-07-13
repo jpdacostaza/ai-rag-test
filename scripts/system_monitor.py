@@ -137,7 +137,7 @@ class SystemMonitor:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            cursor.execute("SELECT id, is_active, is_global FROM function WHERE id = ?", ("memory_function",))
+            cursor.execute("SELECT id, is_active, is_global FROM function WHERE id = ?", ("memory_function"))
             result = cursor.fetchone()
             
             if result:
@@ -206,7 +206,7 @@ class SystemMonitor:
             cursor = conn.cursor()
             
             # Check if function exists
-            cursor.execute("SELECT id FROM function WHERE id = ?", ("memory_function",))
+            cursor.execute("SELECT id FROM function WHERE id = ?", ("memory_function"))
             result = cursor.fetchone()
             
             if result:

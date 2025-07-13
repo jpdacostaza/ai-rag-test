@@ -38,7 +38,7 @@ sys.path.insert(0, '/app/core')
 try:
     # Try to import from the main backend if available
     sys.path.insert(0, '/app')
-    from config import get_config
+    from config.config import get_config
     print("[MEMORY PIPELINE INFO] Backend config modules loaded successfully")
     config = get_config()
     auth_manager = None
@@ -47,7 +47,7 @@ except ImportError as e:
     # Fallback to pipeline configuration
     try:
         sys.path.insert(0, '/app/pipelines')
-        from config import get_config
+        from config.config import get_config
         print("[MEMORY PIPELINE INFO] Pipeline config loaded successfully")
         config = get_config()
         auth_manager = None
@@ -72,7 +72,7 @@ except ImportError as e:
     try:
         # Try importing from the main backend web search tool (not available in container)
         sys.path.insert(0, '/app')
-        from web_search_tool import search_web, should_trigger_web_search, format_web_results_for_chat
+        from utilities.web_search_tool import search_web, should_trigger_web_search, format_web_results_for_chat
         web_search_available = True
         print("[MEMORY PIPELINE INFO] Backend web search tools imported successfully - PRIMARY METHOD ACTIVE")
     except ImportError as e2:

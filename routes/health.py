@@ -6,20 +6,21 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from config import get_app_start_time
-from database_manager import get_database_health
-from human_logging import log_service_status
-from models import HealthResponse, DetailedHealthResponse
-from watchdog import get_watchdog, get_health_status
-from storage_manager import StorageManager
+from config.config_unified import get_app_start_time
+from services.database_manager import get_database_health
+from core.human_logging import log_service_status
+from models.models import HealthResponse, DetailedHealthResponse
+from utilities.watchdog import get_watchdog, get_health_status
+from services.storage_manager import StorageManager
+from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
 
 health_router = APIRouter()
 
 # Import the get_cache function from database_manager
-from database_manager import get_cache
+from services.database_manager import get_cache
 
 
 def get_cache_manager():
@@ -27,7 +28,7 @@ def get_cache_manager():
     try:
         return get_cache()
     except Exception as e:
-        log_service_status("cache", "error", f"Failed to get cache manager: {str(e)}")
+        log_service_status("cache", "warning", f"Cache manager unavailable: {str(e)}")
         return None
 
 
@@ -38,11 +39,22 @@ async def root():
 
 
 @health_router.get("/health")
-async def health_check():
-    """Health check endpoint that includes database status and a human-readable summary."""
+async def health_check(request: Request = None):
+    """Enhanced health check endpoint with startup monitoring."""
     print("[CONSOLE DEBUG] Health endpoint called!")
+    
+    # Get database health
     health_status = await get_database_health()
-
+    
+    # Get app state if available
+    app_state = {}
+    if request and hasattr(request, 'app') and request.app:
+        app_state = {
+            "startup_complete": getattr(request.app.state, 'startup_complete', False),
+            "startup_time": getattr(request.app.state, 'startup_time', None),
+            "startup_error": getattr(request.app.state, 'startup_error', None),
+        }
+    
     # Add cache information
     cache_manager = get_cache_manager()
     cache_info = {}
@@ -60,10 +72,22 @@ async def health_check():
         [f"{name}: {'✅' if ok else '❌'}" for name, ok in services]
     )
 
+    # Determine overall status
+    overall_status = "ok"
+    if not app_state.get("startup_complete", True):  # Default to True if no app state
+        overall_status = "starting"
+    elif app_state.get("startup_error"):
+        overall_status = "degraded"
+    elif healthy < total:
+        overall_status = "degraded"
+
     response = {
-        "status": "ok" if healthy == total else "degraded",
+        "status": overall_status,
         "summary": summary,
         "databases": health_status,
+        "startup": app_state,
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": time.time() - get_app_start_time()
     }
 
     if cache_info:
@@ -195,6 +219,9 @@ async def storage_health():
 
 
 @health_router.get("/alerts/stats")
+@handle_api_errors(
+    operation_name="get_alert_statistics"
+)
 async def get_alert_statistics():
     """Get alert system statistics."""
     try:
@@ -215,52 +242,60 @@ async def get_alert_statistics():
                 "message": "Alert system not configured",
             },
         }
-    except Exception as e:
-        log_service_status("health", "error", f"Failed to get alert stats: {str(e)}")
-        return {"status": "error", "message": "Failed to retrieve alert statistics", "error": str(e)}
 
 
 @health_router.get("/startup-status")
+@handle_api_errors(
+    operation_name="get_startup_status"
+)
 async def get_startup_status():
     """Get detailed startup status for debugging ChromaDB and Embeddings issues."""
-    from database_manager import db_manager
+    from services.database_manager import db_manager
     import httpx
-    from config import OLLAMA_BASE_URL, EMBEDDING_MODEL, CHROMA_HOST, CHROMA_PORT
+    from config.config_unified import OLLAMA_BASE_URL, EMBEDDING_MODEL, CHROMA_HOST, CHROMA_PORT
 
     status = {"timestamp": datetime.utcnow().isoformat(), "services": {}, "recommendations": {}, "details": {}}
 
-    # Check Redis
-    try:
+    # Check Redis using error handling framework
+    @handle_service_errors(
+        operation_name="redis_health_check",
+        config=ErrorHandlerConfig(log_traceback=False)
+    )
+    async def check_redis():
         if db_manager and db_manager.redis_client:
             await db_manager.redis_client.ping()
-            status["services"]["redis"] = "Connected"
-            status["details"][
-                "redis"
-            ] = f"Connected to Redis at {db_manager.redis_client.connection_pool.connection_kwargs.get('host', 'unknown')}"
-        else:
-            status["services"]["redis"] = "Not initialized"
-            status["details"]["redis"] = "Redis client not initialized"
-    except Exception as e:
-        status["services"]["redis"] = "Failed"
-        status["details"]["redis"] = f"Redis error: {str(e)}"
+            return ("Connected", f"Connected to Redis at {db_manager.redis_client.connection_pool.connection_kwargs.get('host', 'unknown')}")
+        return ("Not initialized", "Redis client not initialized")
+
+    redis_status, redis_details = await check_redis()
+    status["services"]["redis"] = redis_status
+    status["details"]["redis"] = redis_details
+    if redis_status == "Failed":
         status["recommendations"]["redis"] = "Run: docker-compose up -d redis"
 
-    # Check ChromaDB
-    try:
+    # Check ChromaDB using error handling framework
+    @handle_service_errors(
+        operation_name="chromadb_health_check",
+        config=ErrorHandlerConfig(log_traceback=False)
+    )
+    def check_chromadb():
         if db_manager and db_manager.chroma_client:
             db_manager.chroma_client.heartbeat()
-            status["services"]["chromadb"] = "Connected"
-            status["details"]["chromadb"] = f"Connected to ChromaDB at {CHROMA_HOST}:{CHROMA_PORT}"
-        else:
-            status["services"]["chromadb"] = "Not initialized"
-            status["details"]["chromadb"] = "ChromaDB client not initialized"
-    except Exception as e:
-        status["services"]["chromadb"] = "Failed"
-        status["details"]["chromadb"] = f"ChromaDB error: {str(e)}"
+            return ("Connected", f"Connected to ChromaDB at {CHROMA_HOST}:{CHROMA_PORT}")
+        return ("Not initialized", "ChromaDB client not initialized")
+
+    chromadb_status, chromadb_details = check_chromadb()
+    status["services"]["chromadb"] = chromadb_status
+    status["details"]["chromadb"] = chromadb_details
+    if chromadb_status == "Failed":
         status["recommendations"]["chromadb"] = f"Check: docker-compose ps | grep chroma. Expected port: {CHROMA_PORT}"
 
-    # Check Ollama and Embeddings
-    try:
+    # Check Ollama and Embeddings using error handling framework
+    @handle_service_errors(
+        operation_name="ollama_embeddings_check",
+        config=ErrorHandlerConfig(log_traceback=False)
+    )
+    async def check_ollama_embeddings():
         async with httpx.AsyncClient(timeout=5.0) as client:
             # Check Ollama availability
             response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
@@ -269,22 +304,17 @@ async def get_startup_status():
                 model_names = [model.get("name", "").split(":")[0] for model in models]
 
                 if EMBEDDING_MODEL in model_names:
-                    status["services"]["embeddings"] = "Available"
-                    status["details"][
-                        "embeddings"
-                    ] = f"Model '{EMBEDDING_MODEL}' found in Ollama. Available models: {model_names}"
+                    return ("Available", f"Model '{EMBEDDING_MODEL}' found in Ollama. Available models: {model_names}", None)
                 else:
-                    status["services"]["embeddings"] = "Model Missing"
-                    status["details"]["embeddings"] = f"Model '{EMBEDDING_MODEL}' not found. Available: {model_names}"
-                    status["recommendations"]["embeddings"] = f"Run: ollama pull {EMBEDDING_MODEL}"
+                    return ("Model Missing", f"Model '{EMBEDDING_MODEL}' not found. Available: {model_names}", f"Run: ollama pull {EMBEDDING_MODEL}")
             else:
-                status["services"]["embeddings"] = "Ollama Error"
-                status["details"]["embeddings"] = f"Ollama returned status {response.status_code}"
-                status["recommendations"]["embeddings"] = "Check Ollama service health"
-    except Exception as e:
-        status["services"]["embeddings"] = "Failed"
-        status["details"]["embeddings"] = f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {str(e)}"
-        status["recommendations"]["embeddings"] = "Run: docker-compose up -d ollama"
+                return ("Ollama Error", f"Ollama returned status {response.status_code}", "Check Ollama service health")
+
+    embeddings_status, embeddings_details, embeddings_recommendation = await check_ollama_embeddings()
+    status["services"]["embeddings"] = embeddings_status
+    status["details"]["embeddings"] = embeddings_details
+    if embeddings_recommendation:
+        status["recommendations"]["embeddings"] = embeddings_recommendation
 
     # Overall status
     all_services_ok = all(
@@ -295,3 +325,50 @@ async def get_startup_status():
     status["ready_for_production"] = all_services_ok
 
     return status
+
+
+@health_router.get("/health/startup")
+async def startup_status(request: Request = None):
+    """Get detailed startup status information."""
+    app_state = {}
+    if request and hasattr(request, 'app') and request.app:
+        app_state = {
+            "startup_complete": getattr(request.app.state, 'startup_complete', False),
+            "startup_time": getattr(request.app.state, 'startup_time', None),
+            "startup_error": getattr(request.app.state, 'startup_error', None),
+        }
+    
+    return {
+        "startup_complete": app_state.get("startup_complete", False),
+        "startup_time_seconds": app_state.get("startup_time"),
+        "startup_error": app_state.get("startup_error"),
+        "uptime_seconds": time.time() - get_app_start_time(),
+        "timestamp": datetime.now().isoformat(),
+        "status": "complete" if app_state.get("startup_complete") else "in_progress"
+    }
+
+
+@health_router.get("/health/ready")
+async def readiness_check(request: Request = None):
+    """Kubernetes-style readiness check."""
+    startup_complete = False
+    if request and hasattr(request, 'app') and request.app:
+        startup_complete = getattr(request.app.state, 'startup_complete', False)
+    
+    if startup_complete:
+        return {"ready": True, "status": "ready"}
+    else:
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "status": "not_ready", "message": "Service startup not complete"}
+        )
+
+
+@health_router.get("/health/live")
+async def liveness_check():
+    """Kubernetes-style liveness check - always returns alive if responding."""
+    return {
+        "alive": True, 
+        "timestamp": datetime.now().isoformat(),
+        "uptime_seconds": time.time() - get_app_start_time()
+    }

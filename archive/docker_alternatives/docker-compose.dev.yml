@@ -1,0 +1,63 @@
+version: '3.8'
+
+# Development overrides for local development
+services:
+  # Backend with development features
+  backend:
+    build:
+      target: development
+    volumes:
+      - .:/app  # Mount source code for hot reload
+      - backend-storage:/app/storage
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - RELOAD=true
+    command: ["python", "main.py", "--reload"]
+    
+  # Memory API with development features  
+  memory-api:
+    volumes:
+      - .:/app  # Mount source code for hot reload
+      - memory-storage:/app/data
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+    command: ["python", "integrated_memory_startup.py", "--reload"]
+    
+  # Development database with exposed ports for direct access
+  redis:
+    ports:
+      - "6379:6379"  # Expose for direct access
+      
+  chroma:
+    ports:
+      - "8000:8000"  # Expose for direct access
+      
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      target: development
+    container_name: enhanced-test-runner
+    volumes:
+      - .:/app
+      - test-results:/app/test-results
+    environment:
+      - PYTEST_ARGS=-v --tb=short
+      - REDIS_HOST=redis
+      - CHROMA_HOST=chroma
+      - MEMORY_API_URL=http://memory-api:8080
+    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    depends_on:
+      - redis
+      - chroma
+      - memory-api
+    networks:
+      - enhanced-memory
+    profiles:
+      - testing
+
+volumes:
+  test-results:
+    name: enhanced-test-results

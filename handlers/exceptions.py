@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from human_logging import log_service_status
+from core.human_logging import log_service_status
 
 
 class CustomHTTPException(Exception):
@@ -51,8 +51,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException) 
                 "message": exc.detail,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -70,8 +69,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def custom_http_exception_handler(request: Request, exc: CustomHTTPException) -> JSONResponse:
@@ -90,8 +88,7 @@ async def custom_http_exception_handler(request: Request, exc: CustomHTTPExcepti
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
@@ -109,8 +106,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def key_error_handler(request: Request, exc: KeyError) -> JSONResponse:
@@ -128,8 +124,7 @@ async def key_error_handler(request: Request, exc: KeyError) -> JSONResponse:
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def timeout_error_handler(request: Request, exc: TimeoutError) -> JSONResponse:
@@ -147,8 +142,7 @@ async def timeout_error_handler(request: Request, exc: TimeoutError) -> JSONResp
                 "request_id": request_id,
                 "timestamp": datetime.now().isoformat(),
             }
-        },
-    )
+        })
 
 
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -174,5 +168,4 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
                 "timestamp": datetime.now().isoformat(),
                 "debug_info": None if is_production else error_details[:500],  # Truncate for safety
             }
-        },
-    )
+        })

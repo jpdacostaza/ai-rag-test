@@ -8,7 +8,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
+from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 
 def test_real_search_request():
     """Test what happens when you ask the model to search."""

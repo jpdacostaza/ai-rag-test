@@ -110,7 +110,7 @@ class EndpointValidator:
         try:
             # Import the app and get routes
             sys.path.insert(0, ".")
-            from main import app
+            from core.main import app
 
             live_routes = []
             for route in app.routes:

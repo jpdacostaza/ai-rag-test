@@ -7,23 +7,29 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     curl \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb requests httpx
+# Install Python dependencies first
+RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb requests httpx aiofiles
 
 # Copy all necessary files for the memory API
 COPY memory/ /app/memory/
-COPY human_logging.py /app/human_logging.py
-COPY error_handler.py /app/error_handler.py
-COPY integrated_memory_startup.py /app/integrated_memory_startup.py
-# Memory function is now in memory/functions/memory_function.py (copied with memory/ directory)
+COPY core/ /app/core/
+COPY utilities/ /app/utilities/
+COPY services/ /app/services/
+COPY scripts/integrated_memory_startup.py /app/scripts/integrated_memory_startup.py
+COPY config/ /app/config/
+COPY requirements.txt /app/requirements.txt
+
+# Install dependencies from requirements.txt
+RUN pip install -r requirements.txt
 
 # Create data directory
 RUN mkdir -p /app/data
 
 # Expose port
-EXPOSE 8080
+EXPOSE 5001
 
 # Run the integrated memory API with auto-setup
-CMD ["python", "/app/integrated_memory_startup.py"]
+CMD ["python", "/app/scripts/integrated_memory_startup.py"]

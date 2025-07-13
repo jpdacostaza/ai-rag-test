@@ -21,7 +21,7 @@ import os
 # Add the backend directory to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
+from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 from utilities.ai_tools import web_search as ai_tools_web_search
 
 # Configure logging

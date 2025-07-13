@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-07-12T15:43:02.755473",
+  "timestamp": "2025-07-12T22:00:18.273982",
   "total_test_categories": 7,
   "passed_categories": 7,
   "success_rate": 100.0,
@@ -9,21 +9,21 @@
       "success": true,
       "details": "Status: 200",
       "data": null,
-      "timestamp": "2025-07-12T15:42:48.973543"
+      "timestamp": "2025-07-12T22:00:03.856363"
     },
     {
       "test": "Ollama Health",
       "success": true,
       "details": "Status: 200",
       "data": null,
-      "timestamp": "2025-07-12T15:42:49.036423"
+      "timestamp": "2025-07-12T22:00:03.961614"
     },
     {
       "test": "Pipeline Health",
       "success": false,
       "details": "Status: 404",
       "data": null,
-      "timestamp": "2025-07-12T15:42:49.051940"
+      "timestamp": "2025-07-12T22:00:03.965061"
     },
     {
       "test": "Auth Flow - Email Priority User",
@@ -32,7 +32,7 @@
       "data": {
         "expected_user_id": "alice@pipeline.test"
       },
-      "timestamp": "2025-07-12T15:42:49.279211"
+      "timestamp": "2025-07-12T22:00:04.286875"
     },
     {
       "test": "Auth Flow - ID Fallback User",
@@ -41,7 +41,7 @@
       "data": {
         "expected_user_id": "bob_456"
       },
-      "timestamp": "2025-07-12T15:42:49.429612"
+      "timestamp": "2025-07-12T22:00:04.494040"
     },
     {
       "test": "Auth Flow - Username Fallback User",
@@ -50,119 +50,119 @@
       "data": {
         "expected_user_id": "charlie_user"
       },
-      "timestamp": "2025-07-12T15:42:49.578878"
+      "timestamp": "2025-07-12T22:00:04.681102"
     },
     {
       "test": "Memory Storage - memory_test_user_1@t...",
       "success": true,
       "details": "Memory creation request status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:49.726572"
+      "timestamp": "2025-07-12T22:00:04.869610"
     },
     {
       "test": "Memory Retrieval - memory_test_user_1@t...",
       "success": true,
       "details": "Memory retrieval request status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:51.918087"
+      "timestamp": "2025-07-12T22:00:07.094370"
     },
     {
       "test": "Memory Storage - memory_test_user_2@t...",
       "success": true,
       "details": "Memory creation request status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:52.066653"
+      "timestamp": "2025-07-12T22:00:07.293575"
     },
     {
       "test": "Memory Retrieval - memory_test_user_2@t...",
       "success": true,
       "details": "Memory retrieval request status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:54.250521"
+      "timestamp": "2025-07-12T22:00:09.516782"
     },
     {
       "test": "User 1 Secret Storage",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:54.407236"
+      "timestamp": "2025-07-12T22:00:09.706177"
     },
     {
       "test": "User 2 Secret Storage",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:56.599342"
+      "timestamp": "2025-07-12T22:00:11.920719"
     },
     {
       "test": "User 1 Isolation Query",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:58.784180"
+      "timestamp": "2025-07-12T22:00:14.147264"
     },
     {
       "test": "User 2 Isolation Query",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:58.940476"
+      "timestamp": "2025-07-12T22:00:14.324970"
     },
     {
       "test": "Redis Connection",
       "success": true,
       "details": "Ping: True",
       "data": null,
-      "timestamp": "2025-07-12T15:42:58.975378"
+      "timestamp": "2025-07-12T22:00:14.368019"
     },
     {
       "test": "Redis Storage Test",
       "success": true,
       "details": "Stored and retrieved data successfully",
       "data": null,
-      "timestamp": "2025-07-12T15:42:58.976377"
+      "timestamp": "2025-07-12T22:00:14.368019"
     },
     {
       "test": "ChromaDB Status",
       "success": true,
       "details": "Status: healthy",
       "data": null,
-      "timestamp": "2025-07-12T15:42:58.981192"
+      "timestamp": "2025-07-12T22:00:14.371747"
     },
     {
       "test": "Available Models",
       "success": true,
-      "details": "Found 2 models: ['llama3.2:3b', 'nomic-embed-text:latest']",
+      "details": "Found 5 models: ['qwen2.5:3b-instruct', 'gemma2:2b', 'qwen2.5:3b']",
       "data": null,
-      "timestamp": "2025-07-12T15:42:59.028277"
+      "timestamp": "2025-07-12T22:00:14.456651"
     },
     {
       "test": "Model Inference Test",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:59.227523"
+      "timestamp": "2025-07-12T22:00:14.679210"
     },
     {
       "test": "Pipeline Flow - Initial Message",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:42:59.405706"
+      "timestamp": "2025-07-12T22:00:14.859548"
     },
     {
       "test": "Pipeline Flow - Memory Recall",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:43:02.604074"
+      "timestamp": "2025-07-12T22:00:18.090963"
     },
     {
       "test": "Pipeline Flow - Auth Persistence",
       "success": true,
       "details": "Status: 500",
       "data": null,
-      "timestamp": "2025-07-12T15:43:02.754952"
+      "timestamp": "2025-07-12T22:00:18.273455"
     }
   ],
   "summary": {

@@ -10,8 +10,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from web_search_tool import WebSearchTool
-from enhanced_web_search_trigger import EnhancedWebSearchTrigger
+from utilities.web_search_tool import WebSearchTool
+from scripts.enhanced_web_search_trigger import EnhancedWebSearchTrigger
 from pipelines.anti_hallucination_module import AntiHallucinationPipeline
 
 

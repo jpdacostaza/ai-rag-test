@@ -10,7 +10,7 @@ import asyncio
 # Add logging import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
-    from human_logging import log_service_status
+    from core.human_logging import log_service_status
 except ImportError:
     # Fallback if logging is not available
     def log_service_status(service: str, status: str, details: str = "") -> None:

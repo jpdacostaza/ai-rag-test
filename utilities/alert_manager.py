@@ -39,7 +39,7 @@ except ImportError:
             pass
 
 
-from human_logging import log_service_status
+from core.human_logging import log_service_status
 
 
 class AlertSeverity(Enum):
@@ -72,8 +72,7 @@ class Alert:
         severity: AlertSeverity,
         component: str,
         metrics: Optional[Dict] = None,
-        suggested_actions: Optional[List[str]] = None,
-    ):
+        suggested_actions: Optional[List[str]] = None):
         """TODO: Add proper docstring for __init__."""
         self.alert_id = alert_id
         self.title = title
@@ -172,8 +171,7 @@ class AlertManager:
         component: str,
         metrics: Optional[Dict] = None,
         suggested_actions: Optional[List[str]] = None,
-        channels: Optional[List[AlertChannel]] = None,
-    ) -> Alert:
+        channels: Optional[List[AlertChannel]] = None) -> Alert:
         """Trigger a new alert"""
 
         # Check if alert already exists and is not resolved
@@ -188,8 +186,7 @@ class AlertManager:
             severity=severity,
             component=component,
             metrics=metrics,
-            suggested_actions=suggested_actions,
-        )
+            suggested_actions=suggested_actions)
 
         # Store alert
         self.alerts[alert_id] = alert
@@ -206,8 +203,7 @@ class AlertManager:
         log_service_status(
             "alert_manager",
             "error" if severity in [AlertSeverity.HIGH, AlertSeverity.CRITICAL] else "warning",
-            f"Alert triggered: {title} (Severity: {severity.value})",
-        )
+            f"Alert triggered: {title} (Severity: {severity.value})")
 
         return alert
 
@@ -229,8 +225,7 @@ class AlertManager:
             title=f"RESOLVED: {alert.title}",
             message=f"Alert has been resolved. {resolution_message}",
             severity=AlertSeverity.LOW,
-            component=alert.component,
-        )
+            component=alert.component)
 
         await self._send_notifications(resolution_alert, [AlertChannel.LOG, AlertChannel.CONSOLE])
 
@@ -542,8 +537,7 @@ async def alert_memory_pressure(percentage: float, component: str = "system"):
         severity=severity,
         component=component,
         metrics={"memory_percentage": percentage},
-        suggested_actions=actions,
-    )
+        suggested_actions=actions)
 
 
 async def alert_cache_performance(hit_rate: float, component: str = "cache"):
@@ -567,8 +561,7 @@ async def alert_cache_performance(hit_rate: float, component: str = "cache"):
         severity=severity,
         component=component,
         metrics={"hit_rate": hit_rate},
-        suggested_actions=actions,
-    )
+        suggested_actions=actions)
 
 
 async def alert_service_down(service_name: str, duration_seconds: float):
@@ -594,5 +587,4 @@ async def alert_service_down(service_name: str, duration_seconds: float):
             f"Restart {service_name} service if necessary",
             "Verify service dependencies",
             "Check resource availability",
-        ],
-    )
+        ])

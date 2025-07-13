@@ -9,9 +9,10 @@ from typing import Dict
 import httpx
 from fastapi import APIRouter
 
-from config import OLLAMA_BASE_URL, MODEL_CACHE_TTL
-from human_logging import log_service_status
-from models import ModelListResponse, ModelInfo
+from config.config_unified import OLLAMA_BASE_URL, MODEL_CACHE_TTL
+from core.human_logging import log_service_status
+from models.models import ModelListResponse, ModelInfo
+from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
 
 models_router = APIRouter()
 
@@ -19,6 +20,12 @@ models_router = APIRouter()
 _model_cache: Dict = {"data": [], "last_updated": 0, "ttl": MODEL_CACHE_TTL}
 
 
+@handle_service_errors(
+    operation_name="refresh_model_cache",
+    config=ErrorHandlerConfig(
+        max_retries=2,
+        log_traceback=True)
+)
 async def refresh_model_cache(force: bool = False):
     """Refresh the model cache from Ollama."""
     global _model_cache
@@ -29,47 +36,45 @@ async def refresh_model_cache(force: bool = False):
         log_service_status("MODELS", "info", "Model cache is still fresh, skipping refresh")
         return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
 
-    try:
-        ollama_url = OLLAMA_BASE_URL
+    ollama_url = OLLAMA_BASE_URL
 
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(f"{ollama_url}/api/tags")
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(f"{ollama_url}/api/tags")
 
-            if response.status_code == 200:
-                data = response.json()
-                raw_models = data.get("models", [])
+        if response.status_code == 200:
+            data = response.json()
+            raw_models = data.get("models", [])
 
-                # Transform models to OpenAI-compatible format
-                models = []
-                for model in raw_models:
-                    openai_model = {
-                        "id": model.get("name", "unknown"),
-                        "object": "model",
-                        "created": int(time.time()),
-                        "owned_by": "ollama",
-                        "permission": [],
-                        "root": model.get("name", "unknown"),
-                        "parent": None,
-                        # Store original Ollama data for internal use
-                        "_ollama_data": model,
-                    }
-                    models.append(openai_model)
+            # Transform models to OpenAI-compatible format
+            models = []
+            for model in raw_models:
+                openai_model = {
+                    "id": model.get("name", "unknown"),
+                    "object": "model",
+                    "created": int(time.time()),
+                    "owned_by": "ollama",
+                    "permission": [],
+                    "root": model.get("name", "unknown"),
+                    "parent": None,
+                    # Store original Ollama data for internal use
+                    "_ollama_data": model,
+                }
+                models.append(openai_model)
 
-                # Update cache
-                _model_cache["data"] = models
-                _model_cache["last_updated"] = current_time
+            # Update cache
+            _model_cache["data"] = models
+            _model_cache["last_updated"] = current_time
 
-                log_service_status("MODELS", "ready", f"Refreshed model cache with {len(models)} models")
-                return [model["id"] for model in models]  # Return just the model names for compatibility
-            else:
-                log_service_status("MODELS", "warning", f"Failed to fetch models: HTTP {response.status_code}")
-                return [model["id"] for model in _model_cache["data"]]  # Return cached data on failure
-    except Exception as e:
-        log_service_status("MODELS", "warning", f"Error refreshing model cache: {e}")
-        return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
+            log_service_status("MODELS", "ready", f"Refreshed model cache with {len(models)} models")
+            return [model["id"] for model in models]  # Return just the model names for compatibility
+        else:
+            log_service_status("MODELS", "warning", f"Failed to fetch models: HTTP {response.status_code}")
+            return [model["id"] for model in _model_cache["data"]]  # Return cached data on failure
 
 
 @models_router.get("/v1/models")
+@handle_api_errors(
+    operation_name="list_models")
 async def list_models():
     """
     OpenAI-compatible endpoint for model listing. Dynamically fetches available models from Ollama with caching.
@@ -87,8 +92,12 @@ async def list_models():
     logging.info(f"[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")
 
     if not mistral_exists:
-        # Check if Mistral model exists in Ollama directly
-        try:
+        # Check if Mistral model exists in Ollama directly using error handling
+        @handle_service_errors(
+            operation_name="check_mistral_model",
+            config=ErrorHandlerConfig(log_traceback=False)
+        )
+        async def check_mistral_model():
             logging.info(f"[MODELS DEBUG] Checking Ollama at {OLLAMA_BASE_URL}/api/tags")
             async with httpx.AsyncClient() as client:
                 resp = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
@@ -110,7 +119,7 @@ async def list_models():
                             )
                             logging.info("[MODELS DEBUG] Added Mistral model to response")
                             break
-        except Exception as e:
-            logging.warning(f"Failed to check Ollama for Mistral model: {e}")
+
+        await check_mistral_model()
 
     return {"object": "list", "data": models_data}

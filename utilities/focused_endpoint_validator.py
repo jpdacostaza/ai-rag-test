@@ -58,7 +58,7 @@ def test_endpoint(method, path, data=None, description=""):
 def get_routes_from_app():
     """Get routes directly from FastAPI app."""
     try:
-        from main import app
+        from core.main import app
 
         routes = []
         for route in app.routes:
@@ -146,8 +146,7 @@ def main():
             "POST",
             "/api/memory/retrieve",
             {"user_id": "test_user", "query": "test query", "limit": 3},
-            "Memory retrieval",
-        ),
+            "Memory retrieval"),
         (
             "POST",
             "/api/learning/process_interaction",
@@ -158,15 +157,13 @@ def main():
                 "assistant_response": "Hi there",
                 "response_time": 1.0,
             },
-            "Learning storage",
-        ),
+            "Learning storage"),
         ("GET", "/v1/models", None, "OpenAI models endpoint"),
         (
             "POST",
             "/v1/chat/completions",
             {"model": "llama3.2:3b", "messages": [{"role": "user", "content": "Test message"}], "max_tokens": 5},
-            "Chat completions",
-        ),
+            "Chat completions"),
         ("GET", "/models", None, "Internal models"),
         ("POST", "/upload/search", {"query": "test", "user_id": "test_user"}, "Document search"),
     ]

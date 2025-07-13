@@ -70,8 +70,7 @@ class APIKeyManager:
         api_key: str,
         base_url: str = "http://localhost:3000",
         email: str = "",
-        description: str = "",
-    ) -> bool:
+        description: str = "") -> bool:
         """
         Add or update a user's API key.
 

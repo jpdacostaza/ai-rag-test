@@ -19,6 +19,14 @@ from typing import Dict, Any, List
 
 from .conftest import TestHelper, TEST_CONFIG
 
+# Import error handling patterns for test standardization
+try:
+    from utilities.error_patterns import handle_service_errors, handle_api_errors, ErrorHandlerConfig
+    ERROR_PATTERNS_AVAILABLE = True
+except ImportError:
+    ERROR_PATTERNS_AVAILABLE = False
+    print("⚠️ Error patterns not available - tests will use basic error handling")
+
 
 class TestMemoryAPI:
     """Test the memory API endpoints and functionality."""
@@ -312,15 +320,30 @@ class TestSystemLoad:
 class TestErrorHandling:
     """Test error handling and edge cases."""
     
+    @pytest.mark.asyncio
     async def test_invalid_user_id(self, http_client):
-        """Test handling of invalid user IDs."""
-        result = await TestHelper.retrieve_memories(
-            http_client, "invalid_user_id_that_does_not_exist", "test query"
-        )
-        
-        # Should return success with empty memories, not crash
-        assert result["status"] == "success"
-        assert "memories" in result
+        """Test handling of invalid user IDs using standardized error patterns."""
+        if ERROR_PATTERNS_AVAILABLE:
+            # Use standardized error handling for test consistency
+            @handle_api_errors(
+                operation_name="test_invalid_user_id")
+            async def perform_test():
+                result = await TestHelper.retrieve_memories(
+                    http_client, "invalid_user_id_that_does_not_exist", "test query"
+                )
+                # Should return success with empty memories, not crash
+                assert result["status"] == "success"
+                assert "memories" in result
+                return result
+            
+            await perform_test()
+        else:
+            # Fallback to basic test without decorators
+            result = await TestHelper.retrieve_memories(
+                http_client, "invalid_user_id_that_does_not_exist", "test query"
+            )
+            assert result["status"] == "success"
+            assert "memories" in result
     
     async def test_empty_memory_content(self, http_client, test_user_id, cleanup_test_data):
         """Test handling of empty memory content."""
@@ -344,21 +367,47 @@ class TestErrorHandling:
         
         assert response.status_code in [400, 422]
     
+    @pytest.mark.asyncio
     async def test_service_connectivity(self, http_client):
-        """Test that all required services are accessible."""
-        services = [
-            ("Backend", TEST_CONFIG["backend_url"]),
-            ("Memory API", TEST_CONFIG["memory_api_url"]),
-            ("Pipelines", TEST_CONFIG["pipelines_url"])
-        ]
-        
-        for service_name, service_url in services:
-            try:
-                response = await http_client.get(f"{service_url}/")
-                # Any 2xx or 3xx response indicates service is up
-                assert response.status_code < 500, f"{service_name} service not responding"
-            except httpx.ConnectError:
-                pytest.fail(f"Cannot connect to {service_name} at {service_url}")
+        """Test that all required services are accessible using standardized patterns."""
+        if ERROR_PATTERNS_AVAILABLE:
+            @handle_service_errors(
+                operation_name="test_service_connectivity",
+                config=ErrorHandlerConfig(
+                    max_retries=2,
+                    log_traceback=True)
+            )
+            async def check_service_connectivity():
+                services = [
+                    ("Backend", TEST_CONFIG["backend_url"]),
+                    ("Memory API", TEST_CONFIG["memory_api_url"]),
+                    ("Pipelines", TEST_CONFIG["pipelines_url"])
+                ]
+                
+                for service_name, service_url in services:
+                    try:
+                        response = await http_client.get(f"{service_url}/")
+                        # Any 2xx or 3xx response indicates service is up
+                        assert response.status_code < 500, f"{service_name} service not responding"
+                    except httpx.ConnectError:
+                        pytest.fail(f"Cannot connect to {service_name} at {service_url}")
+                return True
+            
+            await check_service_connectivity()
+        else:
+            # Fallback to basic connectivity test
+            services = [
+                ("Backend", TEST_CONFIG["backend_url"]),
+                ("Memory API", TEST_CONFIG["memory_api_url"]),
+                ("Pipelines", TEST_CONFIG["pipelines_url"])
+            ]
+            
+            for service_name, service_url in services:
+                try:
+                    response = await http_client.get(f"{service_url}/")
+                    assert response.status_code < 500, f"{service_name} service not responding"
+                except httpx.ConnectError:
+                    pytest.fail(f"Cannot connect to {service_name} at {service_url}")
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@ import asyncio
 import os
 import sys
 
-from model_manager import _model_cache
-from model_manager import refresh_model_cache
+from services.model_manager import _model_cache
+from services.model_manager import refresh_model_cache
 
 os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"
 

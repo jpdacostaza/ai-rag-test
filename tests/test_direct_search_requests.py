@@ -13,8 +13,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from web_search_tool import should_trigger_web_search
-from enhanced_web_search_trigger import analyze_search_trigger
+from utilities.web_search_tool import should_trigger_web_search
+from scripts.enhanced_web_search_trigger import analyze_search_trigger
 
 def test_direct_search_requests():
     """Test if the system detects direct requests to search the web."""

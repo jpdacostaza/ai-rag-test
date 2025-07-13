@@ -15,7 +15,7 @@ debug_router = APIRouter(prefix="/debug", tags=["debug"])
 async def get_cache_stats() -> Dict[str, Any]:
     """Get cache statistics"""
     try:
-        from database_manager import db_manager
+        from services.database_manager import db_manager
 
         if hasattr(db_manager, "cache_manager") and db_manager.cache_manager:
             return db_manager.cache_manager.get_stats()
@@ -38,7 +38,7 @@ async def get_cache_stats() -> Dict[str, Any]:
 async def clear_cache() -> Dict[str, Any]:
     """Clear the cache"""
     try:
-        from database_manager import db_manager
+        from services.database_manager import db_manager
 
         if hasattr(db_manager, "cache_manager") and db_manager.cache_manager:
             db_manager.cache_manager.clear()

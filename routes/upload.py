@@ -16,17 +16,18 @@ from fastapi import Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
-from error_handler import get_user_friendly_message
-from error_handler import log_error
-from human_logging import log_api_request
-from human_logging import log_service_status
-from rag import rag_processor
+from core.error_handler import get_user_friendly_message
+from core.error_handler import log_error
+from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
+from core.human_logging import log_api_request
+from core.human_logging import log_service_status
+from utilities.rag import rag_processor
 
 
 def get_memory_service():
     """Get memory service from main app."""
     # Import here to avoid circular imports
-    from main import get_memory_service_or_legacy
+    from core.main import get_memory_service_or_legacy
     return get_memory_service_or_legacy()
 
 # Create router for upload endpoints
@@ -51,6 +52,8 @@ def is_file_type_allowed(file: UploadFile) -> bool:
 
 
 @upload_router.post("/document")
+@handle_api_errors(
+    operation_name="upload_document")
 async def upload_document(
     file: UploadFile = File(...), user_id: str = Form(...), description: Optional[str] = Form(None)
 ):
@@ -58,43 +61,31 @@ async def upload_document(
     request_id = os.urandom(8).hex()  # Generate a unique request ID
     log_api_request("POST", "/upload/document", 202, 0)  # Log accepted request
 
-    try:
-        # Validate file size
-        if file.size and file.size > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB",
-            )
+    # Validate file size
+    if file.size and file.size > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_FILE_SIZE // (1024*1024)}MB")
 
-        # Validate file type
-        if not is_file_type_allowed(file):
-            raise HTTPException(status_code=415, detail=f"File type '{file.content_type}' not supported.")
+    # Validate file type
+    if not is_file_type_allowed(file):
+        raise HTTPException(status_code=415, detail=f"File type '{file.content_type}' not supported.")
 
-        # Process document with RAG system
-        result = await rag_processor.process_document(file, user_id)
+    # Process document with RAG system
+    result = await rag_processor.process_document(file, user_id)
 
-        log_service_status(
-            "API",
-            "ready",
-            f"Document uploaded: {file.filename} ({result.get('chunks_processed', 0)} chunks)",
-        )
+    log_service_status(
+        "API",
+        "ready",
+        f"Document uploaded: {file.filename} ({result.get('chunks_processed', 0)} chunks)")
 
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": True,
-                "message": "Document uploaded and processed successfully",
-                "data": result,
-            },
-        )
-
-    except HTTPException as http_exc:
-        log_error(http_exc, "upload_document", request_id)
-        raise
-    except Exception as e:
-        log_service_status("UPLOAD", "error", f"Error in upload_document: {e}")
-        log_error(e, "upload_document", request_id)
-        raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "upload"))
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "message": "Document uploaded and processed successfully",
+            "data": result,
+        })
 
 
 @upload_router.get("/formats")
@@ -108,6 +99,8 @@ async def get_supported_formats():
 
 
 @upload_router.post("/search")
+@handle_api_errors(
+    operation_name="search_documents")
 async def search_documents(
     query: str = Form(...),
     user_id: str = Form(...),
@@ -133,38 +126,18 @@ async def search_documents(
     
     logging.info(f"[UPLOAD] Search requested with query='{query}', user_id='{user_id}', limit={limit}")
 
-    try:
-        results = await rag_processor.semantic_search(query, user_id, limit, memory_service)
-        
-        log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
+    results = await rag_processor.semantic_search(query, user_id, limit, memory_service)
+    
+    log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
 
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": True,
-                "query": query,
-                "results_count": len(results),
-                "results": results,
-            },
-        )
-
-        log_service_status("API", "ready", f"Document search: '{query}' returned {len(results)} results")
-
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": True,
-                "query": query,
-                "results_count": len(results),
-                "results": results,
-                "debug_message": "THIS IS FROM MY MODIFIED UPLOAD.PY",
-            },
-        )
-
-    except Exception as e:
-        log_service_status("UPLOAD", "error", f"Error in search_documents: {e}")
-        log_error(e, "search_documents", request_id)
-        raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "search"))
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "query": query,
+            "results_count": len(results),
+            "results": results,
+        })
 
 
 # JSON-based endpoints for testing compatibility
@@ -197,64 +170,56 @@ class DocumentSearchJSON(BaseModel):
 
 
 @upload_router.post("/document_json")
+@handle_api_errors(
+    operation_name="upload_document_json")
 async def upload_document_json(upload: DocumentUploadJSON):
     """Upload document via JSON payload for testing."""
-    try:
-        # Create a temporary file from the content
-        import tempfile
-        import io
+    # Create a temporary file from the content
+    import tempfile
+    import io
 
-        # Create a file-like object from the content
-        content_bytes = upload.content.encode("utf-8")
-        file_obj = io.BytesIO(content_bytes)
+    # Create a file-like object from the content
+    content_bytes = upload.content.encode("utf-8")
+    file_obj = io.BytesIO(content_bytes)
 
-        # Create a mock UploadFile object
-        class MockUploadFile:
-            """TODO: Add proper docstring for MockUploadFile class."""
+    # Create a mock UploadFile object
+    class MockUploadFile:
+        """TODO: Add proper docstring for MockUploadFile class."""
 
-            def __init__(self, content: bytes, filename: str):
-                """TODO: Add proper docstring for __init__."""
-                self.file = io.BytesIO(content)
-                self.filename = filename
-                self.content_type = "text/plain"
-                self.size = len(content)
+        def __init__(self, content: bytes, filename: str):
+            """TODO: Add proper docstring for __init__."""
+            self.file = io.BytesIO(content)
+            self.filename = filename
+            self.content_type = "text/plain"
+            self.size = len(content)
 
-            async def read(self) -> bytes:
-                return self.file.getvalue()
+        async def read(self) -> bytes:
+            return self.file.getvalue()
 
-        mock_file = MockUploadFile(content_bytes, "uploaded_document.txt")
+    mock_file = MockUploadFile(content_bytes, "uploaded_document.txt")
 
-        # Call the existing file upload function
-        result = await upload_document(
-            file=mock_file,  # type: ignore
-            user_id=upload.user_id,
-            description=(upload.metadata or {}).get("description", "JSON uploaded document"),
-        )
+    # Call the existing file upload function
+    result = await upload_document(
+        file=mock_file,  # type: ignore
+        user_id=upload.user_id,
+        description=(upload.metadata or {}).get("description", "JSON uploaded document"))
 
-        return result
-
-    except Exception as e:
-        log_service_status("UPLOAD", "error", f"Error in upload_document_json: {e}")
-        raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "upload"))
+    return result
 
 
 @upload_router.post("/search_json")
+@handle_api_errors(
+    operation_name="search_documents_json")
 async def search_documents_json(search: DocumentSearchJSON, memory_service=Depends(get_memory_service)):
     """Search documents via JSON payload for testing."""
-    try:
-        # Call the existing search function
-        results = await rag_processor.semantic_search(search.query, search.user_id, search.limit or 5, memory_service)
-        
-        return JSONResponse(
-            status_code=200,
-            content={
-                "success": True,
-                "query": search.query,
-                "results_count": len(results),
-                "results": results,
-            },
-        )
-
-    except Exception as e:
-        log_service_status("UPLOAD", "error", f"Error in search_documents_json: {e}")
-        raise HTTPException(status_code=500, detail=get_user_friendly_message(e, "search"))
+    # Call the existing search function
+    results = await rag_processor.semantic_search(search.query, search.user_id, search.limit or 5, memory_service)
+    
+    return JSONResponse(
+        status_code=200,
+        content={
+            "success": True,
+            "query": search.query,
+            "results_count": len(results),
+            "results": results,
+        })

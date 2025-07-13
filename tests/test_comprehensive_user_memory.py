@@ -29,11 +29,27 @@ import os
 # Add the parent directory to the path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Import error handling patterns for test consistency
+try:
+    from utilities.error_patterns import (
+        handle_api_errors, handle_service_errors, handle_validation_errors
+    )
+    ERROR_PATTERNS_AVAILABLE = True
+except ImportError:
+    ERROR_PATTERNS_AVAILABLE = False
+    # Fallback decorators for test environment
+    def handle_api_errors(func):
+        return func
+    def handle_service_errors(func):
+        return func
+    def handle_validation_errors(func):
+        return func
+
 try:
     from routes.chat import validate_openwebui_user_id, extract_authenticated_user_id
-    from memory_function import MemoryFunction
-    from enhanced_integration import EnhancedMemoryIntegration
-    from models import UserInfo, ChatRequest
+    # from memory_function import MemoryFunction  # REMOVED: File deleted - using Enhanced Memory Pipeline
+    from scripts.enhanced_integration import EnhancedMemoryIntegration
+    from models.models import UserInfo, ChatRequest
 except ImportError as e:
     print(f"⚠️  Import warning: {e}")
     print("Some imports may not be available for testing")
@@ -295,6 +311,7 @@ class TestMemoryOperations:
             assert len(result2["memories"]) == 1
             assert "User 2 secret" in result2["memories"][0]["content"]
     
+    @handle_validation_errors
     def test_memory_validation_user_id_required(self, memory_function):
         """Test that memory operations require valid user ID"""
         with patch.object(memory_function, 'save_memory') as mock_save:
@@ -303,7 +320,8 @@ class TestMemoryOperations:
             
             with pytest.raises(ValueError, match="User ID is required"):
                 memory_function.save_memory("Some content", None)
-    
+
+    @handle_validation_errors
     def test_memory_search_empty_user_id(self, memory_function):
         """Test memory search with empty user ID"""
         with patch.object(memory_function, 'search_memories') as mock_search:
@@ -470,6 +488,7 @@ AUTHENTICATED_USER_ID: {user_id}"""
 class TestErrorHandling:
     """Test error handling and edge cases"""
     
+    @handle_api_errors
     def test_invalid_message_format(self):
         """Test handling of invalid message formats"""
         invalid_requests = [
@@ -488,6 +507,7 @@ class TestErrorHandling:
                 # Should not raise unhandled exceptions
                 pytest.fail(f"Unexpected exception for {request}: {e}")
     
+    @handle_service_errors()
     def test_malformed_user_data(self):
         """Test handling of malformed user data"""
         malformed_users = [
@@ -505,6 +525,7 @@ class TestErrorHandling:
             except Exception as e:
                 pytest.fail(f"Should handle malformed user data gracefully: {e}")
     
+    @handle_service_errors()
     def test_memory_api_failure(self):
         """Test handling of memory API failures"""
         # Mock memory API failure

@@ -16,10 +16,9 @@ from utilities.ai_tools import (
     get_system_info,
     get_exchange_rate,
     get_news,
-    web_search,
-)
-from error_handler import ToolErrorHandler, safe_execute
-from human_logging import log_service_status
+    web_search)
+from core.error_handler import ToolErrorHandler, safe_execute
+from core.human_logging import log_service_status
 
 
 class ToolService:
@@ -123,8 +122,7 @@ class ToolService:
             fallback_value=ToolErrorHandler.handle_tool_error(
                 Exception("Time lookup failed"), "time", user_id, country, request_id
             ),
-            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "time", user_id, country, request_id),
-        )
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "time", user_id, country, request_id))
 
         debug_info.append(f"[TOOL] Used timeanddate.com for {country}")
 
@@ -147,8 +145,7 @@ class ToolService:
             fallback_value=ToolErrorHandler.handle_tool_error(
                 Exception("Weather lookup failed"), "weather", user_id, city, request_id
             ),
-            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, city, request_id),
-        )
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, city, request_id))
 
         return True, user_response, "weather", debug_info
 
@@ -174,16 +171,13 @@ class ToolService:
                     "unit_conversion",
                     user_id,
                     f"{value} {from_unit} to {to_unit}",
-                    request_id,
-                ),
+                    request_id),
                 error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                     e,
                     "unit_conversion",
                     user_id,
                     f"{value} {from_unit} to {to_unit}",
-                    request_id,
-                ),
-            )
+                    request_id))
         else:
             user_response = "Please specify conversion like 'convert 10 km to m'."
 
@@ -208,8 +202,7 @@ class ToolService:
             ),
             error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                 e, "web_search", user_id, query, request_id
-            ),
-        )
+            ))
 
         return True, user_response, "web_search", debug_info
 
@@ -232,8 +225,7 @@ class ToolService:
             ),
             error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                 e, "news", user_id, category, request_id
-            ),
-        )
+            ))
 
         return True, user_response, "news", debug_info
 
@@ -258,12 +250,10 @@ class ToolService:
                     "exchange_rate",
                     user_id,
                     f"{from_cur} to {to_cur}",
-                    request_id,
-                ),
+                    request_id),
                 error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                     e, "exchange_rate", user_id, f"{from_cur} to {to_cur}", request_id
-                ),
-            )
+                ))
         else:
             user_response = "Please specify currencies like 'exchange rate USD to EUR'."
 
@@ -284,8 +274,7 @@ class ToolService:
             ),
             error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                 e, "system_info", user_id, "system", request_id
-            ),
-        )
+            ))
 
         return True, user_response, "system_info", debug_info
 
@@ -311,12 +300,10 @@ class ToolService:
                     "python_code_execution",
                     user_id,
                     "code",
-                    request_id,
-                ),
+                    request_id),
                 error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                     e, "python_code_execution", user_id, "code", request_id
-                ),
-            )
+                ))
 
         return True, user_response, "python_code_execution", debug_info
 
@@ -341,8 +328,7 @@ class ToolService:
                 ),
                 error_handler=lambda e: ToolErrorHandler.handle_tool_error(
                     e, "wikipedia", user_id, query, request_id
-                ),
-            )
+                ))
 
         return True, user_response, "wikipedia", debug_info
 
@@ -364,8 +350,7 @@ class ToolService:
                     r"^(is|what|'s|the|current|now|please|tell|me|show|give|provide|can|you|do|does|in|for|at|on|of|about|time|current time|the time)\s+",
                     "",
                     country,
-                    flags=re.IGNORECASE,
-                )
+                    flags=re.IGNORECASE)
                 country = country.strip()
                 country = re.sub(r"\?$", "", country).strip()
                 if country:
