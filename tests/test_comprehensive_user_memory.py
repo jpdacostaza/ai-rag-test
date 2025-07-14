@@ -507,7 +507,6 @@ class TestErrorHandling:
                 # Should not raise unhandled exceptions
                 pytest.fail(f"Unexpected exception for {request}: {e}")
     
-    @handle_service_errors()
     def test_malformed_user_data(self):
         """Test handling of malformed user data"""
         malformed_users = [
@@ -525,7 +524,6 @@ class TestErrorHandling:
             except Exception as e:
                 pytest.fail(f"Should handle malformed user data gracefully: {e}")
     
-    @handle_service_errors()
     def test_memory_api_failure(self):
         """Test handling of memory API failures"""
         # Mock memory API failure

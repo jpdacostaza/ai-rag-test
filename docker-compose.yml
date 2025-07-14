@@ -162,9 +162,13 @@ services:
     environment:
       - ENV=production
       - PIPELINES_DIR=/app/pipelines
+      - USER_AGENT=OpenWebUI-Pipeline/1.0
     volumes:
       - ./pipelines:/app/pipelines
       - ./storage/pipelines:/app/data
+      - ./config:/app/config
+      - ./utilities:/app/utilities
+      - ./core:/app/core
     depends_on:
       redis:
         condition: service_healthy
@@ -224,6 +228,11 @@ services:
       - ENABLE_WEB_SEARCH=false
       - WEB_SEARCH_ENABLED=false
       - ENABLE_RAG_WEB_SEARCH=false
+      # Suppress ChromaDB telemetry error
+      - CHROMA_TELEMETRY_ENABLED=false
+      - ANONYMIZED_TELEMETRY=false
+      # Set user agent for LangChain
+      - USER_AGENT=OpenWebUI/0.6.15
     volumes:
       - ./storage/openwebui:/app/backend/data
       - ./memory/functions:/app/backend/data/functions:rw
@@ -256,6 +265,8 @@ services:
     volumes:
       - .:/app
       - ./storage/installer:/app/data
+      - ./memory/functions:/app/backend/data/functions:rw
+      - ./storage/openwebui:/app/backend/data:rw
     depends_on:
       redis:
         condition: service_healthy

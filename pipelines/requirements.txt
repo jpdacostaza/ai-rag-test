@@ -1,0 +1,17 @@
+# OpenWebUI Pipeline Dependencies (Zero-Config)
+# These packages are auto-installed at runtime
+
+# Core compatibility - updated for LangChain compatibility
+pydantic>=2.7.0,<3.0.0
+
+# Web search functionality
+wikipedia>=1.4.0
+
+# LangChain components for advanced search
+langchain>=0.1.0
+langchain-community>=0.0.13
+langchain-openai>=0.0.5
+
+# Additional search and web tools
+requests>=2.31.0
+RestrictedPython>=5.0

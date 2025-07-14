@@ -165,13 +165,6 @@ class CacheErrorHandler:
     """
 
     @staticmethod
-    @handle_service_errors(
-        operation_name="cache_operation",
-        config=ErrorHandlerConfig(
-            max_retries=1,
-            log_traceback=True
-        )
-    )
     def handle_cache_error(
         error: Exception,
         operation: str,  # "get", "set", "delete"
@@ -181,7 +174,7 @@ class CacheErrorHandler:
         """Handle cache errors gracefully without disrupting the main flow."""
         context = f"Cache {operation} operation for key: {cache_key}"
         logging.warning(f"[CACHE] Cache operation failed - continuing without cache: {error}")
-        # Error logging handled by decorator
+        # Simple logging without decorator to avoid parameter conflicts
 
 
 class MemoryErrorHandler:

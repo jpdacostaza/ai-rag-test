@@ -61,7 +61,7 @@ RestrictedPython>=6.0  # For safer code execution
 # black>=23.9.0
 # autopep8>=2.0.4
 # isort>=5.12.0
-# mypy>=1.0.0 # For type checking
+mypy>=1.0.0 # For type checking
 # pytest>=7.0.0 # For running tests
 
 # Optional dev tools (Development dependencies - remove for production image)

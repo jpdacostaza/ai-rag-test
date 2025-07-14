@@ -1,12 +1,21 @@
 """
 Test configuration and fixtures for memory system tests.
+Enhanced with async testing patterns and service layer fixtures.
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import httpx
 import time
 from typing import Dict, Any, Optional, List
+from unittest.mock import AsyncMock, MagicMock
+
+# Import our services for testing
+from services.chat_service import ChatService
+from services.redis_service import RedisService
+from services.vector_service import VectorService
+from models.models import ChatRequest, ChatResponse
 
 # Test configuration
 TEST_CONFIG = {
@@ -29,6 +38,138 @@ async def http_client():
     """Provide an async HTTP client for tests."""
     async with httpx.AsyncClient(timeout=TEST_CONFIG["test_timeout"]) as client:
         yield client
+
+# New service layer test fixtures
+@pytest_asyncio.fixture
+async def mock_redis_client():
+    """Mock Redis client for testing."""
+    mock_client = AsyncMock()
+    mock_client.get.return_value = None
+    mock_client.set.return_value = True
+    mock_client.delete.return_value = 1
+    mock_client.exists.return_value = True
+    mock_client.ping.return_value = True
+    mock_client.info.return_value = {
+        "used_memory_human": "1M",
+        "connected_clients": 1,
+        "total_commands_processed": 100,
+        "uptime_in_seconds": 3600
+    }
+    return mock_client
+
+@pytest_asyncio.fixture
+async def mock_vector_client():
+    """Mock ChromaDB client for testing."""
+    mock_client = MagicMock()
+    mock_collection = MagicMock()
+    
+    # Mock collection methods
+    mock_collection.add.return_value = None
+    mock_collection.query.return_value = {
+        "documents": [["Test document"]],
+        "distances": [[0.5]],
+        "metadatas": [[{"type": "test"}]],
+        "ids": [["test_id"]]
+    }
+    mock_collection.count.return_value = 1
+    
+    # Mock client methods
+    mock_client.get_collection.return_value = mock_collection
+    mock_client.get_or_create_collection.return_value = mock_collection
+    mock_client.create_collection.return_value = mock_collection
+    mock_client.list_collections.return_value = [mock_collection]
+    
+    return mock_client
+
+@pytest_asyncio.fixture
+async def mock_cache_service():
+    """Mock cache service for testing."""
+    mock_service = MagicMock()
+    mock_service.get.return_value = None
+    mock_service.set.return_value = True
+    mock_service.get_stats.return_value = {
+        "size": 10,
+        "max_size": 1000,
+        "hit_count": 5,
+        "miss_count": 5,
+        "total_requests": 10,
+        "hit_rate": "50.0%",
+        "hit_rate_numeric": 0.5
+    }
+    return mock_service
+
+@pytest_asyncio.fixture
+async def mock_memory_service():
+    """Mock memory service for testing."""
+    mock_service = AsyncMock()
+    mock_service.store_conversation_memory.return_value = True
+    mock_service.get_relevant_memories.return_value = []
+    return mock_service
+
+@pytest_asyncio.fixture
+async def redis_service(mock_redis_client):
+    """Create RedisService instance with mocked client."""
+    return RedisService(redis_client=mock_redis_client)
+
+@pytest_asyncio.fixture
+async def vector_service(mock_vector_client):
+    """Create VectorService instance with mocked client."""
+    return VectorService(chroma_client=mock_vector_client)
+
+@pytest_asyncio.fixture
+async def chat_service(mock_cache_service, mock_memory_service, mock_redis_client):
+    """Create ChatService instance with mocked dependencies."""
+    # Mock database manager
+    mock_db_manager = MagicMock()
+    mock_db_manager.redis_client = mock_redis_client
+    
+    return ChatService(
+        cache_service=mock_cache_service,
+        memory_service=mock_memory_service,
+        database_manager=mock_db_manager
+    )
+
+@pytest.fixture
+def sample_chat_request():
+    """Sample chat request for testing."""
+    return ChatRequest(
+        user_id="test_user_123",
+        message="Hello, how are you?"
+    )
+
+@pytest.fixture
+def sample_chat_response():
+    """Sample chat response for testing."""
+    return ChatResponse(
+        response="I'm doing well, thank you for asking!"
+    )
+
+# Test utility classes
+class AsyncTestCase:
+    """Base class for async test cases with common utilities."""
+    
+    @staticmethod
+    async def wait_for_condition(condition_func, timeout=5.0, interval=0.1):
+        """Wait for a condition to become true with timeout."""
+        end_time = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < end_time:
+            if await condition_func() if asyncio.iscoroutinefunction(condition_func) else condition_func():
+                return True
+            await asyncio.sleep(interval)
+        return False
+    
+    @staticmethod
+    async def simulate_delay(seconds=0.1):
+        """Simulate async delay for testing."""
+        await asyncio.sleep(seconds)
+    
+    @staticmethod
+    def assert_chat_response_valid(response: ChatResponse):
+        """Assert that a chat response is valid."""
+        assert isinstance(response, ChatResponse)
+        assert response.response is not None
+        assert isinstance(response.response, str)
+        assert len(response.response.strip()) > 0
 
 @pytest.fixture
 def test_user_id():

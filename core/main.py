@@ -48,7 +48,7 @@ from routes.chat import get_user_memories
 # Import database and other dependencies
 from services.database_manager import db_manager, get_embedding, index_user_document
 from services.database_manager import get_cache, set_cache, get_chat_history, store_chat_history, get_database_health
-from core.error_handler import CacheErrorHandler, safe_execute, log_error
+from core.error_handler import safe_execute, log_error
 
 
 @asynccontextmanager
@@ -130,6 +130,10 @@ app = FastAPI(
 
 # Configure security middleware first
 configure_security(app)
+
+# Add performance monitoring middleware
+from middleware.performance_middleware import PerformanceMiddleware
+app.add_middleware(PerformanceMiddleware, enable_memory_tracking=True, enable_cpu_tracking=True)
 
 # Add exception handlers
 exception_handlers = create_exception_handlers()
@@ -410,9 +414,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 try:
                     history = await get_chat_history(f"user:{user_id}", limit=10)
                 except Exception as e:
-                    CacheErrorHandler.handle_cache_error(
-                        e, "get_history", f"history:{user_id}", user_id, getattr(request.state, "request_id", "unknown")
-                    )
+                    # Log cache error and continue without cache - non-blocking
+                    log_service_status("CACHE", "warning", f"Cache operation failed for user {user_id}, continuing without cache: {e}")
                     history = []
 
                 # --- Memory Integration: Retrieve relevant memories ---
@@ -423,8 +426,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         # Get relevant memories based on current user message
                         relevant_memories = await memory_service.get_relevant_memories(
                             user_id=user_id,
-                            query_text=user_message,
-                            limit=5
+                            context=user_message,
+                            max_memories=5
                         )
                         if relevant_memories:
                             memory_context = memory_service.format_memories_for_injection(relevant_memories)
@@ -524,9 +527,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                                     },
                                 ])
                         except Exception as e:
-                            CacheErrorHandler.handle_cache_error(
-                                e, "store_streaming_chat", f"chat:{user_id}", user_id, session_id
-                            )
+                            # Log cache error and continue - non-blocking for streaming
+                            log_service_status("CACHE", "warning", f"Cache store failed for user {user_id}, conversation not cached: {e}")
 
                     await store_streaming_chat()
                     log_service_status(
@@ -593,9 +595,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             try:
                 history = await get_chat_history(f"user:{user_id}", limit=10)
             except Exception as e:
-                CacheErrorHandler.handle_cache_error(
-                    e, "get_history", f"history:{user_id}", user_id, getattr(request.state, "request_id", "unknown")
-                )
+                # Log cache error and continue without cache - non-blocking
+                log_service_status("CACHE", "warning", f"Cache operation failed for user {user_id}, continuing without cache: {e}")
                 history = []
 
             # --- Memory Integration: Retrieve relevant memories ---
@@ -606,8 +607,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     # Get relevant memories based on current user message
                     relevant_memories = await memory_service.get_relevant_memories(
                         user_id=user_id,
-                        query_text=user_message,
-                        limit=5
+                        context=user_message,
+                        max_memories=5
                     )
                     if relevant_memories:
                         memory_context = memory_service.format_memories_for_injection(relevant_memories)
@@ -675,9 +676,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                                 },
                             ])
                     except Exception as e:
-                        CacheErrorHandler.handle_cache_error(
-                            e, "store_chat", f"chat:{user_id}", user_id, getattr(request.state, "request_id", "unknown")
-                        )
+                        # Log cache error and continue - non-blocking for non-streaming requests
+                        log_service_status("CACHE", "warning", f"Cache store failed for user {user_id}, conversation not cached: {e}")
 
                 await store_chat()
 

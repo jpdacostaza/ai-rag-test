@@ -6,30 +6,19 @@ import time
 from dataclasses import asdict
 from datetime import datetime
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 
 from config.config_unified import get_app_start_time
 from services.database_manager import get_database_health
+from services.dependencies import get_redis_service, get_vector_service, get_cache_service
 from core.human_logging import log_service_status
 from models.models import HealthResponse, DetailedHealthResponse
 from utilities.watchdog import get_watchdog, get_health_status
 from services.storage_manager import StorageManager
-from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
+from utilities.simple_error_handling import handle_api_errors, handle_errors
 
 health_router = APIRouter()
-
-# Import the get_cache function from database_manager
-from services.database_manager import get_cache
-
-
-def get_cache_manager():
-    """Get cache manager from database manager."""
-    try:
-        return get_cache()
-    except Exception as e:
-        log_service_status("cache", "warning", f"Cache manager unavailable: {str(e)}")
-        return None
 
 
 @health_router.get("/")
@@ -39,8 +28,13 @@ async def root():
 
 
 @health_router.get("/health")
-async def health_check(request: Request = None):
-    """Enhanced health check endpoint with startup monitoring."""
+async def health_check(
+    request: Request = None,
+    redis_service=Depends(get_redis_service),
+    vector_service=Depends(get_vector_service),
+    cache_service=Depends(get_cache_service)
+):
+    """Enhanced health check endpoint with startup monitoring and service injection."""
     print("[CONSOLE DEBUG] Health endpoint called!")
     
     # Get database health
@@ -55,11 +49,29 @@ async def health_check(request: Request = None):
             "startup_error": getattr(request.app.state, 'startup_error', None),
         }
     
-    # Add cache information
-    cache_manager = get_cache_manager()
+    # Add cache information using injected service
     cache_info = {}
-    if cache_manager:
-        cache_info = cache_manager.get_stats()
+    if cache_service:
+        try:
+            cache_info = cache_service.get_stats()
+        except Exception as e:
+            cache_info = {"status": "error", "error": str(e)}
+    
+    # Add Redis service health
+    redis_info = {}
+    if redis_service:
+        try:
+            redis_info = redis_service.get_stats()
+        except Exception as e:
+            redis_info = {"status": "error", "error": str(e)}
+    
+    # Add Vector service health  
+    vector_info = {}
+    if vector_service:
+        try:
+            vector_info = vector_service.get_stats()
+        except Exception as e:
+            vector_info = {"status": "error", "error": str(e)}
 
     services = [
         ("Redis", health_status["redis"]["status"] == "healthy"),
@@ -92,6 +104,10 @@ async def health_check(request: Request = None):
 
     if cache_info:
         response["cache"] = cache_info
+    if redis_info:
+        response["redis_service"] = redis_info
+    if vector_info:
+        response["vector_service"] = vector_info
 
     return response
 
@@ -219,9 +235,7 @@ async def storage_health():
 
 
 @health_router.get("/alerts/stats")
-@handle_api_errors(
-    operation_name="get_alert_statistics"
-)
+@handle_api_errors("get_alert_statistics")
 async def get_alert_statistics():
     """Get alert system statistics."""
     try:
@@ -245,9 +259,7 @@ async def get_alert_statistics():
 
 
 @health_router.get("/startup-status")
-@handle_api_errors(
-    operation_name="get_startup_status"
-)
+@handle_api_errors("get_startup_status")
 async def get_startup_status():
     """Get detailed startup status for debugging ChromaDB and Embeddings issues."""
     from services.database_manager import db_manager
@@ -257,10 +269,7 @@ async def get_startup_status():
     status = {"timestamp": datetime.utcnow().isoformat(), "services": {}, "recommendations": {}, "details": {}}
 
     # Check Redis using error handling framework
-    @handle_service_errors(
-        operation_name="redis_health_check",
-        config=ErrorHandlerConfig(log_traceback=False)
-    )
+    @handle_errors("redis_health_check", default_value=("Failed", "Redis health check failed"))
     async def check_redis():
         if db_manager and db_manager.redis_client:
             await db_manager.redis_client.ping()
@@ -274,10 +283,7 @@ async def get_startup_status():
         status["recommendations"]["redis"] = "Run: docker-compose up -d redis"
 
     # Check ChromaDB using error handling framework
-    @handle_service_errors(
-        operation_name="chromadb_health_check",
-        config=ErrorHandlerConfig(log_traceback=False)
-    )
+    @handle_errors("chromadb_health_check", default_value=("Failed", "ChromaDB health check failed"))
     def check_chromadb():
         if db_manager and db_manager.chroma_client:
             db_manager.chroma_client.heartbeat()
@@ -291,10 +297,7 @@ async def get_startup_status():
         status["recommendations"]["chromadb"] = f"Check: docker-compose ps | grep chroma. Expected port: {CHROMA_PORT}"
 
     # Check Ollama and Embeddings using error handling framework
-    @handle_service_errors(
-        operation_name="ollama_embeddings_check",
-        config=ErrorHandlerConfig(log_traceback=False)
-    )
+    @handle_errors("ollama_embeddings_check", default_value=("Failed", "Ollama embeddings check failed", "Check Ollama service"))
     async def check_ollama_embeddings():
         async with httpx.AsyncClient(timeout=5.0) as client:
             # Check Ollama availability

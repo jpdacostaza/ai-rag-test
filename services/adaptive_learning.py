@@ -22,7 +22,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
-from services.database_manager import db_manager, get_embedding, index_document_chunks
+from services.database_manager import db_manager, get_embedding_sync, index_document_chunks
 from core.error_handler import MemoryErrorHandler
 from core.human_logging import log_service_status
 
@@ -219,7 +219,7 @@ class ConversationAnalyzer:
         """Calculate how relevant the response is to user's context."""
         try:
             # Get user's recent memory
-            query_embedding = get_embedding(db_manager, query)
+            query_embedding = get_embedding_sync(db_manager, query)
             if query_embedding is None or (hasattr(query_embedding, "size") and query_embedding.size == 0):
                 return 0.5  # Neutral score if can't get embedding
 

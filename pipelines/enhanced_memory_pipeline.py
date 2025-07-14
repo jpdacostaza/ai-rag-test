@@ -34,68 +34,170 @@ sys.path.insert(0, '/app')
 # Add core modules to path
 sys.path.insert(0, '/app/core')
 
-# Import centralized configuration and security
-try:
-    # Try to import from the main backend if available
-    sys.path.insert(0, '/app')
-    from config.config import get_config
-    print("[MEMORY PIPELINE INFO] Backend config modules loaded successfully")
-    config = get_config()
-    auth_manager = None
-except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Backend config not available, using pipeline fallback: {e}")
-    # Fallback to pipeline configuration
-    try:
-        sys.path.insert(0, '/app/pipelines')
-        from config.config import get_config
-        print("[MEMORY PIPELINE INFO] Pipeline config loaded successfully")
-        config = get_config()
-        auth_manager = None
-    except ImportError as fallback_e:
-        print(f"[MEMORY PIPELINE INFO] Pipeline config also failed, using minimal fallback: {fallback_e}")
-        config = None
-        auth_manager = None
+# Zero-config auto-dependency installation with robust error handling
+def install_dependencies_manually():
+    """Fallback dependency installation when auto-installer fails"""
+    import subprocess
+    import sys
+    
+    packages_to_install = [
+        "pydantic>=2.7.0,<3.0.0",  # Updated for LangChain compatibility
+        "wikipedia>=1.4.0",
+        "langchain>=0.1.0", 
+        "langchain-community>=0.0.13",
+        "langchain-openai>=0.0.5",
+        "requests>=2.31.0",
+        "RestrictedPython>=5.0"
+    ]
+    
+    for package in packages_to_install:
+        try:
+            result = subprocess.run([
+                sys.executable, "-m", "pip", "install", 
+                package, "--quiet", "--no-warn-script-location"
+            ], capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"[MEMORY PIPELINE INFO] Successfully installed: {package}")
+            else:
+                print(f"[MEMORY PIPELINE WARNING] Failed to install {package}: {result.stderr}")
+        except Exception as e:
+            print(f"[MEMORY PIPELINE WARNING] Error installing {package}: {e}")
 
-# Import web search tools (using correct paths)
+try:
+    # Try to import and use the auto-installer
+    sys.path.insert(0, '/app/pipelines')
+    from _auto_installer import auto_install_dependencies, fix_pydantic_compatibility
+    print("[MEMORY PIPELINE INFO] Using _auto_installer for dependency management")
+    fix_pydantic_compatibility()  # Fix pydantic version conflicts first
+    auto_install_dependencies()
+    print("[MEMORY PIPELINE INFO] Auto-installer completed successfully")
+except ImportError as import_error:
+    print(f"[MEMORY PIPELINE INFO] Auto-installer not available, using fallback installation")
+    install_dependencies_manually()
+except Exception as e:
+    print(f"[MEMORY PIPELINE WARNING] Auto-installer failed, using fallback installation")
+    install_dependencies_manually()
+
+# Initialize configuration and imports with proper error handling
+config = None
+auth_manager = None
 web_search_available = False
+memory_system_available = False
+
+# Configure and load modules
+try:
+    # Create a minimal config first
+    config = {
+        'MEMORY_API_URL': os.getenv('MEMORY_API_URL', 'http://memory-api:5001'),
+        'REDIS_HOST': os.getenv('REDIS_HOST', 'redis'),
+        'REDIS_PORT': int(os.getenv('REDIS_PORT', '6379')),
+        'OLLAMA_BASE_URL': os.getenv('OLLAMA_BASE_URL', 'http://ollama:11434'),
+        'CHROMA_HOST': os.getenv('CHROMA_HOST', 'chroma'),
+        'CHROMA_PORT': int(os.getenv('CHROMA_PORT', '8000')),
+        'API_TIMEOUT': int(os.getenv('API_TIMEOUT', '30')),
+        'WEB_SEARCH_TIMEOUT': int(os.getenv('WEB_SEARCH_TIMEOUT', '10'))
+    }
+    
+    # Try to load enhanced config if available
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("backend_config", "/app/config/config.py")
+        config_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(config_module)
+        enhanced_config = config_module.get_config()
+        config.update(enhanced_config)  # Merge with enhanced config
+        print("[MEMORY PIPELINE INFO] Backend config loaded successfully")
+    except Exception as e:
+        print(f"[MEMORY PIPELINE INFO] Using basic config, enhanced config unavailable: {e}")
+    
+    print("[MEMORY PIPELINE INFO] Using minimal fallback config")
+except Exception as e:
+    print(f"[MEMORY PIPELINE ERROR] Config initialization failed: {e}")
+
+# Import web search tools with proper fallback and auto-installation
 search_web = None
 should_trigger_web_search = None
 format_web_results_for_chat = None
 
 try:
-    # Try pipeline-specific web search from failed directory (available in container)
-    from failed.pipeline_web_search import search_web, should_trigger_web_search, format_web_results_for_chat
-    web_search_available = True
-    print("[MEMORY PIPELINE INFO] Pipeline web search tools imported successfully - FALLBACK METHOD ACTIVE")
-except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Pipeline web search not available: {e}")
+    # Auto-install missing dependencies for zero-conf setup
+    import subprocess
+    import sys
+    
+    def auto_install_package(package_name):
+        """Auto-install missing packages for zero-conf setup"""
+        try:
+            subprocess.check_call([sys.executable, "-m", "pip", "install", package_name, "--quiet"])
+            print(f"[MEMORY PIPELINE INFO] Auto-installed missing dependency: {package_name}")
+        except Exception as e:
+            print(f"[MEMORY PIPELINE WARNING] Failed to auto-install {package_name}: {e}")
+    
+    # Check and install critical dependencies if missing
+    critical_packages = {
+        "wikipedia": "wikipedia>=1.4.0",
+        "langchain": "langchain>=0.1.0", 
+        "langchain-community": "langchain-community>=0.0.13",
+        "requests": "requests>=2.31.0"
+    }
+    
+    for package_import, package_spec in critical_packages.items():
+        try:
+            if package_import == "langchain-community":
+                # Special handling for langchain-community import
+                from langchain_community.utilities import WikipediaAPIWrapper
+            else:
+                __import__(package_import.replace("-", "_"))
+        except ImportError:
+            print(f"[MEMORY PIPELINE INFO] Installing missing dependency: {package_spec}")
+            auto_install_package(package_spec)
+    
+    # Now try importing again after installation
     try:
-        # Try importing from the main backend web search tool (not available in container)
-        sys.path.insert(0, '/app')
-        from utilities.web_search_tool import search_web, should_trigger_web_search, format_web_results_for_chat
-        web_search_available = True
-        print("[MEMORY PIPELINE INFO] Backend web search tools imported successfully - PRIMARY METHOD ACTIVE")
-    except ImportError as e2:
-        print(f"[MEMORY PIPELINE INFO] Backend web search also not available: {e2}")
-        print(f"[MEMORY PIPELINE INFO] Initializing web search FALLBACK MODE")
-        
-        # Define fallback functions when both imports fail
-        async def search_web(query: str, max_results: int = 3):
-            print("[MEMORY PIPELINE INFO] Using web search FALLBACK - search unavailable")
-            return {"results": [], "status": "fallback_unavailable"}
-        
-        def should_trigger_web_search(query: str, response: str = ""):
-            print("[MEMORY PIPELINE INFO] Using web search trigger FALLBACK - always returns False")
-            return False
-        
-        def format_web_results_for_chat(results):
-            print("[MEMORY PIPELINE INFO] Using web search formatter FALLBACK - returning empty")
-            return ""
-        
-        web_search_available = False
+        import wikipedia
+        print("[MEMORY PIPELINE INFO] Wikipedia dependency available")
+    except ImportError as e:
+        print(f"[MEMORY PIPELINE WARNING] Wikipedia still not available: {e}")
+    
+    try:
+        from langchain.tools import Tool
+        from langchain_community.utilities import WikipediaAPIWrapper
+        print("[MEMORY PIPELINE INFO] LangChain dependencies available")
+    except ImportError as e:
+        print(f"[MEMORY PIPELINE WARNING] LangChain dependencies not available: {e}")
+    except ImportError:
+        print("[MEMORY PIPELINE INFO] Wikipedia dependency missing, auto-installing...")
+        auto_install_package("wikipedia>=1.4.0")
+        import wikipedia
+    
+    # Try importing web search tools
+    sys.path.insert(0, '/app/utilities')
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("web_search_tool", "/app/utilities/web_search_tool.py")
+    web_search_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(web_search_module)
+    
+    search_web = web_search_module.search_web
+    should_trigger_web_search = web_search_module.should_trigger_web_search
+    format_web_results_for_chat = web_search_module.format_web_results_for_chat
+    web_search_available = True
+    print("[MEMORY PIPELINE INFO] Backend web search tools loaded successfully")
+except Exception as e:
+    print(f"[MEMORY PIPELINE INFO] Web search tools not available: {e}")
+    
+    # Define fallback functions
+    async def search_web(query: str, max_results: int = 3):
+        return {"results": [], "status": "fallback_unavailable"}
+    
+    def should_trigger_web_search(query: str, response: str = ""):
+        return False
+    
+    def format_web_results_for_chat(results):
+        return ""
+    
+    web_search_available = False
 
-# Now try to import memory system
-memory_system_available = False
+# Import memory system components with proper fallback
 MemoryValves = None
 MemoryAPIClient = None
 UserAuthManager = None
@@ -107,31 +209,9 @@ try:
     from memory_system.auth import UserAuthManager
     from memory_system.processor import MemoryProcessor
     memory_system_available = True
-    print("[MEMORY PIPELINE INFO] Memory system modules imported successfully - PRIMARY METHOD ACTIVE")
-            
+    print("[MEMORY PIPELINE INFO] Memory system modules imported successfully")
 except ImportError as e:
-    print(f"[MEMORY PIPELINE ERROR] Primary memory system import failed: {e}")
-    print("[MEMORY PIPELINE INFO] Initializing memory system FALLBACK MODE")
-    
-    # Only define fallback when primary import fails
-    from pydantic import BaseModel
-    from typing import List
-    
-    class MemoryValves(BaseModel):
-        model_config = {"protected_namespaces": ()}
-        pipelines: List[str] = []  # Empty array initially - will be set to ["*"] in init
-        priority: int = 0  # Higher priority (lower number) runs first
-        backend_url: str = "http://backend-memory-api:8080"  # Correct container name and internal port
-        enable_memory: bool = True
-        max_memories: int = 100
-        memory_threshold: float = 0.001
-        quality_threshold: int = 3
-        require_authenticated_user: bool = False  # Allow anonymous users for testing
-        enforce_user_session_consistency: bool = True
-        api_timeout: int = 10
-        retry_attempts: int = 3
-        debug_mode: bool = True
-    
+    print(f"[MEMORY PIPELINE INFO] Memory system not available: {e}")
     memory_system_available = False
 
 
@@ -143,9 +223,30 @@ class Pipeline:
     id = "enhanced_memory_pipeline"
     name = "Enhanced Memory Pipeline"
     
-    class Valves(MemoryValves):
-        """Configuration valves inherited from memory system config."""
-        pass
+    # Create a simple fallback valve class if MemoryValves is not available
+    if MemoryValves is None:
+        from pydantic import BaseModel
+        from typing import List
+        
+        class Valves(BaseModel):
+            """Fallback configuration valves when memory system is not available."""
+            model_config = {"protected_namespaces": ()}
+            pipelines: List[str] = ["*"]
+            priority: int = 0
+            backend_url: str = config.get('MEMORY_API_URL', 'http://memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
+            enable_memory: bool = False  # Disable memory when components not available
+            max_memories: int = 100
+            memory_threshold: float = 0.001
+            quality_threshold: int = 3
+            require_authenticated_user: bool = False
+            enforce_user_session_consistency: bool = True
+            api_timeout: int = config.get('API_TIMEOUT', 30) if config else int(os.getenv('API_TIMEOUT', '30'))
+            retry_attempts: int = 3
+            debug_mode: bool = True
+    else:
+        class Valves(MemoryValves):
+            """Configuration valves inherited from memory system config."""
+            pass
     
     def __init__(self):
         """Initialize the modular memory pipeline."""
@@ -154,38 +255,67 @@ class Pipeline:
         self.name = "Enhanced Memory Pipeline"
         
         # Initialize valves with proper configuration
-        self.valves = self.Valves(
-            **{
-                "pipelines": ["*"],  # Connect to all pipelines
-                "priority": 0,       # Highest priority
-                "backend_url": "http://backend-memory-api:8080",  # Correct container name
-                "enable_memory": True,
-                "debug_mode": True,
-            }
-        )
-        
-        # Initialize modular components
-        try:
-            self.api_client = MemoryAPIClient(
-                backend_url=self.valves.backend_url,
-                timeout=self.valves.api_timeout,
-                debug=self.valves.debug_mode
+        if memory_system_available and config:
+            # Use config values if available
+            backend_url = config.get('MEMORY_API_URL', 'http://memory-api:5001')
+            api_timeout = config.get('API_TIMEOUT', 30)
+        else:
+            # Use environment variables as fallback
+            backend_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
+            api_timeout = int(os.getenv('API_TIMEOUT', '30'))
+            
+        if memory_system_available:
+            self.valves = self.Valves(
+                **{
+                    "pipelines": ["*"],  # Connect to all pipelines
+                    "priority": 0,       # Highest priority
+                    "backend_url": backend_url,  # Use config or env variable
+                    "enable_memory": True,
+                    "api_timeout": api_timeout,  # Use config timeout
+                    "debug_mode": True,
+                }
             )
-            self.auth_manager = UserAuthManager(debug=self.valves.debug_mode)
-            self.memory_processor = MemoryProcessor(debug=self.valves.debug_mode)
-            
-            self.log("Enhanced Memory Pipeline (Modular) initialized successfully")
-            self.log("📁 Modular components loaded:")
-            self.log("   • MemoryAPIClient - API communication")
-            self.log("   • UserAuthManager - Authentication & sessions")
-            self.log("   • MemoryProcessor - Memory formatting & context")
-            
-        except Exception as e:
-            self.log(f"Error initializing modular components: {e}", "ERROR")
-            # Initialize with None values for fallback
+        else:
+            self.valves = self.Valves(
+                **{
+                    "pipelines": ["*"],  # Connect to all pipelines
+                    "priority": 0,       # Highest priority
+                    "backend_url": backend_url,  # Use fallback URL
+                    "enable_memory": False,  # Disable memory when components not available
+                    "api_timeout": api_timeout,  # Use fallback timeout
+                    "debug_mode": True,
+                }
+            )
+        
+        # Initialize modular components only if available
+        if memory_system_available and all([MemoryAPIClient, UserAuthManager, MemoryProcessor]):
+            try:
+                self.api_client = MemoryAPIClient(
+                    backend_url=self.valves.backend_url,
+                    timeout=self.valves.api_timeout,
+                    debug=self.valves.debug_mode
+                )
+                self.auth_manager = UserAuthManager(debug=self.valves.debug_mode)
+                self.memory_processor = MemoryProcessor(debug=self.valves.debug_mode)
+                
+                self.log("Enhanced Memory Pipeline (Modular) initialized successfully")
+                self.log("📁 Modular components loaded:")
+                self.log("   • MemoryAPIClient - API communication")
+                self.log("   • UserAuthManager - Authentication & sessions")
+                self.log("   • MemoryProcessor - Memory formatting & context")
+                
+            except Exception as e:
+                self.log(f"Error initializing modular components: {e}", "ERROR")
+                # Initialize with None values for fallback
+                self.api_client = None
+                self.auth_manager = None
+                self.memory_processor = None
+        else:
+            # Memory system not available - set components to None
             self.api_client = None
             self.auth_manager = None
             self.memory_processor = None
+            self.log("Memory system components not available - pipeline running without memory features", "WARNING")
     
     def log(self, message: str, level: str = "INFO"):
         """Log messages with consistent formatting."""

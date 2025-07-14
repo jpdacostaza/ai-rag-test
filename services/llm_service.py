@@ -25,6 +25,7 @@ from config.config_unified import (
     MAX_KEEPALIVE_CONNECTIONS)
 from core.human_logging import log_service_status
 from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
+from utilities.structured_logging import get_structured_logger, log_function_call, log_performance
 
 
 class LLMService:
@@ -35,9 +36,14 @@ class LLMService:
         self.default_model = DEFAULT_MODEL
         self.ollama_url = OLLAMA_BASE_URL
         self.use_ollama = USE_OLLAMA
-        print(f"[LLM SERVICE INIT] use_ollama = {self.use_ollama}, USE_OLLAMA = {USE_OLLAMA}", flush=True)
-        import sys
-        sys.stdout.flush()
+        self.logger = get_structured_logger(__name__)
+        
+        self.logger.info(
+            "LLM Service initialized",
+            use_ollama=self.use_ollama,
+            ollama_url=self.ollama_url,
+            default_model=self.default_model
+        )
         log_service_status("LLM", "info", f"LLM Service initialized - use_ollama: {self.use_ollama}, ollama_url: {self.ollama_url}")
 
     async def call_llm(
@@ -167,16 +173,21 @@ class LLMService:
         Streams tokens from an LLM API (Ollama or OpenAI) in real time.
         """
         model = model or self.default_model
-        print(f"[CONSOLE DEBUG] CALL_LLM_STREAM CLASS: use_ollama = {self.use_ollama}, model = {model}", flush=True)
+        self.logger.debug(
+            "Starting LLM stream",
+            use_ollama=self.use_ollama,
+            model=model,
+            session_id=session_id
+        )
         log_service_status("LLM", "info", f"CALL_LLM_STREAM: use_ollama = {self.use_ollama}, model = {model}")
 
         if self.use_ollama:
-            print(f"[CONSOLE DEBUG] CALL_LLM_STREAM: Using Ollama path", flush=True)
+            self.logger.debug("Using Ollama path for LLM streaming")
             log_service_status("LLM", "info", "CALL_LLM_STREAM: Using Ollama path")
             async for token in self.call_ollama_llm_stream(messages, model, stop_event, session_id):
                 yield token
         else:
-            print(f"[CONSOLE DEBUG] CALL_LLM_STREAM: Using OpenAI path", flush=True)
+            self.logger.debug("Using OpenAI path for LLM streaming")
             log_service_status("LLM", "info", "CALL_LLM_STREAM: Using OpenAI path")
             async for token in self.call_openai_llm_stream(messages, model, api_url, api_key, stop_event, session_id):
                 yield token
@@ -367,7 +378,7 @@ class LLMService:
 
 # Global LLM service instance
 llm_service = LLMService()
-print(f"[GLOBAL] LLM service instance created: {llm_service}", flush=True)
+llm_service.logger.info("LLM service instance created", service="llm_service", instance_id=id(llm_service))
 
 
 # Export convenience functions for backward compatibility
@@ -390,10 +401,11 @@ async def call_llm_stream(
     """Convenience function for LLM streaming."""
     import time
     current_time = int(time.time())
-    print(f"[CONSOLE DEBUG] CALL_LLM_STREAM_ENTRY_POINT: Called at {current_time} with model={model}, session_id={session_id}", flush=True)
+    llm_service.logger.info("LLM stream entry point called", 
+                           model=model, session_id=session_id, timestamp=current_time)
     log_service_status("LLM", "info", f"CALL_LLM_STREAM_ENTRY_POINT: Called at {current_time} with model={model}, session_id={session_id}")
     async for token in llm_service.call_llm_stream(messages, model, api_url, api_key, stop_event, session_id):
-        print(f"[CONSOLE DEBUG] STANDALONE: Yielding token: '{token}'", flush=True)
+        llm_service.logger.debug("Token yielded", token=token, session_id=session_id)
         log_service_status("LLM", "debug", f"STANDALONE: Yielding token: '{token}'")
         yield token
 

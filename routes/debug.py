@@ -2,23 +2,23 @@
 Debug routes for development and monitoring
 """
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Depends
 from typing import Dict, Any
 from datetime import datetime
 import psutil
 import sys
 
+from services.dependencies import get_cache_service, get_redis_service, get_vector_service
+
 debug_router = APIRouter(prefix="/debug", tags=["debug"])
 
 
 @debug_router.get("/cache")
-async def get_cache_stats() -> Dict[str, Any]:
+async def get_cache_stats(cache_service=Depends(get_cache_service)) -> Dict[str, Any]:
     """Get cache statistics"""
     try:
-        from services.database_manager import db_manager
-
-        if hasattr(db_manager, "cache_manager") and db_manager.cache_manager:
-            return db_manager.cache_manager.get_stats()
+        if cache_service:
+            return cache_service.get_stats()
         else:
             return {
                 "size": 0,
@@ -28,25 +28,65 @@ async def get_cache_stats() -> Dict[str, Any]:
                 "total_requests": 0,
                 "hit_rate": "0.0%",
                 "hit_rate_numeric": 0,
-                "message": "Cache manager not available",
+                "message": "Cache service not available",
             }
     except Exception as e:
-        return {"error": str(e), "cache_enabled": False, "message": "Cache manager not available"}
+        return {"error": str(e), "cache_enabled": False, "message": "Cache service not available"}
 
 
 @debug_router.post("/cache/clear")
-async def clear_cache() -> Dict[str, Any]:
+async def clear_cache(cache_service=Depends(get_cache_service)) -> Dict[str, Any]:
     """Clear the cache"""
     try:
-        from services.database_manager import db_manager
-
-        if hasattr(db_manager, "cache_manager") and db_manager.cache_manager:
-            db_manager.cache_manager.clear()
+        if cache_service and hasattr(cache_service, 'clear'):
+            cache_service.clear()
             return {"status": "success", "message": "Cache cleared"}
         else:
-            return {"status": "error", "message": "Cache manager not available"}
+            return {"status": "error", "message": "Cache service not available or doesn't support clearing"}
     except Exception as e:
         return {"status": "error", "message": f"Failed to clear cache: {str(e)}"}
+
+
+@debug_router.get("/redis")
+async def get_redis_stats(redis_service=Depends(get_redis_service)) -> Dict[str, Any]:
+    """Get Redis statistics"""
+    try:
+        if redis_service:
+            return redis_service.get_stats()
+        else:
+            return {"status": "unavailable", "message": "Redis service not available"}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to get Redis stats: {str(e)}"}
+
+
+@debug_router.get("/vector")
+async def get_vector_stats(vector_service=Depends(get_vector_service)) -> Dict[str, Any]:
+    """Get vector database statistics"""
+    try:
+        if vector_service:
+            return vector_service.get_stats()
+        else:
+            return {"status": "unavailable", "message": "Vector service not available"}
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to get vector stats: {str(e)}"}
+
+
+@debug_router.get("/services")
+async def get_all_service_stats(
+    cache_service=Depends(get_cache_service),
+    redis_service=Depends(get_redis_service),
+    vector_service=Depends(get_vector_service)
+) -> Dict[str, Any]:
+    """Get statistics for all services"""
+    try:
+        return {
+            "cache": cache_service.get_stats() if cache_service else {"status": "unavailable"},
+            "redis": redis_service.get_stats() if redis_service else {"status": "unavailable"},
+            "vector": vector_service.get_stats() if vector_service else {"status": "unavailable"},
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to get service stats: {str(e)}"}
 
 
 @debug_router.get("/memory")

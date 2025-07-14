@@ -38,6 +38,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from utilities.structured_logging import get_structured_logger
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union, Protocol
 import time
@@ -289,7 +290,7 @@ class DatabaseMemoryProvider:
                 from services.database_manager import get_database_manager
                 self.db_manager = await get_database_manager()
             except Exception as e:
-                print(f"⚠️ Database manager import failed: {e}")
+                self.logger.warning("Database manager import failed", error=str(e), provider="database")
                 self.db_manager = None
         return self.db_manager
     
@@ -309,7 +310,7 @@ class DatabaseMemoryProvider:
                 metadata=entry.metadata.__dict__
             )
         except Exception as e:
-            print(f"⚠️ Database memory storage failed: {e}")
+            self.logger.warning("Database memory storage failed", error=str(e), user_id=entry.metadata.user_id)
             return False
     
     @handle_memory_errors(operation_name="db_get_memories")
@@ -342,14 +343,16 @@ class DatabaseMemoryProvider:
             
             return memories
         except Exception as e:
-            print(f"⚠️ Database memory retrieval failed: {e}")
+            self.logger.warning("Database memory retrieval failed", error=str(e), 
+                               user_id=query.user_id, query_text=query.query)
             return []
     
     @handle_memory_errors(operation_name="db_delete_memory")
     async def delete_memory(self, user_id: str, memory_id: str) -> bool:
         """Delete memory via database."""
         # Database manager doesn't currently support individual memory deletion
-        print(f"⚠️ Database memory deletion not supported")
+        self.logger.warning("Database memory deletion not supported", 
+                           user_id=user_id, memory_id=memory_id)
         return False
     
     @handle_memory_errors(operation_name="db_get_stats")
@@ -371,7 +374,7 @@ class DatabaseMemoryProvider:
                 memory_types=memory_types
             )
         except Exception as e:
-            print(f"⚠️ Database stats failed: {e}")
+            self.logger.warning("Database stats failed", error=str(e), user_id=user_id)
             return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
     
     @handle_memory_errors(operation_name="db_health_check")
@@ -381,8 +384,227 @@ class DatabaseMemoryProvider:
             db_manager = await self._get_db_manager()
             return db_manager is not None
         except Exception as e:
-            print(f"⚠️ Database health check failed: {e}")
+            self.logger.warning("Database health check failed", error=str(e))
             return False
+
+
+class PipelineMemoryProvider:
+    """Memory provider using pipeline/valves architecture."""
+    
+    provider_type = "pipeline"
+    
+    def __init__(self):
+        self.pipeline_instance = None
+        self.pipeline_module = None
+        self.logger = get_structured_logger(__name__)
+    
+    async def _get_pipeline(self):
+        """Get or initialize the enhanced memory pipeline."""
+        if self.pipeline_instance is None:
+            try:
+                # Import the enhanced memory pipeline
+                import sys
+                import os
+                
+                # Add pipelines directory to path
+                pipelines_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipelines")
+                if pipelines_path not in sys.path:
+                    sys.path.insert(0, pipelines_path)
+                
+                # Import the pipeline module
+                from enhanced_memory_pipeline import Pipeline as EnhancedMemoryPipeline
+                
+                # Initialize pipeline instance
+                self.pipeline_instance = EnhancedMemoryPipeline()
+                self.pipeline_module = EnhancedMemoryPipeline
+                
+                self.logger.info("Pipeline memory provider initialized")
+                
+            except Exception as e:
+                self.logger.warning("Pipeline initialization failed", error=str(e))
+                self.pipeline_instance = None
+        
+        return self.pipeline_instance
+    
+    @handle_memory_errors(operation_name="pipeline_store_memory") 
+    async def store_memory(self, entry: MemoryEntry) -> bool:
+        """Store memory via pipeline."""
+        try:
+            pipeline = await self._get_pipeline()
+            if not pipeline:
+                return False
+            
+            # Extract data from memory entry
+            user_id = entry.metadata.user_id
+            content = entry.content
+            context = entry.metadata.context
+            importance = entry.metadata.importance
+            source = entry.metadata.source
+            
+            # Create memory entry data
+            memory_data = {
+                "user_id": user_id,
+                "content": content,
+                "context": context,
+                "importance": importance,
+                "source": source,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            # Use pipeline's memory storage functionality
+            # The pipeline handles the actual storage via its integrated memory system
+            if hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
+                success = await pipeline.memory_manager.store_memory(**memory_data)
+                if success:
+                    self.logger.info("Pipeline memory stored", user_id=user_id)
+                    return True
+            
+            # Fallback: use pipeline's internal storage method if available
+            if hasattr(pipeline, '_store_user_memory'):
+                await pipeline._store_user_memory(user_id, content, context)
+                self.logger.info("Pipeline memory stored with fallback", user_id=user_id)
+                return True
+            
+            self.logger.warning("Pipeline memory storage method not available")
+            return False
+            
+        except Exception as e:
+            self.logger.error("Pipeline memory storage failed", error=str(e))
+            return False
+    
+    @handle_memory_errors(operation_name="pipeline_get_memories")
+    async def get_memories(self, query: MemoryQuery) -> List[MemoryEntry]:
+        """Retrieve memories via pipeline."""
+        try:
+            pipeline = await self._get_pipeline()
+            if not pipeline:
+                return []
+            
+            # Use pipeline's memory retrieval functionality
+            if hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
+                memories_data = await pipeline.memory_manager.get_relevant_memories(
+                    query.user_id, 
+                    query.query, 
+                    query.limit
+                )
+            elif hasattr(pipeline, '_get_relevant_memories'):
+                # Fallback method
+                memories_data = await pipeline._get_relevant_memories(
+                    query.user_id,
+                    query.query,
+                    query.limit
+                )
+            else:
+                self.logger.warning("Pipeline memory retrieval method not available")
+                return []
+            
+            # Convert to MemoryEntry objects
+            memories = []
+            for memory_data in memories_data:
+                if isinstance(memory_data, dict):
+                    metadata = MemoryMetadata(
+                        user_id=query.user_id,
+                        timestamp=memory_data.get("timestamp", datetime.now().isoformat()),
+                        source="pipeline",
+                        importance=memory_data.get("importance", 0.5),
+                        memory_type=memory_data.get("memory_type", "conversation"),
+                        context=memory_data.get("context"),
+                        conversation_id=memory_data.get("conversation_id"),
+                        explicit=memory_data.get("explicit", False)
+                    )
+                    
+                    memories.append(MemoryEntry(
+                        content=memory_data.get("content", ""),
+                        metadata=metadata,
+                        similarity_score=memory_data.get("similarity_score"),
+                        distance=memory_data.get("distance", 0.0)
+                    ))
+            
+            self.logger.info("Retrieved memories from pipeline", count=len(memories), user_id=query.user_id)
+            return memories
+            
+        except Exception as e:
+            self.logger.error("Pipeline memory retrieval failed", error=str(e))
+            return []
+    
+    @handle_memory_errors(operation_name="pipeline_delete_memory")
+    async def delete_memory(self, user_id: str, memory_id: str) -> bool:
+        """Delete memory via pipeline."""
+        try:
+            pipeline = await self._get_pipeline()
+            if not pipeline:
+                return False
+            
+            # Check if pipeline supports memory deletion
+            if hasattr(pipeline, 'memory_manager') and hasattr(pipeline.memory_manager, 'delete_memory'):
+                return await pipeline.memory_manager.delete_memory(user_id, memory_id)
+            
+            self.logger.warning("Pipeline memory deletion not supported")
+            return False
+            
+        except Exception as e:
+            self.logger.error("Pipeline memory deletion failed", error=str(e))
+            return False
+    
+    @handle_memory_errors(operation_name="pipeline_get_stats")
+    async def get_stats(self, user_id: str) -> MemoryStats:
+        """Get user stats via pipeline."""
+        try:
+            pipeline = await self._get_pipeline()
+            if not pipeline:
+                return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
+            
+            # Get memories to calculate stats
+            query = MemoryQuery(user_id=user_id, query="", limit=1000)
+            memories = await self.get_memories(query)
+            
+            # Calculate memory type counts
+            memory_types = {}
+            for memory in memories:
+                mem_type = memory.metadata.memory_type
+                memory_types[mem_type] = memory_types.get(mem_type, 0) + 1
+            
+            return MemoryStats(
+                user_id=user_id,
+                total_memories=len(memories),
+                memory_types=memory_types
+            )
+            
+        except Exception as e:
+            self.logger.error("Pipeline stats failed", error=str(e))
+            return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
+    
+    @handle_memory_errors(operation_name="pipeline_health_check")
+    async def health_check(self) -> bool:
+        """Check pipeline health."""
+        try:
+            pipeline = await self._get_pipeline()
+            return pipeline is not None
+        except Exception as e:
+            self.logger.error("Pipeline health check failed", error=str(e))
+            return False
+    
+    async def cleanup(self):
+        """Clean up pipeline resources."""
+        try:
+            if self.pipeline_instance:
+                # Check if pipeline has async cleanup method
+                if hasattr(self.pipeline_instance, 'cleanup'):
+                    if asyncio.iscoroutinefunction(self.pipeline_instance.cleanup):
+                        await self.pipeline_instance.cleanup()
+                    else:
+                        self.pipeline_instance.cleanup()
+                
+                # Suppress garbage collection warnings by deleting reference properly
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*never awaited.*")
+                    self.pipeline_instance = None
+                    self.pipeline_module = None
+                    
+                self.logger.info("Pipeline memory provider cleaned up")
+        except Exception as e:
+            self.logger.error("Pipeline cleanup failed", error=str(e))
 
 
 class MemoryService:
@@ -406,7 +628,7 @@ class MemoryService:
     
     def __init__(self, provider: MemoryProvider):
         self.provider = provider
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_structured_logger(__name__)
     
     @property
     def provider_type(self) -> str:
@@ -515,7 +737,7 @@ class MemoryService:
         Returns:
             List[MemoryEntry]: Relevant memories for injection
         """
-        return await self.get_memories(user_id, context, max_memories)
+        return await self.get_memories(user_id, query=context, limit=max_memories)
     
     @handle_memory_errors(operation_name="format_memories_for_injection")
     def format_memories_for_injection(self, memories: List[MemoryEntry]) -> str:
@@ -565,18 +787,27 @@ class MemoryService:
     async def health_check(self) -> bool:
         """Check memory service health."""
         return await self.provider.health_check()
+    
+    async def cleanup(self):
+        """Clean up memory service resources."""
+        try:
+            if hasattr(self.provider, 'cleanup'):
+                await self.provider.cleanup()
+            self.logger.info("Memory service cleaned up")
+        except Exception as e:
+            self.logger.error("Memory service cleanup failed", error=str(e))
 
 
 # Global memory service instance
 _memory_service_instance: Optional[MemoryService] = None
 
 
-def create_memory_service(provider_type: MemoryProviderType = MemoryProviderType.API) -> MemoryService:
+def create_memory_service(provider_type: MemoryProviderType = MemoryProviderType.PIPELINE) -> MemoryService:
     """
     Create memory service with specified provider.
     
     Args:
-        provider_type: Type of memory provider to use
+        provider_type: Type of memory provider to use (defaults to PIPELINE for pipes/valves architecture)
         
     Returns:
         MemoryService: Configured memory service
@@ -585,9 +816,11 @@ def create_memory_service(provider_type: MemoryProviderType = MemoryProviderType
         provider = APIMemoryProvider()
     elif provider_type == MemoryProviderType.DATABASE:
         provider = DatabaseMemoryProvider()
+    elif provider_type == MemoryProviderType.PIPELINE:
+        provider = PipelineMemoryProvider()
     else:
-        # Default to API provider
-        provider = APIMemoryProvider()
+        # Default to Pipeline provider for pipes/valves architecture
+        provider = PipelineMemoryProvider()
     
     return MemoryService(provider)
 

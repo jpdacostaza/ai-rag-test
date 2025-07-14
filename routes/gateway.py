@@ -12,6 +12,8 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 import os
 
+from utilities.async_context_managers import http_client, safe_http_request
+
 logger = logging.getLogger(__name__)
 
 # Create router
@@ -49,22 +51,21 @@ SERVICES = {
     }
 }
 
-# HTTP client instance
-client = None
+# Removed global HTTP client - using standardized context managers
 
-async def get_http_client():
-    """Get or create HTTP client"""
-    global client
-    if client is None:
-        client = httpx.AsyncClient(timeout=30.0)
-    return client
-
-async def close_http_client():
-    """Close HTTP client"""
-    global client
-    if client:
-        await client.aclose()
-        client = None
+async def make_request(url: str, method: str = "GET", **kwargs) -> httpx.Response:
+    """Make HTTP request using standardized async context manager"""
+    async with http_client() as client:
+        if method.upper() == "GET":
+            return await client.get(url, **kwargs)
+        elif method.upper() == "POST":
+            return await client.post(url, **kwargs)
+        elif method.upper() == "PUT":
+            return await client.put(url, **kwargs)
+        elif method.upper() == "DELETE":
+            return await client.delete(url, **kwargs)
+        else:
+            raise ValueError(f"Unsupported HTTP method: {method}")
 
 @gateway_router.get("/health")
 async def gateway_health():
@@ -84,8 +85,7 @@ async def service_health(service_name: str):
     
     service = SERVICES[service_name]
     try:
-        client = await get_http_client()
-        response = await client.get(f"{service['url']}{service['health']}")
+        response = await make_request(f"{service['url']}{service['health']}")
         return {
             "service": service_name,
             "status": "healthy" if response.status_code == 200 else "unhealthy",
@@ -128,14 +128,14 @@ async def proxy_request(service_name: str, path: str, request: Request):
     headers.pop("host", None)
     
     try:
-        client = await get_http_client()
-        response = await client.request(
-            method=request.method,
-            url=target_url,
-            content=body,
-            headers=headers,
-            params=request.query_params
-        )
+        async with http_client() as client:
+            response = await client.request(
+                method=request.method,
+                url=target_url,
+                content=body,
+                headers=headers,
+                params=request.query_params
+            )
         
         # Return the response
         return Response(

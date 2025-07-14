@@ -18,17 +18,12 @@ from pydantic import BaseModel, Field
 
 from core.error_handler import get_user_friendly_message
 from core.error_handler import log_error
-from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
+from utilities.simple_error_handling import handle_api_errors, handle_errors
 from core.human_logging import log_api_request
 from core.human_logging import log_service_status
 from utilities.rag import rag_processor
+from services.dependencies import get_memory_service
 
-
-def get_memory_service():
-    """Get memory service from main app."""
-    # Import here to avoid circular imports
-    from core.main import get_memory_service_or_legacy
-    return get_memory_service_or_legacy()
 
 # Create router for upload endpoints
 upload_router = APIRouter(prefix="/upload", tags=["upload"])
@@ -52,8 +47,7 @@ def is_file_type_allowed(file: UploadFile) -> bool:
 
 
 @upload_router.post("/document")
-@handle_api_errors(
-    operation_name="upload_document")
+@handle_api_errors("upload_document")
 async def upload_document(
     file: UploadFile = File(...), user_id: str = Form(...), description: Optional[str] = Form(None)
 ):
@@ -99,8 +93,7 @@ async def get_supported_formats():
 
 
 @upload_router.post("/search")
-@handle_api_errors(
-    operation_name="search_documents")
+@handle_api_errors("search_documents")
 async def search_documents(
     query: str = Form(...),
     user_id: str = Form(...),
@@ -170,8 +163,7 @@ class DocumentSearchJSON(BaseModel):
 
 
 @upload_router.post("/document_json")
-@handle_api_errors(
-    operation_name="upload_document_json")
+@handle_api_errors("upload_document_json")
 async def upload_document_json(upload: DocumentUploadJSON):
     """Upload document via JSON payload for testing."""
     # Create a temporary file from the content
@@ -208,8 +200,7 @@ async def upload_document_json(upload: DocumentUploadJSON):
 
 
 @upload_router.post("/search_json")
-@handle_api_errors(
-    operation_name="search_documents_json")
+@handle_api_errors("search_documents_json")
 async def search_documents_json(search: DocumentSearchJSON, memory_service=Depends(get_memory_service)):
     """Search documents via JSON payload for testing."""
     # Call the existing search function

@@ -57,7 +57,8 @@ class Tools:
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
                 }
                 
-                async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+                from utilities.async_context_managers import http_client
+                async with http_client() as client:
                     response = await client.get(search_url, params=params)
                     if response.status_code == 200:
                         data = response.json()

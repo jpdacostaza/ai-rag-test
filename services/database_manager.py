@@ -8,7 +8,9 @@ import os
 import time
 import json
 import asyncio
+from utilities.structured_logging import get_structured_logger
 import logging
+import functools
 from datetime import datetime
 
 import chromadb
@@ -41,32 +43,46 @@ try:
     ERROR_PATTERNS_AVAILABLE = True
 except ImportError:
     ERROR_PATTERNS_AVAILABLE = False
-    # Fallback decorators for compatibility - these need to accept parameters
-    def handle_database_errors(*args, **kwargs):
-        def decorator(func):
-            return func
-        if len(args) == 1 and callable(args[0]):
-            # Called without parentheses: @handle_database_errors
-            return args[0]
-        else:
-            # Called with parentheses: @handle_database_errors(...)
-            return decorator
+    # Simple fallback decorators following best practices
     
-    def handle_service_errors(*args, **kwargs):
+    def handle_database_errors(func):
+        """Handle errors in database functions."""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                logger = get_structured_logger(__name__)
+                logger.error("Database error", function=func.__name__, error=str(e))
+                return None
+        return wrapper
+
+    def handle_service_errors(func):
+        """Handle errors in service functions."""
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                logger = get_structured_logger(__name__)
+                logger.error("Service error", function=func.__name__, error=str(e))
+                return None
+        return wrapper
+
+    def handle_cache_errors(operation_name=None):
+        """Handle errors in cache functions with optional operation name parameter."""
         def decorator(func):
-            return func
-        if len(args) == 1 and callable(args[0]):
-            return args[0]
-        else:
-            return decorator
-    
-    def handle_cache_errors(*args, **kwargs):
-        def decorator(func):
-            return func
-        if len(args) == 1 and callable(args[0]):
-            return args[0]
-        else:
-            return decorator
+            @functools.wraps(func)
+            async def wrapper(*args, **kwargs):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    op_name = operation_name or func.__name__
+                    logger = get_structured_logger(__name__)
+                    logger.error("Cache error", operation=op_name, error=str(e))
+                    return None
+            return wrapper
+        return decorator
 
 # Alert manager integration
 try:
@@ -659,7 +675,7 @@ class DatabaseManager:
             if self.redis_client:
                 await self._redis_lock.acquire()
                 try:
-                    self.redis_client.close()
+                    await self.redis_client.aclose()
                 finally:
                     self._redis_lock.release()
 
@@ -1044,7 +1060,7 @@ async def get_database_health() -> Dict[str, Any]:
     return health_status
 
 
-@handle_database_errors
+@handle_database_errors()
 async def get_chat_history(chat_id: str, limit: int = 100) -> List[Dict[str, Any]]:
     """Get chat history from Redis."""
     global db_manager
@@ -1059,7 +1075,7 @@ async def get_chat_history(chat_id: str, limit: int = 100) -> List[Dict[str, Any
     return await db_manager.get_chat_history(chat_id, limit)
 
 
-@handle_database_errors
+@handle_database_errors()
 async def store_chat_entry(chat_id: str, chat_entry: Dict[str, Any]) -> bool:
     """Store a chat entry in Redis."""
     global db_manager
@@ -1070,7 +1086,7 @@ async def store_chat_entry(chat_id: str, chat_entry: Dict[str, Any]) -> bool:
     return await db_manager.store_chat_entry(chat_id, chat_entry)
 
 
-@handle_service_errors()
+@handle_database_errors()
 async def get_embedding(text: str) -> Optional[List[float]]:
     """Get embedding for text."""
     global db_manager
@@ -1081,7 +1097,7 @@ async def get_embedding(text: str) -> Optional[List[float]]:
     return await db_manager.get_embedding(text)
 
 
-@handle_database_errors
+@handle_database_errors()
 async def store_vector_data(text: str, metadata: Dict[str, Any]) -> bool:
     """Store text and metadata in vector database."""
     global db_manager
@@ -1113,7 +1129,7 @@ async def store_vector_data(text: str, metadata: Dict[str, Any]) -> bool:
         return False
 
 
-@handle_database_errors
+@handle_database_errors()
 async def query_similar(query_text: str, n_results: int = 5) -> QueryResponse:
     """Query for similar texts in vector database."""
     global db_manager
@@ -1142,7 +1158,7 @@ async def query_similar(query_text: str, n_results: int = 5) -> QueryResponse:
         return {"matches": []}
 
 
-@handle_cache_errors
+@handle_cache_errors("get_cache")
 def get_cache() -> CacheManager[Any]:
     """Get the global cache manager instance (synchronous)."""
     global db_manager
@@ -1168,7 +1184,7 @@ def set_cache(key: str, value: Any, ttl: Optional[int] = None) -> bool:
         return False
 
 
-@handle_cache_errors
+@handle_cache_errors("get_cache_async")
 async def get_cache_async() -> CacheManager[Any]:
     """Get the global cache manager instance (async)."""
     global db_manager
@@ -1179,7 +1195,7 @@ async def get_cache_async() -> CacheManager[Any]:
     return db_manager.get_cache()
 
 
-@handle_cache_errors
+@handle_cache_errors("set_cache_async")
 async def set_cache_async(key: str, value: Any, ttl: Optional[int] = None) -> bool:
     """Set a value in the global cache manager (async)."""
     global db_manager
@@ -1193,7 +1209,7 @@ async def set_cache_async(key: str, value: Any, ttl: Optional[int] = None) -> bo
     return True
 
 
-@handle_database_errors
+@handle_database_errors()
 async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bool:
     """Store complete chat history in Redis."""
     global db_manager
@@ -1221,7 +1237,7 @@ async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bo
     return result if result is not None else False
 
 
-@handle_database_errors
+@handle_database_errors()
 async def index_user_document(user_id: str, document_text: str, metadata: Dict[str, Any]) -> bool:
     """Index a user document in the vector database."""
     global db_manager
@@ -1240,7 +1256,7 @@ async def index_user_document(user_id: str, document_text: str, metadata: Dict[s
     return await store_vector_data(document_text, metadata)
 
 
-@handle_database_errors
+@handle_database_errors()
 async def retrieve_user_memory(user_id: str, query: str, n_results: int = 5) -> List[Dict[str, Any]]:
     """Retrieve user-specific memory from the vector database."""
     global db_manager
@@ -1298,7 +1314,7 @@ async def retrieve_user_memory(user_id: str, query: str, n_results: int = 5) -> 
         return []
 
 
-@handle_database_errors
+@handle_database_errors()
 async def index_document_chunks(user_id: str, doc_id: str, name: str, chunks: List[str]) -> bool:
     """Index pre-chunked document content in the vector database."""
     global db_manager
@@ -1554,8 +1570,8 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "retrieve", user_id, request_id))
 
 
-def get_embedding(db_manager, text, request_id=""):
-    """Get embedding vector for text using the embedding model.
+def get_embedding_sync(db_manager, text, request_id=""):
+    """Get embedding vector for text using the embedding model (synchronous version).
     
     Args:
         db_manager: The database manager instance

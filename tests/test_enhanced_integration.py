@@ -10,7 +10,7 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from utilities.web_search_tool import WebSearchTool
+from utilities.web_search_tool import search_web, should_trigger_web_search
 from scripts.enhanced_web_search_trigger import EnhancedWebSearchTrigger
 from pipelines.anti_hallucination_module import AntiHallucinationPipeline
 
@@ -19,7 +19,7 @@ def compare_trigger_systems():
     """Compare current vs enhanced trigger systems."""
     
     # Initialize systems
-    current_tool = WebSearchTool()
+    # Using direct function calls instead of class
     enhanced_trigger = EnhancedWebSearchTrigger()
     anti_hallucination = AntiHallucinationPipeline()
     
@@ -54,8 +54,8 @@ def compare_trigger_systems():
         print(f"\n{i}. Query: {query}")
         print("-" * 50)
         
-        # Current system
-        current_should_trigger = current_tool.should_trigger_web_search(query)
+        # Current system (using function directly)
+        current_should_trigger = should_trigger_web_search(query, "")
         
         # Enhanced system  
         enhanced_result = enhanced_trigger.should_trigger_search(query)
@@ -139,7 +139,7 @@ def benchmark_performance():
     
     import time
     
-    current_tool = WebSearchTool()
+    # Using direct function calls instead of class
     enhanced_trigger = EnhancedWebSearchTrigger()
     
     test_query = "What is the current stock price of Apple Inc today?"
@@ -148,7 +148,7 @@ def benchmark_performance():
     # Benchmark current system
     start_time = time.time()
     for _ in range(iterations):
-        current_tool.should_trigger_web_search(test_query)
+        should_trigger_web_search(test_query, "")
     current_time = time.time() - start_time
     
     # Benchmark enhanced system

@@ -9,5 +9,7 @@ Use direct imports when needed:
     from services.tool_service import tool_service
 """
 
+from typing import List
+
 # Explicitly avoid automatic imports to prevent config_unified dependency chains
-__all__ = []
+__all__: List[str] = []
