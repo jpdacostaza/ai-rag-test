@@ -3,12 +3,15 @@ fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
 
 # Configuration & settings
-pydantic>=2.5.0
+pydantic>=2.5.0,<2.12.0    # Pin below 2.12 for LangChain compatibility
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
 # Security
 bleach>=6.0.0                # HTML sanitization
+
+# Logging
+structlog>=23.0.0           # Structured logging
 
 # Redis (asyncio built in)
 redis>=4.6.0
@@ -21,7 +24,8 @@ aiohttp>=3.8.0
 # LLM & RAG
 chromadb>=0.4.24
 sentence-transformers>=2.7.0
-langchain>=0.1.0 # Updated to stable version
+langchain>=0.1.0,<0.3.0    # Compatible version range
+langchain-community>=0.0.13  # Community utilities for LangChain
 langchain-text-splitters>=0.1.0 # Specific text splitter dependency
 
 # Search (Optional - uncomment if implementing DuckDuckGo search)

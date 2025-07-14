@@ -25,7 +25,7 @@ enforce_cpu_only_mode()
 # Import modules
 from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
-from core.human_logging import log_api_request, log_service_status
+from core.logging_config import setup_logging, get_logger, log_api_request, log_service_status
 from models.models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
 from routes import health_router, chat_router, models_router, upload_router, debug_router
 # from routes import memory_router  # TODO: memory.py doesn't exist - causing import errors
@@ -33,6 +33,10 @@ from services.llm_service import call_llm, call_llm_stream
 print("[MAIN.PY] LLM service imported successfully!", flush=True)
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
 from core.startup import startup_event
+
+# Initialize unified logging first
+setup_logging()
+logger = get_logger(__name__)
 
 # Import memory system
 # TODO: Enhanced Memory System is available via pipeline integration, not direct import

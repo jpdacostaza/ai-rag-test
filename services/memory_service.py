@@ -38,7 +38,7 @@ import asyncio
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from utilities.structured_logging import get_structured_logger
+from core.logging_config import get_logger
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union, Protocol
 import time
@@ -183,8 +183,9 @@ class APIMemoryProvider:
     
     provider_type = "api"
     
-    def __init__(self, api_url: str = "http://localhost:8001", timeout: int = 30):
-        self.api_url = api_url
+    def __init__(self, api_url: str = None, timeout: int = 30):
+        import os
+        self.api_url = api_url or os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
         self.timeout = timeout
         self._client = None
     
@@ -396,7 +397,7 @@ class PipelineMemoryProvider:
     def __init__(self):
         self.pipeline_instance = None
         self.pipeline_module = None
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
     
     async def _get_pipeline(self):
         """Get or initialize the enhanced memory pipeline."""
@@ -418,7 +419,10 @@ class PipelineMemoryProvider:
                 self.pipeline_instance = EnhancedMemoryPipeline()
                 self.pipeline_module = EnhancedMemoryPipeline
                 
-                self.logger.info("Pipeline memory provider initialized")
+                # Debug: log available methods
+                available_methods = [method for method in dir(self.pipeline_instance) if not method.startswith('_')]
+                self.logger.info("Pipeline memory provider initialized", 
+                               available_methods=available_methods[:10])  # First 10 methods
                 
             except Exception as e:
                 self.logger.warning("Pipeline initialization failed", error=str(e))
@@ -452,20 +456,35 @@ class PipelineMemoryProvider:
             }
             
             # Use pipeline's memory storage functionality
-            # The pipeline handles the actual storage via its integrated memory system
-            if hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
-                success = await pipeline.memory_manager.store_memory(**memory_data)
+            # Debug: Check what methods are available
+            pipeline_methods = [method for method in dir(pipeline) if not method.startswith('_')]
+            self.logger.info("Available pipeline methods", methods=pipeline_methods[:10])
+            
+            # Check if pipeline has direct memory methods (new enhanced pipeline)
+            if hasattr(pipeline, 'store_memory'):
+                self.logger.info("Using pipeline.store_memory method")
+                success = await pipeline.store_memory(user_id, content, memory_data)
                 if success:
                     self.logger.info("Pipeline memory stored", user_id=user_id)
                     return True
             
+            # Check if pipeline has memory_manager property that returns the pipeline itself
+            elif hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
+                self.logger.info("Using pipeline.memory_manager.store_memory method")
+                success = await pipeline.memory_manager.store_memory(user_id, content, memory_data)
+                if success:
+                    self.logger.info("Pipeline memory stored via memory_manager", user_id=user_id)
+                    return True
+            
             # Fallback: use pipeline's internal storage method if available
-            if hasattr(pipeline, '_store_user_memory'):
+            elif hasattr(pipeline, '_store_user_memory'):
+                self.logger.info("Using pipeline._store_user_memory fallback method")
                 await pipeline._store_user_memory(user_id, content, context)
                 self.logger.info("Pipeline memory stored with fallback", user_id=user_id)
                 return True
             
-            self.logger.warning("Pipeline memory storage method not available")
+            self.logger.warning("Pipeline memory storage method not available", 
+                              available_methods=pipeline_methods[:5])
             return False
             
         except Exception as e:
@@ -481,7 +500,14 @@ class PipelineMemoryProvider:
                 return []
             
             # Use pipeline's memory retrieval functionality
-            if hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
+            # Check if pipeline has direct memory methods (new enhanced pipeline)
+            if hasattr(pipeline, 'get_relevant_memories'):
+                memories_data = await pipeline.get_relevant_memories(
+                    query.user_id, 
+                    query.query, 
+                    query.limit
+                )
+            elif hasattr(pipeline, 'memory_manager') and pipeline.memory_manager and hasattr(pipeline.memory_manager, 'get_relevant_memories'):
                 memories_data = await pipeline.memory_manager.get_relevant_memories(
                     query.user_id, 
                     query.query, 
@@ -628,7 +654,7 @@ class MemoryService:
     
     def __init__(self, provider: MemoryProvider):
         self.provider = provider
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
     
     @property
     def provider_type(self) -> str:
@@ -760,14 +786,35 @@ class MemoryService:
         return f"Previous conversations and context:\n" + "\n".join(formatted_memories)
     
     @handle_memory_errors(operation_name="track_conversation_and_store")
-    async def track_conversation_and_store(self, user_id: str, user_message: str,
-                                         assistant_response: str) -> bool:
+    async def track_conversation_and_store(self, user_id: str, user_message: str = None,
+                                         assistant_response: str = None, messages: List[Dict[str, Any]] = None) -> bool:
         """
         Track and store conversation (compatibility method).
         
-        This replaces main.py memory service calls.
+        This replaces main.py memory service calls and supports both calling patterns:
+        1. track_conversation_and_store(user_id, user_message, assistant_response)
+        2. track_conversation_and_store(user_id, messages=conversation_messages)
         """
-        return await self.track_conversation(user_id, user_message, assistant_response)
+        # Handle new calling pattern with messages parameter
+        if messages:
+            user_msg = ""
+            assistant_msg = ""
+            
+            for msg in messages:
+                if msg.get("role") == "user":
+                    user_msg = msg.get("content", "")
+                elif msg.get("role") == "assistant":
+                    assistant_msg = msg.get("content", "")
+            
+            return await self.track_conversation(user_id, user_msg, assistant_msg)
+        
+        # Handle legacy calling pattern
+        elif user_message and assistant_response:
+            return await self.track_conversation(user_id, user_message, assistant_response)
+        
+        else:
+            self.logger.warning("track_conversation_and_store called without proper parameters")
+            return False
     
     @handle_memory_errors(operation_name="delete_memory")
     async def delete_memory(self, user_id: str, memory_id: str) -> bool:

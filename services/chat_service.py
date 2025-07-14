@@ -17,12 +17,7 @@ from services.tool_service import tool_service
 from services.user_profiles import user_profile_manager
 from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
 from utilities.simple_error_handling import handle_errors
-from utilities.structured_logging import (
-    get_structured_logger, 
-    log_function_call, 
-    log_performance, 
-    set_correlation_id
-)
+from core.logging_config import get_logger
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +44,7 @@ class ChatService:
         self.cache_service = cache_service
         self.memory_service = memory_service
         self.database_manager = database_manager
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
     
     @handle_errors("process_chat", default_value=ChatResponse(response="I'm having trouble processing your request right now."))
     async def process_chat(self, request: ChatRequest) -> ChatResponse:

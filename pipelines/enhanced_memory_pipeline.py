@@ -26,7 +26,15 @@ import time
 from typing import List, Optional, Dict, Any
 
 # Add the pipelines directory to the Python path for imports
-sys.path.insert(0, '/app/pipelines')
+# Support both Docker (/app) and local development paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+pipelines_dir = os.path.dirname(current_dir) if current_dir.endswith('pipelines') else current_dir
+project_root = os.path.dirname(pipelines_dir) if not pipelines_dir.endswith('backend') else pipelines_dir
+
+# Add both container and local paths
+sys.path.insert(0, '/app/pipelines')  # Docker path
+sys.path.insert(0, os.path.join(project_root, 'pipelines'))  # Local path
+sys.path.insert(0, project_root)  # Project root for services imports
 
 # Add the backend directory for web search tools
 sys.path.insert(0, '/app')
@@ -89,7 +97,7 @@ memory_system_available = False
 try:
     # Create a minimal config first
     config = {
-        'MEMORY_API_URL': os.getenv('MEMORY_API_URL', 'http://memory-api:5001'),
+        'MEMORY_API_URL': os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001'),
         'REDIS_HOST': os.getenv('REDIS_HOST', 'redis'),
         'REDIS_PORT': int(os.getenv('REDIS_PORT', '6379')),
         'OLLAMA_BASE_URL': os.getenv('OLLAMA_BASE_URL', 'http://ollama:11434'),
@@ -159,16 +167,16 @@ try:
     except ImportError as e:
         print(f"[MEMORY PIPELINE WARNING] Wikipedia still not available: {e}")
     
+    # Try LangChain dependencies (optional for basic functionality)
+    langchain_available = False
     try:
         from langchain.tools import Tool
         from langchain_community.utilities import WikipediaAPIWrapper
         print("[MEMORY PIPELINE INFO] LangChain dependencies available")
+        langchain_available = True
     except ImportError as e:
-        print(f"[MEMORY PIPELINE WARNING] LangChain dependencies not available: {e}")
-    except ImportError:
-        print("[MEMORY PIPELINE INFO] Wikipedia dependency missing, auto-installing...")
-        auto_install_package("wikipedia>=1.4.0")
-        import wikipedia
+        print(f"[MEMORY PIPELINE INFO] LangChain dependencies not available (optional): {e}")
+        langchain_available = False
     
     # Try importing web search tools
     sys.path.insert(0, '/app/utilities')
@@ -204,6 +212,7 @@ UserAuthManager = None
 MemoryProcessor = None
 
 try:
+    # Try importing from the memory_system module (both Docker and local paths)
     from memory_system.config import MemoryValves
     from memory_system.api_client import MemoryAPIClient
     from memory_system.auth import UserAuthManager
@@ -212,7 +221,44 @@ try:
     print("[MEMORY PIPELINE INFO] Memory system modules imported successfully")
 except ImportError as e:
     print(f"[MEMORY PIPELINE INFO] Memory system not available: {e}")
-    memory_system_available = False
+    print("[MEMORY PIPELINE INFO] Attempting direct import from pipeline directory")
+    
+    try:
+        # Try direct imports from current directory structure
+        import importlib.util
+        
+        # Get the current directory
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        memory_system_dir = os.path.join(current_dir, 'memory_system')
+        
+        # Import each module directly
+        spec = importlib.util.spec_from_file_location("config", os.path.join(memory_system_dir, "config.py"))
+        config_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(config_module)
+        MemoryValves = config_module.MemoryValves
+        
+        spec = importlib.util.spec_from_file_location("api_client", os.path.join(memory_system_dir, "api_client.py"))
+        api_client_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(api_client_module)
+        MemoryAPIClient = api_client_module.MemoryAPIClient
+        
+        spec = importlib.util.spec_from_file_location("auth", os.path.join(memory_system_dir, "auth.py"))
+        auth_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(auth_module)
+        UserAuthManager = auth_module.UserAuthManager
+        
+        spec = importlib.util.spec_from_file_location("processor", os.path.join(memory_system_dir, "processor.py"))
+        processor_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(processor_module)
+        MemoryProcessor = processor_module.MemoryProcessor
+        
+        memory_system_available = True
+        print("[MEMORY PIPELINE INFO] Memory system modules imported successfully via direct import")
+        
+    except Exception as direct_import_error:
+        print(f"[MEMORY PIPELINE WARNING] Memory system components not available - pipeline running without memory features")
+        print(f"[MEMORY PIPELINE DEBUG] Direct import error: {direct_import_error}")
+        memory_system_available = False
 
 
 class Pipeline:
@@ -233,7 +279,7 @@ class Pipeline:
             model_config = {"protected_namespaces": ()}
             pipelines: List[str] = ["*"]
             priority: int = 0
-            backend_url: str = config.get('MEMORY_API_URL', 'http://memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
+            backend_url: str = config.get('MEMORY_API_URL', 'http://backend-memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
             enable_memory: bool = False  # Disable memory when components not available
             max_memories: int = 100
             memory_threshold: float = 0.001
@@ -257,11 +303,11 @@ class Pipeline:
         # Initialize valves with proper configuration
         if memory_system_available and config:
             # Use config values if available
-            backend_url = config.get('MEMORY_API_URL', 'http://memory-api:5001')
+            backend_url = config.get('MEMORY_API_URL', 'http://backend-memory-api:5001')
             api_timeout = config.get('API_TIMEOUT', 30)
         else:
             # Use environment variables as fallback
-            backend_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
+            backend_url = os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
             api_timeout = int(os.getenv('API_TIMEOUT', '30'))
             
         if memory_system_available:
@@ -650,6 +696,102 @@ class Pipeline:
             self.log(f"Error in outlet filter: {e}", "ERROR")
             return body
     
+    # Memory service compatibility methods
+    # These methods are expected by the memory service for pipeline integration
+    
+    @property
+    def memory_manager(self):
+        """Property to provide memory manager compatibility with memory service."""
+        return self if memory_system_available and hasattr(self, 'api_client') else None
+    
+    async def get_relevant_memories(self, user_id: str, query: str = "", limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get relevant memories for a user - memory service compatibility method.
+        
+        Args:
+            user_id: The user ID to get memories for
+            query: Optional query to filter memories  
+            limit: Maximum number of memories to return
+            
+        Returns:
+            List of memory dictionaries
+        """
+        try:
+            if not memory_system_available or not hasattr(self, 'api_client'):
+                self.log("Memory system not available for memory retrieval", "WARNING")
+                return []
+            
+            if not self.valves.enable_memory:
+                self.log("Memory disabled, returning empty memories", "WARNING")
+                return []
+            
+            # Use the API client to retrieve memories
+            memories = await self.api_client.get_memories(
+                user_id=user_id,
+                query=query,
+                max_results=limit
+            )
+            
+            if memories:
+                self.log(f"Retrieved {len(memories)} memories for user {user_id[:8]}...")
+                return memories
+            else:
+                self.log(f"No memories found for user {user_id[:8]}...")
+                return []
+                
+        except Exception as e:
+            self.log(f"Error retrieving memories for user {user_id[:8]}...: {str(e)}", "ERROR")
+            return []
+    
+    async def _get_relevant_memories(self, user_id: str, query: str = "", limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Fallback method for memory retrieval - memory service compatibility.
+        This is the fallback method that memory service looks for.
+        """
+        return await self.get_relevant_memories(user_id, query, limit)
+    
+    async def store_memory(self, user_id: str, content: str, metadata: Dict[str, Any] = None) -> bool:
+        """
+        Store a memory - memory service compatibility method.
+        
+        Args:
+            user_id: The user ID to store memory for
+            content: The memory content
+            metadata: Optional metadata dictionary
+            
+        Returns:
+            True if storage was successful, False otherwise
+        """
+        try:
+            if not memory_system_available or not hasattr(self, 'api_client'):
+                self.log("Memory system not available for memory storage", "WARNING")
+                return False
+            
+            if not self.valves.enable_memory:
+                self.log("Memory disabled, skipping memory storage", "WARNING")
+                return False
+            
+            # Prepare memory data
+            memory_data = {
+                "user_id": user_id,
+                "content": content,
+                "metadata": metadata or {}
+            }
+            
+            # Use the API client to store memory
+            success = await self.api_client.store_memory(memory_data)
+            
+            if success:
+                self.log(f"Successfully stored memory for user {user_id[:8]}...")
+            else:
+                self.log(f"Failed to store memory for user {user_id[:8]}...", "ERROR")
+            
+            return success
+            
+        except Exception as e:
+            self.log(f"Error storing memory for user {user_id[:8]}...: {str(e)}", "ERROR")
+            return False
+
     async def __del__(self):
         """Cleanup when pipeline is destroyed."""
         try:

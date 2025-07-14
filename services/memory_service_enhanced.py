@@ -57,9 +57,9 @@ from services.memory_service import MemoryService, MemoryEntry, MemoryMetadata
 from services.llm_service import LLMService
 from services.vector_service import VectorService
 from services.redis_service import RedisService  # Using redis service for caching
-from utilities.structured_logging import get_structured_logger
+from core.logging_config import get_logger
 
-logger = get_structured_logger(__name__)
+logger = get_logger(__name__)
 
 
 class MemoryCategory(Enum):
@@ -217,7 +217,7 @@ class EnhancedMemoryService:
         self.llm_service = llm_service
         self.vector_service = vector_service
         self.redis_service = redis_service  # Using redis service for caching
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
         
         # Configuration
         self.clustering_threshold = 0.75

@@ -2,13 +2,13 @@
 # These packages are auto-installed at runtime
 
 # Core compatibility - updated for LangChain compatibility
-pydantic>=2.7.0,<3.0.0
+pydantic>=2.5.0,<2.12.0
 
 # Web search functionality
 wikipedia>=1.4.0
 
-# LangChain components for advanced search
-langchain>=0.1.0
+# LangChain components for advanced search - version constrained for compatibility
+langchain>=0.1.0,<0.3.0
 langchain-community>=0.0.13
 langchain-openai>=0.0.5
 

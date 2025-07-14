@@ -15,7 +15,7 @@ import time
 class MemoryAPIClient:
     """Client for communicating with the memory API service."""
     
-    def __init__(self, backend_url: str, timeout: int = 10, debug: bool = True):
+    def __init__(self, backend_url: str, timeout: int = 30, debug: bool = True):
         self.backend_url = backend_url
         self.timeout = timeout
         self.debug = debug

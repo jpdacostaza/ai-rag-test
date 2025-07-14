@@ -116,10 +116,17 @@ class HumanLogger:
         """
         numeric_level = getattr(logging, level.upper(), logging.INFO)
 
-        # Clear existing handlers to prevent duplicate logs
+        # FORCE clear all existing handlers to prevent conflicts with structured logging
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+        
+        # Clear our specific logger handlers too
         if logger.hasHandlers():
             logger.handlers.clear()
 
+        # Set up the root logger with our configuration
+        root_logger.setLevel(numeric_level)
         logger.setLevel(numeric_level)
 
         console_handler = logging.StreamHandler(sys.stdout)
@@ -132,6 +139,9 @@ class HumanLogger:
             formatter = logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(message)s", datefmt="%H:%M:%S")
 
         console_handler.setFormatter(formatter)
+        
+        # Add handler to both root and our logger
+        root_logger.addHandler(console_handler)
         logger.addHandler(console_handler)
 
         logger.info(f"[STARTUP] 🎨 Enhanced logging initialized at level {level.upper()}")
@@ -185,9 +195,10 @@ def log_chat_interaction(
 
 def init_logging(level: Optional[str] = None):
     """Initialize the enhanced logging system from environment variables or defaults."""
+    # ALWAYS initialize human logging as the primary logger
     log_level = level or os.getenv("LOG_LEVEL", "INFO")
     HumanLogger.setup(log_level)
 
 
-# Initialize automatically on import
+# Initialize automatically on import - FORCE human logging as primary
 init_logging()

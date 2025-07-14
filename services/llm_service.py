@@ -25,7 +25,7 @@ from config.config_unified import (
     MAX_KEEPALIVE_CONNECTIONS)
 from core.human_logging import log_service_status
 from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
-from utilities.structured_logging import get_structured_logger, log_function_call, log_performance
+from core.logging_config import get_logger, log_function_call, log_performance
 
 
 class LLMService:
@@ -36,7 +36,7 @@ class LLMService:
         self.default_model = DEFAULT_MODEL
         self.ollama_url = OLLAMA_BASE_URL
         self.use_ollama = USE_OLLAMA
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
         
         self.logger.info(
             "LLM Service initialized",

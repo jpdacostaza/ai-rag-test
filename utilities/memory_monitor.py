@@ -10,7 +10,9 @@ from datetime import datetime
 import json
 from pathlib import Path
 
-from core.human_logging import log_service_status
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class MemoryPressureMonitor:
@@ -36,7 +38,7 @@ class MemoryPressureMonitor:
         """Start memory pressure monitoring."""
         self._monitoring = True
         self._monitor_task = asyncio.create_task(self._monitor_loop())
-        log_service_status("memory_monitor", "info", "Memory pressure monitoring started")
+        logger.info("Memory pressure monitoring started")
 
     async def stop(self):
         """Stop memory pressure monitoring."""
@@ -48,7 +50,7 @@ class MemoryPressureMonitor:
             except asyncio.CancelledError:
                 pass
 
-        log_service_status("memory_monitor", "info", "Memory pressure monitoring stopped")
+        logger.info("Memory pressure monitoring stopped")
 
     def register_cleanup_callback(self, callback: Callable):
         """Register a callback to be called when memory pressure is high."""
@@ -65,7 +67,7 @@ class MemoryPressureMonitor:
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                log_service_status("memory_monitor", "error", f"Error in memory monitor: {str(e)}")
+                logger.error(f"Error in memory monitor: {str(e)}")
                 await asyncio.sleep(self.check_interval)
 
     def _get_memory_info(self):
@@ -90,19 +92,19 @@ class MemoryPressureMonitor:
 
         if memory_percent >= self.critical_threshold:
             if self._last_state != "critical":
-                log_service_status("memory_monitor", "error", f"Critical memory pressure: {memory_percent:.1f}%")
+                logger.error(f"Critical memory pressure: {memory_percent:.1f}%")
                 await self._handle_critical_pressure()
             self._last_state = "critical"
 
         elif memory_percent >= self.warning_threshold:
             if self._last_state != "warning":
-                log_service_status("memory_monitor", "warning", f"High memory pressure: {memory_percent:.1f}%")
+                logger.warning(f"High memory pressure: {memory_percent:.1f}%")
                 await self._handle_warning_pressure()
             self._last_state = "warning"
 
         else:
             if self._last_state != "normal":
-                log_service_status("memory_monitor", "info", f"Memory pressure normal: {memory_percent:.1f}%")
+                logger.info(f"Memory pressure normal: {memory_percent:.1f}%")
             self._last_state = "normal"
 
     async def _handle_warning_pressure(self):

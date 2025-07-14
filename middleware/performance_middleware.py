@@ -25,7 +25,7 @@ from typing import Optional, Dict, Any, Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from utilities.structured_logging import get_structured_logger, get_correlation_id
+from core.logging_config import get_logger, get_correlation_id
 
 
 class PerformanceMiddleware(BaseHTTPMiddleware):
@@ -42,7 +42,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
     
     def __init__(self, app, enable_memory_tracking: bool = True, enable_cpu_tracking: bool = True):
         super().__init__(app)
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
         self.enable_memory_tracking = enable_memory_tracking
         self.enable_cpu_tracking = enable_cpu_tracking
         self.process = psutil.Process() if (enable_memory_tracking or enable_cpu_tracking) else None
@@ -226,7 +226,7 @@ class PerformanceMetrics:
     """
     
     def __init__(self):
-        self.logger = get_structured_logger(__name__)
+        self.logger = get_logger(__name__)
         self.reset_metrics()
     
     def reset_metrics(self):

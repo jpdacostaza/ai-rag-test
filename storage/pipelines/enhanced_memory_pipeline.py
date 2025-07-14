@@ -23,7 +23,27 @@ UNIVERSAL MODEL COMPATIBILITY:
 import sys
 import os
 import time
+import logging
 from typing import List, Optional, Dict, Any
+
+# Configure pipeline logger to avoid duplicates
+def setup_pipeline_logging():
+    logger = logging.getLogger("enhanced_memory_pipeline")
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    
+    handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter(
+        "[MEMORY PIPELINE %(levelname)s] %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False  # Prevent duplicate logs
+    return logger
+
+# Initialize pipeline logger
+pipeline_logger = setup_pipeline_logging()
 
 # Add the pipelines directory to the Python path for imports
 sys.path.insert(0, '/app/pipelines')
@@ -39,20 +59,20 @@ try:
     # Try to import from the main backend if available
     sys.path.insert(0, '/app')
     from config.config import get_config
-    print("[MEMORY PIPELINE INFO] Backend config modules loaded successfully")
+    pipeline_logger.info("Backend config modules loaded successfully")
     config = get_config()
     auth_manager = None
 except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Backend config not available, using pipeline fallback: {e}")
+    pipeline_logger.info(f"Backend config not available, using pipeline fallback: {e}")
     # Fallback to pipeline configuration
     try:
         sys.path.insert(0, '/app/pipelines')
         from config.config import get_config
-        print("[MEMORY PIPELINE INFO] Pipeline config loaded successfully")
+        pipeline_logger.info("Pipeline config loaded successfully")
         config = get_config()
         auth_manager = None
     except ImportError as fallback_e:
-        print(f"[MEMORY PIPELINE INFO] Pipeline config also failed, using minimal fallback: {fallback_e}")
+        pipeline_logger.info(f"Pipeline config also failed, using minimal fallback: {fallback_e}")
         config = None
         auth_manager = None
 
@@ -66,30 +86,30 @@ try:
     # Try pipeline-specific web search from failed directory (available in container)
     from failed.pipeline_web_search import search_web, should_trigger_web_search, format_web_results_for_chat
     web_search_available = True
-    print("[MEMORY PIPELINE INFO] Pipeline web search tools imported successfully - FALLBACK METHOD ACTIVE")
+    pipeline_logger.info("Pipeline web search tools imported successfully - FALLBACK METHOD ACTIVE")
 except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Pipeline web search not available: {e}")
+    pipeline_logger.info(f"Pipeline web search not available: {e}")
     try:
         # Try importing from the main backend web search tool (not available in container)
         sys.path.insert(0, '/app')
         from utilities.web_search_tool import search_web, should_trigger_web_search, format_web_results_for_chat
         web_search_available = True
-        print("[MEMORY PIPELINE INFO] Backend web search tools imported successfully - PRIMARY METHOD ACTIVE")
+        pipeline_logger.info("Backend web search tools imported successfully - PRIMARY METHOD ACTIVE")
     except ImportError as e2:
-        print(f"[MEMORY PIPELINE INFO] Backend web search also not available: {e2}")
-        print(f"[MEMORY PIPELINE INFO] Initializing web search FALLBACK MODE")
+        pipeline_logger.info(f"Backend web search also not available: {e2}")
+        pipeline_logger.info("Initializing web search FALLBACK MODE")
         
         # Define fallback functions when both imports fail
         async def search_web(query: str, max_results: int = 3):
-            print("[MEMORY PIPELINE INFO] Using web search FALLBACK - search unavailable")
+            pipeline_logger.info("Using web search FALLBACK - search unavailable")
             return {"results": [], "status": "fallback_unavailable"}
         
         def should_trigger_web_search(query: str, response: str = ""):
-            print("[MEMORY PIPELINE INFO] Using web search trigger FALLBACK - always returns False")
+            pipeline_logger.info("Using web search trigger FALLBACK - always returns False")
             return False
         
         def format_web_results_for_chat(results):
-            print("[MEMORY PIPELINE INFO] Using web search formatter FALLBACK - returning empty")
+            pipeline_logger.info("Using web search formatter FALLBACK - returning empty")
             return ""
         
         web_search_available = False
@@ -107,11 +127,11 @@ try:
     from memory_system.auth import UserAuthManager
     from memory_system.processor import MemoryProcessor
     memory_system_available = True
-    print("[MEMORY PIPELINE INFO] Memory system modules imported successfully - PRIMARY METHOD ACTIVE")
+    pipeline_logger.info("Memory system modules imported successfully - PRIMARY METHOD ACTIVE")
             
 except ImportError as e:
-    print(f"[MEMORY PIPELINE ERROR] Primary memory system import failed: {e}")
-    print("[MEMORY PIPELINE INFO] Initializing memory system FALLBACK MODE")
+    pipeline_logger.error(f"Primary memory system import failed: {e}")
+    pipeline_logger.info("Initializing memory system FALLBACK MODE")
     
     # Only define fallback when primary import fails
     from pydantic import BaseModel
@@ -174,23 +194,23 @@ class Pipeline:
             self.auth_manager = UserAuthManager(debug=self.valves.debug_mode)
             self.memory_processor = MemoryProcessor(debug=self.valves.debug_mode)
             
-            self.log("Enhanced Memory Pipeline (Modular) initialized successfully")
-            self.log("📁 Modular components loaded:")
-            self.log("   • MemoryAPIClient - API communication")
-            self.log("   • UserAuthManager - Authentication & sessions")
-            self.log("   • MemoryProcessor - Memory formatting & context")
+            pipeline_logger.info("Enhanced Memory Pipeline (Modular) initialized successfully")
+            pipeline_logger.info("📁 Modular components loaded:")
+            pipeline_logger.info("   • MemoryAPIClient - API communication")
+            pipeline_logger.info("   • UserAuthManager - Authentication & sessions")
+            pipeline_logger.info("   • MemoryProcessor - Memory formatting & context")
             
         except Exception as e:
-            self.log(f"Error initializing modular components: {e}", "ERROR")
+            pipeline_logger.error(f"Error initializing modular components: {e}")
             # Initialize with None values for fallback
             self.api_client = None
             self.auth_manager = None
             self.memory_processor = None
     
     def log(self, message: str, level: str = "INFO"):
-        """Log messages with consistent formatting."""
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"[MEMORY PIPELINE {level}] {message}")
+        """Log messages with consistent formatting using proper logging."""
+        log_method = getattr(pipeline_logger, level.lower(), pipeline_logger.info)
+        log_method(message)
     
     async def inlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -527,4 +547,4 @@ class Pipeline:
                 await self.api_client.close()
                 self.log("Pipeline cleanup completed", "INFO")
         except Exception as cleanup_error:
-            print(f"[MEMORY PIPELINE ERROR] Cleanup failed: {cleanup_error}")  # Use print since log may not be available
+            pipeline_logger.error(f"Cleanup failed: {cleanup_error}")  # Use pipeline logger instead of print

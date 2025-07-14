@@ -21,7 +21,9 @@ except ImportError:
 from services.database_manager import db_manager
 from services.database_manager import get_embedding, index_document_chunks
 from core.error_handler import MemoryErrorHandler, safe_execute, log_error
-from core.human_logging import log_service_status
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
 from utilities.error_patterns import handle_service_errors, handle_api_errors, ErrorHandlerConfig
 
 # Import memory service with fallback
@@ -184,7 +186,7 @@ class RAGProcessor:
         )
 
         if not chunks:
-            log_service_status("RAG", "error", f"No chunks created from {file.filename}")
+            logger.error(f"No chunks created from {file.filename}")
             return {
                 "document_id": None,
                 "filename": file.filename,
@@ -221,10 +223,10 @@ class RAGProcessor:
         if success and self._is_resume_document(file.filename, text):
             await self._save_resume_to_memory(user_id, text, file.filename)
 
-        log_service_status(
-            "RAG",
-            "ready" if success else "error",
-            f"Processed {file.filename}: {success_count}/{len(chunks)} chunks stored")
+        if success:
+            logger.info(f"Processed {file.filename}: {success_count}/{len(chunks)} chunks stored")
+        else:
+            logger.error(f"Processed {file.filename}: {success_count}/{len(chunks)} chunks stored")
 
         return {
             "document_id": document_id,
@@ -268,7 +270,7 @@ class RAGProcessor:
         
         # Try unified memory service (with built-in fallback handling)
         if memory_service:
-            log_service_status("RAG", "info", "Using unified memory service for semantic search")
+            logger.info("Using unified memory service for semantic search")
             try:
                 memories = await memory_service.get_relevant_memories(
                     user_id=user_id,
@@ -285,14 +287,14 @@ class RAGProcessor:
                         "distance": 1.0 - (memory.relevance_score or 0.0)  # Convert relevance to distance
                     })
                 
-                log_service_status("RAG", "ready", f"Found {len(results)} relevant documents using unified memory service")
+                logger.info(f"Found {len(results)} relevant documents using unified memory service")
                 return results
                 
             except Exception as e:
-                log_service_status("RAG", "error", f"Unified memory service failed: {e}")
+                logger.error(f"Unified memory service failed: {e}")
                 return []
         else:
-            log_service_status("RAG", "warning", "Memory service not available for semantic search")
+            logger.warning("Memory service not available for semantic search")
             return []
 
     def _is_resume_document(self, filename: str, content: str) -> bool:
@@ -354,7 +356,7 @@ class RAGProcessor:
             "processed_at": "auto_extracted"
         }
         
-        log_service_status("RAG", "info", f"Saving resume {filename} to memory for user {user_id}")
+        logger.info(f"Saving resume {filename} to memory for user {user_id}")
         
         document_id = await adaptive_learning_system.add_document_to_memory(
             user_id=user_id,
@@ -362,7 +364,7 @@ class RAGProcessor:
             metadata=metadata
         )
         
-        log_service_status("RAG", "ready", f"Resume {filename} saved to memory with ID: {document_id}")
+        logger.info(f"Resume {filename} saved to memory with ID: {document_id}")
 
     def _extract_resume_summary(self, content: str) -> str:
         """
