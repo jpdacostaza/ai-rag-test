@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 
 class CustomHTTPException(Exception):

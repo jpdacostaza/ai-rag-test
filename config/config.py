@@ -7,7 +7,7 @@ import logging
 import platform
 import sys
 import time
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 # Application startup time
 _APP_START_TIME = time.time()
@@ -151,7 +151,7 @@ def load_persona():
             return persona.get("system_prompt", "You are a helpful AI assistant with access to tools and memory.")
     except Exception as e:
         # Log the error for debugging purposes
-        from core.human_logging import log_service_status
+        from core.logging_config import log_service_status
 
         log_service_status("CONFIG", "warning", f"Failed to load config/persona_enhanced.json: {e}")
         return "You are a helpful AI assistant with access to tools and memory."

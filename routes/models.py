@@ -10,7 +10,7 @@ import httpx
 from fastapi import APIRouter
 
 from config.config_unified import OLLAMA_BASE_URL, MODEL_CACHE_TTL
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 from models.models import ModelListResponse, ModelInfo
 from utilities.error_patterns import handle_api_errors, handle_service_errors, ErrorHandlerConfig
 

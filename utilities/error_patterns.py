@@ -27,7 +27,7 @@ from typing import Any, AsyncGenerator, Callable, Dict, Optional, Type, TypeVar,
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 
 class ErrorSeverity(Enum):

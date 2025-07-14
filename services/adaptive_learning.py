@@ -24,7 +24,7 @@ from typing import Optional
 
 from services.database_manager import db_manager, get_embedding_sync, index_document_chunks
 from core.error_handler import MemoryErrorHandler
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 
 class FeedbackType(Enum):

@@ -11,7 +11,7 @@ from typing import Optional
 from config.config_unified import DEFAULT_MODEL, log_system_info, log_environment_variables
 from utilities.cpu_enforcer import verify_cpu_only_setup, log_cpu_verification_results
 from services.database_manager import db_manager, get_database_health
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 # Global variable to track watchdog thread
 watchdog_thread: Optional[object] = None

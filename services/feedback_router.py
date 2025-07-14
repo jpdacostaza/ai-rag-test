@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from enhanced_integration import submit_interaction_feedback
 from core.error_handler import log_error
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 feedback_router = APIRouter()
 

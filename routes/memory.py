@@ -10,9 +10,9 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 from services.database_manager import db_manager
-from utilities.error_patterns import handle_api_errors, ErrorHandlerConfig
+from utilities.error_patterns import handle_api_errors
 from services.auth_validator import AuthValidator
 
 # Create router with proper prefix and tags
@@ -47,10 +47,7 @@ class MemoryListResponse(BaseModel):
     total_count: int
 
 @memory_router.get("/health", response_model=Dict[str, str])
-@handle_api_errors(
-    operation_name="memory_health_check",
-    config=ErrorHandlerConfig(log_traceback=True)
-)
+@handle_api_errors("memory_health_check")
 async def memory_health_check():
     """Check memory system health status."""
     try:
@@ -72,10 +69,7 @@ async def memory_health_check():
         raise HTTPException(status_code=503, detail=f"Memory system unhealthy: {str(e)}")
 
 @memory_router.post("/store", response_model=MemoryResponse)
-@handle_api_errors(
-    operation_name="store_memory",
-    config=ErrorHandlerConfig(max_retries=2, log_traceback=True)
-)
+@handle_api_errors("store_memory")
 async def store_memory(request: MemoryStoreRequest):
     """Store a memory for a user."""
     try:
@@ -120,10 +114,7 @@ async def store_memory(request: MemoryStoreRequest):
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @memory_router.post("/query", response_model=MemoryListResponse)
-@handle_api_errors(
-    operation_name="query_memory",
-    config=ErrorHandlerConfig(max_retries=2, log_traceback=True)
-)
+@handle_api_errors("query_memory")
 async def query_memory(request: MemoryQueryRequest):
     """Query memories for a user using semantic search."""
     try:
@@ -181,10 +172,7 @@ async def query_memory(request: MemoryQueryRequest):
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @memory_router.get("/user/{user_id}", response_model=MemoryListResponse)
-@handle_api_errors(
-    operation_name="get_user_memories",
-    config=ErrorHandlerConfig(log_traceback=True)
-)
+@handle_api_errors("get_user_memories")
 async def get_user_memories(
     user_id: str,
     limit: int = Query(default=10, ge=1, le=100),
@@ -216,10 +204,7 @@ async def get_user_memories(
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @memory_router.delete("/user/{user_id}", response_model=MemoryResponse)
-@handle_api_errors(
-    operation_name="clear_user_memories",
-    config=ErrorHandlerConfig(log_traceback=True)
-)
+@handle_api_errors("clear_user_memories")
 async def clear_user_memories(user_id: str):
     """Clear all memories for a specific user."""
     try:
@@ -247,10 +232,7 @@ async def clear_user_memories(user_id: str):
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @memory_router.get("/stats", response_model=Dict[str, Any])
-@handle_api_errors(
-    operation_name="memory_stats",
-    config=ErrorHandlerConfig(log_traceback=True)
-)
+@handle_api_errors("memory_stats")
 async def get_memory_stats():
     """Get memory system statistics."""
     try:

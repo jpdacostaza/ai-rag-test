@@ -4,7 +4,6 @@
 import io
 
 # --- Tool: Time & Date ---
-import logging
 import math
 import os
 import platform
@@ -19,7 +18,9 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from core.human_logging import log_service_status
+from core.logging_config import get_logger, log_service_status
+
+logger = get_logger(__name__)
 import wikipedia
 from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -45,15 +46,15 @@ def get_weather_weatherapi(city: str = "London") -> str:
     """TODO: Add proper docstring for get_weather_weatherapi."""
     api_key = os.getenv("WEATHERAPI_KEY", "")
     if not api_key:
-        logging.warning("[WeatherAPI] API key not set.")
+        logger.warning("[WeatherAPI] API key not set.")
         return "WeatherAPI.com API key not set."
     try:
         url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}"
-        logging.debug(f"[WeatherAPI] Requesting: {url}")
+        logger.debug(f"[WeatherAPI] Requesting: {url}")
         with httpx.Client(timeout=10) as client:
             resp = client.get(url)
             data = resp.json()
-        logging.debug(f"[WeatherAPI] Response: {data}")
+        logger.debug(f"[WeatherAPI] Response: {data}")
         if resp.status_code != 200 or "error" in data:
             return f"WeatherAPI.com error: {data.get('error', {}).get('message', 'Unknown error')}"
         c = data["current"]
@@ -63,7 +64,7 @@ def get_weather_weatherapi(city: str = "London") -> str:
             f"{c['condition']['text']}, wind {c['wind_kph']} kph, humidity {c['humidity']}%"
         )
     except Exception as e:
-        logging.error(f"[WeatherAPI] Exception: {e}")
+        logger.error(f"[WeatherAPI] Exception: {e}")
         return f"WeatherAPI.com lookup failed: {e}"
 
 
@@ -71,19 +72,19 @@ def get_weather_weatherapi(city: str = "London") -> str:
 def get_weather(city: str = "London") -> str:
     """TODO: Add proper docstring for get_weather."""
     api_key = os.getenv("WEATHERAPI_KEY", "")
-    logging.debug(f"[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
+    logger.debug(f"[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
     if api_key:
         result = get_weather_weatherapi(city)
-        logging.debug(f"[WeatherTool] WeatherAPI.com result: {result}")
+        logger.debug(f"[WeatherTool] WeatherAPI.com result: {result}")
         if result and not result.startswith("WeatherAPI.com API key not set"):
             return result
 
     try:
-        logging.info(f"[WeatherTool] Falling back to Open-Meteo for city: {city}")
+        logger.info(f"[WeatherTool] Falling back to Open-Meteo for city: {city}")
         with httpx.Client(timeout=10) as client:
             geo_resp = client.get(f"https://geocoding-api.open-meteo.com/v1/search?name={city}")
             geo = geo_resp.json()
-        logging.debug(f"[WeatherTool] Open-Meteo geo response: {geo}")
+        logger.debug(f"[WeatherTool] Open-Meteo geo response: {geo}")
         if not geo.get("results"):
             return f"Could not find city: {city}"
         lat, lon = geo["results"][0]["latitude"], geo["results"][0]["longitude"]
@@ -92,11 +93,11 @@ def get_weather(city: str = "London") -> str:
                 f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
             )
             weather = weather_resp.json()
-        logging.debug(f"[WeatherTool] Open-Meteo weather response: {weather}")
+        logger.debug(f"[WeatherTool] Open-Meteo weather response: {weather}")
         w = weather.get("current_weather", {})
         return f"Weather in {city}: {w.get('temperature', '?')}°C, wind {w.get('windspeed', '?')} km/h, code {w.get('weathercode', '?')}"
     except Exception as e:
-        logging.error(f"[WeatherTool] Error fetching weather for {city}: {e}")
+        logger.error(f"[WeatherTool] Error fetching weather for {city}: {e}")
         return f"Error fetching weather for {city}: {e}"
 
 
@@ -120,10 +121,10 @@ def chunk_text(text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> L
             length_function=len,
             separators=["\n\n", "\n", " ", ""])
         chunks = text_splitter.split_text(text)
-        logging.debug(f"[CHUNKING] Created {len(chunks)} chunks from text of length {len(text)}")
+        logger.debug(f"[CHUNKING] Created {len(chunks)} chunks from text of length {len(text)}")
         return chunks
     except Exception as e:
-        logging.error(f"[CHUNKING] Error chunking text: {e}")
+        logger.error(f"[CHUNKING] Error chunking text: {e}")
         return [text]  # Return original text as single chunk if splitting fails
 
 
@@ -225,7 +226,7 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         return f"Conversion from {from_unit} to {to_unit} is not supported yet."
 
     except Exception as e:
-        logging.error(f"[CONVERSION] Error converting {value} {from_unit} to {to_unit}: {e}")
+        logger.error(f"[CONVERSION] Error converting {value} {from_unit} to {to_unit}: {e}")
         return f"Error performing unit conversion: {e}"
 
 
@@ -293,10 +294,10 @@ def get_time_from_timeanddate(location: str) -> str:
             return "Could not extract time for {location} from timeanddate.com"
 
     except httpx.RequestError:
-        logging.error("[TIMEANDDATE] Network error for {location}: {e}")
+        logger.error("[TIMEANDDATE] Network error for {location}: {e}")
         return "Network error getting time for {location}: {e}"
     except Exception:
-        logging.error("[TIMEANDDATE] Error getting time for {location}: {e}")
+        logger.error("[TIMEANDDATE] Error getting time for {location}: {e}")
         return "Error getting time for {location}: {e}"
 
 
@@ -335,7 +336,7 @@ def wikipedia_search(query: str, sentences: int = 3) -> str:
     except wikipedia.exceptions.PageError:
         return f"No Wikipedia page found for '{query}'"
     except Exception as e:
-        logging.error(f"[WIKIPEDIA] Error searching for {query}: {e}")
+        logger.error(f"[WIKIPEDIA] Error searching for {query}: {e}")
         return f"Error searching Wikipedia for '{query}': {e}"
 
 
@@ -420,7 +421,7 @@ def run_python_code(code: str) -> str:
     except ImportError:
         return "RestrictedPython not available - code execution disabled for security"
     except Exception:
-        logging.error("[PYTHON_EXEC] Error executing code: {e}")
+        logger.error("[PYTHON_EXEC] Error executing code: {e}")
         return "Error executing Python code: {e}"
 
 

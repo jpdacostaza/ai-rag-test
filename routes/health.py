@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 from config.config_unified import get_app_start_time
 from services.database_manager import get_database_health
 from services.dependencies import get_redis_service, get_vector_service, get_cache_service
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 from models.models import HealthResponse, DetailedHealthResponse
 from utilities.watchdog import get_watchdog, get_health_status
 from services.storage_manager import StorageManager

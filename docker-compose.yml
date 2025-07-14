@@ -92,6 +92,7 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
+      - LOG_REQUESTS=false
     volumes:
       - .:/app
       - ./storage/backend:/app/data

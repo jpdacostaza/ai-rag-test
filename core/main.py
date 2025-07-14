@@ -3,7 +3,6 @@ Main FastAPI application with modular structure.
 """
 
 import json
-import logging
 import os
 import time
 import uuid
@@ -28,7 +27,7 @@ from handlers import create_exception_handlers
 from core.logging_config import setup_logging, get_logger, log_api_request, log_service_status
 from models.models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
 from routes import health_router, chat_router, models_router, upload_router, debug_router
-# from routes import memory_router  # TODO: memory.py doesn't exist - causing import errors
+from routes import memory_router
 from services.llm_service import call_llm, call_llm_stream
 print("[MAIN.PY] LLM service imported successfully!", flush=True)
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
@@ -37,6 +36,23 @@ from core.startup import startup_event
 # Initialize unified logging first
 setup_logging()
 logger = get_logger(__name__)
+
+# Disable uvicorn access logging completely - must be done early
+import logging
+uvicorn_access = logging.getLogger("uvicorn.access")
+uvicorn_access.disabled = True
+uvicorn_access.setLevel(logging.CRITICAL)
+uvicorn_access.propagate = False
+
+uvicorn_error = logging.getLogger("uvicorn.error") 
+uvicorn_error.disabled = True
+uvicorn_error.setLevel(logging.CRITICAL)
+uvicorn_error.propagate = False
+
+uvicorn_main = logging.getLogger("uvicorn")
+uvicorn_main.disabled = True
+uvicorn_main.setLevel(logging.CRITICAL)
+uvicorn_main.propagate = False
 
 # Import memory system
 # TODO: Enhanced Memory System is available via pipeline integration, not direct import
@@ -97,9 +113,9 @@ def initialize_memory_service():
         try:
             from services.memory_service import get_memory_service
             global_memory_service = get_memory_service()
-            logging.info("✅ Memory service initialized successfully")
+            logger.info("✅ Memory service initialized successfully")
         except Exception as e:
-            logging.warning(f"⚠️ Memory service initialization failed: {e}")
+            logger.warning(f"⚠️ Memory service initialization failed: {e}")
             global_memory_service = None
     return global_memory_service
 
@@ -175,7 +191,7 @@ app.include_router(models_router)
 # Include additional routers
 app.include_router(upload_router)
 app.include_router(debug_router)
-# app.include_router(memory_router)  # TODO: memory router doesn't exist
+app.include_router(memory_router)
 app.include_router(model_manager_router)
 
 

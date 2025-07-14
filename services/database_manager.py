@@ -21,7 +21,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from core.error_handler import RedisConnectionHandler, MemoryErrorHandler, safe_execute
-from core.human_logging import log_service_status
+from core.logging_config import get_logger, log_service_status
 from utilities.validation import DatabaseConfig, ChatMessage, validate_query_params
 from utilities.memory_pool import MemoryPool
 from utilities.memory_monitor import MemoryPressureMonitor

@@ -14,7 +14,7 @@ import redis
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 from utilities.connection_factory import DatabaseConnectionFactory
 from utilities.error_patterns import handle_service_errors, handle_database_errors, ErrorHandlerConfig
 

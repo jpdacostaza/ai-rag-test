@@ -10,7 +10,7 @@ import os
 from pathlib import Path
 from typing import Dict
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 
 class StorageManager:

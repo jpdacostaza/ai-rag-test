@@ -5,7 +5,6 @@ Provides enterprise-grade alerting with multiple notification channels
 
 import asyncio
 import json
-import logging
 import smtplib
 import time
 from datetime import datetime, timedelta
@@ -14,6 +13,10 @@ from typing import Dict, List, Optional, Callable, Any
 from enum import Enum
 import httpx
 import os
+
+from core.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from email.mime.text import MimeText
@@ -39,7 +42,7 @@ except ImportError:
             pass
 
 
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 
 
 class AlertSeverity(Enum):

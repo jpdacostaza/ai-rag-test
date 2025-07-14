@@ -25,7 +25,7 @@ from services.database_manager import (
     get_chat_history
 )
 from core.error_handler import CacheErrorHandler, ChatErrorHandler, MemoryErrorHandler, safe_execute
-from core.human_logging import log_service_status
+from core.logging_config import log_service_status
 from models.models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service

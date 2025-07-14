@@ -16,8 +16,10 @@ import logging.config
 import os
 import sys
 import json
+import functools
+import time
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 from contextvars import ContextVar
 
 # Context variable for correlation IDs
@@ -225,22 +227,28 @@ def get_correlation_id() -> Optional[str]:
 # --- Convenience Functions ---
 
 def log_service_status(service: str, status: str, details: str = ""):
-    """Log service status in a consistent format."""
-    logger = get_logger()
+    """Log service status in a consistent, structured format."""
+    logger = get_logger("service_status")
+    
     status_icons = {
-        "starting": "🟡", "ready": "✅", "degraded": "⚠️", 
-        "failed": "❌", "connecting": "🔗", "reconnecting": "🔄",
+        "starting": "🟡",
+        "ready": "✅", 
+        "degraded": "⚠️",
+        "failed": "❌",
+        "connecting": "🔗",
+        "reconnecting": "🔄",
     }
     icon = status_icons.get(status.lower(), "📝")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
-    
+
     log_level = "error" if status.lower() == "failed" else "warning" if status.lower() == "degraded" else "info"
     getattr(logger, log_level)(message)
 
 
 def log_api_request(method: str, endpoint: str, status_code: int, response_time_ms: float):
-    """Log API requests with status and timing."""
-    logger = get_logger()
+    """Log API requests with color-coded status and timing."""
+    logger = get_logger("api_requests")
+    
     if status_code < 400:
         status_emoji = "✅"
     elif 400 <= status_code < 500:
@@ -259,6 +267,64 @@ def log_chat_interaction(
     tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ""
     req_id_info = f" [ReqID: {request_id}]" if request_id else ""
     logger.info(f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}")
+
+
+def log_function_call(func: Callable) -> Callable:
+    """
+    Decorator to log function calls with parameters and execution time.
+    
+    Args:
+        func: The function to wrap
+        
+    Returns:
+        Wrapped function with logging
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger = get_logger(func.__module__)
+        start_time = time.time()
+        
+        # Log function entry
+        logger.debug(f"🔧 Calling {func.__name__} with args={args[:3]}{'...' if len(args) > 3 else ''}, kwargs={list(kwargs.keys())}")
+        
+        try:
+            result = func(*args, **kwargs)
+            execution_time = (time.time() - start_time) * 1000
+            logger.debug(f"✅ {func.__name__} completed in {execution_time:.2f}ms")
+            return result
+        except Exception as e:
+            execution_time = (time.time() - start_time) * 1000
+            logger.error(f"❌ {func.__name__} failed after {execution_time:.2f}ms: {e}")
+            raise
+    
+    return wrapper
+
+
+def log_performance(operation: str, start_time: float, metadata: Dict[str, Any] = None):
+    """
+    Log performance metrics for an operation.
+    
+    Args:
+        operation: Name of the operation
+        start_time: Start time (from time.time())
+        metadata: Additional metadata to log
+    """
+    logger = get_logger("performance")
+    execution_time = (time.time() - start_time) * 1000
+    
+    log_data = {
+        "operation": operation,
+        "execution_time_ms": round(execution_time, 2),
+        "timestamp": datetime.utcnow().isoformat(),
+    }
+    
+    if metadata:
+        log_data.update(metadata)
+    
+    if execution_time > 1000:  # > 1 second
+        logger.warning(f"⚠️ Slow operation: {operation} took {execution_time:.2f}ms", extra=log_data)
+    else:
+        logger.info(f"📊 {operation} completed in {execution_time:.2f}ms", extra=log_data)
 
 
 # Initialize logging when module is imported

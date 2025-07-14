@@ -43,7 +43,7 @@ class ComprehensiveSystemTest:
             'openwebui': 'http://localhost:8080',
             'pipelines': 'http://localhost:9099', 
             'backend': 'http://localhost:3000',
-            'memory_api': 'http://localhost:8001',
+            'memory_api': 'http://localhost:5001',
             'ollama': 'http://localhost:11434',
             'chroma': 'http://localhost:8000',
             'redis': 'http://localhost:6379'

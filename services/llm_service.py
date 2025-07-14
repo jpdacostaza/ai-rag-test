@@ -23,9 +23,8 @@ from config.config_unified import (
     WRITE_TIMEOUT,
     CONNECTION_POOL_SIZE,
     MAX_KEEPALIVE_CONNECTIONS)
-from core.human_logging import log_service_status
 from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
-from core.logging_config import get_logger, log_function_call, log_performance
+from core.logging_config import get_logger, log_function_call, log_performance, log_service_status
 
 
 class LLMService:
@@ -39,10 +38,7 @@ class LLMService:
         self.logger = get_logger(__name__)
         
         self.logger.info(
-            "LLM Service initialized",
-            use_ollama=self.use_ollama,
-            ollama_url=self.ollama_url,
-            default_model=self.default_model
+            f"LLM Service initialized - use_ollama: {self.use_ollama}, ollama_url: {self.ollama_url}, default_model: {self.default_model}"
         )
         log_service_status("LLM", "info", f"LLM Service initialized - use_ollama: {self.use_ollama}, ollama_url: {self.ollama_url}")
 
@@ -174,10 +170,7 @@ class LLMService:
         """
         model = model or self.default_model
         self.logger.debug(
-            "Starting LLM stream",
-            use_ollama=self.use_ollama,
-            model=model,
-            session_id=session_id
+            f"Starting LLM stream - use_ollama={self.use_ollama}, model={model}, session_id={session_id}"
         )
         log_service_status("LLM", "info", f"CALL_LLM_STREAM: use_ollama = {self.use_ollama}, model = {model}")
 
@@ -378,7 +371,7 @@ class LLMService:
 
 # Global LLM service instance
 llm_service = LLMService()
-llm_service.logger.info("LLM service instance created", service="llm_service", instance_id=id(llm_service))
+llm_service.logger.info(f"LLM service instance created - service=llm_service, instance_id={id(llm_service)}")
 
 
 # Export convenience functions for backward compatibility
@@ -401,11 +394,10 @@ async def call_llm_stream(
     """Convenience function for LLM streaming."""
     import time
     current_time = int(time.time())
-    llm_service.logger.info("LLM stream entry point called", 
-                           model=model, session_id=session_id, timestamp=current_time)
+    llm_service.logger.info(f"LLM stream entry point called - model={model}, session_id={session_id}, timestamp={current_time}")
     log_service_status("LLM", "info", f"CALL_LLM_STREAM_ENTRY_POINT: Called at {current_time} with model={model}, session_id={session_id}")
     async for token in llm_service.call_llm_stream(messages, model, api_url, api_key, stop_event, session_id):
-        llm_service.logger.debug("Token yielded", token=token, session_id=session_id)
+        llm_service.logger.debug(f"Token yielded - token={token}, session_id={session_id}")
         log_service_status("LLM", "debug", f"STANDALONE: Yielding token: '{token}'")
         yield token
 

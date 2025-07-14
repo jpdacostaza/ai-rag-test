@@ -19,8 +19,7 @@ from pydantic import BaseModel, Field
 from core.error_handler import get_user_friendly_message
 from core.error_handler import log_error
 from utilities.simple_error_handling import handle_api_errors, handle_errors
-from core.human_logging import log_api_request
-from core.human_logging import log_service_status
+from core.logging_config import log_api_request, log_service_status
 from utilities.rag import rag_processor
 from services.dependencies import get_memory_service
 

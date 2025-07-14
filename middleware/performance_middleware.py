@@ -150,12 +150,15 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         # Log performance metrics with appropriate level
         log_level = self._determine_log_level(total_time_ms, response.status_code, error)
         
+        # Format metrics as readable string
+        metrics_str = " | ".join([f"{k}: {v}" for k, v in performance_metrics.items()])
+        
         if log_level == 'warning':
-            self.logger.warning("Request performance warning", **performance_metrics)
+            self.logger.warning(f"Request performance warning - {metrics_str}")
         elif log_level == 'error':
-            self.logger.error("Request performance error", **performance_metrics)
+            self.logger.error(f"Request performance error - {metrics_str}")
         else:
-            self.logger.info("Request completed", **performance_metrics)
+            self.logger.info(f"Request completed - {metrics_str}")
         
         # Add performance headers to response (optional, for debugging)
         if hasattr(response, 'headers'):
@@ -269,7 +272,9 @@ class PerformanceMetrics:
     def log_summary(self):
         """Log current performance summary."""
         summary = self.get_summary()
-        self.logger.info("Performance metrics summary", **summary)
+        # Format summary as readable string
+        summary_str = " | ".join([f"{k}: {v}" for k, v in summary.items()])
+        self.logger.info(f"Performance metrics summary - {summary_str}")
 
 
 # Global instance for collecting metrics
