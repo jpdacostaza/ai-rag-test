@@ -185,7 +185,7 @@ class APIMemoryProvider:
     
     def __init__(self, api_url: str = None, timeout: int = 30):
         import os
-        self.api_url = api_url or os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
+        self.api_url = api_url or os.getenv('MEMORY_API_URL', 'http://localhost:5001')
         self.timeout = timeout
         self._client = None
     
@@ -289,9 +289,12 @@ class DatabaseMemoryProvider:
         """Get database manager."""
         if self.db_manager is None:
             try:
-                # Import here to avoid circular imports and config issues
-                from services.database_manager import get_database_manager
-                self.db_manager = await get_database_manager()
+                # Import the global database manager instance
+                from services.database_manager import db_manager
+                self.db_manager = db_manager
+                # Ensure it's initialized
+                if not self.db_manager.is_initialized():
+                    await self.db_manager.ensure_initialized()
             except Exception as e:
                 self.logger.warning(
                     "Database manager import failed",
@@ -309,12 +312,25 @@ class DatabaseMemoryProvider:
                 return False
             
             # Use existing database manager methods
-            from services.database_manager import store_user_memory
-            return await store_user_memory(
-                user_id=entry.metadata.user_id,
-                document_text=entry.content,
-                metadata=entry.metadata.__dict__
-            )
+            from services.database_manager import store_vector_data
+            
+            # Filter out None values from metadata (ChromaDB doesn't accept None)
+            metadata = {
+                "user_id": entry.metadata.user_id,
+                "timestamp": entry.metadata.timestamp,
+                "source": entry.metadata.source,
+                "importance": entry.metadata.importance,
+                "memory_type": entry.metadata.memory_type,
+                "explicit": entry.metadata.explicit
+            }
+            
+            # Only add non-None optional fields
+            if entry.metadata.context is not None:
+                metadata["context"] = entry.metadata.context
+            if entry.metadata.conversation_id is not None:
+                metadata["conversation_id"] = entry.metadata.conversation_id
+            
+            return await store_vector_data(text=entry.content, metadata=metadata)
         except Exception as e:
             self.logger.warning(
                 "Database memory storage failed",
@@ -326,10 +342,10 @@ class DatabaseMemoryProvider:
     async def get_memories(self, query: MemoryQuery) -> List[MemoryEntry]:
         """Retrieve memories via database."""
         try:
-            # Use existing database manager methods
-            from services.database_manager import retrieve_user_memory
-            
-            results = await retrieve_user_memory(
+            # Use the global retrieve_user_memory function (async version)
+            import services.database_manager as db_module
+                
+            results = await db_module.retrieve_user_memory(
                 user_id=query.user_id,
                 query=query.query,
                 n_results=query.limit
@@ -516,8 +532,29 @@ class PipelineMemoryProvider:
                 )
                 return True
             
+            # Final fallback: use database provider directly if pipeline doesn't support memory storage
+            else:
+                self.logger.info("Pipeline doesn't support memory storage, using database fallback")
+                try:
+                    from services.database_manager import store_vector_data
+                    success = await store_vector_data(
+                        text=content,
+                        metadata=memory_data
+                    )
+                    if success:
+                        self.logger.info(
+                            "Memory stored via database fallback",
+                            extra={"user_id": user_id}
+                        )
+                        return True
+                except Exception as e:
+                    self.logger.warning(
+                        "Database fallback also failed",
+                        extra={"error": str(e)}
+                    )
+            
             self.logger.warning(
-                "Pipeline memory storage method not available",
+                "All pipeline memory storage methods failed",
                 extra={"available_methods": pipeline_methods[:5]}
             )
             return False
@@ -805,7 +842,7 @@ class MemoryService:
     
     @handle_memory_errors(operation_name="get_relevant_memories")
     async def get_relevant_memories(self, user_id: str, context: str, 
-                                  max_memories: int = 5) -> List[MemoryEntry]:
+                                  max_memories: int = 5, limit: int = None) -> List[MemoryEntry]:
         """
         Get relevant memories for context injection.
         
@@ -815,10 +852,15 @@ class MemoryService:
             user_id: User identifier
             context: Current conversation context
             max_memories: Maximum memories to retrieve
+            limit: Alternative parameter name for max_memories (for compatibility)
             
         Returns:
             List[MemoryEntry]: Relevant memories for injection
         """
+        # Support both parameter names for compatibility
+        if limit is not None:
+            max_memories = limit
+            
         return await self.get_memories(user_id, query=context, limit=max_memories)
     
     @handle_memory_errors(operation_name="format_memories_for_injection")

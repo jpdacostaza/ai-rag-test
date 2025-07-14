@@ -59,7 +59,8 @@ class ChatPersonaMemoryTest:
         self.test_results = {}
         self.session = None
         # Use real user from database for authentication
-        self.test_user_id = "4e5fc3e1-a7a8-40b8-af00-92482fe23c05"
+        self.real_user_id = None  # Will be set during authentication
+        self.test_user_id = None  # Alias for real_user_id
         self.test_email = "admin@theroot.za.net"
         self.conversation_id = f"test_conversation_{uuid.uuid4().hex[:8]}"
         self.auth_token = None
@@ -75,35 +76,56 @@ class ChatPersonaMemoryTest:
     async def authenticate(self):
         """Authenticate with OpenWebUI and get a valid token"""
         try:
-            # First try to get API key from user record
             logger.info(f"🔐 Authenticating user: {self.test_email}")
             
-            # For testing, we'll use a simple Bearer token approach
-            # In a real scenario, you'd authenticate with credentials
-            self.auth_token = "test-token"  # Fallback token
-            
-            # Try to validate the user exists by checking profile
-            test_headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {self.auth_token}'
+            # Authenticate with real credentials
+            signin_payload = {
+                "email": self.test_email,
+                "password": "852170001a"  # Real password
             }
             
-            # Test authentication with a simple request
-            async with self.session.get(
-                f"{self.base_urls['openwebui']}/api/v1/users/me",
-                headers=test_headers
+            async with self.session.post(
+                f"{self.base_urls['openwebui']}/api/v1/auths/signin",
+                headers={'Content-Type': 'application/json'},
+                json=signin_payload
             ) as response:
                 if response.status == 200:
-                    user_data = await response.json()
-                    logger.info(f"✅ Authentication successful for user: {user_data.get('name', 'Unknown')}")
-                elif response.status == 401:
-                    logger.info("⚠️ Token authentication failed, using test token for API calls")
+                    auth_data = await response.json()
+                    self.auth_token = auth_data.get('token')
+                    self.real_user_id = auth_data.get('id')  # Get the real user ID
+                    self.test_user_id = self.real_user_id  # Set alias
+                    user_name = auth_data.get('name', 'Unknown')
+                    logger.info(f"✅ Authentication successful for user: {user_name}")
+                    logger.info(f"✅ Real user ID: {self.real_user_id}")
+                    
+                    # Validate the token works
+                    test_headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': f'Bearer {self.auth_token}'
+                    }
+                    
+                    async with self.session.get(
+                        f"{self.base_urls['openwebui']}/api/v1/users/me",
+                        headers=test_headers
+                    ) as validate_response:
+                        if validate_response.status == 200:
+                            logger.info("✅ Token validation successful")
+                        else:
+                            logger.info(f"⚠️ Token validation failed: HTTP {validate_response.status}")
                 else:
-                    logger.info(f"⚠️ Auth check returned HTTP {response.status}, proceeding with test token")
+                    logger.info(f"⚠️ Authentication failed: HTTP {response.status}")
+                    response_text = await response.text()
+                    logger.info(f"⚠️ Response: {response_text}")
+                    # Fallback to test token and hardcoded user ID
+                    self.auth_token = "test-token"
+                    self.real_user_id = "4e5fc3e1-a7a8-40b8-af00-92482fe23c05"  # Fallback
+                    self.test_user_id = self.real_user_id  # Set alias
                     
         except Exception as e:
             logger.info(f"⚠️ Authentication setup failed: {str(e)}, using test credentials")
             self.auth_token = "test-token"
+            self.real_user_id = "4e5fc3e1-a7a8-40b8-af00-92482fe23c05"  # Fallback
+            self.test_user_id = self.real_user_id  # Set alias
     
     def get_auth_headers(self):
         """Get authentication headers for API requests"""

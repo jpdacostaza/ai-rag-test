@@ -203,6 +203,48 @@ async def store_memory_explicit(request: MemoryStoreRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
 
+@app.post("/api/memory/store")
+async def store_memory_simple(request: MemoryStoreRequest):
+    """Store memory with simple endpoint (compatibility)."""
+    try:
+        if not memory_service:
+            return JSONResponse({
+                "success": False,
+                "memory_id": f"mem_{request.user_id}_{int(time.time())}",
+                "stored": False,
+                "error": "Memory service not available"
+            })
+
+        # Create memory entry using the memory service
+        success = await memory_service.store_memory(
+            user_id=request.user_id,
+            content=request.content,
+            context=request.context,
+            importance=request.importance,
+            explicit=request.forced,
+            source=request.source
+        )
+        
+        memory_id = f"mem_{request.user_id}_{int(time.time())}"
+        
+        return JSONResponse({
+            "success": success,
+            "memory_id": memory_id,
+            "stored": success,
+            "storage_location": "memory_service",
+            "user_id": request.user_id,
+            "timestamp": time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to store memory: {str(e)}")
+        return JSONResponse({
+            "success": False,
+            "memory_id": f"mem_{request.user_id}_{int(time.time())}",
+            "stored": False,
+            "error": str(e)
+        })
+
 @app.post("/api/memory/retrieve")
 async def retrieve_memories(request: MemoryRetrieveRequest):
     """Retrieve memories with proper response format."""
@@ -315,6 +357,7 @@ async def root():
             "POST /store - Legacy store endpoint", 
             "GET /retrieve/{user_id} - Legacy retrieve endpoint",
             "POST /api/memory/store_explicit - Store memory",
+            "POST /api/memory/store - Store memory (simple)",
             "POST /api/memory/retrieve - Retrieve memories",
             "POST /api/learning/process_interaction - Process conversation",
             "GET /api/memory/stats/{user_id} - Memory statistics",
