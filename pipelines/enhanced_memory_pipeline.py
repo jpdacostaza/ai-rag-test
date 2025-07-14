@@ -729,7 +729,7 @@ class Pipeline:
             memories = await self.api_client.get_memories(
                 user_id=user_id,
                 query=query,
-                max_results=limit
+                max_memories=limit
             )
             
             if memories:

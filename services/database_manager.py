@@ -53,7 +53,10 @@ except ImportError:
                 return await func(*args, **kwargs)
             except Exception as e:
                 logger = get_logger(__name__)
-                logger.error("Database error", function=func.__name__, error=str(e))
+                logger.error(
+                    "Database error",
+                    extra={"function": func.__name__, "error": str(e)}
+                )
                 return None
         return wrapper
 
@@ -65,7 +68,10 @@ except ImportError:
                 return await func(*args, **kwargs)
             except Exception as e:
                 logger = get_logger(__name__)
-                logger.error("Service error", function=func.__name__, error=str(e))
+                logger.error(
+                    "Service error",
+                    extra={"function": func.__name__, "error": str(e)}
+                )
                 return None
         return wrapper
 
@@ -79,7 +85,10 @@ except ImportError:
                 except Exception as e:
                     op_name = operation_name or func.__name__
                     logger = get_logger(__name__)
-                    logger.error("Cache error", operation=op_name, error=str(e))
+                    logger.error(
+                        "Cache error",
+                        extra={"operation": op_name, "error": str(e)}
+                    )
                     return None
             return wrapper
         return decorator

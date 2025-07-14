@@ -109,7 +109,7 @@ class MemoryFunction:
             
             params = {
                 "query": query,
-                "max_results": max_memories,
+                "max_memories": max_memories,
                 "user_id": user_id or "default"
             }
             

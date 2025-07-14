@@ -281,6 +281,8 @@ class DatabaseMemoryProvider:
     provider_type = "database"
     
     def __init__(self):
+        from core.logging_config import get_logger
+        self.logger = get_logger(__name__)
         self.db_manager = None
     
     async def _get_db_manager(self):
@@ -291,7 +293,10 @@ class DatabaseMemoryProvider:
                 from services.database_manager import get_database_manager
                 self.db_manager = await get_database_manager()
             except Exception as e:
-                self.logger.warning("Database manager import failed", error=str(e), provider="database")
+                self.logger.warning(
+                    "Database manager import failed",
+                    extra={"error": str(e), "provider": "database"}
+                )
                 self.db_manager = None
         return self.db_manager
     
@@ -311,7 +316,10 @@ class DatabaseMemoryProvider:
                 metadata=entry.metadata.__dict__
             )
         except Exception as e:
-            self.logger.warning("Database memory storage failed", error=str(e), user_id=entry.metadata.user_id)
+            self.logger.warning(
+                "Database memory storage failed",
+                extra={"error": str(e), "user_id": entry.metadata.user_id}
+            )
             return False
     
     @handle_memory_errors(operation_name="db_get_memories")
@@ -344,8 +352,10 @@ class DatabaseMemoryProvider:
             
             return memories
         except Exception as e:
-            self.logger.warning("Database memory retrieval failed", error=str(e), 
-                               user_id=query.user_id, query_text=query.query)
+            self.logger.warning(
+                "Database memory retrieval failed",
+                extra={"error": str(e), "user_id": query.user_id, "query_text": query.query}
+            )
             return []
     
     @handle_memory_errors(operation_name="db_delete_memory")
@@ -375,7 +385,10 @@ class DatabaseMemoryProvider:
                 memory_types=memory_types
             )
         except Exception as e:
-            self.logger.warning("Database stats failed", error=str(e), user_id=user_id)
+            self.logger.warning(
+                "Database stats failed",
+                extra={"error": str(e), "user_id": user_id}
+            )
             return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
     
     @handle_memory_errors(operation_name="db_health_check")
@@ -385,7 +398,10 @@ class DatabaseMemoryProvider:
             db_manager = await self._get_db_manager()
             return db_manager is not None
         except Exception as e:
-            self.logger.warning("Database health check failed", error=str(e))
+            self.logger.warning(
+                "Database health check failed",
+                extra={"error": str(e)}
+            )
             return False
 
 
@@ -421,11 +437,16 @@ class PipelineMemoryProvider:
                 
                 # Debug: log available methods
                 available_methods = [method for method in dir(self.pipeline_instance) if not method.startswith('_')]
-                self.logger.info("Pipeline memory provider initialized", 
-                               available_methods=available_methods[:10])  # First 10 methods
+                self.logger.info(
+                    "Pipeline memory provider initialized",
+                    extra={"available_methods": available_methods[:10]}
+                )
                 
             except Exception as e:
-                self.logger.warning("Pipeline initialization failed", error=str(e))
+                self.logger.warning(
+                    "Pipeline initialization failed",
+                    extra={"error": str(e)}
+                )
                 self.pipeline_instance = None
         
         return self.pipeline_instance
@@ -458,14 +479,20 @@ class PipelineMemoryProvider:
             # Use pipeline's memory storage functionality
             # Debug: Check what methods are available
             pipeline_methods = [method for method in dir(pipeline) if not method.startswith('_')]
-            self.logger.info("Available pipeline methods", methods=pipeline_methods[:10])
+            self.logger.info(
+                "Available pipeline methods",
+                extra={"methods": pipeline_methods[:10]}
+            )
             
             # Check if pipeline has direct memory methods (new enhanced pipeline)
             if hasattr(pipeline, 'store_memory'):
                 self.logger.info("Using pipeline.store_memory method")
                 success = await pipeline.store_memory(user_id, content, memory_data)
                 if success:
-                    self.logger.info("Pipeline memory stored", user_id=user_id)
+                    self.logger.info(
+                        "Pipeline memory stored",
+                        extra={"user_id": user_id}
+                    )
                     return True
             
             # Check if pipeline has memory_manager property that returns the pipeline itself
@@ -473,22 +500,33 @@ class PipelineMemoryProvider:
                 self.logger.info("Using pipeline.memory_manager.store_memory method")
                 success = await pipeline.memory_manager.store_memory(user_id, content, memory_data)
                 if success:
-                    self.logger.info("Pipeline memory stored via memory_manager", user_id=user_id)
+                    self.logger.info(
+                        "Pipeline memory stored via memory_manager",
+                        extra={"user_id": user_id}
+                    )
                     return True
             
             # Fallback: use pipeline's internal storage method if available
             elif hasattr(pipeline, '_store_user_memory'):
                 self.logger.info("Using pipeline._store_user_memory fallback method")
                 await pipeline._store_user_memory(user_id, content, context)
-                self.logger.info("Pipeline memory stored with fallback", user_id=user_id)
+                self.logger.info(
+                    "Pipeline memory stored with fallback",
+                    extra={"user_id": user_id}
+                )
                 return True
             
-            self.logger.warning("Pipeline memory storage method not available", 
-                              available_methods=pipeline_methods[:5])
+            self.logger.warning(
+                "Pipeline memory storage method not available",
+                extra={"available_methods": pipeline_methods[:5]}
+            )
             return False
             
         except Exception as e:
-            self.logger.error("Pipeline memory storage failed", error=str(e))
+            self.logger.error(
+                "Pipeline memory storage failed",
+                extra={"error": str(e)}
+            )
             return False
     
     @handle_memory_errors(operation_name="pipeline_get_memories")
@@ -546,11 +584,17 @@ class PipelineMemoryProvider:
                         distance=memory_data.get("distance", 0.0)
                     ))
             
-            self.logger.info("Retrieved memories from pipeline", count=len(memories), user_id=query.user_id)
+            self.logger.info(
+                "Retrieved memories from pipeline",
+                extra={"count": len(memories), "user_id": query.user_id}
+            )
             return memories
             
         except Exception as e:
-            self.logger.error("Pipeline memory retrieval failed", error=str(e))
+            self.logger.error(
+                "Pipeline memory retrieval failed",
+                extra={"error": str(e)}
+            )
             return []
     
     @handle_memory_errors(operation_name="pipeline_delete_memory")
@@ -569,7 +613,10 @@ class PipelineMemoryProvider:
             return False
             
         except Exception as e:
-            self.logger.error("Pipeline memory deletion failed", error=str(e))
+            self.logger.error(
+                "Pipeline memory deletion failed",
+                extra={"error": str(e)}
+            )
             return False
     
     @handle_memory_errors(operation_name="pipeline_get_stats")
@@ -597,7 +644,10 @@ class PipelineMemoryProvider:
             )
             
         except Exception as e:
-            self.logger.error("Pipeline stats failed", error=str(e))
+            self.logger.error(
+                "Pipeline stats failed",
+                extra={"error": str(e)}
+            )
             return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
     
     @handle_memory_errors(operation_name="pipeline_health_check")
@@ -607,7 +657,10 @@ class PipelineMemoryProvider:
             pipeline = await self._get_pipeline()
             return pipeline is not None
         except Exception as e:
-            self.logger.error("Pipeline health check failed", error=str(e))
+            self.logger.error(
+                "Pipeline health check failed",
+                extra={"error": str(e)}
+            )
             return False
     
     async def cleanup(self):
@@ -630,7 +683,10 @@ class PipelineMemoryProvider:
                     
                 self.logger.info("Pipeline memory provider cleaned up")
         except Exception as e:
-            self.logger.error("Pipeline cleanup failed", error=str(e))
+            self.logger.error(
+                "Pipeline cleanup failed",
+                extra={"error": str(e)}
+            )
 
 
 class MemoryService:
@@ -842,7 +898,10 @@ class MemoryService:
                 await self.provider.cleanup()
             self.logger.info("Memory service cleaned up")
         except Exception as e:
-            self.logger.error("Memory service cleanup failed", error=str(e))
+            self.logger.error(
+                "Memory service cleanup failed",
+                extra={"error": str(e)}
+            )
 
 
 # Global memory service instance

@@ -132,6 +132,48 @@ class MemoryAPIClient:
                 self.log(f"Error storing interaction: {e}", "ERROR")
             return False
     
+    async def store_memory(self, memory_data: Dict[str, Any]) -> bool:
+        """Store a memory directly."""
+        try:
+            client = await self.get_client()
+            
+            # Extract user_id and content from memory_data
+            user_id = memory_data.get("user_id", "")
+            content = memory_data.get("content", "")
+            metadata = memory_data.get("metadata", {})
+            
+            import uuid
+            payload = {
+                "user_id": user_id,
+                "content": content,
+                "metadata": metadata,
+                "timestamp": str(int(time.time())),
+                "source": "enhanced_memory_pipeline"
+            }
+            
+            if self.debug:
+                self.log(f"Storing memory for user {user_id}: {len(content)} chars content")
+            
+            response = await client.post(
+                f"{self.backend_url}/api/memory/store",
+                json=payload
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if self.debug:
+                    self.log(f"Stored memory for user {user_id} successfully")
+                return True
+            else:
+                if self.debug:
+                    self.log(f"Failed to store memory: {response.status_code} - {response.text}", "ERROR")
+                return False
+                
+        except Exception as e:
+            if self.debug:
+                self.log(f"Error storing memory: {e}", "ERROR")
+            return False
+    
     async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
         """Get memory statistics for a user."""
         try:
