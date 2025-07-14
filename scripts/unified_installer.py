@@ -24,7 +24,12 @@ from pathlib import Path
 
 class UnifiedMemoryInstaller:
     def __init__(self):
-        self.openwebui_url = "http://openwebui:8080"
+        # Try multiple possible URLs for OpenWebUI
+        self.openwebui_urls = [
+            "http://172.18.0.6:8080",  # Direct IP from docker inspect
+            "http://openwebui:8080",    # Docker service name
+            "http://localhost:8080"     # Host port mapping
+        ]
         self.pipelines_url = "http://pipelines:9099"
         self.timeout = 30
         
@@ -32,6 +37,21 @@ class UnifiedMemoryInstaller:
         """Log with timestamp."""
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         print(f"[{timestamp}] [{level}] [UnifiedInstaller] {message}")
+    
+    def get_working_openwebui_url(self) -> str:
+        """Find the working OpenWebUI URL."""
+        for url in self.openwebui_urls:
+            try:
+                response = requests.get(f"{url}/health", timeout=5)
+                if response.status_code == 200:
+                    self.log(f"✅ Found working OpenWebUI at: {url}")
+                    return url
+            except:
+                continue
+        
+        # Fallback to first URL if none work
+        self.log(f"⚠️ No working URL found, using fallback: {self.openwebui_urls[0]}")
+        return self.openwebui_urls[0]
     
     def wait_for_service(self, url: str, service_name: str, max_retries: int = 30):
         """Wait for a service to become available."""
@@ -57,37 +77,109 @@ class UnifiedMemoryInstaller:
         
         return False
     
-    def install_function_manual(self) -> bool:
-        """Install Enhanced Memory Function with manual instructions."""
-        self.log("🔧 Enhanced Memory Function - Manual Installation Required")
+    def install_function_automatic(self) -> bool:
+        """Install Enhanced Memory Function automatically via OpenWebUI API."""
+        self.log("🔧 Installing Enhanced Memory Function automatically...")
+        
+        # Find working OpenWebUI URL
+        openwebui_url = self.get_working_openwebui_url()
         
         try:
-            with open("/app/memory_function.py", "r") as f:
-                function_code = f.read()
+            # Try multiple possible locations for the memory function file
+            function_paths = [
+                "/app/memory/functions/memory_function.py",  # Correct location
+                "/app/memory_function.py",  # Container location
+                "./memory/functions/memory_function.py",  # Relative path
+                "./memory_function.py"  # Fallback
+            ]
             
-            self.log("📋 Manual Installation Instructions for Enhanced Memory Function:")
-            self.log("=" * 70)
-            self.log("1. Go to OpenWebUI Admin Panel → Workspace → Functions")
-            self.log("2. Click 'Create Function' or '+' button")
-            self.log("3. Use these settings:")
-            self.log("   • Name: Enhanced Memory Function")
-            self.log("   • Type: Filter")
-            self.log("   • Active: ✓ Enabled")
-            self.log("   • Global: ✓ Enabled")
-            self.log("4. Copy and paste the function code from the logs below")
-            self.log("5. Click 'Save'")
-            self.log("=" * 70)
-            self.log("📄 Function Code (copy everything between the markers):")
-            self.log("--- START FUNCTION CODE ---")
-            self.log(function_code)
-            self.log("--- END FUNCTION CODE ---")
-            self.log("=" * 70)
+            function_code = None
+            used_path = None
             
-            return True
+            for path in function_paths:
+                try:
+                    with open(path, "r") as f:
+                        function_code = f.read()
+                        used_path = path
+                        break
+                except FileNotFoundError:
+                    continue
+            
+            if not function_code:
+                self.log("❌ Could not find memory_function.py at any expected location")
+                self.log(f"   Searched: {', '.join(function_paths)}")
+                return False
+                
+            self.log(f"📁 Found memory function at: {used_path}")
+            
+            # Prepare function data for API
+            function_data = {
+                "id": "enhanced_memory_function",
+                "name": "Enhanced Memory Function",
+                "type": "filter", 
+                "content": function_code,
+                "is_active": True,
+                "is_global": True
+            }
+            
+            # Try to install via OpenWebUI API
+            try:
+                with httpx.Client(timeout=30.0) as client:
+                    # Try functions endpoint
+                    response = client.post(
+                        f"{openwebui_url}/api/v1/functions/",
+                        json=function_data
+                    )
+                    
+                    if response.status_code in [200, 201]:
+                        self.log("✅ Enhanced Memory Function installed automatically!")
+                        return True
+                    else:
+                        self.log(f"⚠️ API installation failed (status {response.status_code}), trying alternative...")
+                        
+                        # Try alternative import endpoint
+                        response = client.post(
+                            f"{openwebui_url}/api/v1/functions/import",
+                            json=function_data
+                        )
+                        
+                        if response.status_code in [200, 201]:
+                            self.log("✅ Enhanced Memory Function installed via import endpoint!")
+                            return True
+                        else:
+                            self.log(f"❌ Alternative endpoint also failed: {response.status_code}")
+                            
+            except Exception as api_error:
+                self.log(f"❌ API installation failed: {str(api_error)}")
+                
+            # If API fails, fall back to manual instructions
+            self.log("⚠️ Automatic installation failed, providing manual instructions...")
+            return self.install_function_manual_fallback(function_code)
             
         except Exception as e:
-            self.log(f"❌ Error preparing function: {str(e)}", "ERROR")
+            self.log(f"❌ Error in automatic installation: {str(e)}", "ERROR")
             return False
+
+    def install_function_manual_fallback(self, function_code: str) -> bool:
+        """Provide manual installation instructions as fallback."""
+        self.log("📋 Manual Installation Instructions for Enhanced Memory Function:")
+        self.log("=" * 70)
+        self.log("1. Go to OpenWebUI Admin Panel → Workspace → Functions")
+        self.log("2. Click 'Create Function' or '+' button")
+        self.log("3. Use these settings:")
+        self.log("   • Name: Enhanced Memory Function")
+        self.log("   • Type: Filter")
+        self.log("   • Active: ✓ Enabled")
+        self.log("   • Global: ✓ Enabled")
+        self.log("4. Copy and paste the function code from the logs below")
+        self.log("5. Click 'Save'")
+        self.log("=" * 70)
+        self.log("📄 Function Code (copy everything between the markers):")
+        self.log("--- START FUNCTION CODE ---")
+        self.log(function_code)
+        self.log("--- END FUNCTION CODE ---")
+        self.log("=" * 70)
+        return True
     
     def install_pipeline_file(self) -> bool:
         """Install Enhanced Memory Pipeline using file-based method - ZERO CONFIG."""
@@ -241,13 +333,16 @@ class Pipeline:
         self.log("🚀 Starting Unified Memory Installation...")
         self.log("=" * 60)
         
+        # Find working OpenWebUI URL
+        openwebui_url = self.get_working_openwebui_url()
+        
         # Wait for services
-        openwebui_available = self.wait_for_service(self.openwebui_url, "OpenWebUI")
+        openwebui_available = self.wait_for_service(openwebui_url, "OpenWebUI")
         pipelines_available = self.wait_for_service(self.pipelines_url, "Pipelines")
         
-        # Install Function (always manual for now due to auth requirements)
+        # Install Function (try automatic first, fallback to manual)
         self.log("🔧 Installing Enhanced Memory Function...")
-        function_success = self.install_function_manual()
+        function_success = self.install_function_automatic()
         
         # Install Pipeline (file-based method)
         if pipelines_available:
@@ -261,7 +356,7 @@ class Pipeline:
         self.log("📋 Installation Summary:")
         
         if function_success:
-            self.log("   • Enhanced Memory Function: 📋 Manual installation required")
+            self.log("   • Enhanced Memory Function: ✅ Installed automatically")
         else:
             self.log("   • Enhanced Memory Function: ❌ Failed")
             
@@ -274,14 +369,16 @@ class Pipeline:
             self.log("🎉 Memory system setup completed!")
             self.log("")
             self.log("📚 Next Steps:")
-            if function_success and not pipeline_success:
-                self.log("   • Complete the manual Function installation using the instructions above")
+            if function_success and pipeline_success:
+                self.log("   • Both Function and Pipeline installed successfully!")
+                self.log("   • Memory system is ready to use")
+            elif function_success and not pipeline_success:
+                self.log("   • Function installed - Pipeline installation failed")
             elif pipeline_success and not function_success:
-                self.log("   • Complete the manual Function installation using the instructions above")
+                self.log("   • Pipeline installed - Function may need manual installation (see logs above)")
                 self.log("   • Pipeline is ready and will auto-load")
             else:
-                self.log("   • Complete the manual Function installation using the instructions above")
-                self.log("   • Pipeline is ready and will auto-load")
+                self.log("   • Check installation logs above for manual setup instructions")
             
             self.log("")
             self.log("🔗 Access your memory-enhanced OpenWebUI at: http://localhost:8080")

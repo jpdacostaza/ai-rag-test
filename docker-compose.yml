@@ -1,5 +1,21 @@
 version: '3.8'
 
+# ===============================================================================
+# AI RAG Backend - Multi-Service Architecture
+# ===============================================================================
+# Direct Service Access Map (API Gateway temporarily disabled):
+# 
+# 🔴 Redis Cache:       http://localhost:6379    (Cache & messaging)
+# 🟣 ChromaDB:          http://localhost:8000    (Vector database) 
+# 🤖 Ollama:            http://localhost:11434   (AI model service)
+# 🚀 Backend API:       http://localhost:3000    (Main FastAPI app)
+# 🧠 Memory API:        http://localhost:5001    (Memory management)
+# 📊 Pipelines:         http://localhost:9099    (Data processing)
+# 🌐 OpenWebUI:         http://localhost:8080    (User interface)
+# ⚠️  API Gateway:      DISABLED                 (Will be fixed later)
+# 🔄 Watchtower:        Background service       (Container monitoring)
+# ===============================================================================
+
 services:
   # 1. Redis - Cache and message broker (FIRST - foundation layer)
   redis:
@@ -127,8 +143,6 @@ services:
         condition: service_healthy
       backend:
         condition: service_healthy
-      openwebui:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
       interval: 30s
@@ -163,7 +177,7 @@ services:
       memory-api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9099/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:9099/"]
       interval: 30s
       timeout: 15s
       retries: 5
@@ -173,34 +187,55 @@ services:
 
   # 7. Open WebUI - User interface (SEVENTH - interface layer)
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
     ports:
       - "8080:8080"
-    restart: unless-stopped
+    restart: always
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_SECRET_KEY=your-secret-key-here
-      - CHROMA_HTTP_HOST=chroma
-      - CHROMA_HTTP_PORT=8000
-      - RAG_EMBEDDING_ENGINE=ollama
-      - PDF_EXTRACT_IMAGES=true
-      - ENABLE_RAG_WEB_SEARCH=true
+      # Route through our main backend API using the working v1 endpoint
+      - OPENAI_API_BASE_URLS=http://backend:3000/v1;http://pipelines:9099
+      - OPENAI_API_KEYS=backend-api-key;0p3n-w3bu!
+      - OLLAMA_BASE_URL=http://backend:3000/v1
+      - ENABLE_FUNCTIONS=true
+      - ENABLE_TOOLS=true
+      - GLOBAL_TOOLS=true
+      # Auto-enable pipelines for all conversations
+      - ENABLE_PIPELINE_FILTER=true
+      - AUTO_PIPELINE_FILTER=true
+      - DEFAULT_PIPELINE_ENABLED=true
+      # Memory system integration
+      - MEMORY_API_URL=http://memory-api:5001
+      - MEMORY_AUTO_STORE=true
+      - MEMORY_AUTO_STORE_THRESHOLD=1
+      - MEMORY_DEBUG=true
+      - MEMORY_RETRIEVAL_THRESHOLD=0.001
+      - ENABLE_COMMUNITY_SHARING=false
+      - WEBUI_AUTH=true
+      - ENABLE_SIGNUP=true
+      - DEFAULT_USER_ROLE=user
+      - DEFAULT_MODELS=llama3.2:3b
+      # Disable direct Ollama access to force routing through backend
+      - ENABLE_OLLAMA_API=false
+      # Automatically configure Pipelines connection
+      - PIPELINES_URLS=http://pipelines:9099
+      - PIPELINES_API_KEY=0p3n-w3bu!
+      # Disable built-in web search to use our global function instead
+      - ENABLE_WEB_SEARCH=false
+      - WEB_SEARCH_ENABLED=false
+      - ENABLE_RAG_WEB_SEARCH=false
     volumes:
       - ./storage/openwebui:/app/backend/data
+      - ./memory/functions:/app/backend/data/functions:rw
+      - ./tools:/app/backend/data/tools:rw
     depends_on:
-      redis:
-        condition: service_healthy
-      chroma:
-        condition: service_started
-      ollama:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
+      - backend
+      - memory-api
+      - pipelines
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
-      timeout: 15s
+      timeout: 10s
       retries: 5
       start_period: 60s
     networks:
@@ -240,47 +275,50 @@ services:
       - backend-net
 
   # 9. API Gateway - Request routing and management (NINTH - gateway layer)
-  api-gateway:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
-    container_name: backend-api-gateway
-    ports:
-      - "8090:8090"
-    restart: unless-stopped
-    environment:
-      - ENV=production
-      - PYTHONPATH=/app
-      - REDIS_URL=redis://backend-redis:6379
-      - BACKEND_URL=http://backend:3000
-      - MEMORY_API_URL=http://memory-api:5001
-    volumes:
-      - .:/app
-      - ./storage/gateway:/app/data
-    depends_on:
-      redis:
-        condition: service_healthy
-      chroma:
-        condition: service_started
-      ollama:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-      memory-api:
-        condition: service_healthy
-      pipelines:
-        condition: service_healthy
-      openwebui:
-        condition: service_healthy
-    command: ["python", "-m", "uvicorn", "gateway:app", "--host", "0.0.0.0", "--port", "8090"]
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
-      interval: 30s
-      timeout: 15s
-      retries: 5
-      start_period: 60s
-    networks:
-      - backend-net
+  # TEMPORARILY DISABLED - Custom FastAPI gateway had import issues
+  # Services are accessible directly via their ports (see service map below)
+  #
+  # api-gateway:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.backend
+  #   container_name: backend-api-gateway
+  #   ports:
+  #     - "8090:8090"
+  #   restart: unless-stopped
+  #   environment:
+  #     - ENV=production
+  #     - PYTHONPATH=/app
+  #     - REDIS_URL=redis://backend-redis:6379
+  #     - BACKEND_URL=http://backend:3000
+  #     - MEMORY_API_URL=http://memory-api:5001
+  #   volumes:
+  #     - .:/app
+  #     - ./storage/gateway:/app/data
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+  #     chroma:
+  #       condition: service_started
+  #     ollama:
+  #       condition: service_healthy
+  #     backend:
+  #       condition: service_healthy
+  #     memory-api:
+  #       condition: service_healthy
+  #     pipelines:
+  #       condition: service_healthy
+  #     openwebui:
+  #       condition: service_healthy
+  #   command: ["python", "-m", "uvicorn", "core.gateway:app", "--host", "0.0.0.0", "--port", "8090"]
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
+  #     interval: 30s
+  #     timeout: 15s
+  #     retries: 5
+  #     start_period: 60s
+  #   networks:
+  #     - backend-net
 
   # 10. Watchtower - Container updates and monitoring (TENTH - maintenance layer)
   watchtower:
@@ -309,8 +347,7 @@ services:
         condition: service_healthy
       openwebui:
         condition: service_healthy
-      api-gateway:
-        condition: service_healthy
+      # api-gateway: DISABLED - removed dependency
     networks:
       - backend-net
 

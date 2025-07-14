@@ -44,11 +44,11 @@ import time
 import json
 from datetime import datetime
 
-# Import error handling framework with fallback
+# Import error handling framework
 try:
     from utilities.error_patterns import handle_memory_errors, handle_service_errors
 except ImportError:
-    # Fallback if error patterns not available
+    # Default if error patterns not available
     def handle_memory_errors(operation_name: str = None):
         def decorator(func):
             return func
@@ -66,7 +66,6 @@ class MemoryProviderType(Enum):
     DATABASE = "database"    # Direct database access (database_manager)
     PIPELINE = "pipeline"    # Pipeline-based access
     LOCAL = "local"          # Local file-based storage
-    HYBRID = "hybrid"        # Combination of multiple providers
 
 
 @dataclass
@@ -386,62 +385,6 @@ class DatabaseMemoryProvider:
             return False
 
 
-class HybridMemoryProvider:
-    """Memory provider that combines multiple backends."""
-    
-    provider_type = "hybrid"
-    
-    def __init__(self, primary: MemoryProvider, fallback: MemoryProvider):
-        self.primary = primary
-        self.fallback = fallback
-    
-    @handle_memory_errors(operation_name="hybrid_store_memory")
-    async def store_memory(self, entry: MemoryEntry) -> bool:
-        """Store memory with fallback."""
-        # Try primary first
-        if await self.primary.store_memory(entry):
-            return True
-        
-        # Fallback to secondary
-        return await self.fallback.store_memory(entry)
-    
-    @handle_memory_errors(operation_name="hybrid_get_memories")
-    async def get_memories(self, query: MemoryQuery) -> List[MemoryEntry]:
-        """Retrieve memories with fallback."""
-        # Try primary first
-        try:
-            memories = await self.primary.get_memories(query)
-            if memories:
-                return memories
-        except:
-            pass
-        
-        # Fallback to secondary
-        return await self.fallback.get_memories(query)
-    
-    @handle_memory_errors(operation_name="hybrid_delete_memory")
-    async def delete_memory(self, user_id: str, memory_id: str) -> bool:
-        """Delete memory from both providers."""
-        primary_result = await self.primary.delete_memory(user_id, memory_id)
-        fallback_result = await self.fallback.delete_memory(user_id, memory_id)
-        return primary_result or fallback_result
-    
-    @handle_memory_errors(operation_name="hybrid_get_stats")
-    async def get_stats(self, user_id: str) -> MemoryStats:
-        """Get stats from primary provider."""
-        try:
-            return await self.primary.get_stats(user_id)
-        except:
-            return await self.fallback.get_stats(user_id)
-    
-    @handle_memory_errors(operation_name="hybrid_health_check")
-    async def health_check(self) -> bool:
-        """Check if at least one provider is healthy."""
-        primary_healthy = await self.primary.health_check()
-        fallback_healthy = await self.fallback.health_check()
-        return primary_healthy or fallback_healthy
-
-
 class MemoryService:
     """
     Unified Memory Service - Single interface for all memory operations.
@@ -642,13 +585,8 @@ def create_memory_service(provider_type: MemoryProviderType = MemoryProviderType
         provider = APIMemoryProvider()
     elif provider_type == MemoryProviderType.DATABASE:
         provider = DatabaseMemoryProvider()
-    elif provider_type == MemoryProviderType.HYBRID:
-        # Hybrid: API primary, Database fallback
-        api_provider = APIMemoryProvider()
-        db_provider = DatabaseMemoryProvider()
-        provider = HybridMemoryProvider(api_provider, db_provider)
     else:
-        # Fallback to API provider (safer than database)
+        # Default to API provider
         provider = APIMemoryProvider()
     
     return MemoryService(provider)

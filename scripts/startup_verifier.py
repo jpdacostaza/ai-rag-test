@@ -243,8 +243,10 @@ class StartupVerifier:
     async def read_function_code(self) -> Optional[str]:
         """Read the memory function code"""
         possible_paths = [
-            Path("/app/memory_function.py"),
-            Path("./memory_function.py"),
+            Path("/app/memory/functions/memory_function.py"),  # Correct location
+            Path("./memory/functions/memory_function.py"),  # Relative correct path
+            Path("/app/memory_function.py"),  # Legacy location
+            Path("./memory_function.py"),  # Legacy relative
         ]
         
         for path in possible_paths:

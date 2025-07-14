@@ -22,5 +22,5 @@ COPY pipelines/enhanced_memory_pipeline.py /app/enhanced_memory_pipeline.py
 # Set executable permissions
 RUN chmod +x /scripts/*.py
 
-# Run the unified installer
-CMD ["python3", "/scripts/unified_installer.py"]
+# Run the unified installer from mounted app directory
+CMD ["python3", "/app/scripts/unified_installer.py"]
