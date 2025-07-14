@@ -62,37 +62,110 @@ class APIResponse:
     duration_ms: float
     request_id: str
 
+# API Endpoint Registry - Centralized endpoint definitions
+API_ENDPOINT_REGISTRY = {
+    'memory': {
+        'base_url': 'http://backend-memory-api:5001',
+        'endpoints': {
+            # Current working endpoints
+            '/health': {'methods': ['GET'], 'description': 'Memory API health check'},
+            '/store': {'methods': ['POST'], 'description': 'Store memory content', 'body_required': True},
+            '/retrieve/{user_id}': {'methods': ['GET'], 'description': 'Retrieve memories for user', 'params': ['query']},
+            
+            # Expected standard endpoints that should be implemented
+            '/api/memory/store_explicit': {'methods': ['POST'], 'description': 'Explicit memory storage', 'body_required': True, 'status': 'planned'},
+            '/api/memory/retrieve': {'methods': ['POST'], 'description': 'Memory retrieval with POST body', 'body_required': True, 'status': 'planned'},
+            '/api/learning/process_interaction': {'methods': ['POST'], 'description': 'Process learning interaction', 'body_required': True, 'status': 'planned'},
+            '/api/memory/stats/{user_id}': {'methods': ['GET'], 'description': 'Memory statistics for user', 'status': 'planned'},
+            '/api/memory/{user_id}/{memory_id}': {'methods': ['DELETE'], 'description': 'Delete specific memory', 'status': 'planned'},
+        }
+    },
+    'ollama': {
+        'base_url': 'http://backend-ollama:11434',
+        'endpoints': {
+            '/api/tags': {'methods': ['GET'], 'description': 'List available models'},
+            '/api/generate': {'methods': ['POST'], 'description': 'Generate text completion', 'body_required': True},
+            '/api/chat': {'methods': ['POST'], 'description': 'Chat completion', 'body_required': True},
+            '/api/pull': {'methods': ['POST'], 'description': 'Pull/download model', 'body_required': True},
+            '/api/push': {'methods': ['POST'], 'description': 'Push model to registry', 'body_required': True},
+            '/api/create': {'methods': ['POST'], 'description': 'Create model from Modelfile', 'body_required': True},
+            '/api/delete': {'methods': ['DELETE'], 'description': 'Delete model', 'body_required': True},
+            '/api/copy': {'methods': ['POST'], 'description': 'Copy model', 'body_required': True},
+            '/api/show': {'methods': ['POST'], 'description': 'Show model information', 'body_required': True},
+        }
+    },
+    'pipelines': {
+        'base_url': 'http://backend-pipelines:9099',
+        'endpoints': {
+            '/': {'methods': ['GET'], 'description': 'Pipeline service health'},
+            '/api/v1/chat/completions': {'methods': ['POST'], 'description': 'Chat completions through pipeline', 'body_required': True, 'status': 'planned'},
+            '/api/v1/pipelines': {'methods': ['GET'], 'description': 'List available pipelines', 'status': 'planned'},
+        }
+    },
+    'openwebui': {
+        'base_url': 'http://backend-openwebui:8080',
+        'endpoints': {
+            '/health': {'methods': ['GET'], 'description': 'OpenWebUI health check'},
+            '/api/v1/models': {'methods': ['GET'], 'description': 'List available models'},
+            '/api/v1/chat/completions': {'methods': ['POST'], 'description': 'Chat completions', 'body_required': True},
+            '/api/v1/chats': {'methods': ['GET', 'POST'], 'description': 'Chat management'},
+            '/api/v1/users': {'methods': ['GET', 'POST'], 'description': 'User management'},
+            '/api/v1/auth': {'methods': ['POST'], 'description': 'Authentication'},
+        }
+    },
+    'chroma': {
+        'base_url': 'http://backend-chroma:8000',
+        'endpoints': {
+            '/api/v1/heartbeat': {'methods': ['GET'], 'description': 'ChromaDB heartbeat'},
+            '/api/v1/version': {'methods': ['GET'], 'description': 'ChromaDB version'},
+            '/api/v1/collections': {'methods': ['GET', 'POST'], 'description': 'Collection management'},
+            '/api/v1/collections/{collection_id}/query': {'methods': ['POST'], 'description': 'Query collection', 'body_required': True},
+            '/api/v1/collections/{collection_id}/add': {'methods': ['POST'], 'description': 'Add to collection', 'body_required': True},
+            '/api/v1/collections/{collection_id}/update': {'methods': ['POST'], 'description': 'Update collection', 'body_required': True},
+            '/api/v1/collections/{collection_id}/delete': {'methods': ['POST'], 'description': 'Delete from collection', 'body_required': True},
+        }
+    },
+    'backend': {
+        'base_url': 'http://backend-main:3000',
+        'endpoints': {
+            '/health': {'methods': ['GET'], 'description': 'Backend health check'},
+            '/api/test': {'methods': ['GET', 'POST'], 'description': 'Test endpoints'},
+            '/api/status': {'methods': ['GET'], 'description': 'System status'},
+        }
+    }
+}
+
 class APIGateway:
     def __init__(self):
         self.services = {
             'openwebui': ServiceConfig(
                 name='OpenWebUI',
-                base_url='http://localhost:8080',
+                base_url='http://backend-openwebui:8080',
                 health_endpoint='/health'
             ),
             'pipelines': ServiceConfig(
                 name='Pipelines',
-                base_url='http://localhost:9099',
+                base_url='http://backend-pipelines:9099',
                 health_endpoint='/'
             ),
             'memory': ServiceConfig(
                 name='Memory API',
-                base_url='http://localhost:8001',
+                base_url='http://backend-memory-api:5001',
                 health_endpoint='/health'
             ),
             'ollama': ServiceConfig(
                 name='Ollama',
-                base_url='http://localhost:11434',
+                base_url='http://backend-ollama:11434',
                 health_endpoint='/api/tags'
             ),
             'chroma': ServiceConfig(
                 name='ChromaDB',
-                base_url='http://localhost:8000',
+                base_url='http://backend-chroma:8000',
                 health_endpoint='/api/v2/version'
             ),
             'backend': ServiceConfig(
                 name='Backend',
-                base_url='http://localhost:3000',
+                base_url='http://backend-main:3000',
                 health_endpoint='/health',
                 is_critical=False
             )
@@ -404,6 +477,34 @@ class APIGateway:
         errors = self.error_log[-limit:]
         return web.json_response(errors)
 
+    async def handle_registry(self, request):
+        """API endpoint registry"""
+        service = request.match_info.get('service')
+        
+        if service:
+            # Get endpoints for specific service
+            if service in API_ENDPOINT_REGISTRY:
+                return web.json_response({
+                    'service': service,
+                    'base_url': API_ENDPOINT_REGISTRY[service]['base_url'],
+                    'endpoints': API_ENDPOINT_REGISTRY[service]['endpoints']
+                })
+            else:
+                return web.json_response({'error': f'Service {service} not found'}, status=404)
+        else:
+            # Get all endpoint registry
+            return web.json_response({
+                'api_endpoint_registry': API_ENDPOINT_REGISTRY,
+                'services': list(API_ENDPOINT_REGISTRY.keys()),
+                'total_endpoints': sum(len(svc['endpoints']) for svc in API_ENDPOINT_REGISTRY.values()),
+                'documentation': {
+                    'usage': 'GET /gateway/registry - Full registry',
+                    'service_specific': 'GET /gateway/registry/{service} - Service endpoints',
+                    'gateway_health': 'GET /gateway/health - System health',
+                    'proxy_format': '/{service}/{endpoint_path} - Proxy to service'
+                }
+            })
+
     def create_app(self):
         """Create the web application"""
         app = web.Application()
@@ -412,9 +513,17 @@ class APIGateway:
         app.router.add_get('/gateway/health', self.handle_health)
         app.router.add_get('/gateway/health/{service}', self.handle_service_health)
         
+        # Registry endpoints
+        app.router.add_get('/gateway/registry', self.handle_registry)
+        app.router.add_get('/gateway/registry/{service}', self.handle_registry)
+        
         # Logging endpoints
         app.router.add_get('/gateway/logs', self.handle_logs)
         app.router.add_get('/gateway/errors', self.handle_errors)
+        
+        # Registry endpoint
+        app.router.add_get('/gateway/registry', self.handle_registry)
+        app.router.add_get('/gateway/registry/{service}', self.handle_registry)
         
         # Main proxy endpoint - catch all routes
         app.router.add_route('*', '/{service}/{path:.*}', self.handle_proxy)
@@ -445,7 +554,7 @@ async def main():
     runner = web.AppRunner(app)
     await runner.setup()
     
-    site = web.TCPSite(runner, 'localhost', 8888)
+    site = web.TCPSite(runner, '0.0.0.0', 8888)
     await site.start()
     
     logger.info("API Gateway started on http://localhost:8888")
@@ -454,6 +563,8 @@ async def main():
     logger.info("  GET  /gateway/health/{service} - Service health")
     logger.info("  GET  /gateway/logs - Request logs")
     logger.info("  GET  /gateway/errors - Error logs")
+    logger.info("  GET  /gateway/registry - API endpoint registry")
+    logger.info("  GET  /gateway/registry/{service} - Service specific registry")
     logger.info("  *    /{service}/{path} - Proxy to service")
     
     try:

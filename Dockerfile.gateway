@@ -11,23 +11,25 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install additional dependencies for the gateway
+# Install additional dependencies for the enhanced gateway
 RUN pip install --no-cache-dir \
     aiohttp==3.9.5 \
-    psutil==5.9.8
+    psutil==5.9.8 \
+    PyJWT==2.8.0 \
+    pyyaml==6.0.1
 
 # Copy application code
 COPY . .
 
-# Create logs directory
-RUN mkdir -p /app/logs
+# Create necessary directories
+RUN mkdir -p /app/logs /app/data /app/config
 
 # Expose port
-EXPOSE 8090
+EXPOSE 8888
 
-# Health check
+# Health check for enhanced gateway
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:8090/health || exit 1
+    CMD curl -f http://localhost:8888/gateway/health || exit 1
 
-# Run the gateway
-CMD ["python", "-m", "uvicorn", "core.gateway:app", "--host", "0.0.0.0", "--port", "8090"]
+# Run the enhanced API gateway
+CMD ["python", "-m", "core.enhanced_api_gateway"]

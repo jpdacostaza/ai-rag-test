@@ -285,51 +285,69 @@ services:
     networks:
       - backend-net
 
-  # 9. API Gateway - Request routing and management (NINTH - gateway layer)
-  # TEMPORARILY DISABLED - Custom FastAPI gateway had import issues
-  # Services are accessible directly via their ports (see service map below)
-  #
-  # api-gateway:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.backend
-  #   container_name: backend-api-gateway
-  #   ports:
-  #     - "8090:8090"
-  #   restart: unless-stopped
-  #   environment:
-  #     - ENV=production
-  #     - PYTHONPATH=/app
-  #     - REDIS_URL=redis://backend-redis:6379
-  #     - BACKEND_URL=http://backend:3000
-  #     - MEMORY_API_URL=http://memory-api:5001
-  #   volumes:
-  #     - .:/app
-  #     - ./storage/gateway:/app/data
-  #   depends_on:
-  #     redis:
-  #       condition: service_healthy
-  #     chroma:
-  #       condition: service_started
-  #     ollama:
-  #       condition: service_healthy
-  #     backend:
-  #       condition: service_healthy
-  #     memory-api:
-  #       condition: service_healthy
-  #     pipelines:
-  #       condition: service_healthy
-  #     openwebui:
-  #       condition: service_healthy
-  #   command: ["python", "-m", "uvicorn", "core.gateway:app", "--host", "0.0.0.0", "--port", "8090"]
-  #   healthcheck:
-  #     test: ["CMD", "curl", "-f", "http://localhost:8090/health"]
-  #     interval: 30s
-  #     timeout: 15s
-  #     retries: 5
-  #     start_period: 60s
-  #   networks:
-  #     - backend-net
+  # 9. Enhanced API Gateway - Enterprise-grade request routing and management
+  # ENHANCED - Best practices implementation with security, monitoring, and load balancing
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    container_name: backend-api-gateway
+    ports:
+      - "8888:8888"
+    restart: unless-stopped
+    environment:
+      - ENVIRONMENT=production
+      - PYTHONPATH=/app
+      - GATEWAY_HOST=0.0.0.0
+      - GATEWAY_PORT=8888
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - REDIS_HOST=backend-redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=INFO
+      - RATE_LIMIT_REQUESTS=100
+      - SSL_ENABLED=false
+      - CORS_ORIGINS=*
+      - CACHE_PROVIDER=redis
+      - TRACING_ENABLED=false
+      # Service discovery
+      - MEMORY_API_HOST=backend-memory-api
+      - MEMORY_API_PORT=5001
+      - OLLAMA_HOST=backend-ollama
+      - OLLAMA_PORT=11434
+      - OPENWEBUI_HOST=backend-openwebui
+      - OPENWEBUI_PORT=8080
+      - PIPELINES_HOST=backend-pipelines
+      - PIPELINES_PORT=9099
+      - CHROMA_HOST=backend-chroma
+      - CHROMA_PORT=8000
+    volumes:
+      - .:/app
+      - ./storage/gateway:/app/data
+      - ./config:/app/config
+    depends_on:
+      redis:
+        condition: service_healthy
+      chroma:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+      memory-api:
+        condition: service_healthy
+      pipelines:
+        condition: service_healthy
+      openwebui:
+        condition: service_healthy
+    command: ["python", "-m", "core.api_gateway"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/gateway/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    networks:
+      - backend-net
 
   # 10. Watchtower - Container updates and monitoring (TENTH - maintenance layer)
   watchtower:

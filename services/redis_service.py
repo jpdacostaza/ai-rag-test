@@ -36,7 +36,7 @@ class RedisService:
                 self.redis_client = None
 
     @handle_errors("redis_set", default_value=False)
-    def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """
         Set a value in Redis with optional TTL.
         
@@ -59,9 +59,9 @@ class RedisService:
                 value = str(value)
                 
             if ttl:
-                result = self.redis_client.setex(key, ttl, value)
+                result = await self.redis_client.setex(key, ttl, value)
             else:
-                result = self.redis_client.set(key, value)
+                result = await self.redis_client.set(key, value)
                 
             return bool(result)
             
@@ -70,7 +70,7 @@ class RedisService:
             return False
 
     @handle_errors("redis_get", default_value=None)
-    def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Optional[Any]:
         """
         Get a value from Redis.
         
@@ -84,7 +84,7 @@ class RedisService:
             return None
             
         try:
-            value = self.redis_client.get(key)
+            value = await self.redis_client.get(key)
             if value is None:
                 return None
                 
@@ -102,7 +102,7 @@ class RedisService:
             return None
 
     @handle_errors("redis_delete", default_value=False)
-    def delete(self, key: str) -> bool:
+    async def delete(self, key: str) -> bool:
         """
         Delete a key from Redis.
         
@@ -116,14 +116,14 @@ class RedisService:
             return False
             
         try:
-            result = self.redis_client.delete(key)
+            result = await self.redis_client.delete(key)
             return result > 0
         except Exception as e:
             logging.error(f"Redis delete failed for key {key}: {e}")
             return False
 
     @handle_errors("redis_exists", default_value=False)
-    def exists(self, key: str) -> bool:
+    async def exists(self, key: str) -> bool:
         """
         Check if a key exists in Redis.
         
@@ -137,13 +137,13 @@ class RedisService:
             return False
             
         try:
-            return bool(self.redis_client.exists(key))
+            return bool(await self.redis_client.exists(key))
         except Exception as e:
             logging.error(f"Redis exists check failed for key {key}: {e}")
             return False
 
     @handle_errors("redis_list_push", default_value=False)
-    def list_push(self, key: str, *values: Any) -> bool:
+    async def list_push(self, key: str, *values: Any) -> bool:
         """
         Push values to a Redis list.
         
@@ -166,7 +166,7 @@ class RedisService:
                 else:
                     serialized_values.append(str(value))
                     
-            result = self.redis_client.lpush(key, *serialized_values)
+            result = await self.redis_client.lpush(key, *serialized_values)
             return result > 0
             
         except Exception as e:
@@ -174,7 +174,7 @@ class RedisService:
             return False
 
     @handle_errors("redis_list_get", default_value=[])
-    def list_get(self, key: str, start: int = 0, end: int = -1) -> List[Any]:
+    async def list_get(self, key: str, start: int = 0, end: int = -1) -> List[Any]:
         """
         Get values from a Redis list.
         
@@ -190,7 +190,7 @@ class RedisService:
             return []
             
         try:
-            values = self.redis_client.lrange(key, start, end)
+            values = await self.redis_client.lrange(key, start, end)
             result = []
             
             for value in values:
@@ -208,8 +208,7 @@ class RedisService:
             logging.error(f"Redis list get failed for key {key}: {e}")
             return []
 
-    @handle_errors("redis_get_stats", default_value={})
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """
         Get Redis connection and usage statistics.
         
@@ -220,21 +219,33 @@ class RedisService:
             return {"status": "unavailable", "connected": False}
             
         try:
-            info = self.redis_client.info()
-            return {
-                "status": "connected",
-                "connected": True,
-                "used_memory": info.get("used_memory_human", "unknown"),
-                "connected_clients": info.get("connected_clients", 0),
-                "total_commands_processed": info.get("total_commands_processed", 0),
-                "uptime_in_seconds": info.get("uptime_in_seconds", 0)
-            }
+            info = await self.redis_client.info()
+            
+            # Handle different possible return types from info()
+            if hasattr(info, 'get'):
+                # It's a dict-like object
+                return {
+                    "status": "connected",
+                    "connected": True,
+                    "used_memory": info.get("used_memory_human", "unknown"),
+                    "connected_clients": info.get("connected_clients", 0),
+                    "total_commands_processed": info.get("total_commands_processed", 0),
+                    "uptime_in_seconds": info.get("uptime_in_seconds", 0)
+                }
+            else:
+                # It might be a different type, return basic info
+                return {
+                    "status": "connected", 
+                    "connected": True,
+                    "info_type": str(type(info)),
+                    "raw_info": str(info)[:200]  # First 200 chars for debugging
+                }
         except Exception as e:
             logging.error(f"Redis stats failed: {e}")
             return {"status": "error", "connected": False, "error": str(e)}
 
     @handle_errors("redis_health_check", default_value=False)
-    def health_check(self) -> bool:
+    async def health_check(self) -> bool:
         """
         Check Redis health by doing a simple ping.
         
@@ -245,7 +256,7 @@ class RedisService:
             return False
             
         try:
-            response = self.redis_client.ping()
+            response = await self.redis_client.ping()
             return response is True
         except Exception as e:
             logging.error(f"Redis health check failed: {e}")

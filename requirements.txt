@@ -9,6 +9,8 @@ python-dotenv>=1.0.0
 
 # Security
 bleach>=6.0.0                # HTML sanitization
+PyJWT>=2.8.0                 # JWT token handling
+cryptography>=41.0.0         # Cryptographic operations
 
 # Logging
 structlog>=23.0.0           # Structured logging

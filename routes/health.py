@@ -61,9 +61,16 @@ async def health_check(
     redis_info = {}
     if redis_service:
         try:
-            redis_info = redis_service.get_stats()
+            print(f"[DEBUG] redis_service type: {type(redis_service)}")
+            print(f"[DEBUG] get_stats method: {redis_service.get_stats}")
+            print(f"[DEBUG] Calling get_stats...")
+            redis_info = await redis_service.get_stats()
+            print(f"[DEBUG] get_stats returned: {redis_info}")
         except Exception as e:
+            print(f"[DEBUG] Exception in get_stats: {e}")
             redis_info = {"status": "error", "error": str(e)}
+    else:
+        print(f"[DEBUG] redis_service is None")
     
     # Add Vector service health  
     vector_info = {}

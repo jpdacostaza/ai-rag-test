@@ -52,7 +52,7 @@ async def get_redis_stats(redis_service=Depends(get_redis_service)) -> Dict[str,
     """Get Redis statistics"""
     try:
         if redis_service:
-            return redis_service.get_stats()
+            return await redis_service.get_stats()
         else:
             return {"status": "unavailable", "message": "Redis service not available"}
     except Exception as e:
@@ -81,7 +81,7 @@ async def get_all_service_stats(
     try:
         return {
             "cache": cache_service.get_stats() if cache_service else {"status": "unavailable"},
-            "redis": redis_service.get_stats() if redis_service else {"status": "unavailable"},
+            "redis": await redis_service.get_stats() if redis_service else {"status": "unavailable"},
             "vector": vector_service.get_stats() if vector_service else {"status": "unavailable"},
             "timestamp": datetime.now().isoformat()
         }

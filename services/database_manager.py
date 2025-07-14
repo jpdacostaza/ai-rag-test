@@ -15,7 +15,7 @@ from datetime import datetime
 
 import chromadb
 from chromadb.config import Settings
-import redis
+import redis.asyncio as redis
 from sentence_transformers import SentenceTransformer
 from numpy.typing import NDArray
 import numpy as np
@@ -912,7 +912,7 @@ class DatabaseManager:
         try:
             if not self.redis_client:
                 return False
-            await asyncio.to_thread(self.redis_client.ping)
+            await self.redis_client.ping()
             return True
         except Exception:
             return False

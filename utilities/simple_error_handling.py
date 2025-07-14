@@ -12,6 +12,7 @@ Key principles:
 - No complex configuration objects
 """
 
+import asyncio
 import functools
 import logging
 from typing import Any, Callable, Optional, TypeVar
@@ -138,7 +139,3 @@ def handle_memory_errors(operation: str = "memory_operation"):
 def handle_cache_errors(operation: str = "cache_operation"):
     """Convenience decorator for cache operations."""
     return handle_errors(f"Cache {operation}", default_value=None)
-
-
-# Add asyncio import
-import asyncio

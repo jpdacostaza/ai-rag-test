@@ -18,7 +18,7 @@ COPY memory/ /app/memory/
 COPY core/ /app/core/
 COPY utilities/ /app/utilities/
 COPY services/ /app/services/
-COPY scripts/integrated_memory_startup.py /app/scripts/integrated_memory_startup.py
+COPY scripts/fixed_memory_api.py /app/scripts/fixed_memory_api.py
 COPY config/ /app/config/
 COPY requirements.txt /app/requirements.txt
 
@@ -31,5 +31,5 @@ RUN mkdir -p /app/data
 # Expose port
 EXPOSE 5001
 
-# Run the integrated memory API with auto-setup
-CMD ["python", "/app/scripts/integrated_memory_startup.py"]
+# Run the fixed memory API
+CMD ["python", "/app/scripts/fixed_memory_api.py"]
