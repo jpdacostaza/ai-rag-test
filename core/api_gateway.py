@@ -149,7 +149,7 @@ class APIGateway:
                 health_endpoint='/'
             ),
             'memory': ServiceConfig(
-                name='Memory API',
+                name='RAG Memory API',
                 base_url='http://backend-memory-api:5001',
                 health_endpoint='/health'
             ),

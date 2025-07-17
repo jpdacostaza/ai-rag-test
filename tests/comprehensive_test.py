@@ -193,31 +193,40 @@ class ComprehensiveSystemTest:
         
         # Test storing a memory via the memory API
         test_memory = {
+            "user_id": "comprehensive_test_user",
             "content": "This is a test memory for comprehensive system validation",
-            "metadata": {"test": True, "timestamp": time.time()}
+            "context": "comprehensive test",
+            "importance": 0.8
         }
         
         try:
-            # Test the working /store endpoint first
+            # Test the working /api/memory/store endpoint first
             async with self.session.post(
-                f"{self.base_urls['memory_api']}/store",
+                f"{self.base_urls['memory_api']}/api/memory/store",
                 json=test_memory
             ) as response:
                 if response.status == 200:
                     logger.info("   [OK] Memory storage endpoint working")
                     
-                    # Test health endpoint to confirm API is functional
-                    async with self.session.get(
-                        f"{self.base_urls['memory_api']}/health"
-                    ) as health_response:
-                        if health_response.status == 200:
-                            health_data = await health_response.json()
-                            details = f"Memory API functional - storage and health endpoints working"
-                            logger.info("   [OK] Memory API health check passed")
+                    # Test retrieval endpoint
+                    retrieve_data = {
+                        "user_id": "comprehensive_test_user",
+                        "query": "test memory",
+                        "limit": 5
+                    }
+                    async with self.session.post(
+                        f"{self.base_urls['memory_api']}/api/memory/retrieve",
+                        json=retrieve_data
+                    ) as retrieve_response:
+                        if retrieve_response.status == 200:
+                            retrieve_result = await retrieve_response.json()
+                            memory_count = len(retrieve_result.get('memories', []))
+                            details = f"Memory API functional - storage and retrieval working, {memory_count} memories found"
+                            logger.info(f"   [OK] Memory retrieval working - {memory_count} memories found")
                             self.log_test_result("Memory API Functionality", True, details)
                             return True
                         else:
-                            self.log_test_result("Memory API Functionality", False, f"Health check failed: HTTP {health_response.status}")
+                            self.log_test_result("Memory API Functionality", False, f"Retrieval failed: HTTP {retrieve_response.status}")
                             return False
                 else:
                     self.log_test_result("Memory API Functionality", False, f"Storage failed: HTTP {response.status}")
@@ -332,12 +341,14 @@ class ComprehensiveSystemTest:
         try:
             # Store conversation context
             context_memory = {
+                "user_id": "conversation_test_user",
                 "content": "User asked about mathematics, specifically 2+2",
-                "metadata": {"type": "conversation", "topic": "math"}
+                "context": "conversation_math",
+                "importance": 0.7
             }
             
             async with self.session.post(
-                f"{self.base_urls['memory_api']}/store",
+                f"{self.base_urls['memory_api']}/api/memory/store",
                 json=context_memory
             ) as response:
                 if response.status == 200:
@@ -364,11 +375,16 @@ class ComprehensiveSystemTest:
         # Test Redis persistence
         try:
             # Note: Redis doesn't have a direct HTTP API, so we'll test through services that use it
-            test_data = {"test_key": "persistence_test_value", "timestamp": time.time()}
+            test_data = {
+                "user_id": "persistence_test_user",
+                "content": "Persistence test for Redis and memory systems",
+                "context": "persistence_validation",
+                "importance": 0.8
+            }
             
             async with self.session.post(
-                f"{self.base_urls['memory_api']}/store",
-                json={"content": "Persistence test", "metadata": test_data}
+                f"{self.base_urls['memory_api']}/api/memory/store",
+                json=test_data
             ) as response:
                 if response.status == 200:
                     persistence_tests.append("[OK] Redis-backed memory persistence")

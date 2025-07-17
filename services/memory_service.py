@@ -210,7 +210,9 @@ class APIMemoryProvider:
             "source": entry.metadata.source
         }
         
-        response = await client.post(f"{self.api_url}/api/memory/store_explicit", json=payload)
+        # Use the correct endpoint based on whether this is an explicit memory command
+        endpoint = "/api/memory/store_explicit" if entry.metadata.explicit else "/api/memory/store"
+        response = await client.post(f"{self.api_url}{endpoint}", json=payload)
         return response.status_code == 200
     
     @handle_memory_errors(operation_name="api_get_memories")

@@ -23,23 +23,53 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_API_MAX_TOKENS = int(os.getenv("OPENAI_API_MAX_TOKENS", "8192"))  # Increased for better context handling
 OPENAI_API_TIMEOUT = int(os.getenv("OPENAI_API_TIMEOUT", "180"))
 
-# Memory/RAG optimized context settings
+# RAG Dual-Database Memory System Configuration
 DEFAULT_CONTEXT_LENGTH = int(os.getenv("DEFAULT_CONTEXT_LENGTH", "8192"))  # Minimum for good RAG performance
 MEMORY_CONTEXT_LENGTH = int(os.getenv("MEMORY_CONTEXT_LENGTH", "16384"))  # For memory-heavy operations
 
-# Additional Memory System Enhancements - Cross-session persistence
+# RAG Memory System Settings - Dual Database (Redis + ChromaDB)
 MEMORY_RETRIEVAL_THRESHOLD = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", "0.0005"))  # Even lower for better recall
 MEMORY_MAX_DOCUMENTS = int(os.getenv("MEMORY_MAX_DOCUMENTS", "50"))  # Increased from 30 to 50
 MEMORY_HYBRID_SEARCH = os.getenv("MEMORY_HYBRID_SEARCH", "true").lower() == "true"
 ENABLE_CROSS_SESSION_MEMORY = os.getenv("ENABLE_CROSS_SESSION_MEMORY", "true").lower() == "true"
 PERSISTENT_USER_MEMORY = os.getenv("PERSISTENT_USER_MEMORY", "true").lower() == "true"
 
-# System prompt enhancement for memory context validation
+# RAG System Features
+ENABLE_RAG_ARCHITECTURE = os.getenv("ENABLE_RAG_ARCHITECTURE", "true").lower() == "true"
+ENABLE_DUAL_DATABASE = os.getenv("ENABLE_DUAL_DATABASE", "true").lower() == "true"
+ENABLE_EXPLICIT_MEMORY = os.getenv("ENABLE_EXPLICIT_MEMORY", "true").lower() == "true"
+ENABLE_IMPORTANCE_CLASSIFICATION = os.getenv("ENABLE_IMPORTANCE_CLASSIFICATION", "true").lower() == "true"
+ENABLE_SEMANTIC_SEARCH = os.getenv("ENABLE_SEMANTIC_SEARCH", "true").lower() == "true"
+
+# RAG Database Configuration
+REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+CHROMA_HOST = os.getenv("CHROMA_HOST", "chroma")
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
+
+# RAG Memory API Configuration
+MEMORY_API_HOST = os.getenv("MEMORY_API_HOST", "0.0.0.0")
+MEMORY_API_PORT = int(os.getenv("MEMORY_API_PORT", "5001"))
+MEMORY_API_VERSION = os.getenv("MEMORY_API_VERSION", "2.0.0")
+MEMORY_API_TITLE = os.getenv("MEMORY_API_TITLE", "Enhanced Memory API with RAG")
+
+# RAG Importance Classification
+SHORT_TERM_IMPORTANCE_THRESHOLD = float(os.getenv("SHORT_TERM_IMPORTANCE_THRESHOLD", "0.4"))
+LONG_TERM_IMPORTANCE_THRESHOLD = float(os.getenv("LONG_TERM_IMPORTANCE_THRESHOLD", "0.7"))
+
+# RAG TTL Settings
+SHORT_TERM_TTL = int(os.getenv("SHORT_TERM_TTL", "3600"))      # 1 hour
+MEDIUM_TERM_TTL = int(os.getenv("MEDIUM_TERM_TTL", "43200"))   # 12 hours
+LONG_TERM_TTL = int(os.getenv("LONG_TERM_TTL", "86400"))       # 24 hours
+
+# RAG-Enhanced System Prompt for Memory Context
 MEMORY_SYSTEM_PROMPT = os.getenv("MEMORY_SYSTEM_PROMPT", 
-    "You are an AI assistant with access to conversation memory and context. "
+    "You are an AI assistant with access to a RAG dual-database memory system (Redis + ChromaDB). "
     "When relevant information from memory is available, acknowledge and use it naturally in your responses. "
     "If you have stored information about the user (name, workplace, preferences, etc.), reference it appropriately. "
-    "Always validate that you're incorporating memory context when it's relevant to the conversation."
+    "Always validate that you're incorporating memory context when it's relevant to the conversation. "
+    "For explicit memory commands like 'remember this', process and store the information with appropriate importance levels. "
+    "Use semantic search to find relevant memories and provide context-aware responses based on stored information."
 )
 
 # LLM timeout settings

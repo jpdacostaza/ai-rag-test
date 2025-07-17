@@ -37,7 +37,8 @@
       "storage_engines": {
         "primary": "Redis",
         "semantic": "ChromaDB", 
-        "embeddings": "all-MiniLM-L6-v2"
+        "embeddings": "all-MiniLM-L6-v2",
+        "architecture": "rag_dual_database"
       },
       "memory_levels": ["user", "session", "agent", "temporal"],
       "crud_operations": ["create", "read", "update", "delete", "search", "validate"],
@@ -48,11 +49,37 @@
         "temporal_management",
         "confidence_scoring",
         "adaptive_strategies",
-        "memory_synthesis",
-        "proactive_reminders",
-        "selective_forgetting",
-        "cross_reference_validation"
+        "importance_classification",
+        "explicit_command_processing",
+        "dual_database_storage",
+        "rag_architecture"
       ],
+      "storage_strategy": {
+        "short_term": {
+          "database": "Redis",
+          "importance_threshold": 0.4,
+          "ttl": "1-24 hours",
+          "use_case": "fast_access_cache"
+        },
+        "medium_term": {
+          "databases": ["Redis", "ChromaDB"],
+          "importance_range": "0.5-0.7",
+          "ttl": "12 hours",
+          "use_case": "dual_storage"
+        },
+        "long_term": {
+          "database": "ChromaDB",
+          "importance_threshold": 0.8,
+          "ttl": "persistent",
+          "use_case": "semantic_search"
+        }
+      },
+      "explicit_memory_processing": {
+        "triggers": ["remember", "don't forget", "keep in mind", "note that"],
+        "content_extraction": "automatic",
+        "importance_boost": 0.8,
+        "storage_preference": "chromadb_priority"
+      },
       "personalization_features": [
         "communication_style_adaptation",
         "content_personalization", 

@@ -1,38 +1,41 @@
-# OpenWebUI Enhanced Memory System Backend
+# OpenWebUI Enhanced Memory System Backend - RAG Architecture
 
-A comprehensive backend system for OpenWebUI with advanced memory capabilities using Redis and ChromaDB for persistent, user-isolated, and semantically searchable memory.
+A comprehensive backend system for OpenWebUI with advanced RAG (Retrieval-Augmented Generation) dual-database memory capabilities using Redis and ChromaDB for persistent, user-isolated, and semantically searchable memory.
 
 ## 🚀 Quick Start
 
 ```bash
-# 1. Start all services
+# 1. Start all services with RAG architecture
 docker-compose up -d
 
 # 2. Import memory filter to OpenWebUI
 ./scripts/import/import_memory_function.ps1
 
-# 3. Test the memory system
+# 3. Test the RAG memory system
 ./tests/memory/test_memory_simple.ps1
 
 # 4. Check system status
 ./tests/memory/memory_system_status.ps1
 ```
 
-## 📋 System Overview
+## 📋 System Overview - RAG Dual-Database Architecture
 
 ### Core Components
-- **Memory API** (`enhanced_memory_api.py`) - Redis + ChromaDB backend
-- **Memory Functions** (`memory_filter_function.py`) - OpenWebUI integration
-- **Main API** (`main.py`) - OpenAI-compatible endpoints
-- **Docker Services** - Redis, ChromaDB, Memory API, OpenWebUI
+- **Memory API** (`enhanced_memory_api.py`) - RAG dual-database backend (Redis + ChromaDB)
+- **Memory Functions** (`memory_filter_function.py`) - OpenWebUI integration with RAG
+- **Main API** (`main.py`) - OpenAI-compatible endpoints with RAG support
+- **Docker Services** - Redis, ChromaDB, Memory API, OpenWebUI with RAG configuration
 
-### Key Features
-- ✅ **Persistent Memory** - Redis + ChromaDB storage
-- ✅ **User Isolation** - Private memory per user
-- ✅ **Semantic Search** - ChromaDB embeddings
-- ✅ **Cross-Chat Memory** - Remember across sessions
-- ✅ **Automatic Injection** - Filter-based context injection
-- ✅ **Fallback Retrieval** - Always provides relevant context
+### Key Features - RAG Enhancement
+- ✅ **RAG Dual-Database** - Redis (short-term) + ChromaDB (long-term) storage
+- ✅ **Importance-Based Routing** - Automatic storage strategy selection
+- ✅ **Explicit Memory Processing** - Handle "remember this" commands
+- ✅ **Semantic Search** - ChromaDB embeddings with retrieval augmentation
+- ✅ **User Isolation** - Private memory per user with cross-session persistence
+- ✅ **Cross-Chat Memory** - Remember across sessions with context augmentation
+- ✅ **Automatic Injection** - Filter-based context injection with RAG
+- ✅ **Fallback Retrieval** - Always provides relevant context with semantic search
+- ✅ **Network Resilience** - Multi-host Docker networking with fallback strategies
 
 ## 📁 Directory Structure
 

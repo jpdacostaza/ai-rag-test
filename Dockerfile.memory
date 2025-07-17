@@ -18,7 +18,7 @@ COPY memory/ /app/memory/
 COPY core/ /app/core/
 COPY utilities/ /app/utilities/
 COPY services/ /app/services/
-COPY scripts/fixed_memory_api.py /app/scripts/fixed_memory_api.py
+COPY scripts/fixed_memory_api_v2.py /app/scripts/fixed_memory_api_v2.py
 COPY config/ /app/config/
 COPY requirements.txt /app/requirements.txt
 
@@ -32,4 +32,4 @@ RUN mkdir -p /app/data
 EXPOSE 5001
 
 # Run the fixed memory API
-CMD ["python", "/app/scripts/fixed_memory_api.py"]
+CMD ["python", "/app/scripts/fixed_memory_api_v2.py"]

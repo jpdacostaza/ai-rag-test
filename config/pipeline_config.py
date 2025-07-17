@@ -25,8 +25,8 @@ PIPELINES_DIR = os.getenv("PIPELINES_DIR", "./pipelines")
 
 def get_config():
     """
-    Get backend configuration for pipeline usage
-    Simplified version for pipeline container with zero-config persistence
+    Get backend configuration for pipeline usage - RAG Architecture
+    Enhanced configuration for RAG dual-database system with zero-config persistence
     """
     return {
         'backend_url': os.getenv('BACKEND_URL', 'http://backend-memory-api:8003'),
@@ -47,5 +47,41 @@ def get_config():
         'database_config': {
             'redis_url': f"redis://{os.getenv('REDIS_HOST', 'backend-redis')}:{os.getenv('REDIS_PORT', '6379')}",
             'chroma_url': f"http://{os.getenv('CHROMA_HOST', 'backend-chroma')}:{os.getenv('CHROMA_PORT', '8000')}"
+        },
+        # RAG System Configuration
+        'rag_config': {
+            'system_version': '2.0.0',
+            'architecture': 'dual_database',
+            'enable_rag_architecture': True,
+            'enable_dual_database': True,
+            'enable_explicit_memory': True,
+            'enable_importance_classification': True,
+            'enable_semantic_search': True,
+            'storage_strategies': {
+                'redis_only': {
+                    'importance_range': (0.0, 0.4),
+                    'ttl': 3600,
+                    'description': 'Short-term memory in Redis only'
+                },
+                'dual_storage': {
+                    'importance_range': (0.5, 0.7),
+                    'ttl': 43200,
+                    'description': 'Medium-term memory in both Redis and ChromaDB'
+                },
+                'chroma_priority': {
+                    'importance_range': (0.8, 1.0),
+                    'ttl': 86400,
+                    'description': 'Long-term memory prioritizing ChromaDB'
+                }
+            },
+            'importance_thresholds': {
+                'short_term': 0.4,
+                'long_term': 0.7
+            },
+            'explicit_memory_triggers': [
+                'remember', 'don\'t forget', 'please remember',
+                'keep in mind', 'note that', 'make sure to remember',
+                'store this', 'save this information', 'memorize'
+            ]
         }
     }
