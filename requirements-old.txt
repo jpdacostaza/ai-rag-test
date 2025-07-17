@@ -1,0 +1,105 @@
+# Core framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Configuration & settings
+pydantic>=2.5.0,<2.12.0    # Pin below 2.12 for LangChain compatibility
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# Security
+bleach>=6.0.0                # HTML sanitization
+PyJWT>=2.8.0                 # JWT token handling
+cryptography>=41.0.0         # Cryptographic operations
+
+# Logging
+structlog>=23.0.0           # Structured logging
+
+# Redis (asyncio built in)
+redis>=4.6.0
+
+# HTTP client
+httpx>=0.25.0
+httpcore>=0.17.0
+aiohttp>=3.8.0
+
+# LLM & RAG
+chromadb>=0.4.24
+sentence-transformers>=2.7.0
+langchain>=0.1.0,<0.3.0    # Compatible version range
+langchain-community>=0.0.13  # Community utilities for LangChain
+langchain-text-splitters>=0.1.0 # Specific text splitter dependency
+
+# Search (Optional - uncomment if implementing DuckDuckGo search)
+duckduckgo-search>=2.10.4
+
+# Wikipedia search
+wikipedia>=1.4.0
+
+# File parsing & data processing
+PyPDF2>=3.0.1              # PDF processing
+python-docx>=0.8.11         # Word document processing
+beautifulsoup4>=4.12.0      # HTML parsing
+Pillow>=10.0.0              # Image processing (if needed)
+openpyxl>=3.1.0             # Excel file processing
+
+# Embedding math (Optional - needed for similarity conversion)
+numpy<2.0.0 # Note: Pinning below 2.0.0 due to potential compatibility issues with some libraries
+# math is a built-in module and does not need to be listed here
+
+# Timezones (Optional - needed for timezone-aware operations)
+backports.zoneinfo ; python_version < "3.9" # For Python versions older than 3.9
+tzdata>=2023.3  # Timezone data for Windows and other systems
+
+# System info (Optional - for get_system_info tool)
+psutil>=5.9.0
+
+# Security (Optional - if you need JWT/etc.)
+# python-jose[cryptography]>=3.2.0
+
+# Multipart/form uploads (Needed for file uploads)
+python-multipart>=0.0.6
+
+# Code execution safety
+RestrictedPython>=6.0  # For safer code execution
+
+# Formatting & linting (Development dependencies - remove for production image)
+# black>=23.9.0
+# autopep8>=2.0.4
+# isort>=5.12.0
+mypy>=1.0.0 # For type checking
+# pytest>=7.0.0 # For running tests
+
+# Optional dev tools (Development dependencies - remove for production image)
+# einops>=0.10.0
+# huggingface-hub>=0.14.1
+
+# Testing dependencies
+pytest>=7.4.0               # Testing framework
+pytest-asyncio>=0.21.0      # Async testing support
+
+# Additional standard library dependencies (explicitly listed for clarity)
+# Note: These are built-in modules but listed for documentation
+# collections, dataclasses, enum, hashlib, pathlib, uuid, contextlib, threading, traceback, etc.
+
+# Web scraping and parsing
+beautifulsoup4>=4.12.0      # Already listed above
+
+# Email and SMTP (for alert manager)
+# smtplib is built-in, email.mime is built-in
+
+# Additional third-party packages
+starlette>=0.27.0           # Web framework (FastAPI dependency)
+tenacity>=8.2.0            # Retry logic
+
+# Additional ML libraries for comprehensive support
+scikit-learn>=1.3.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# JSON optimization
+orjson>=3.9.0
+ujson>=5.8.0
+
+# Development and debugging tools
+requests>=2.31.0           # HTTP client for testing

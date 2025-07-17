@@ -1,31 +1,45 @@
 # Multi-stage Dockerfile for OpenWebUI Enhanced Memory System
 FROM python:3.11-slim AS base
 
-# Set environment variables for consistent behavior
+# Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FORCE_CPU_ONLY=1
 ENV TOKENIZERS_PARALLELISM=false
-ENV OMP_NUM_THREADS=1
-ENV MKL_NUM_THREADS=1
-ENV NUMEXPR_NUM_THREADS=1
-ENV NUMBA_DISABLE_CUDA=1
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PIP_DEFAULT_TIMEOUT=1000
 
-# Create application user for security
+# Create application user
 RUN groupadd -r appuser && useradd -r -g appuser -u 1000 -m -d /home/appuser appuser
 
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gcc \
-    sqlite3 \
-    libsqlite3-0 \
-    && rm -rf /var/lib/apt/lists/*
+    gcc g++ make python3-dev build-essential \
+    libffi-dev libssl-dev zlib1g-dev \
+    libc6-dev pkg-config sqlite3 libsqlite3-dev \
+    curl && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy and install Python dependencies
+# Copy requirements
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Python packages
+RUN python -m pip install --upgrade pip==23.3.1 wheel setuptools
+
+# Install PyTorch first
+RUN python -m pip install --timeout=1000 --retries=10 \
+    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Install other packages
+RUN python -m pip install --timeout=1000 --retries=10 -r requirements.txt
+
+# Copy application
+COPY . .
+RUN chown -R appuser:appuser /app
+
+USER appuser
 
 # Copy common files
 COPY human_logging.py error_handler.py config.py ./
