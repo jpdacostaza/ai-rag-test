@@ -19,13 +19,19 @@ Usage:
 """
 
 import time
-import psutil
 import asyncio
 from typing import Optional, Dict, Any, Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 from core.logging_config import get_logger, get_correlation_id
+
+# Optional psutil import for performance monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 
 class PerformanceMiddleware(BaseHTTPMiddleware):
@@ -43,9 +49,17 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
     def __init__(self, app, enable_memory_tracking: bool = True, enable_cpu_tracking: bool = True):
         super().__init__(app)
         self.logger = get_logger(__name__)
-        self.enable_memory_tracking = enable_memory_tracking
-        self.enable_cpu_tracking = enable_cpu_tracking
-        self.process = psutil.Process() if (enable_memory_tracking or enable_cpu_tracking) else None
+        self.enable_memory_tracking = enable_memory_tracking and PSUTIL_AVAILABLE
+        self.enable_cpu_tracking = enable_cpu_tracking and PSUTIL_AVAILABLE
+        self.process = None
+        
+        if PSUTIL_AVAILABLE and (enable_memory_tracking or enable_cpu_tracking):
+            try:
+                self.process = psutil.Process()
+            except Exception:
+                self.logger.warning("Failed to initialize psutil.Process, performance monitoring disabled")
+                self.enable_memory_tracking = False
+                self.enable_cpu_tracking = False
         
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process request with performance monitoring."""

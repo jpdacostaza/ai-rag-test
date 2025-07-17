@@ -66,22 +66,21 @@ def main():
     print("FOCUSED MEMORY TEST RUNNER")
     print("=" * 60)
     
-    # Working directory is now tests/
-    tests_dir = Path(".")
+    backend_dir = Path("e:/Projects/opt/backend")
     
     # Focus on tests that are most likely to work
     priority_tests = [
-        "test_memory_function.py",
-        "test_memory_service_endpoints.py", 
-        "test_memory_service_validation.py"
+        "tests/test_memory_function.py",
+        "tests/test_memory_service_endpoints.py", 
+        "tests/test_memory_service_validation.py"
     ]
     
     # Additional tests to try (if priority tests pass)
     additional_tests = [
         "test_memory_localhost.py",
         "test_memory_final.py",
-        "test_enhanced_memory.py",
-        "test_memory_service_basic.py"
+        "tests/test_enhanced_memory.py",
+        "tests/test_memory_service_basic.py"
     ]
     
     results = []
@@ -90,7 +89,7 @@ def main():
     
     # Run priority tests first
     for test_path_str in priority_tests:
-        test_path = tests_dir / test_path_str
+        test_path = backend_dir / test_path_str
         if test_path.exists():
             success, duration = run_test(test_path)
             results.append((test_path.name, success, duration))
@@ -108,7 +107,7 @@ def main():
         print(f"\nRunning {len(additional_tests)} additional tests...")
         
         for test_path_str in additional_tests:
-            test_path = tests_dir / test_path_str
+            test_path = backend_dir / test_path_str
             if test_path.exists():
                 success, duration = run_test(test_path)
                 results.append((test_path.name, success, duration))
@@ -144,7 +143,7 @@ def main():
                 print(f"  - {name} ({duration:.2f}s)")
     
     # Save simple report
-    report_path = Path("../logs/focused_memory_test_report.md")
+    report_path = backend_dir / "logs" / "focused_memory_test_report.md"
     report_path.parent.mkdir(exist_ok=True)
     
     with open(report_path, 'w', encoding='utf-8') as f:

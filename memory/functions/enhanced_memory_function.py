@@ -1,6 +1,6 @@
 """
-Enhanced Memory Function for OpenWebUI - RAG Architecture
-Provides intelligent memory storage and retrieval across conversations using dual-database RAG system
+Enhanced Memory Function for OpenWebUI
+Provides intelligent memory storage and retrieval across conversations
 """
 
 import json
@@ -12,31 +12,31 @@ from datetime import datetime
 
 
 class MemoryFunction:
-    """Enhanced memory function for OpenWebUI integration with RAG dual-database architecture"""
+    """Enhanced memory function for OpenWebUI integration"""
     
     def __init__(self):
-        self.name = "Enhanced Memory Function - RAG"
-        self.description = "Stores and retrieves user context and memories using RAG dual-database system (Redis + ChromaDB)"
-        self.version = "2.0.0"
+        self.name = "Enhanced Memory Function"
+        self.description = "Stores and retrieves user context and memories across conversations"
+        self.version = "1.0.0"
         
     def get_function_definition(self) -> Dict[str, Any]:
-        """Get the OpenWebUI function definition for RAG architecture"""
+        """Get the OpenWebUI function definition"""
         return {
-            "id": "enhanced_memory_rag",
-            "name": "Enhanced Memory RAG",
-            "description": "Intelligent memory storage and retrieval using RAG dual-database system for persistent conversations",
+            "id": "enhanced_memory",
+            "name": "Enhanced Memory",
+            "description": "Intelligent memory storage and retrieval for persistent conversations",
             "type": "function",
             "spec": {
                 "type": "function",
                 "function": {
-                    "name": "process_memory_rag",
-                    "description": "Process user messages to store memories and inject relevant context using RAG architecture",
+                    "name": "process_memory",
+                    "description": "Process user messages to store memories and inject relevant context",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "content": {
                                 "type": "string",
-                                "description": "The content to process for memory storage with importance classification"
+                                "description": "The content to process for memory storage"
                             },
                             "user_id": {
                                 "type": "string", 
@@ -44,11 +44,7 @@ class MemoryFunction:
                             },
                             "metadata": {
                                 "type": "object",
-                                "description": "Additional metadata for the memory including importance level"
-                            },
-                            "importance": {
-                                "type": "number",
-                                "description": "Importance level (0.0-1.0) for storage strategy selection"
+                                "description": "Additional metadata for the memory"
                             }
                         },
                         "required": ["content"]

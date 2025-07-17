@@ -24,23 +24,10 @@ WORKDIR /opt/backend
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        gcc g++ make python3-dev build-essential \
-        libffi-dev libssl-dev zlib1g-dev \
-        libc6-dev pkg-config sqlite3 libsqlite3-dev \
-        curl && \
+        curl sqlite3 libsqlite3-0 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./requirements.txt
-
-# Install Python packages with proper pip configuration
-RUN python -m pip install --upgrade pip==23.3.1 wheel setuptools
-
-# Install PyTorch CPU-only first
-RUN python -m pip install --timeout=1000 --retries=10 \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Install other packages
-RUN python -m pip install --timeout=1000 --retries=10 -r requirements.txt
 
 # Install CPU-only PyTorch first to prevent CUDA versions
 RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu

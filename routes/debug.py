@@ -5,7 +5,6 @@ Debug routes for development and monitoring
 from fastapi import APIRouter, Request, Depends
 from typing import Dict, Any
 from datetime import datetime
-import psutil
 import sys
 
 from services.dependencies import get_cache_service, get_redis_service, get_vector_service
@@ -91,18 +90,32 @@ async def get_all_service_stats(
 
 @debug_router.get("/memory")
 async def get_memory_usage() -> Dict[str, Any]:
-    """Get memory usage statistics"""
+    """Get memory usage statistics without psutil"""
     try:
-        process = psutil.Process()
-        memory_info = process.memory_info()
+        import os
+        import resource
+        
+        # Get basic memory info
+        pid = os.getpid()
+        
+        # Use resource module for basic memory info
+        try:
+            memory_info = resource.getrusage(resource.RUSAGE_SELF)
+            memory_mb = memory_info.ru_maxrss / 1024  # Convert to MB (on Linux)
+            if sys.platform == "darwin":  # macOS
+                memory_mb = memory_info.ru_maxrss / 1024 / 1024
+            elif sys.platform == "win32":  # Windows
+                memory_mb = memory_info.ru_maxrss / 1024
+        except:
+            memory_mb = 0
 
         return {
-            "memory_usage_mb": round(memory_info.rss / 1024 / 1024, 2),
-            "memory_percent": round(process.memory_percent(), 2),
-            "cpu_percent": round(process.cpu_percent(interval=0.1), 2),
-            "threads": process.num_threads(),
+            "memory_usage_mb": round(memory_mb, 2),
+            "memory_percent": 0,  # Basic implementation
+            "cpu_percent": 0,     # Basic implementation
+            "threads": 1,         # Basic implementation
             "python_version": sys.version,
-            "pid": process.pid,
+            "pid": pid,
         }
     except Exception as e:
         return {"error": str(e), "message": "Failed to get memory usage"}

@@ -150,7 +150,6 @@
       ],
       "embedding_model": "nomic-embed-text:latest",
       "memory_threshold": 0.01,
-      "fallback_llms": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"],
       "api_support": ["ollama", "openai_compatible"],
       "auto_download": true,
       "model_selection": "automatic_best_fit",

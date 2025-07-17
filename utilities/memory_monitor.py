@@ -3,7 +3,6 @@ Memory pressure monitoring and management system.
 """
 
 import os
-import psutil
 import asyncio
 from typing import Callable, List, Optional
 from datetime import datetime
@@ -71,19 +70,82 @@ class MemoryPressureMonitor:
                 await asyncio.sleep(self.check_interval)
 
     def _get_memory_info(self):
-        """Get current memory usage information."""
-        vm = psutil.virtual_memory()
-        swap = psutil.swap_memory()
-
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "memory_percent": vm.percent,
-            "memory_available": vm.available,
-            "memory_used": vm.used,
-            "memory_total": vm.total,
-            "swap_percent": swap.percent,
-            "swap_used": swap.used,
-            "swap_total": swap.total,
+        """Get current memory usage information using basic OS methods."""
+        try:
+            # Use basic memory info without psutil
+            import platform
+            system = platform.system()
+            
+            if system == "Windows":
+                # Windows basic memory info
+                import ctypes
+                kernel32 = ctypes.windll.kernel32
+                c_ulong = ctypes.c_ulong
+                
+                class MEMORYSTATUSEX(ctypes.Structure):
+                    _fields_ = [
+                        ('dwLength', c_ulong),
+                        ('dwMemoryLoad', c_ulong),
+                        ('ullTotalPhys', ctypes.c_ulonglong),
+                        ('ullAvailPhys', ctypes.c_ulonglong),
+                        ('ullTotalPageFile', ctypes.c_ulonglong),
+                        ('ullAvailPageFile', ctypes.c_ulonglong),
+                        ('ullTotalVirtual', ctypes.c_ulonglong),
+                        ('ullAvailVirtual', ctypes.c_ulonglong),
+                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong),
+                    ]
+                
+                stat = MEMORYSTATUSEX()
+                stat.dwLength = ctypes.sizeof(stat)
+                kernel32.GlobalMemoryStatusEx(ctypes.byref(stat))
+                
+                return {
+                    "timestamp": datetime.now().isoformat(),
+                    "memory_percent": stat.dwMemoryLoad,
+                    "memory_available": stat.ullAvailPhys,
+                    "memory_used": stat.ullTotalPhys - stat.ullAvailPhys,
+                    "memory_total": stat.ullTotalPhys,
+                    "swap_percent": 0,  # Basic implementation
+                    "swap_used": 0,
+                    "swap_total": 0,
+                }
+            else:
+                # Unix-like systems - basic implementation
+                with open('/proc/meminfo', 'r') as f:
+                    meminfo = f.read()
+                
+                lines = meminfo.strip().split('\n')
+                info = {}
+                for line in lines:
+                    if ':' in line:
+                        key, value = line.split(':', 1)
+                        info[key.strip()] = value.strip()
+                
+                total = int(info.get('MemTotal', '0').split()[0]) * 1024
+                available = int(info.get('MemAvailable', '0').split()[0]) * 1024
+                used = total - available
+                
+                return {
+                    "timestamp": datetime.now().isoformat(),
+                    "memory_percent": (used / total) * 100 if total > 0 else 0,
+                    "memory_available": available,
+                    "memory_used": used,
+                    "memory_total": total,
+                    "swap_percent": 0,  # Basic implementation
+                    "swap_used": 0,
+                    "swap_total": 0,
+                }
+        except Exception as e:
+            logger.warning(f"Failed to get memory info: {e}")
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "memory_percent": 0,
+                "memory_available": 0,
+                "memory_used": 0,
+                "memory_total": 0,
+                "swap_percent": 0,
+                "swap_used": 0,
+                "swap_total": 0,
         }
 
     async def _check_memory_pressure(self, memory_info: dict):

@@ -89,7 +89,6 @@
       "available_models": ["mistral:7b-instruct-v0.3-q4_k_m", "llama3.2:3b", "llama3.2:1b"],
       "embedding_model": "all-MiniLM-L6-v2",
       "memory_threshold": 0.01,
-      "fallback_llms": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo", "gpt-4o", "gpt-4o-mini"],
       "api_support": ["ollama", "openai_compatible"],
       "auto_download": true,
       "status": "optimized_for_memory"

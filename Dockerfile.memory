@@ -5,22 +5,13 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc g++ make python3-dev build-essential \
-    libffi-dev libssl-dev zlib1g-dev \
-    libc6-dev pkg-config sqlite3 libsqlite3-dev \
-    curl && \
-    rm -rf /var/lib/apt/lists/*
+    gcc \
+    curl \
+    sqlite3 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies with proper pip configuration
-RUN python -m pip install --upgrade pip==23.3.1 wheel setuptools
-
-# Install PyTorch CPU-only first
-RUN python -m pip install --timeout=1000 --retries=10 \
-    torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-
-# Install FastAPI and core dependencies
-RUN python -m pip install --timeout=1000 --retries=10 \
-    fastapi uvicorn[standard] python-multipart pydantic redis chromadb requests httpx aiofiles
+# Install Python dependencies first
+RUN pip install fastapi uvicorn[standard] python-multipart pydantic redis chromadb requests httpx aiofiles
 
 # Copy all necessary files for the memory API
 COPY memory/ /app/memory/
@@ -32,7 +23,7 @@ COPY config/ /app/config/
 COPY requirements.txt /app/requirements.txt
 
 # Install dependencies from requirements.txt
-RUN python -m pip install --timeout=1000 --retries=10 -r requirements.txt
+RUN pip install -r requirements.txt
 
 # Create data directory
 RUN mkdir -p /app/data

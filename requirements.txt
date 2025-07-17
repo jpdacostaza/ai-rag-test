@@ -1,69 +1,84 @@
-# Core FastAPI framework
+# ===============================================================================
+# Unified Requirements - Zero-Config Environment
+# All dependencies consolidated for container persistence
+# ===============================================================================
+
+# Core Web Framework
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
+starlette>=0.27.0
 
-# Configuration and validation
+# Configuration & Settings
 pydantic>=2.5.0,<2.12.0
 pydantic-settings>=2.0.0
 python-dotenv>=1.0.0
 
-# Security and authentication
+# Security & Authentication
 bleach>=6.0.0
 PyJWT>=2.8.0
 cryptography>=41.0.0
-bcrypt>=4.0.0
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
 
-# Database and storage
+# Logging & Monitoring
+structlog>=23.0.0
+
+# Database & Storage
 redis>=4.6.0
-aiosqlite>=0.19.0
-sqlalchemy>=2.0.0
-alembic>=1.13.0
+chromadb>=0.4.24
 
-# HTTP clients
+# HTTP Clients & Network
 httpx>=0.25.0
 httpcore>=0.17.0
 aiohttp>=3.8.0
 requests>=2.31.0
 
-# AI/ML frameworks (PyTorch handled separately in Dockerfile)
-chromadb>=0.4.24
-sentence-transformers>=2.7.0
+# LLM & RAG Framework
 langchain>=0.1.0,<0.3.0
 langchain-community>=0.0.13
-transformers>=4.30.0,<5.0.0
-tokenizers>=0.13.0,<0.16.0
-huggingface-hub>=0.16.0
-datasets>=2.12.0
+langchain-text-splitters>=0.1.0
+langchain-openai>=0.0.5
+sentence-transformers>=2.7.0
 
-# Scientific computing
-numpy>=1.24.0,<2.0.0
-pandas>=2.0.0
-scipy>=1.11.0
+# Search & Web Scraping
+duckduckgo-search>=2.10.4
+wikipedia>=1.4.0
+beautifulsoup4>=4.12.0
+
+# File Processing
+PyPDF2>=3.0.1
+python-docx>=0.8.11
+openpyxl>=3.1.0
+python-multipart>=0.0.6
+
+# Image Processing
+Pillow>=10.0.0
+
+# Mathematical & Scientific Computing
+numpy<2.0.0
 scikit-learn>=1.3.0
+
+# Data Visualization (Optional)
 matplotlib>=3.7.0
 seaborn>=0.12.0
 
-# System and utilities
-psutil>=5.9.0
-python-multipart>=0.0.6
-asyncio-mqtt>=0.13.0
-tenacity>=8.2.0
-starlette>=0.27.0
-
-# Logging and monitoring
-loguru>=0.7.0
-structlog>=23.0.0
-
-# Data serialization
+# JSON Optimization
 orjson>=3.9.0
 ujson>=5.8.0
-pyyaml>=6.0
 
-# Web scraping (if needed)
-beautifulsoup4>=4.12.0
+# Code Execution Safety
+RestrictedPython>=6.0
 
-# Testing
+# Utility Libraries
+tenacity>=8.2.0
+tzdata>=2023.3
+
+# Testing Framework
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+pytest-html>=3.1.0
+pytest-cov>=4.0.0
+
+# Type Checking
+mypy>=1.0.0
+
+# Additional Dependencies
+PyYAML>=6.0.0

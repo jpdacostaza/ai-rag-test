@@ -25,7 +25,6 @@ from dataclasses import dataclass, asdict
 import uuid
 import random
 import concurrent.futures
-import psutil
 import os
 
 # Configure advanced logging with multiple handlers
@@ -119,13 +118,24 @@ class EnhancedSystemTest:
         logger.info(f"Enhanced test session ended: {self.test_session_id}")
 
     def capture_system_metrics(self) -> Dict[str, float]:
-        """Capture current system performance metrics"""
+        """Capture current system performance metrics without psutil"""
         try:
+            import resource
+            import shutil
+            
+            # Basic system metrics without psutil
+            memory_info = resource.getrusage(resource.RUSAGE_SELF)
+            memory_mb = memory_info.ru_maxrss / 1024  # Convert to MB
+            
+            # Disk usage
+            disk_usage = shutil.disk_usage('/' if os.name != 'nt' else 'C:')
+            disk_percent = (disk_usage.used / disk_usage.total) * 100
+            
             return {
-                'memory_usage_mb': psutil.virtual_memory().used / 1024 / 1024,
-                'cpu_usage_percent': psutil.cpu_percent(),
-                'disk_usage_percent': psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
-                'network_connections': len(psutil.net_connections())
+                'memory_usage_mb': memory_mb,
+                'cpu_usage_percent': 0,  # Basic implementation
+                'disk_usage_percent': disk_percent,
+                'network_connections': 0  # Basic implementation
             }
         except Exception as e:
             logger.warning(f"Could not capture system metrics: {e}")
