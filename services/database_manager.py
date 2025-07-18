@@ -20,11 +20,9 @@ from sentence_transformers import SentenceTransformer
 from numpy.typing import NDArray
 import numpy as np
 
-from core.error_handler import RedisConnectionHandler, MemoryErrorHandler, safe_execute
+from core.error_handler import RedisConnectionHandler
 from core.logging_config import get_logger, log_service_status
 from utilities.validation import DatabaseConfig, ChatMessage, validate_query_params
-from utilities.memory_pool import MemoryPool
-from utilities.memory_monitor import MemoryPressureMonitor
 from utilities.cache_manager import CacheManager
 from utilities.ai_tools import chunk_text
 from utilities.connection_factory import (
@@ -35,14 +33,19 @@ from utilities.connection_factory import (
     ChromaConfig
 )
 
-# Import error handling patterns for database operations
-try:
+# Use feature registry for error patterns
+from utilities.feature_registry import register_import_attempt
+
+ERROR_PATTERNS_AVAILABLE = register_import_attempt(
+    'error_patterns', 
+    lambda: __import__('utilities.error_patterns', fromlist=['handle_database_errors']),
+    'Error handling patterns'
+)
+if ERROR_PATTERNS_AVAILABLE:
     from utilities.error_patterns import (
-        handle_database_errors, handle_service_errors, handle_cache_errors
+        handle_database_errors, handle_service_errors, handle_cache_errors, handle_memory_errors
     )
-    ERROR_PATTERNS_AVAILABLE = True
-except ImportError:
-    ERROR_PATTERNS_AVAILABLE = False
+else:
     # Simple fallback decorators following best practices
     
     def handle_database_errors(func):
@@ -75,28 +78,33 @@ except ImportError:
                 return None
         return wrapper
 
-    def handle_cache_errors(operation_name=None):
-        """Handle errors in cache functions with optional operation name parameter."""
+    def handle_memory_errors(operation_name=None):
+        """Handle errors in memory functions with optional operation name parameter."""
         def decorator(func):
             @functools.wraps(func)
-            async def wrapper(*args, **kwargs):
+            def wrapper(*args, **kwargs):
                 try:
-                    return await func(*args, **kwargs)
+                    return func(*args, **kwargs)
                 except Exception as e:
                     op_name = operation_name or func.__name__
                     logger = get_logger(__name__)
                     logger.error(
-                        "Cache error",
+                        "Memory error",
                         extra={"operation": op_name, "error": str(e)}
                     )
-                    return None
+                    return False if "index" in op_name else []
             return wrapper
         return decorator
 
-# Alert manager integration
-try:
+# Alert manager integration using feature registry
+ALERT_MANAGER_AVAILABLE = register_import_attempt(
+    'alert_manager', 
+    lambda: __import__('utilities.alert_manager', fromlist=['alert_memory_pressure']),
+    'Alert management system'
+)
+if ALERT_MANAGER_AVAILABLE:
     from utilities.alert_manager import alert_memory_pressure, alert_service_down
-except ImportError:
+else:
     # Fallback if alert manager is not available
     async def alert_memory_pressure(percentage: float, component: str = "database"):
         pass
@@ -271,9 +279,7 @@ class DatabaseManager:
         # Connection factory for centralized connection management
         self.connection_factory = get_connection_factory()
 
-        # Memory management
-        self.memory_pool = MemoryPool(max_size=1000)
-        self.memory_monitor = MemoryPressureMonitor(warning_threshold=75.0, critical_threshold=90.0)
+        # Cache management
         self.cache_manager = CacheManager[Any](max_size=10000)
 
         # Locks for thread-safe operations
@@ -1052,20 +1058,22 @@ async def get_database_health() -> Dict[str, Any]:
         "stats": cache_stats,
     }
 
-    # Add alert manager statistics
-    try:
-        from utilities.alert_manager import get_alert_manager
+    # Add alert manager statistics using feature registry
+    if ALERT_MANAGER_AVAILABLE:
+        try:
+            from utilities.alert_manager import get_alert_manager
 
-        alert_manager = get_alert_manager()
-        alert_stats = alert_manager.get_alert_stats()
-        health_status["alerts"] = {
-            "status": "healthy",
-            "details": f"Alert system operational - {alert_stats['total_alerts']} total alerts",
-            "stats": alert_stats,
-        }
-    except Exception as e:
-        health_status["alerts"] = {"status": "degraded", "details": f"Alert system error: {str(e)}"}
-
+            alert_manager = get_alert_manager()
+            alert_stats = alert_manager.get_alert_stats()
+            health_status["alerts"] = {
+                "status": "healthy",
+                "details": f"Alert system operational - {alert_stats['total_alerts']} total alerts",
+                "stats": alert_stats,
+            }
+        except Exception as e:
+            health_status["alerts"] = {"status": "degraded", "details": f"Alert system error: {str(e)}"}
+    else:
+        health_status["alerts"] = {"status": "unavailable", "details": "Alert manager not available"}
     return health_status
 
 
@@ -1232,7 +1240,17 @@ async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bo
     await db_manager.ensure_initialized()
 
     def store_operation(redis_client: redis.Redis) -> bool:
-        """TODO: Add proper docstring for store_operation."""
+        """Store chat history messages in Redis.
+        
+        Stores the complete chat history for a given chat ID in Redis,
+        clearing any existing history first.
+        
+        Args:
+            redis_client: Redis client instance for operations
+            
+        Returns:
+            bool: True if storage was successful, False otherwise
+        """
         chat_key = f"chat:{chat_id}"
         # Clear existing history
         redis_client.delete(chat_key)
@@ -1373,6 +1391,7 @@ async def index_document_chunks(user_id: str, doc_id: str, name: str, chunks: Li
         return False
 
 
+@handle_memory_errors("index_document_chunks")
 def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
     """Embed and index a list of pre-chunked text documents for a user in chromadb.
     
@@ -1391,10 +1410,11 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
         """Index document chunks in ChromaDB.
         
         Embeds and stores document chunks in ChromaDB for the specified user,
-        with appropriate metadata for retrieval.
+        with appropriate metadata for retrieval. Handles embedding generation
+        and ChromaDB storage operations with proper error handling.
         
         Returns:
-            True if indexing was successful, False otherwise
+            bool: True if indexing was successful, False otherwise
         """
         if not db_manager.is_chromadb_available():
             logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
@@ -1427,10 +1447,7 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
             logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
             raise e
 
-    return safe_execute(
-        _index_op,
-        fallback_value=False,
-        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "index_chunks", user_id, request_id))
+    return _index_op()
 
 
 def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):
@@ -1460,6 +1477,7 @@ def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000
     return index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id)
 
 
+@handle_memory_errors("retrieve_user_memory")
 def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, request_id=""):
     """Retrieve relevant memory chunks for a user from chromadb.
     
@@ -1480,10 +1498,13 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         """Retrieve relevant memory chunks for a user from ChromaDB.
         
         Searches for memory chunks relevant to the specified query embedding
-        and formats the results for use in the application.
+        and formats the results for use in the application. Includes user
+        profile information when available and handles various embedding
+        formats properly.
         
         Returns:
-            List of formatted memory results with documents, metadata, and similarity scores
+            List[Dict]: List of formatted memory results with documents, 
+                       metadata, and similarity scores
         """
         try:
             # Synchronous check for ChromaDB availability
@@ -1573,10 +1594,7 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
         logging.info(f"[MEMORY] 📋 Returning {len(formatted_results)} formatted results")
         return formatted_results
 
-    return safe_execute(
-        _retrieve_memory,
-        fallback_value=[],
-        error_handler=lambda e: MemoryErrorHandler.handle_memory_error(e, "retrieve", user_id, request_id))
+    return _retrieve_memory()
 
 
 def get_embedding_sync(db_manager, text, request_id=""):
@@ -1596,10 +1614,12 @@ def get_embedding_sync(db_manager, text, request_id=""):
         """Generate an embedding vector for the given text using the embedding model.
         
         Converts text to a numerical embedding vector using the available
-        embedding model in the database manager.
+        embedding model in the database manager. Handles different embedding
+        model types and formats properly.
         
         Returns:
-            A numerical embedding vector if successful, None otherwise
+            Union[List[float], NDArray, None]: A numerical embedding vector 
+                                             if successful, None otherwise
         """
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")

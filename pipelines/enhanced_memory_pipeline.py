@@ -107,19 +107,18 @@ try:
         'WEB_SEARCH_TIMEOUT': int(os.getenv('WEB_SEARCH_TIMEOUT', '10'))
     }
     
-    # Try to load enhanced config if available
+    # Load unified configuration (no fallbacks)
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("backend_config", "/app/config/config.py")
+        spec = importlib.util.spec_from_file_location("backend_config", "/app/config/config_unified.py")
         config_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(config_module)
         enhanced_config = config_module.get_config()
-        config.update(enhanced_config)  # Merge with enhanced config
-        print("[MEMORY PIPELINE INFO] Backend config loaded successfully")
+        config.update(enhanced_config)  # Use unified config
+        print("[MEMORY PIPELINE INFO] Unified config loaded successfully")
     except Exception as e:
-        print(f"[MEMORY PIPELINE INFO] Using basic config, enhanced config unavailable: {e}")
-    
-    print("[MEMORY PIPELINE INFO] Using minimal fallback config")
+        print(f"[MEMORY PIPELINE ERROR] Failed to load unified config: {e}")
+        raise  # No fallback - configuration is required
 except Exception as e:
     print(f"[MEMORY PIPELINE ERROR] Config initialization failed: {e}")
 
@@ -822,11 +821,26 @@ class Pipeline:
             self.log(f"Error storing memory for user {user_id[:8]}...: {str(e)}", "ERROR")
             return False
 
-    async def __del__(self):
+    def __del__(self):
         """Cleanup when pipeline is destroyed."""
+        try:
+            if hasattr(self, 'api_client') and self.api_client:
+                # Note: Cannot await in __del__, so we schedule cleanup for the event loop
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(self._async_cleanup())
+                except RuntimeError:
+                    # No event loop running, cleanup synchronously
+                    self.log("Pipeline cleanup skipped - no event loop", "WARNING")
+        except Exception as cleanup_error:
+            print(f"[MEMORY PIPELINE ERROR] Cleanup failed: {cleanup_error}")  # Use print since log may not be available
+
+    async def _async_cleanup(self):
+        """Perform async cleanup operations."""
         try:
             if hasattr(self, 'api_client') and self.api_client:
                 await self.api_client.close()
                 self.log("Pipeline cleanup completed", "INFO")
         except Exception as cleanup_error:
-            print(f"[MEMORY PIPELINE ERROR] Cleanup failed: {cleanup_error}")  # Use print since log may not be available
+            self.log(f"Async cleanup failed: {cleanup_error}", "ERROR")

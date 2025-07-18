@@ -10,29 +10,31 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, UploadFile
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
-# Add PDF processing capability
-try:
-    import PyPDF2
-    PDF_PROCESSING_AVAILABLE = True
-except ImportError:
-    PDF_PROCESSING_AVAILABLE = False
-    logging.warning("PyPDF2 not available - PDF processing disabled")
+# Import feature registry for better dependency tracking
+from utilities.feature_registry import feature_registry, register_import_attempt
+
+# Register PDF processing capability
+PDF_PROCESSING_AVAILABLE = register_import_attempt(
+    "pdf_processing",
+    lambda: __import__("PyPDF2"),
+    "PDF document processing for RAG ingestion"
+)
 
 from services.database_manager import db_manager
 from services.database_manager import get_embedding, index_document_chunks
-from core.error_handler import MemoryErrorHandler, safe_execute, log_error
+from core.error_handler import log_error
+from utilities.simple_error_handling import handle_api_errors
 from core.logging_config import get_logger
 
 logger = get_logger(__name__)
 from utilities.error_patterns import handle_service_errors, handle_api_errors, ErrorHandlerConfig
 
-# Import memory service with fallback
-try:
-    from services.memory_service import MemoryService
-    MEMORY_SERVICE_AVAILABLE = True
-except ImportError:
-    MemoryService = None
-    MEMORY_SERVICE_AVAILABLE = False
+# Register memory service availability
+MEMORY_SERVICE_AVAILABLE = register_import_attempt(
+    "memory_service",
+    lambda: __import__("services.memory_service", fromlist=["MemoryService"]),
+    "Enhanced memory service for conversation tracking"
+)
 
 
 # RAG configuration constants
@@ -84,6 +86,7 @@ class RAGProcessor:
             raise Exception("PDF processing not available - PyPDF2 not installed")
         
         import io
+        import PyPDF2  # Import here after availability check
         pdf_file = io.BytesIO(file_content)
         pdf_reader = PyPDF2.PdfReader(pdf_file)
         
@@ -179,11 +182,11 @@ class RAGProcessor:
         logging.info(f"[RAG] Extracted {len(text)} characters from {file.filename}")
 
         # Split into chunks with error handling
-        chunks = await safe_execute(
-        lambda: self.text_splitter.split_text(text),
-            fallback_value=[],
-            error_handler=lambda e: log_error(e, f"Failed to split text from {file.filename}")
-        )
+        try:
+            chunks = self.text_splitter.split_text(text)
+        except Exception as e:
+            log_error(e, f"Failed to split text from {file.filename}")
+            chunks = []
 
         if not chunks:
             logger.error(f"No chunks created from {file.filename}")
@@ -210,12 +213,12 @@ class RAGProcessor:
                 name=file.filename,
                 chunks=chunks)
         
-        # Use safe_execute for the indexing operation
-        success = await safe_execute(
-            index_document,
-            fallback_value=False,
-            error_handler=lambda e: log_error(e, f"Failed to index chunks for {file.filename}")
-        )
+        # Index chunks with error handling
+        try:
+            success = await index_document()
+        except Exception as e:
+            log_error(e, f"Failed to index chunks for {file.filename}")
+            success = False
 
         success_count = len(chunks) if success else 0
 

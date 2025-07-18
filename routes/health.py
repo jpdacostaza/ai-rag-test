@@ -17,6 +17,7 @@ from models.models import HealthResponse, DetailedHealthResponse
 from utilities.watchdog import get_watchdog, get_health_status
 from services.storage_manager import StorageManager
 from utilities.simple_error_handling import handle_api_errors, handle_errors
+from utilities.feature_registry import feature_registry
 
 health_router = APIRouter()
 
@@ -381,4 +382,14 @@ async def liveness_check():
         "alive": True, 
         "timestamp": datetime.now().isoformat(),
         "uptime_seconds": time.time() - get_app_start_time()
+    }
+
+
+@health_router.get("/health/features")
+async def feature_status():
+    """Get status of all optional features and dependencies."""
+    return {
+        "features": feature_registry.get_all_features(),
+        "summary": feature_registry.get_health_summary(),
+        "timestamp": datetime.now().isoformat()
     }

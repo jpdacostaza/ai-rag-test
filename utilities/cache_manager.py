@@ -9,21 +9,36 @@ import asyncio
 
 # Add logging import
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-try:
+
+# Import feature registry for better dependency tracking  
+from utilities.feature_registry import feature_registry, register_import_attempt
+
+# Register logging service availability
+LOGGING_SERVICE_AVAILABLE = register_import_attempt(
+    "logging_service",
+    lambda: __import__("core.logging_config", fromlist=["log_service_status"]),
+    "Service status logging for cache operations"
+)
+
+if LOGGING_SERVICE_AVAILABLE:
     from core.logging_config import log_service_status
-except ImportError:
-    # Fallback if logging is not available
+else:
     def log_service_status(service: str, status: str, details: str = "") -> None:
-        """TODO: Add proper docstring for log_service_status."""
+        """Fallback logging function when service logging unavailable."""
         pass
 
+# Register alert manager availability
+ALERT_MANAGER_AVAILABLE = register_import_attempt(
+    "alert_manager",
+    lambda: __import__("utilities.alert_manager", fromlist=["alert_cache_performance"]),
+    "Performance alerting for cache hit rates"
+)
 
-# Alert manager integration
-try:
+if ALERT_MANAGER_AVAILABLE:
     from utilities.alert_manager import alert_cache_performance
-except ImportError:
-    # Fallback if alert manager is not available
+else:
     async def alert_cache_performance(hit_rate: float, component: str = "cache"):
+        """Fallback alert function when alert manager unavailable."""
         pass
 
 

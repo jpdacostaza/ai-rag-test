@@ -11,6 +11,7 @@ This module implements self-learning capabilities including:
 """
 
 import asyncio
+import logging
 import time
 from collections import defaultdict
 from collections import deque
@@ -23,7 +24,7 @@ from typing import List
 from typing import Optional
 
 from services.database_manager import db_manager, get_embedding_sync, index_document_chunks
-from core.error_handler import MemoryErrorHandler
+from utilities.simple_error_handling import handle_service_errors
 from core.logging_config import log_service_status
 
 
@@ -338,7 +339,7 @@ class AdaptiveLearningSystem:
 
         except Exception as e:
             log_service_status("LEARNING", "error", f"Interaction processing failed for user {user_id}: {e}")
-            MemoryErrorHandler.handle_memory_error(e, "adaptive_learning", user_id)
+            logging.error(f"Adaptive learning error for user {user_id}: {e}")
             return {"status": "error", "reason": str(e)}
 
     async def get_user_insights(self, user_id: str) -> Dict[str, Any]:
@@ -415,7 +416,7 @@ class AdaptiveLearningSystem:
 
         except Exception as e:
             log_service_status("LEARNING", "error", f"Error adding document to memory for user {user_id}: {e}")
-            MemoryErrorHandler.handle_memory_error(e, "add_document_to_memory", user_id)
+            logging.error(f"Error adding document to memory for user {user_id}: {e}")
             raise
 
     async def _update_learning_patterns(self, user_id: str, metrics: InteractionMetrics):

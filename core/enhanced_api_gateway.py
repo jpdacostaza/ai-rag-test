@@ -32,13 +32,12 @@ from urllib.parse import urlparse, parse_qs
 # Import our security middleware
 from middleware.security_middleware import SecurityMiddleware, SecurityConfig
 
-# Configure comprehensive logging
+# Configure logging for containerized environment (console only)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler(f'enhanced_api_gateway_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log', encoding='utf-8')
+        logging.StreamHandler(),  # Console output only - Docker will handle log collection
     ]
 )
 

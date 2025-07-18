@@ -141,3 +141,10 @@ coverage.xml
 .mypy_cache/
 .dmypy.json
 dmypy.json
+
+# Prevent accidental root folder creation from Docker volumes
+/data/
+/openwebui_data/
+
+# Archive folder (legacy code, keep for reference)
+# archive/

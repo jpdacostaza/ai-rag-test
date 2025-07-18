@@ -147,7 +147,7 @@ services:
       - LONG_TERM_TTL=86400
     volumes:
       - .:/app
-      - ./storage/openwebui:/app/openwebui_data
+      - ./storage/openwebui:/app/storage/openwebui
     depends_on:
       redis:
         condition: service_healthy
@@ -361,7 +361,7 @@ services:
         condition: service_healthy
       openwebui:
         condition: service_healthy
-    command: ["python", "-m", "core.api_gateway"]
+    command: ["python", "-m", "core.enhanced_api_gateway"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8888/gateway/health"]
       interval: 30s

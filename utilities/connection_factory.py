@@ -26,14 +26,32 @@ else:
     redis_type = Any
     chromadb_type = Any
 
-# Database client imports
-try:
+# Database client imports with improved error handling
+from utilities.feature_registry import feature_registry, register_import_attempt
+
+# Register database dependencies
+REDIS_AVAILABLE = register_import_attempt(
+    "redis_client",
+    lambda: __import__("redis.asyncio", fromlist=["Redis"]),
+    "Redis async client for caching and session management"
+)
+
+CHROMADB_AVAILABLE = register_import_attempt(
+    "chromadb_client", 
+    lambda: __import__("chromadb"),
+    "ChromaDB client for vector storage and similarity search"
+)
+
+# Import clients if available
+if REDIS_AVAILABLE:
     import redis.asyncio as redis
+else:
+    redis = None
+    
+if CHROMADB_AVAILABLE:
     import chromadb
     from chromadb.config import Settings as ChromaSettings
-except ImportError as e:
-    logging.warning(f"Database dependencies not available: {e}")
-    redis = None
+else:
     chromadb = None
     ChromaSettings = None
 
