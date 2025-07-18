@@ -381,6 +381,8 @@ services:
       - WATCHTOWER_POLL_INTERVAL=3600
       - WATCHTOWER_INCLUDE_STOPPED=true
       - WATCHTOWER_REVIVE_STOPPED=false
+      # Monitor only specific containers
+      - WATCHTOWER_DISABLE_CONTAINERS=backend,memory-api,pipelines
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -389,12 +391,6 @@ services:
       chroma:
         condition: service_started
       ollama:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-      memory-api:
-        condition: service_healthy
-      pipelines:
         condition: service_healthy
       openwebui:
         condition: service_healthy
