@@ -54,7 +54,7 @@ class EmbeddingProvider(Enum):
 class ModelConfig:
     """Model and LLM configuration."""
     # Primary model settings
-    default_model: str = "llama3.2:3b"
+    default_model: str = "gemma3:4b"  # Upgraded to better 4B parameter model
     provider: ModelProvider = ModelProvider.OLLAMA
     
     # Ollama settings

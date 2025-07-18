@@ -21,11 +21,18 @@ class UserAuthManager:
         print(f"[USER AUTH {level}] {message}")
     
     def validate_uuid(self, user_id: str) -> bool:
-        """Validate UUID format."""
+        """Validate UUID format or persistent session format."""
         try:
             uuid.UUID(user_id)
             return True
         except (ValueError, TypeError):
+            # Accept persistent session format for zero-config setups
+            if isinstance(user_id, str) and (
+                user_id.startswith("persistent_user_") or 
+                user_id.startswith("browser_session_") or
+                user_id == "anonymous-user"
+            ):
+                return True
             return False
     
     def extract_user_from_body(self, body: Dict[str, Any]) -> Tuple[Optional[str], Dict[str, Any]]:

@@ -13,7 +13,7 @@ from core.logging_config import log_service_status
 _APP_START_TIME = time.time()
 
 # Model configuration - Using local Ollama models only (free)
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "llama3.2:3b")  # Free local model
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gemma3:4b")  # Upgraded to better 4B parameter model
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 USE_OLLAMA = os.getenv("USE_OLLAMA", "true").lower() == "true"  # Default to local Ollama
 

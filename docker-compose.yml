@@ -94,9 +94,7 @@ services:
       - OLLAMA_BASE_URL=http://backend-ollama:11434
       - LOG_REQUESTS=false
     volumes:
-      - .:/app
-      - ./storage/backend:/app/data
-      - ./storage/models:/app/models
+      - .:/opt/backend
       - ./storage/.cache:/root/.cache
     depends_on:
       redis:
@@ -149,7 +147,6 @@ services:
       - LONG_TERM_TTL=86400
     volumes:
       - .:/app
-      - ./storage/memory:/app/data
       - ./storage/openwebui:/app/openwebui_data
     depends_on:
       redis:
@@ -242,7 +239,7 @@ services:
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true
       - DEFAULT_USER_ROLE=user
-      - DEFAULT_MODELS=llama3.2:3b
+      - DEFAULT_MODELS=gemma3:4b
       # Disable direct Ollama access to force routing through backend
       - ENABLE_OLLAMA_API=false
       # Automatically configure Pipelines connection

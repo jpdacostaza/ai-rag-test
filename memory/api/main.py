@@ -165,6 +165,66 @@ async def store_memory(request: MemoryStoreRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
 
+# Regular memory storage endpoint  
+@app.post("/api/memory/store")
+async def store_memory_regular(request: MemoryStoreRequest):
+    """Store memory with normal importance and filtering"""
+    try:
+        # Apply filtering logic for normal storage
+        content_length = len(request.content)
+        
+        # Skip very short or repetitive content for normal storage
+        if content_length < 10:
+            return JSONResponse({
+                "memory_id": None,
+                "storage_location": "skipped",
+                "status": "skipped_too_short",
+                "reason": "Content too short for normal storage"
+            })
+        
+        # Reduce importance for normal storage (unless forced)
+        importance = min(request.importance, 0.5) if not request.forced else request.importance
+        
+        memory_id = f"mem_{request.user_id}_{int(time.time())}"
+        timestamp = datetime.now().isoformat()
+        
+        # Store in Redis for quick access
+        redis_key = f"memory:{request.user_id}:{memory_id}"
+        redis_data = {
+            "content": request.content,
+            "context": request.context or "",
+            "importance": importance,
+            "source": request.source,
+            "timestamp": timestamp
+        }
+        
+        await redis_client.hset(redis_key, mapping=redis_data)
+        await redis_client.expire(redis_key, 86400)  # 24 hours
+        
+        # Store in ChromaDB for semantic search
+        chroma_collection.add(
+            documents=[request.content],
+            metadatas=[{
+                "user_id": request.user_id,
+                "context": request.context or "",
+                "importance": importance,
+                "source": request.source,
+                "timestamp": timestamp,
+                "memory_id": memory_id
+            }],
+            ids=[memory_id]
+        )
+        
+        return JSONResponse({
+            "memory_id": memory_id,
+            "storage_location": "redis+chromadb",
+            "status": "stored",
+            "importance": importance
+        })
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
+
 # Memory retrieval endpoint
 @app.post("/api/memory/retrieve")
 async def retrieve_memories(request: MemoryRetrieveRequest):
@@ -221,11 +281,11 @@ async def process_learning_interaction(request: LearningInteractionRequest):
         
         result = await store_memory(store_request)
         
-        return JSONResponse({
+        return {
             "processed": True,
             "memory_stored": True,
-            "storage_result": result
-        })
+            "status": "success"
+        }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
@@ -296,6 +356,7 @@ async def root():
         "status": "running",
         "endpoints": [
             "/health",
+            "/api/memory/store",
             "/api/memory/store_explicit",
             "/api/memory/retrieve", 
             "/api/learning/process_interaction",
@@ -303,3 +364,27 @@ async def root():
             "/api/memory/{user_id}/{memory_id}"
         ]
     })
+
+if __name__ == "__main__":
+    import uvicorn
+    import logging
+    
+    # Disable uvicorn access logging to prevent duplicate logs
+    uvicorn_access = logging.getLogger("uvicorn.access")
+    uvicorn_access.disabled = True
+    uvicorn_access.setLevel(logging.CRITICAL)
+    uvicorn_access.propagate = False
+    
+    # Also disable uvicorn error logging for cleaner output
+    uvicorn_error = logging.getLogger("uvicorn.error")
+    uvicorn_error.disabled = True
+    uvicorn_error.setLevel(logging.CRITICAL) 
+    uvicorn_error.propagate = False
+    
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=5001,
+        access_log=False,  # Disable access logging
+        log_level="critical"  # Only critical uvicorn logs
+    )

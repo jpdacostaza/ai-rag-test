@@ -282,7 +282,7 @@ class Pipeline:
             backend_url: str = config.get('MEMORY_API_URL', 'http://backend-memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
             enable_memory: bool = False  # Disable memory when components not available
             max_memories: int = 100
-            memory_threshold: float = 0.001
+            memory_threshold: float = float(os.getenv('MEMORY_THRESHOLD', '1.5'))
             quality_threshold: int = 3
             require_authenticated_user: bool = False
             enforce_user_session_consistency: bool = True
@@ -478,17 +478,27 @@ class Pipeline:
             
             # If no user_id found but __user__ has an id, use it directly
             if not user_id and __user__ and __user__.get("id"):
-                user_id = str(__user__.get("id"))
+                original_id = str(__user__.get("id"))
+                # Check if it's a session-based ID that should be made persistent
+                if original_id.startswith("session_"):
+                    # Extract the session hash and create a persistent ID
+                    session_hash = original_id.replace("session_", "")
+                    user_id = f"persistent_user_{session_hash}"
+                    if self.valves.debug_mode:
+                        self.log(f"🔄 Converting session ID to persistent ID: {original_id} → {user_id}")
+                else:
+                    user_id = original_id
+                
                 user_data = __user__
                 if self.valves.debug_mode:
                     self.log(f"✅ Using fallback user ID from __user__: {user_id}")
             
-            # If still no user_id, create a temporary one for this session
+            # If still no user_id, create a persistent anonymous user
             if not user_id:
-                user_id = "anonymous-user"
+                user_id = "persistent_user_anonymous"
                 user_data = {"id": user_id, "name": "Anonymous User"}
                 if self.valves.debug_mode:
-                    self.log(f"⚠️ No user authentication found, using anonymous session: {user_id}")
+                    self.log(f"⚠️ No user authentication found, using persistent anonymous user: {user_id}")
             
             if self.valves.debug_mode:
                 self.log(f"🔐 Proceeding with user: {user_id}")
@@ -627,8 +637,28 @@ class Pipeline:
             if __user__:
                 body["__user__"] = __user__
             
-            # Authenticate user
+            # Authenticate user with persistent ID handling
             user_id, user_data = self.auth_manager.authenticate_user(body)
+            
+            # Apply same persistent ID logic as inlet
+            if not user_id and __user__ and __user__.get("id"):
+                original_id = str(__user__.get("id"))
+                # Check if it's a session-based ID that should be made persistent
+                if original_id.startswith("session_"):
+                    # Extract the session hash and create a persistent ID
+                    session_hash = original_id.replace("session_", "")
+                    user_id = f"persistent_user_{session_hash}"
+                    if self.valves.debug_mode:
+                        self.log(f"🔄 Converting session ID to persistent ID: {original_id} → {user_id}")
+                else:
+                    user_id = original_id
+                user_data = __user__
+            
+            # If still no user_id, use persistent anonymous user
+            if not user_id:
+                user_id = "persistent_user_anonymous"
+                user_data = {"id": user_id, "name": "Anonymous User"}
+            
             if not user_id:
                 return body
             

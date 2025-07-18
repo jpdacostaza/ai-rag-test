@@ -1,9 +1,0 @@
-# Test Dependencies - References main requirements.txt
-# Install with: pip install -r ../requirements.txt
-
-# Core testing framework (already in main requirements.txt)
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-pytest-html>=3.1.0
-pytest-cov>=4.0.0
-httpx>=0.25.0
