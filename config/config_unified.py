@@ -275,10 +275,10 @@ class PersonaConfig:
         if env_prompt:
             return env_prompt
         
-        # Try loading from persona files
+        # Try loading from persona files - Orange Pi optimized (only keep essential ones)
         persona_files = [
-            "config/persona_enhanced.json",
-            "config/persona.json"
+            "config/persona_unified_small.json",    # Primary: Orange Pi <7B models, anti-fabrication
+            "config/persona_new_user.json"          # Fallback: new user handling
         ]
         
         for persona_file in persona_files:

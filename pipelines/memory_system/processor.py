@@ -219,34 +219,52 @@ class MemoryProcessor:
         try:
             is_small_model = self.detect_model_size(user_request_body=user_request_body)
             
-            # Get appropriate persona based on model size
+            # Get appropriate persona based on model size and memory state
             if is_small_model:
-                base_persona = self.get_small_model_persona()
-                model_size = "small"
+                if memory_context.strip():
+                    base_persona = self.get_small_model_persona()
+                    model_size = "small"
+                else:
+                    # Use simpler new user persona for small models
+                    base_persona = "You are a helpful AI assistant with memory and web search capabilities. I'm here to learn about you and provide personalized assistance over time."
+                    model_size = "small"
             else:
-                base_persona = self.get_base_persona_prompt()
-                model_size = "large"
+                if memory_context.strip():
+                    base_persona = self.get_base_persona_prompt()
+                    model_size = "large"
+                else:
+                    # Use new user persona without aggressive memory instructions
+                    base_persona = self.get_new_user_persona_prompt()
+                    model_size = "large"
             
             # If we have memory context, integrate it efficiently
             if memory_context.strip():
                 if model_size == "small":
-                    # Enhanced memory integration for small models with stronger instructions
+                    # Enhanced memory integration for small models with anti-fabrication
                     system_message = f"""{base_persona}
 
-🧠 IMPORTANT MEMORIES ABOUT THIS USER:
+🧠 VERIFIED MEMORIES ABOUT THIS USER:
 {memory_context}
 
-CRITICAL: Always acknowledge these memories first! Say something like "I remember you!" or "Hello again!" and reference specific details from above to prove you remember this user from previous conversations."""
+CRITICAL INSTRUCTIONS:
+- These are REAL memories from previous conversations
+- Reference these specific details in your response
+- Say something like "I remember from our previous conversations that..." and mention specific details
+- Build on this existing knowledge naturally"""
                 else:
-                    # Full memory integration for larger models
+                    # Full memory integration for larger models with anti-fabrication
                     system_message = f"""{base_persona}
 
-🧠 CRITICAL MEMORY INSTRUCTIONS - ABSOLUTE PRIORITY 🧠
+🧠 VERIFIED MEMORY CONTEXT - PREVIOUS CONVERSATIONS 🧠
 
-MEMORIES FROM PREVIOUS CONVERSATIONS:
+CONFIRMED MEMORIES:
 {memory_context}
 
-You MUST acknowledge these memories in your response and use them to personalize your interaction. Show that you remember and recognize this user by referencing specific details from the memories above.
+INSTRUCTIONS:
+- These are verified memories from actual previous conversations
+- Acknowledge these real memories in your response
+- Reference specific verified details from above
+- Build naturally on this established relationship
 
 Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliability of the memory information."""
                 
@@ -256,38 +274,153 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
                     
                 return system_message
             else:
-                # No memories yet - use appropriate persona
+                # No memories yet - use appropriate new user persona
                 if self.debug:
-                    self.log(f"✅ Using {model_size} model persona without memory context for new user")
+                    self.log(f"✅ Using {model_size} model NEW USER persona without memory context for user {user_id}")
                 return base_persona
                 
         except Exception as e:
             if self.debug:
                 self.log(f"Error creating system message: {e}", "ERROR")
             # Fallback to basic small model prompt
-            return "You are a helpful AI assistant with memory capabilities. When you receive memory context, acknowledge it and use it to personalize your responses."
+            return "You are a helpful AI assistant with memory capabilities. I'm ready to learn about you and provide personalized assistance over time."
     
     def get_base_persona_prompt(self) -> str:
         """Get the enhanced persona prompt from the configuration file."""
         try:
-            # Try to load external persona file first (this is the 264-line enhanced version)
-            persona_path = "/app/config/persona_enhanced.json"
+            # Primary: Try to load unified small persona (Orange Pi optimized)
+            persona_path = "/opt/backend/config/persona_unified_small.json"
             try:
                 with open(persona_path, 'r', encoding='utf-8') as f:
                     persona_data = json.load(f)
                     enhanced_persona = persona_data.get("system_prompt", "")
                     if enhanced_persona:
                         if self.debug:
-                            self.log(f"✅ Loaded enhanced persona ({len(enhanced_persona)} chars) from {persona_path}")
+                            self.log(f"✅ Loaded unified small persona ({len(enhanced_persona)} chars) from {persona_path}")
                         return enhanced_persona
             except Exception as e:
                 if self.debug:
-                    self.log(f"⚠️ Could not load external persona file: {e}, trying fallback paths")
+                    self.log(f"⚠️ Could not load unified small persona: {e}, trying new user persona")
+            
+            # Fallback: Try new user persona
+            fallback_paths = [
+                "config/persona_new_user.json",
+                "/opt/backend/config/persona_new_user.json",
+                "./config/persona_new_user.json"
+            ]
+            
+            for path in fallback_paths:
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        persona_data = json.load(f)
+                        enhanced_persona = persona_data.get("system_prompt", "")
+                        if enhanced_persona:
+                            if self.debug:
+                                self.log(f"✅ Loaded fallback persona from: {path}")
+                            return enhanced_persona
+                except Exception:
+                    continue
+            
+            if self.debug:
+                self.log("⚠️ All persona paths failed, using embedded fallback")
+            
+            # Embedded fallback with anti-fabrication measures
+            return """You are a helpful AI assistant with memory and web search capabilities optimized for small models.
+
+🌐 WEB SEARCH: You have access to real-time web search via SearXNG instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
+
+🧠 MEMORY SYSTEM - ANTI-FABRICATION: 
+- I can learn about you over time through our conversations
+- **CRITICAL**: I only acknowledge memories when they are actually provided to me in the system context
+- I NEVER fabricate or hallucinate personal details about users
+- If no memory context is provided, I treat this as a new conversation
+- I'm transparent about what I know vs. what I'm learning
+
+🛡️ ANTI-HALLUCINATION:
+- I never make up personal details, names, jobs, or interests
+- I never claim to remember things I don't actually know  
+- I only reference memories when they're explicitly provided
+- I'm honest about what I know and don't know
+
+Be helpful, efficient, and honest. Use web search for current information. Learn naturally without making assumptions."""
+            
+        except Exception as e:
+            if self.debug:
+                self.log(f"Error loading persona prompt: {e}", "ERROR")
+            return "You are a helpful AI assistant with memory capabilities. When you receive memory context, acknowledge it and use it to personalize your responses."
+
+    def get_new_user_persona_prompt(self) -> str:
+        """Get the new user persona prompt without aggressive memory instructions."""
+        try:
+            # Try to load new user persona file first
+            persona_path = "/opt/backend/config/persona_new_user.json"
+            try:
+                with open(persona_path, 'r', encoding='utf-8') as f:
+                    persona_data = json.load(f)
+                    new_user_persona = persona_data.get("system_prompt", "")
+                    if new_user_persona:
+                        if self.debug:
+                            self.log(f"✅ Loaded new user persona ({len(new_user_persona)} chars) from {persona_path}")
+                        return new_user_persona
+            except Exception as e:
+                if self.debug:
+                    self.log(f"⚠️ Could not load new user persona file: {e}, using fallback")
+            
+            # Fallback to clean new user persona without memory instructions
+            return """You are an advanced AI assistant with comprehensive memory capabilities, persistent learning, and real-time web search functionality, designed for seamless integration with OpenWebUI. You can learn about users over time and provide personalized experiences.
+
+🌐 CRITICAL WEB SEARCH CAPABILITIES - REAL-TIME INFORMATION ACCESS 🌐:
+
+1. **WEB SEARCH INTEGRATION**: You have access to real-time web search capabilities via optimized SearXNG instances with Brave Search and DuckDuckGo fallbacks that provide current, accurate information.
+
+2. **AUTOMATIC WEB SEARCH TRIGGERS** - Search the web automatically when users ask about:
+   - Current events, news, or recent developments
+   - Weather conditions, forecasts, or climate data
+   - Stock prices, market conditions, or financial data
+   - Recent product releases, company updates, or announcements
+   - Time-sensitive information ("today", "latest", "current", "recent")
+   - Any information that might have changed since your knowledge cutoff
+   - Specific search requests ("search for", "look up", "find information about")
+
+3. **WEB SEARCH BEST PRACTICES**:
+   - Always use web search for time-sensitive or rapidly changing information
+   - Integrate search results naturally into your responses
+   - Cite sources when providing web-based information
+   - Combine web search results with your existing knowledge for comprehensive answers
+   - Prefer current web information over potentially outdated training data
+
+4. **ENHANCED INFORMATION ACCURACY**:
+   - Use web search to verify facts when uncertain
+   - Provide the most current information available
+   - Never hallucinate facts when web search is available
+   - Be transparent about information sources (web search vs. training data)
+
+🧠 MEMORY LEARNING CAPABILITIES:
+
+1. **MEMORY DEVELOPMENT**: As we interact, I can learn and remember important information about you, your preferences, and our conversations.
+
+2. **INFORMATION GATHERING**: I'll naturally pick up on:
+   - Your interests and expertise areas
+   - Communication preferences
+   - Professional background
+   - Personal preferences and style
+   - Ongoing projects or goals
+
+3. **FUTURE ENHANCEMENT**: Over time, our conversations will become more personalized as I learn more about you.
+
+4. **PRIVACY RESPECT**: I only remember what you choose to share and respect your privacy preferences.
+
+I'm here to help you with whatever you need, and I'll learn and adapt to provide better assistance over time. Feel free to ask me anything, and let me know if you have any preferences for how we interact!"""
+            
+        except Exception as e:
+            if self.debug:
+                self.log(f"Error loading new user persona prompt: {e}", "ERROR")
+            return "You are a helpful AI assistant ready to learn about you and provide personalized assistance over time. I can search the web for current information and will remember important details from our conversations."
             
             # Try alternative paths if main path fails
             fallback_paths = [
                 "config/persona_enhanced.json",
-                "/app/config/persona_enhanced.json",
+                "/opt/backend/config/persona_enhanced.json",
                 "./config/persona_enhanced.json"
             ]
             
@@ -351,12 +484,12 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
     def get_small_model_persona(self) -> str:
         """Get a lightweight persona optimized for small models (3B parameters)."""
         try:
-            # Try to load small model persona file first
+            # Try to load unified small model persona file first
             small_persona_paths = [
-                "/app/config/persona_small_model.json",
-                "config/persona_small_model.json",
-                "/app/config/persona_small_model.json",
-                "./config/persona_small_model.json"
+                "/opt/backend/config/persona_unified_small.json",
+                "config/persona_unified_small.json",
+                "/opt/backend/config/persona_small_model.json",
+                "config/persona_small_model.json"
             ]
             
             for path in small_persona_paths:
@@ -372,22 +505,29 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
                     continue
             
             if self.debug:
-                self.log("⚠️ Small model persona file not found, using embedded optimized version")
+                self.log("⚠️ Small model persona file not found, using embedded anti-hallucination version")
             
-            # Embedded lightweight persona for small models
-            return """You are a helpful AI assistant with memory and web search capabilities.
+            # Embedded lightweight persona for small models with strict anti-hallucination
+            return """You are a helpful AI assistant with memory and web search capabilities designed for small language models.
 
-**MEMORY** 🧠: When you see memory context, acknowledge it first:
-- "I remember you! [detail]"
-- "Hello again! Last time [activity]"
+🌐 WEB SEARCH: You have access to real-time web search via SearXNG instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
 
-**WEB SEARCH** 🌐: Auto-search for current events, weather, recent info.
+🧠 MEMORY SYSTEM: 
+- I can learn about you over time through our conversations
+- **CRITICAL**: I only acknowledge memories when they are actually provided to me in the system context
+- I NEVER fabricate or hallucinate personal details about users
+- If no memory context is provided, I treat this as a new conversation
+- I'm transparent about what I know vs. what I'm learning
 
-**PROTOCOL**: 1) Check memories → acknowledge, 2) Use web search for current info, 3) Be helpful and accurate.
+🛡️ ANTI-HALLUCINATION:
+- I never make up personal details, names, jobs, or interests
+- I never claim to remember things I don't actually know  
+- I only reference memories when they're explicitly provided
+- I'm honest about what I know and don't know
 
-Respond naturally while following these behaviors."""
+Be helpful, efficient, and honest. Use web search for current information. Learn naturally without making assumptions."""
             
         except Exception as e:
             if self.debug:
                 self.log(f"Error loading small model persona: {e}", "ERROR")
-            return "You are a helpful AI assistant with memory capabilities. Acknowledge any memories provided and use web search for current information."
+            return "You are a helpful AI assistant. I can learn about you over time but I never fabricate memories or personal details. I only acknowledge memories when they're actually provided to me."

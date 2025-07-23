@@ -4,9 +4,15 @@
   "AUTO_SEARCH_ENABLED": true,
   "TIMEOUT_SECONDS": 10,
   "SEARCH_ENGINES": [
-    "brave",
-    "searx", 
+    "searxng",
+    "brave", 
     "duckduckgo"
+  ],
+  "SEARXNG_INSTANCES": [
+    "https://search.inetol.net/search",
+    "https://searx.stream/search",
+    "https://paulgo.io/search",
+    "https://search.hbubli.cc/search"
   ],
   "NEWS_KEYWORDS": [
     "news",

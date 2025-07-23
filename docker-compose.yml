@@ -103,7 +103,7 @@ services:
       - .env
     environment:
       - ENV=production
-      - PYTHONPATH=/app
+      - PYTHONPATH=/opt/backend
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization

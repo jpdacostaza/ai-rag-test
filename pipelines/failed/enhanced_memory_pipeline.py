@@ -26,13 +26,13 @@ import time
 from typing import List, Optional, Dict, Any
 
 # Add the pipelines directory to the Python path for imports
-sys.path.insert(0, '/app/pipelines')
+sys.path.insert(0, '/opt/backend/pipelines')
 
 # Try to import the backend directly to see if it's available
-sys.path.insert(0, '/app')
+sys.path.insert(0, '/opt/backend')
 
 # Add core modules to path
-sys.path.insert(0, '/app/core')
+sys.path.insert(0, '/opt/backend/core')
 
 # Initialize configuration and imports with proper error handling
 config = None
@@ -57,7 +57,7 @@ try:
     # Load unified configuration (no fallbacks)
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("backend_config", "/app/config/config_unified.py")
+        spec = importlib.util.spec_from_file_location("backend_config", "/opt/backend/config/config_unified.py")
         config_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(config_module)
         enhanced_config = config_module.get_config()
@@ -76,9 +76,9 @@ format_web_results_for_chat = None
 
 try:
     # Try importing web search tools
-    sys.path.insert(0, '/app/utilities')
+    sys.path.insert(0, '/opt/backend/utilities')
     import importlib.util
-    spec = importlib.util.spec_from_file_location("web_search_tool", "/app/utilities/web_search_tool.py")
+    spec = importlib.util.spec_from_file_location("web_search_tool", "/opt/backend/utilities/web_search_tool.py")
     web_search_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(web_search_module)
     

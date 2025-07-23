@@ -19,7 +19,7 @@ def auto_install_dependencies():
     """Install dependencies from requirements.txt if it exists"""
     try:
         # Check for requirements.txt in the pipelines directory
-        requirements_file = Path("/app/pipelines/requirements.txt")
+        requirements_file = Path("/opt/backend/pipelines/requirements.txt")
         
         if requirements_file.exists():
             print("[PIPELINE INSTALLER] Found requirements.txt, installing dependencies...")

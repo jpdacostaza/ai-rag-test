@@ -27,7 +27,7 @@ def auto_install_dependencies(requirements_file: Optional[str] = None):
     """Auto-install dependencies from requirements file"""
     try:
         if not requirements_file:
-            requirements_file = "/app/pipelines/requirements.txt"
+            requirements_file = "/opt/backend/pipelines/requirements.txt"
         
         # Install from requirements file
         result = subprocess.run([

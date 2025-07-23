@@ -133,8 +133,9 @@ class RAGPersonaConfig:
     """RAG-enhanced persona configuration"""
     
     # Persona Files
-    persona_enhanced_path: str = "config/persona_enhanced.json"
-    persona_small_model_path: str = "config/persona_small_model.json"
+    # Persona configuration paths - Orange Pi optimized (removed redundant files)
+    persona_unified_small_path: str = "config/persona_unified_small.json"  # Primary for Orange Pi <7B models
+    persona_new_user_path: str = "config/persona_new_user.json"            # Fallback for new users
     persona_fallback_path: str = "config/persona.json"
     
     # Memory Integration

@@ -32,15 +32,15 @@ pipelines_dir = os.path.dirname(current_dir) if current_dir.endswith('pipelines'
 project_root = os.path.dirname(pipelines_dir) if not pipelines_dir.endswith('backend') else pipelines_dir
 
 # Add both container and local paths
-sys.path.insert(0, '/app/pipelines')  # Docker path
+sys.path.insert(0, '/opt/backend/pipelines')  # Docker path
 sys.path.insert(0, os.path.join(project_root, 'pipelines'))  # Local path
 sys.path.insert(0, project_root)  # Project root for services imports
 
 # Add the backend directory for web search tools
-sys.path.insert(0, '/app')
+sys.path.insert(0, '/opt/backend')
 
 # Add core modules to path
-sys.path.insert(0, '/app/core')
+sys.path.insert(0, '/opt/backend/core')
 
 # Zero-config auto-dependency installation with robust error handling
 def install_dependencies_manually():
@@ -74,7 +74,7 @@ def install_dependencies_manually():
 
 try:
     # Try to import and use the auto-installer
-    sys.path.insert(0, '/app/pipelines')
+    sys.path.insert(0, '/opt/backend/pipelines')
     from _auto_installer import auto_install_dependencies, fix_pydantic_compatibility
     print("[MEMORY PIPELINE INFO] Using _auto_installer for dependency management")
     fix_pydantic_compatibility()  # Fix pydantic version conflicts first
@@ -110,7 +110,7 @@ try:
     # Load unified configuration (no fallbacks)
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("backend_config", "/app/config/config_unified.py")
+        spec = importlib.util.spec_from_file_location("backend_config", "/opt/backend/config/config_unified.py")
         config_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(config_module)
         enhanced_config = config_module.get_config()
@@ -178,9 +178,9 @@ try:
         langchain_available = False
     
     # Try importing web search tools
-    sys.path.insert(0, '/app/utilities')
+    sys.path.insert(0, '/opt/backend/utilities')
     import importlib.util
-    spec = importlib.util.spec_from_file_location("web_search_tool", "/app/utilities/web_search_tool.py")
+    spec = importlib.util.spec_from_file_location("web_search_tool", "/opt/backend/utilities/web_search_tool.py")
     web_search_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(web_search_module)
     
@@ -529,7 +529,7 @@ class Pipeline:
             if not memories:
                 # No memories found - inject new user system message
                 if self.valves.debug_mode:
-                    self.log(f"� No previous memories found for user {user_id} - introducing memory capabilities")
+                    self.log(f"✅ No previous memories found for user {user_id} - using NEW USER persona (anti-fabrication)")
                 
                 # Always inject enhanced persona, regardless of memory availability
                 enhanced_system_message = self.memory_processor.create_system_message("", user_id, 0, body)
