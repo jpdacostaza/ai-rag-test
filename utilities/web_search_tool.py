@@ -1,25 +1,41 @@
 """
 Web search tool.
-Provides web search functionality using utilities.ai_tools.
+DEPRECATED: This module has been replaced by enhanced web search solutions.
+
+Current web search options:
+1. RECOMMENDED: Enhanced Web Search Pipeline (pipelines/pipeline_web_search/enhanced_web_search_pipeline.py)
+   - OpenWebUI native integration with automatic triggering
+   - Zero-configuration setup
+   - Real-time uncertainty detection
+   - Multiple search engine fallbacks
+
+2. FALLBACK: Enhanced Web Search Tool (utilities/enhanced_web_search.py)
+   - Standalone tool for direct API usage
+   - Manual triggering required
+   - Same search capabilities as pipeline
+
+Migration Guide:
+- For OpenWebUI: Enable Enhanced Web Search Pipeline in admin settings
+- For direct API: Import from utilities.enhanced_web_search
+- Legacy compatibility: This module redirects to appropriate solutions
 """
 
 import logging
 from typing import Dict, Any
-from utilities.ai_tools import web_search as ai_tools_web_search
 
+# Legacy compatibility - redirect to pipeline
+logger = logging.getLogger(__name__)
 
 def should_trigger_web_search(query: str, response: str) -> bool:
     """
-    Determine if a web search should be triggered based on the query and response.
+    DEPRECATED: Use Enhanced Web Search Pipeline instead.
     
-    Args:
-        query: The user's query
-        response: The LLM's initial response
-        
-    Returns:
-        bool: True if web search should be triggered
+    This function is maintained for backward compatibility only.
+    The Enhanced Web Search Pipeline provides automatic triggering.
     """
-    # Check if the response indicates uncertainty or lack of information
+    logger.warning("web_search_tool.should_trigger_web_search is deprecated. Use Enhanced Web Search Pipeline instead.")
+    
+    # Legacy trigger logic for compatibility
     uncertainty_phrases = [
         "i don't know",
         "i'm not sure",
@@ -114,59 +130,73 @@ def should_trigger_web_search(query: str, response: str) -> bool:
 
 async def search_web(query: str, max_results: int = 3) -> Dict[str, Any]:
     """
-    Perform web search for the given query.
+    DEPRECATED: Use Enhanced Web Search Pipeline or Enhanced Web Search Tool instead.
     
-    Args:
-        query: The search query
-        max_results: Maximum number of results to return
-        
-    Returns:
-        Dict containing search results
+    This function provides legacy compatibility with redirection options:
+    1. For OpenWebUI: Use Enhanced Web Search Pipeline (recommended)
+    2. For direct API: Use utilities.enhanced_web_search.search_web()
     """
-    logging.info(f"[WEB_SEARCH] Performing web search for: {query}")
+    from datetime import datetime
     
+    logger.warning("web_search_tool.search_web is deprecated. Use Enhanced Web Search Pipeline or utilities.enhanced_web_search instead.")
+    
+    current_date = datetime.now().strftime("%B %d, %Y")
+    current_year = datetime.now().year
+    
+    logging.info(f"[WEB_SEARCH] Legacy search called for: {query} - redirecting to enhanced solutions")
+    
+    # Try to import and use enhanced web search as fallback
     try:
-        # Use real web search from utilities.ai_tools
-        result = ai_tools_web_search(query, num_results=max_results)
+        from utilities.enhanced_web_search import search_web as enhanced_search
+        logger.info("Redirecting to enhanced_web_search.search_web()")
+        result = await enhanced_search(query, max_results)
         
-        # Format the result into our expected structure
-        search_results = {
-            "query": query,
-            "results": [],
-            "total_results": 0,
-            "search_time": 0.0,
-            "status": "success",
-            "message": "Search completed successfully"
-        }
-        
-        # Check if we got a valid result string
-        if result and isinstance(result, str):
-            # Parse the result and add to our structure
-            # This is a simple implementation - in a real system you'd want 
-            # to parse structured data rather than text
-            search_results["results"] = [
-                {
-                    "title": "Search Result",
-                    "snippet": result,
-                    "url": "#"
-                }
-            ]
-            search_results["total_results"] = 1
-        else:
-            search_results["status"] = "no_results"
-            search_results["message"] = "No search results found"
-            
-        return search_results
-    
-    except Exception as e:
-        logging.error(f"[WEB_SEARCH] Error performing search: {str(e)}")
+        # Convert to legacy format
         return {
             "query": query,
-            "results": [],
-            "total_results": 0,
+            "results": [
+                {
+                    "title": f"Enhanced Web Search Results - {current_date}",
+                    "snippet": result,
+                    "url": "utilities/enhanced_web_search.py"
+                }
+            ],
+            "total_results": 1,
             "search_time": 0.0,
-            "status": "error",
-            "message": f"Search error: {str(e)}"
+            "status": "redirected_to_enhanced",
+            "message": f"Redirected to Enhanced Web Search Tool - {current_date}"
+        }
+    except Exception as e:
+        logger.error(f"Enhanced web search fallback failed: {e}")
+        
+        # Return a notice about the available options
+        return {
+            "query": query,
+            "results": [
+                {
+                    "title": f"Web Search Options Available - {current_date}",
+                    "snippet": f"""Multiple web search solutions are available:
+
+1. RECOMMENDED: Enhanced Web Search Pipeline
+   • Location: pipelines/pipeline_web_search/enhanced_web_search_pipeline.py
+   • Features: Automatic triggering, OpenWebUI integration, zero-config
+   • Setup: Enable in OpenWebUI admin settings
+
+2. DIRECT API: Enhanced Web Search Tool  
+   • Location: utilities/enhanced_web_search.py
+   • Features: Same search capabilities, manual triggering
+   • Usage: from utilities.enhanced_web_search import search_web
+
+Your query: "{query}" - use either solution above for current {current_year} results.
+
+Error with fallback: {str(e)}""",
+                    "url": "utilities/enhanced_web_search.py"
+                }
+            ],
+            "total_results": 1,
+            "search_time": 0.0,
+            "status": "deprecated_with_options",
+            "message": f"Web search options available - {current_date}"
         }
 
 

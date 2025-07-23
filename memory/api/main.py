@@ -9,6 +9,7 @@ import json
 import time
 from datetime import datetime
 from typing import Dict, Any, List, Optional
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -16,18 +17,97 @@ import redis.asyncio as redis
 import chromadb
 from chromadb.config import Settings
 
-# FastAPI app
-app = FastAPI(title="Enhanced Memory API", description="Memory service with Redis + ChromaDB")
+# Global connections
+redis_client = None
+chroma_client = None
+chroma_collection = None
 
 # Configuration
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 CHROMA_HOST = os.getenv("CHROMA_HOST", "chroma")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
 
-# Global connections
-redis_client = None
-chroma_client = None
-chroma_collection = None
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan context manager - no fallbacks, exact configuration only"""
+    global redis_client, chroma_client, chroma_collection
+    
+    # Startup
+    try:
+        print("🚀 Starting Memory API initialization...")
+        
+        # Redis connection - use exact configuration only
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+        try:
+            print(f"🔍 Connecting to Redis: {redis_url}")
+            redis_client = redis.from_url(redis_url)
+            await asyncio.wait_for(redis_client.ping(), timeout=5.0)
+            print(f"✅ Redis connected: {redis_url}")
+        except Exception as e:
+            print(f"❌ Redis connection failed: {e}")
+            redis_client = None
+        
+        # ChromaDB connection - use exact configuration only
+        chroma_host = os.getenv("CHROMA_HOST", "chroma")
+        chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
+        try:
+            print(f"🔍 Connecting to ChromaDB: {chroma_host}:{chroma_port}")
+            chroma_client = chromadb.HttpClient(
+                host=chroma_host,
+                port=chroma_port,
+                settings=Settings(allow_reset=True)
+            )
+            
+            # Test connection
+            heartbeat = chroma_client.heartbeat()
+            print(f"✅ ChromaDB connected: {chroma_host}:{chroma_port} (heartbeat: {heartbeat})")
+            
+            # Get or create collection
+            try:
+                chroma_collection = chroma_client.get_collection("user_memories")
+                print("✅ ChromaDB collection found")
+            except Exception as collection_error:
+                print(f"Collection not found, creating new one: {collection_error}")
+                chroma_collection = chroma_client.create_collection("user_memories")
+                print("✅ ChromaDB collection created")
+                
+        except Exception as e:
+            print(f"❌ ChromaDB connection failed: {e}")
+            chroma_client = None
+            chroma_collection = None
+        
+        # Status summary - no fallbacks
+        if redis_client and chroma_collection:
+            print("✅ Memory API fully initialized (Redis + ChromaDB)")
+        elif redis_client:
+            print("⚠️ Memory API partially initialized (Redis only)")
+        elif chroma_collection:
+            print("⚠️ Memory API partially initialized (ChromaDB only)")
+        else:
+            print("❌ Memory API running in degraded mode (no external connections)")
+        
+    except Exception as e:
+        print(f"❌ Startup failed: {e}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+    
+    yield
+    
+    # Shutdown
+    if redis_client:
+        try:
+            await redis_client.aclose()
+            print("✅ Redis connection closed")
+        except Exception as e:
+            print(f"⚠️ Redis shutdown warning: {e}")
+
+# FastAPI app with lifespan
+app = FastAPI(
+    title="Enhanced Memory API", 
+    description="Memory service with Redis + ChromaDB",
+    lifespan=lifespan
+)
 
 # Request/Response Models
 class MemoryStoreRequest(BaseModel):
@@ -56,113 +136,105 @@ class MemoryResponse(BaseModel):
     similarity_score: Optional[float] = None
     distance: Optional[float] = None
 
-# Startup/shutdown
-@app.on_event("startup")
-async def startup_event():
-    """Initialize connections"""
-    global redis_client, chroma_client, chroma_collection
-    
-    try:
-        # Redis connection
-        redis_client = redis.from_url(REDIS_URL)
-        await redis_client.ping()
-        print("✅ Redis connected")
-        
-        # ChromaDB connection
-        chroma_client = chromadb.HttpClient(
-            host=CHROMA_HOST,
-            port=CHROMA_PORT,
-            settings=Settings(allow_reset=True)
-        )
-        
-        # Get or create collection
-        try:
-            chroma_collection = chroma_client.get_collection("user_memories")
-        except:
-            chroma_collection = chroma_client.create_collection("user_memories")
-        
-        print("✅ ChromaDB connected")
-        
-    except Exception as e:
-        print(f"❌ Startup failed: {e}")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup connections"""
-    global redis_client
-    if redis_client:
-        await redis_client.close()
-
 # Health endpoint
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint with graceful degradation"""
     redis_ok = False
     chroma_ok = False
     
     try:
         if redis_client:
-            await redis_client.ping()
+            await asyncio.wait_for(redis_client.ping(), timeout=2.0)
             redis_ok = True
-    except:
-        pass
+    except Exception as e:
+        print(f"Redis health check failed: {e}")
     
     try:
         if chroma_collection:
-            chroma_collection.count()
+            count = chroma_collection.count()
             chroma_ok = True
-    except:
-        pass
+    except Exception as e:
+        print(f"ChromaDB health check failed: {e}")
+    
+    # Determine status
+    if redis_ok and chroma_ok:
+        status = "healthy"
+    elif redis_ok or chroma_ok:
+        status = "degraded"
+    else:
+        status = "critical"
     
     return JSONResponse({
-        "status": "healthy" if (redis_ok and chroma_ok) else "degraded",
+        "status": status,
         "redis_connected": redis_ok,
         "chromadb_connected": chroma_ok,
-        "memory_count": chroma_collection.count() if chroma_ok else 0
+        "memory_count": chroma_collection.count() if chroma_ok else 0,
+        "message": "Memory API - exact configuration only, no fallbacks"
     })
 
 # Memory storage endpoint
 @app.post("/api/memory/store_explicit")
 async def store_memory(request: MemoryStoreRequest):
-    """Store memory explicitly"""
+    """Store memory explicitly with graceful degradation"""
     try:
         memory_id = f"mem_{request.user_id}_{int(time.time())}"
         timestamp = datetime.now().isoformat()
         
-        # Store in Redis for quick access
-        redis_key = f"memory:{request.user_id}:{memory_id}"
-        redis_data = {
-            "content": request.content,
-            "context": request.context or "",
-            "importance": request.importance,
-            "source": request.source,
-            "timestamp": timestamp
-        }
+        storage_results = []
         
-        await redis_client.hset(redis_key, mapping=redis_data)
-        await redis_client.expire(redis_key, 86400)  # 24 hours
+        # Store in Redis if available
+        if redis_client:
+            try:
+                redis_key = f"memory:{request.user_id}:{memory_id}"
+                redis_data = {
+                    "content": request.content,
+                    "context": request.context or "",
+                    "importance": request.importance,
+                    "source": request.source,
+                    "timestamp": timestamp
+                }
+                
+                await redis_client.hset(redis_key, mapping=redis_data)
+                await redis_client.expire(redis_key, 86400)  # 24 hours
+                storage_results.append("redis")
+            except Exception as e:
+                print(f"Redis storage failed: {e}")
         
-        # Store in ChromaDB for semantic search
-        chroma_collection.add(
-            documents=[request.content],
-            metadatas=[{
-                "user_id": request.user_id,
-                "context": request.context or "",
-                "importance": request.importance,
-                "source": request.source,
-                "timestamp": timestamp,
-                "memory_id": memory_id
-            }],
-            ids=[memory_id]
-        )
+        # Store in ChromaDB if available
+        if chroma_collection:
+            try:
+                chroma_collection.add(
+                    documents=[request.content],
+                    metadatas=[{
+                        "user_id": request.user_id,
+                        "context": request.context or "",
+                        "importance": request.importance,
+                        "source": request.source,
+                        "timestamp": timestamp,
+                        "memory_id": memory_id
+                    }],
+                    ids=[memory_id]
+                )
+                storage_results.append("chromadb")
+            except Exception as e:
+                print(f"ChromaDB storage failed: {e}")
+        
+        if not storage_results:
+            raise HTTPException(
+                status_code=503,
+                detail="No storage backends available"
+            )
         
         return JSONResponse({
             "memory_id": memory_id,
-            "storage_location": "redis+chromadb",
+            "storage_location": "+".join(storage_results),
             "status": "stored"
         })
         
     except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
 
 # Regular memory storage endpoint  
@@ -231,6 +303,13 @@ async def retrieve_memories(request: MemoryRetrieveRequest):
     """Retrieve memories for user"""
     try:
         memories = []
+        
+        # Check if ChromaDB collection is initialized
+        if chroma_collection is None:
+            raise HTTPException(
+                status_code=503, 
+                detail="ChromaDB collection not initialized. Service starting up."
+            )
         
         # Query ChromaDB for semantic matches
         results = chroma_collection.query(

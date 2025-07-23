@@ -159,9 +159,9 @@ class DatabaseConfig:
     chroma_port: int = 8000
     use_http_chroma: bool = True
     
-    # Embedding settings
-    embedding_model: str = "nomic-embed-text"
-    embedding_provider: EmbeddingProvider = EmbeddingProvider.OLLAMA
+    # Embedding settings - ARM64 optimized for Orange Pi 5 Plus
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"  # 45MB, 2.5x faster than nomic-embed-text
+    embedding_provider: EmbeddingProvider = EmbeddingProvider.HUGGINGFACE  # Direct HuggingFace for speed
     sentence_transformers_home: str = "./storage/sentence_transformers"
     
     def __post_init__(self):

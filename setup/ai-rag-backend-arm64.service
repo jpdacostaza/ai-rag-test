@@ -1,0 +1,25 @@
+[Unit]
+Description=AI RAG Backend with ARM64 Optimizations
+Documentation=https://github.com/jpdacostaza/ai-rag-test
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+Group=root
+ExecStart=/opt/backend/scripts/autostart-arm64.sh
+ExecStop=/bin/bash -c 'cd /opt/backend && docker-compose -f docker-compose.yml -f docker-compose.arm64.yml down'
+TimeoutStartSec=300
+TimeoutStopSec=120
+StandardOutput=journal
+StandardError=journal
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

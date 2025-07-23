@@ -1,0 +1,39 @@
+{
+  "ENABLE_WEB_SEARCH": true,
+  "MAX_RESULTS": 5,
+  "AUTO_SEARCH_ENABLED": true,
+  "TIMEOUT_SECONDS": 10,
+  "SEARCH_ENGINES": [
+    "brave",
+    "searx", 
+    "duckduckgo"
+  ],
+  "NEWS_KEYWORDS": [
+    "news",
+    "headlines", 
+    "current",
+    "latest",
+    "today",
+    "recent",
+    "breaking",
+    "updates", 
+    "happening",
+    "2025",
+    "now",
+    "live"
+  ],
+  "UNCERTAINTY_PHRASES": [
+    "i don't know",
+    "i'm not sure", 
+    "i don't have",
+    "i cannot provide",
+    "i'm unable to",
+    "no information",
+    "not available",
+    "unclear",
+    "uncertain",
+    "i cannot access",
+    "cutoff date",
+    "knowledge cutoff"
+  ]
+}

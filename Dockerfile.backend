@@ -9,7 +9,7 @@ ENV PYTORCH_CUDA_ALLOC_CONF=""
 ENV FORCE_CPU_ONLY=1
 ENV TOKENIZERS_PARALLELISM=false
 ENV HUGGINGFACE_HUB_CACHE="/opt/cache/huggingface"
-ENV SENTENCE_TRANSFORMERS_HOME="/opt/internal_cache/sentence_transformers"
+ENV SENTENCE_TRANSFORMERS_HOME="/opt/backend/storage/models"
 ENV TRANSFORMERS_CACHE="/opt/cache/transformers"
 ENV TORCH_HOME="/opt/cache/torch"
 ENV OMP_NUM_THREADS=1
@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create storage and cache directories with proper permissions
-RUN mkdir -p ./storage && \
+RUN mkdir -p ./storage/models && \
     mkdir -p /opt/internal_cache/sentence_transformers && \
     mkdir -p /opt/cache/chroma/onnx_models && \
     chown -R backend:backend /opt/backend && \
@@ -49,6 +49,7 @@ RUN mkdir -p ./storage && \
     chmod -R 755 /opt/backend && \
     chmod -R 755 /opt/internal_cache && \
     chmod -R 777 /opt/cache && \
+    chmod -R 777 ./storage && \
     chmod -R 755 /home/backend
 
 # Add environment variables for robust startup

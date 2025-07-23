@@ -75,11 +75,11 @@ class ServiceConfig:
     
     @property
     def memory_api_url(self) -> str:
-        return os.getenv("MEMORY_API_URL", "http://memory-api:8001")
+        return os.getenv("MEMORY_API_URL", "http://memory-api:5001")
     
     @property
     def redis_url(self) -> str:
-        return os.getenv("REDIS_URL", "redis://backend-redis:6379")
+        return os.getenv("REDIS_URL", "redis://redis:6379")
     
     @property
     def chromadb_url(self) -> str:
@@ -102,7 +102,7 @@ class DatabaseConfig:
     
     @property
     def redis_host(self) -> str:
-        return os.getenv("REDIS_HOST", "backend-redis")
+        return os.getenv("REDIS_HOST", "redis")
     
     @property
     def redis_port(self) -> int:

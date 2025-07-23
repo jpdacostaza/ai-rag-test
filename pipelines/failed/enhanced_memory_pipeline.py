@@ -28,7 +28,7 @@ from typing import List, Optional, Dict, Any
 # Add the pipelines directory to the Python path for imports
 sys.path.insert(0, '/app/pipelines')
 
-# Add the backend directory for web search tools
+# Try to import the backend directly to see if it's available
 sys.path.insert(0, '/app')
 
 # Add core modules to path

@@ -24,7 +24,9 @@ services:
     restart: always
     volumes:
       - ./storage/redis:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-2048mb} --maxmemory-policy allkeys-lru --save 300 10 --tcp-keepalive 60 --timeout 0 --maxclients 10000
+    environment:
+      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -61,6 +63,18 @@ services:
     environment:
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-3}  # Maximum models for performance
+      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-20480}               # 20GB for maximum performance
+      - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
+      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}
+      # CPU optimization - MAXIMUM PERFORMANCE
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-8}           # 8 parallel requests (max cores)
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-8}             # All 8 CPU threads
+      # Advanced performance optimizations
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-true}  # Enable flash attention
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Faster KV cache
+      - OLLAMA_KEEP_ALIVE=24h                                   # Keep models loaded longer
+      - OLLAMA_CONCURRENT_REQUESTS=8                            # Maximum concurrent requests
     depends_on:
       redis:
         condition: service_healthy
@@ -68,10 +82,10 @@ services:
         condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "pgrep ollama || exit 1"]
-      interval: 30s
-      timeout: 10s
+      interval: 60s      # Longer intervals for slower devices
+      timeout: 30s       # Longer timeout for health checks
       retries: 5
-      start_period: 60s
+      start_period: 120s # More time for slower devices to start
     networks:
       - backend-net
 
@@ -92,7 +106,20 @@ services:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
+      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization
+      - LLM_TIMEOUT=300                                         # 5min timeout for large models
+      - OLLAMA_REQUEST_TIMEOUT=300                              # HTTP client timeout
+      - HTTPX_TIMEOUT=300                                       # HTTPX client timeout
+      - REQUEST_TIMEOUT=300                                     # General request timeout
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-128}       # Maximum batch size
+      # Performance optimizations
+      - WORKERS=4                                               # 4 worker processes
+      - MAX_CONCURRENT_REQUESTS=16                              # High concurrency
+      - MEMORY_LIMIT=8G                                         # Generous memory limit
       - LOG_REQUESTS=false
+      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
+      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
@@ -105,8 +132,8 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health/simple"]
-      interval: 15s
-      timeout: 10s
+      interval: 30s      # Longer intervals for slower devices
+      timeout: 20s       # Longer timeout for ARM64
       retries: 8
       start_period: 120s
     networks:
@@ -123,7 +150,7 @@ services:
     restart: unless-stopped
     environment:
       - ENV=production
-      - REDIS_URL=redis://backend-redis:6379
+      - REDIS_URL=redis://redis:6379
       - CHROMA_URL=http://chroma:8000
       - OLLAMA_API=http://ollama:11434
       - OPENWEBUI_API=http://openwebui:8080
@@ -166,10 +193,6 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
-    extra_hosts:
-      - "backend-redis:172.18.0.2"
-      - "backend-chroma:172.18.0.3"
-      - "backend-ollama:172.18.0.4"
     networks:
       - backend-net
 
@@ -254,6 +277,9 @@ services:
       - ANONYMIZED_TELEMETRY=false
       # Set user agent for LangChain
       - USER_AGENT=OpenWebUI/0.6.15
+      # Cross-platform timeout optimizations
+      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
+      - REQUEST_TIMEOUT=180         # Longer timeout for slower devices
     volumes:
       - ./storage/openwebui:/app/backend/data
       - ./memory/functions:/app/backend/data/functions:rw
@@ -281,7 +307,7 @@ services:
     restart: "no"
     environment:
       - ENV=production
-      - REDIS_URL=redis://backend-redis:6379
+      - REDIS_URL=redis://redis:6379
       - CHROMA_URL=http://chroma:8000
       - PYTHONPATH=/app
     volumes:
@@ -323,7 +349,7 @@ services:
       - GATEWAY_HOST=0.0.0.0
       - GATEWAY_PORT=8888
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      - REDIS_HOST=backend-redis
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - LOG_LEVEL=INFO
       - RATE_LIMIT_REQUESTS=100
@@ -332,15 +358,15 @@ services:
       - CACHE_PROVIDER=redis
       - TRACING_ENABLED=false
       # Service discovery
-      - MEMORY_API_HOST=backend-memory-api
+      - MEMORY_API_HOST=memory-api
       - MEMORY_API_PORT=5001
-      - OLLAMA_HOST=backend-ollama
+      - OLLAMA_HOST=ollama
       - OLLAMA_PORT=11434
-      - OPENWEBUI_HOST=backend-openwebui
+      - OPENWEBUI_HOST=openwebui
       - OPENWEBUI_PORT=8080
-      - PIPELINES_HOST=backend-pipelines
+      - PIPELINES_HOST=pipelines
       - PIPELINES_PORT=9099
-      - CHROMA_HOST=backend-chroma
+      - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
     volumes:
       - .:/app

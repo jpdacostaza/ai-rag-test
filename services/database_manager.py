@@ -657,7 +657,7 @@ class DatabaseManager:
 
         try:
             async with self._redis_lock:
-                result = operation(self.redis_client)
+                result = await operation(self.redis_client)
                 return result
         except redis.RedisError as e:
             log_service_status("redis", "error", f"Redis operation '{operation_name}' failed: {str(e)}")
@@ -665,7 +665,7 @@ class DatabaseManager:
                 await self._initialize_redis()
                 if self.redis_client:
                     async with self._redis_lock:
-                        result = operation(self.redis_client)
+                        result = await operation(self.redis_client)
                         return result
             except redis.RedisError as e2:
                 log_service_status("redis", "error", f"Retry failed for '{operation_name}': {str(e2)}")
@@ -763,12 +763,12 @@ class DatabaseManager:
     async def get_chat_history(self, chat_id: str, limit: int = 100) -> List[Dict[str, Any]]:
         """Get chat history from Redis."""
 
-        def get_operation(redis_client: redis.Redis) -> List[Dict[str, Any]]:
+        async def get_operation(redis_client: redis.Redis) -> List[Dict[str, Any]]:
             """TODO: Add proper docstring for get_operation."""
             chat_key = f"chat:{chat_id}"
             try:
                 # lrange returns a list of bytes or str
-                entries = redis_client.lrange(chat_key, 0, limit - 1)
+                entries = await redis_client.lrange(chat_key, 0, limit - 1)
                 if not isinstance(entries, list):
                     log_service_status("redis", "warning", f"Cache miss - no history found for chat_id: {chat_id}")
                     return []
@@ -805,10 +805,10 @@ class DatabaseManager:
     async def store_chat_entry(self, chat_id: str, chat_entry: Dict[str, Any]) -> bool:
         """Store a chat entry in Redis."""
 
-        def store_operation(redis_client: redis.Redis) -> bool:
+        async def store_operation(redis_client: redis.Redis) -> bool:
             """TODO: Add proper docstring for store_operation."""
             chat_key = f"chat:{chat_id}"
-            redis_client.lpush(chat_key, json.dumps(chat_entry))
+            await redis_client.lpush(chat_key, json.dumps(chat_entry))
             log_service_status(
                 "redis",
                 "info",
@@ -1239,7 +1239,7 @@ async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bo
     # Ensure initialization is complete
     await db_manager.ensure_initialized()
 
-    def store_operation(redis_client: redis.Redis) -> bool:
+    async def store_operation(redis_client: redis.Redis) -> bool:
         """Store chat history messages in Redis.
         
         Stores the complete chat history for a given chat ID in Redis,
@@ -1253,10 +1253,10 @@ async def store_chat_history(chat_id: str, messages: List[Dict[str, Any]]) -> bo
         """
         chat_key = f"chat:{chat_id}"
         # Clear existing history
-        redis_client.delete(chat_key)
+        await redis_client.delete(chat_key)
         # Store new history
         for message in messages:
-            redis_client.lpush(chat_key, json.dumps(message))
+            await redis_client.lpush(chat_key, json.dumps(message))
         log_service_status("redis", "info", f"Cache write - stored {len(messages)} messages for chat_id: {chat_id}")
         return True
 

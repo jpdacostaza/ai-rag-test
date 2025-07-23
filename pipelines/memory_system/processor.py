@@ -287,7 +287,7 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
             # Try alternative paths if main path fails
             fallback_paths = [
                 "config/persona_enhanced.json",
-                "/app/backend/config/persona_enhanced.json",
+                "/app/config/persona_enhanced.json",
                 "./config/persona_enhanced.json"
             ]
             
@@ -355,7 +355,7 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
             small_persona_paths = [
                 "/app/config/persona_small_model.json",
                 "config/persona_small_model.json",
-                "/app/backend/config/persona_small_model.json",
+                "/app/config/persona_small_model.json",
                 "./config/persona_small_model.json"
             ]
             

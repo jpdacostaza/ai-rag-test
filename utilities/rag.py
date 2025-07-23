@@ -38,10 +38,25 @@ MEMORY_SERVICE_AVAILABLE = register_import_attempt(
 
 
 # RAG configuration constants
-DEFAULT_CHUNK_SIZE = 1000
-DEFAULT_CHUNK_OVERLAP = 200
-DEFAULT_SEARCH_LIMIT = 5
-MAX_SEARCH_LIMIT = 50
+# ARM64-optimized settings for Orange Pi 5 Plus and similar devices
+import os
+
+# Check if running on ARM64 with optimization flag
+ARM64_OPTIMIZED = os.getenv("ARM64_OPTIMIZED", "false").lower() == "true"
+
+if ARM64_OPTIMIZED:
+    # Smaller chunks for faster processing on ARM64
+    DEFAULT_CHUNK_SIZE = 600
+    DEFAULT_CHUNK_OVERLAP = 50
+    DEFAULT_SEARCH_LIMIT = 2
+    MAX_SEARCH_LIMIT = 10
+    logger.info("[RAG] ARM64 optimizations enabled - smaller chunks and reduced limits")
+else:
+    # Standard settings for x86_64
+    DEFAULT_CHUNK_SIZE = 1000
+    DEFAULT_CHUNK_OVERLAP = 200
+    DEFAULT_SEARCH_LIMIT = 5
+    MAX_SEARCH_LIMIT = 50
 
 
 class RAGProcessor:
