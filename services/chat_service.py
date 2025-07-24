@@ -15,9 +15,16 @@ from models.models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service
 from services.user_profiles import user_profile_manager
-from utilities.web_search_tool import should_trigger_web_search, search_web, format_web_results_for_chat
+from utilities.enhanced_web_search import should_trigger_web_search, search_web
 from utilities.simple_error_handling import handle_errors
 from core.logging_config import get_logger
+
+# Enhanced web search format function for compatibility
+def format_web_results_for_chat(results):
+    """Format web search results for chat display."""
+    if isinstance(results, dict) and "results" in results:
+        return "\n".join([result.get("snippet", result.get("title", "")) for result in results["results"][:3]])
+    return str(results)[:500]
 
 logger = logging.getLogger(__name__)
 

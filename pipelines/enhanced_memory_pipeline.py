@@ -206,8 +206,22 @@ try:
         print(f"[MEMORY PIPELINE INFO] LangChain compatibility issue (optional): {e}")
         langchain_available = False
     
-    # Try importing web search tools
+    # Try importing web search tools - PREFER enhanced over legacy
     try:
+        # PRIORITY 1: Enhanced web search (recommended)
+        from utilities.enhanced_web_search import search_web, should_trigger_web_search
+        
+        # Simple format function for compatibility
+        def format_web_results_for_chat(results):
+            if isinstance(results, dict) and "results" in results:
+                return "\n".join([result.get("snippet", result.get("title", "")) for result in results["results"][:3]])
+            return str(results)[:500]  # Fallback formatting
+        
+        web_search_available = True
+        print("[MEMORY PIPELINE INFO] ✅ Enhanced web search tools loaded successfully")
+        
+    except ImportError:
+        # FALLBACK: Legacy web search tool (deprecated)
         from pathlib import Path
         import importlib.util
         
@@ -237,7 +251,11 @@ try:
         should_trigger_web_search = web_search_module.should_trigger_web_search
         format_web_results_for_chat = web_search_module.format_web_results_for_chat
         web_search_available = True
-        print("[MEMORY PIPELINE INFO] Backend web search tools loaded successfully")
+        print("[MEMORY PIPELINE INFO] ⚠️ Legacy web search tools loaded (deprecated - upgrade to enhanced)")
+    
+    except Exception as e:
+        print(f"[MEMORY PIPELINE INFO] Web search tools not available: {e}")
+        web_search_available = False
     except Exception as e:
         print(f"[MEMORY PIPELINE INFO] Web search tools not available: {e}")
         web_search_available = False
