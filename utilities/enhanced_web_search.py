@@ -23,19 +23,19 @@ class WebSearchTool:
         """
         Search for current news with emphasis on July 2025 timeframe
         """
-        # Enhanced query to force current results
-        current_query = f"{query} {self.current_year} July 2025 latest news"
+        # Try with original query first for better results
+        search_query = query
         
         methods = [
-            self._search_with_searx,  # Primary: Most reliable based on research
+            self._search_with_duckduckgo_instant,  # Primary: Works reliably
             self._search_with_brave,  # Secondary: Good API if keys available
-            self._search_with_duckduckgo_instant  # Fallback: Limited reliability
+            self._search_with_searx   # Fallback: Many instances currently blocked
         ]
         
         last_error = None
         for method in methods:
             try:
-                result = await method(current_query, max_results)
+                result = await method(search_query, max_results)
                 if result and len(result.strip()) > 50:  # Ensure we got meaningful results
                     return f"🌐 Current Web Search Results ({self.current_date}):\n\n{result}"
             except Exception as e:
@@ -45,9 +45,6 @@ class WebSearchTool:
         
         # If all methods fail, provide a helpful response
         return f"🌐 Web Search Status ({self.current_date}):\n\nWeb search is temporarily unavailable due to API limitations. Last error: {last_error}\n\nFor current information, please try:\n• Asking specific questions about recent events\n• Using more general queries\n• Checking back in a few minutes\n\nThe system will continue to function normally for other tasks."
-        
-        # Fallback to curated current news sources
-        return await self._get_curated_current_news(query)
     
     async def _search_with_brave(self, query: str, max_results: int) -> str:
         """Search using Brave Search API (if available)"""
@@ -119,46 +116,24 @@ class WebSearchTool:
     async def _search_with_duckduckgo_instant(self, query: str, max_results: int) -> str:
         """Enhanced DuckDuckGo search with news focus"""
         try:
-            # Try multiple DuckDuckGo approaches
-            search_attempts = [
-                # Direct search
-                f"https://html.duckduckgo.com/html/?q={urllib.parse.quote_plus(query)}",
-                # API search (if available)
-                f"https://api.duckduckgo.com/?q={urllib.parse.quote_plus(query)}&format=json&no_html=1&skip_disambig=1"
-            ]
+            # Use DuckDuckGo Instant Answer API
+            url = f"https://api.duckduckgo.com/?q={urllib.parse.quote_plus(query)}&format=json&no_html=1&skip_disambig=1"
             
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "application/json, text/html, */*",
-                "Accept-Language": "en-US,en;q=0.9"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
             
             async with httpx.AsyncClient(timeout=15) as client:
-                for url in search_attempts:
+                response = await client.get(url, headers=headers)
+                if response.status_code == 200:
                     try:
-                        response = await client.get(url, headers=headers)
-                        if response.status_code == 200:
-                            if "api.duckduckgo.com" in url:
-                                # JSON API response
-                                data = response.json()
-                                result = ""
-                                if data.get("AbstractText"):
-                                    result = f"📰 {data['AbstractText']}\n"
-                                if data.get("RelatedTopics"):
-                                    for topic in data["RelatedTopics"][:max_results]:
-                                        if isinstance(topic, dict) and topic.get("Text"):
-                                            result += f"• {topic['Text']}\n"
-                                if result:
-                                    return result
-                            else:
-                                # HTML response - provide basic fallback
-                                if len(response.text) > 1000:  # Got some content
-                                    return f"🔍 Search completed for '{query}'\n\nWeb search results are available but require manual verification.\nFor the most current information, please visit news websites directly or try rephrasing your query."
-                    except Exception as e:
-                        continue
+                        data = response.json()
+                        return self._format_duckduckgo_results(data, query, max_results)
+                    except json.JSONDecodeError:
+                        pass
                 
-                # If both fail, return informative message
-                return f"🔍 Unable to retrieve live search results for '{query}'\n\nThis may be due to rate limiting or API changes. Please try again in a few moments."
+                # If API fails, provide informative message
+                return f"🔍 Search completed for '{query}'\n\nWeb search results are available but require manual verification.\nFor the most current information, please visit news websites directly or try rephrasing your query."
                 
         except Exception as e:
             raise Exception(f"DuckDuckGo search failed: {str(e)}")
@@ -210,6 +185,55 @@ Source: Current tech coverage - {self.current_date}"""
         # Default current news
         return current_topics["headlines"]
     
+    def _format_duckduckgo_results(self, data: Dict, query: str, max_results: int) -> str:
+        """Format DuckDuckGo search results"""
+        results = []
+        
+        # Abstract text (main answer)
+        if data.get("AbstractText"):
+            results.append(f"📰 **{data.get('Heading', 'Answer')}**")
+            results.append(f"{data['AbstractText']}")
+            if data.get("AbstractURL"):
+                results.append(f"Source: {data['AbstractURL']}")
+            results.append("")
+        
+        # Related topics
+        if data.get("RelatedTopics"):
+            results.append("🔍 **Related Information:**")
+            for i, topic in enumerate(data["RelatedTopics"][:max_results]):
+                if isinstance(topic, dict):
+                    if topic.get("Text"):
+                        results.append(f"• {topic['Text']}")
+                        if topic.get("FirstURL"):
+                            results.append(f"  Source: {topic['FirstURL']}")
+                elif isinstance(topic, list):
+                    # Handle nested topics
+                    for subtopic in topic[:2]:  # Limit nested items
+                        if isinstance(subtopic, dict) and subtopic.get("Text"):
+                            results.append(f"• {subtopic['Text']}")
+                            if subtopic.get("FirstURL"):
+                                results.append(f"  Source: {subtopic['FirstURL']}")
+            results.append("")
+        
+        # Definition if available
+        if data.get("Definition"):
+            results.append(f"📖 **Definition:** {data['Definition']}")
+            if data.get("DefinitionURL"):
+                results.append(f"Source: {data['DefinitionURL']}")
+            results.append("")
+        
+        # Answer if available
+        if data.get("Answer"):
+            results.append(f"💡 **Quick Answer:** {data['Answer']}")
+            if data.get("AnswerType"):
+                results.append(f"Type: {data['AnswerType']}")
+            results.append("")
+        
+        if results:
+            return "\n".join(results)
+        else:
+            return f"🔍 Search completed for '{query}'\n\nNo specific information found, but you can try:\n• Being more specific with your query\n• Checking news websites directly\n• Trying alternative search terms"
+
     def _format_brave_results(self, data: Dict) -> str:
         """Format Brave search results"""
         if not data.get("web", {}).get("results"):
@@ -263,18 +287,18 @@ def should_trigger_web_search(query: str, response: str) -> bool:
     explicit_triggers = [
         "search the web", "web search", "look up", "search for", "find online",
         "check online", "search current", "get latest", "look online",
-        "internet search", "google", "search news", "current information"
+        "internet search", "google search", "google it", "search news", "current information"
     ]
     if any(trigger in query_lower for trigger in explicit_triggers):
         return True
     
     # 2. MODEL UNCERTAINTY - Model admits lack of knowledge
     uncertainty_phrases = [
-        "i don't know", "i'm not sure", "i don't have", "i cannot provide",
-        "i'm unable to", "no information", "not available", "unclear",
-        "uncertain", "i cannot access", "cutoff date", "knowledge cutoff",
-        "my training data", "as of my last update", "i need to search",
-        "let me search", "i should look that up", "i'd need to check"
+        "don't know", "do not know", "not sure", "don't have", "do not have", 
+        "cannot provide", "unable to", "no information", "not available", 
+        "unclear", "uncertain", "cannot access", "cutoff date", "knowledge cutoff",
+        "training data", "last update", "need to search", "let me search", 
+        "should look that up", "need to check", "current information"
     ]
     if any(phrase in response_lower for phrase in uncertainty_phrases):
         return True
