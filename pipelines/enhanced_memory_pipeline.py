@@ -366,6 +366,7 @@ class Pipeline:
             max_memories: int = 100
             memory_threshold: float = float(os.getenv('MEMORY_THRESHOLD', '1.5'))
             quality_threshold: int = 3
+            save_raw_search_results: bool = False  # Disabled when memory system unavailable
             require_authenticated_user: bool = False
             enforce_user_session_consistency: bool = True
             api_timeout: int = config.get('API_TIMEOUT', 30) if config else int(os.getenv('API_TIMEOUT', '30'))
@@ -504,15 +505,53 @@ class Pipeline:
                         try:
                             search_results = await search_web(query, max_results=3)
                             
-                            if search_results.get("results"):
-                                # Add web search results to system message
-                                web_context = format_web_results_for_chat(search_results)
+                            if search_results and len(search_results.strip()) > 50:
+                                # Store raw search results to memory if enabled
+                                if self.valves.save_raw_search_results and hasattr(self, 'api_client') and self.api_client:
+                                    try:
+                                        # Get user authentication
+                                        user_id, user_data = self.auth_manager.authenticate_user(body) if self.auth_manager else (None, None)
+                                        
+                                        # Apply persistent ID logic
+                                        if not user_id and body.get("__user__") and body["__user__"].get("id"):
+                                            original_id = str(body["__user__"].get("id"))
+                                            if original_id.startswith("session_"):
+                                                session_hash = original_id.replace("session_", "")
+                                                user_id = f"persistent_user_{session_hash}"
+                                            else:
+                                                user_id = original_id
+                                        
+                                        if not user_id:
+                                            user_id = "persistent_user_anonymous"
+                                        
+                                        # Store raw search results as a supplementary memory
+                                        if user_id:
+                                            raw_search_memory = {
+                                                "user_id": user_id,
+                                                "content": f"Web search results for '{query}':\n\n{search_results}",
+                                                "metadata": {
+                                                    "type": "web_search_raw",
+                                                    "query": query,
+                                                    "timestamp": str(int(time.time())),
+                                                    "search_engine": "duckduckgo",
+                                                    "importance_override": 0.3  # Lower importance than conversations
+                                                }
+                                            }
+                                            
+                                            await self.api_client.store_memory(raw_search_memory)
+                                            self.log(f"💾 Stored raw search results to memory for user {user_id}")
+                                            
+                                    except Exception as storage_error:
+                                        self.log(f"⚠️ Failed to store raw search results: {storage_error}", "WARNING")
+                                
+                                # Format and add web search results to system message
+                                web_context = search_results if isinstance(search_results, str) else str(search_results)
                                 
                                 # Find existing system message or create one
                                 system_msg_found = False
                                 for msg in body["messages"]:
                                     if msg.get("role") == "system":
-                                        msg["content"] += f"\n\nCurrent web search results for '{query}':{web_context}"
+                                        msg["content"] += f"\n\nCurrent web search results for '{query}':\n{web_context}"
                                         system_msg_found = True
                                         break
                                 
@@ -520,12 +559,12 @@ class Pipeline:
                                 if not system_msg_found:
                                     body["messages"].insert(0, {
                                         "role": "system",
-                                        "content": f"You are a helpful assistant with web search capabilities.\n\nCurrent web search results for '{query}':{web_context}"
+                                        "content": f"You are a helpful assistant with web search capabilities.\n\nCurrent web search results for '{query}':\n{web_context}"
                                     })
                                 
                                 self.log(f"🌐 Added web search results to context")
-                            elif search_results.get("status") == "fallback_unavailable":
-                                self.log(f"⚠️ Web search triggered but using FALLBACK MODE - no results available")
+                            else:
+                                self.log(f"⚠️ Web search triggered but no meaningful results returned")
                         except Exception as search_error:
                             self.log(f"❌ Web search failed: {search_error}", "ERROR")
                     else:

@@ -30,6 +30,7 @@ class MemoryValves(BaseModel):
     max_memories: int = 100  # Maximum memories to retrieve per query for comprehensive context
     memory_threshold: float = 0.001  # Lower threshold to capture more relevant memories
     quality_threshold: int = 3  # Minimum quality score for memory injection
+    save_raw_search_results: bool = True  # Save raw web search results as supplementary memories
     
     # User Authentication
     require_authenticated_user: bool = True
