@@ -147,10 +147,10 @@ UserAuthManager = None
 MemoryProcessor = None
 
 try:
-    from memory_system.config import MemoryValves
-    from memory_system.api_client import MemoryAPIClient
-    from memory_system.auth import UserAuthManager
-    from memory_system.processor import MemoryProcessor
+    from ..memory_system.config import MemoryValves
+    from ..memory_system.api_client import MemoryAPIClient
+    from ..memory_system.auth import UserAuthManager
+    from ..memory_system.processor import MemoryProcessor
     memory_system_available = True
     print("[MEMORY PIPELINE INFO] Memory system modules imported successfully")
 except ImportError as e:
