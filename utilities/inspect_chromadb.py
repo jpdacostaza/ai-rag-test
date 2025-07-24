@@ -9,7 +9,7 @@ import requests
 import json
 import time
 
-BACKEND_URL = "http://localhost:8001"
+BACKEND_URL = "http://backend:3000"
 API_KEY = os.getenv("API_KEY", "default_test_key")
 
 

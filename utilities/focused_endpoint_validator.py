@@ -162,7 +162,7 @@ def main():
         (
             "POST",
             "/v1/chat/completions",
-            {"model": "llama3.2:3b", "messages": [{"role": "user", "content": "Test message"}], "max_tokens": 5},
+            {"model": "qwen3:4b", "messages": [{"role": "user", "content": "Test message"}], "max_tokens": 5},
             "Chat completions"),
         ("GET", "/models", None, "Internal models"),
         ("POST", "/upload/search", {"query": "test", "user_id": "test_user"}, "Document search"),

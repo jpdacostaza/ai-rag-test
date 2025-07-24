@@ -35,7 +35,7 @@ class SystemMonitor:
         self.openwebui_url = os.getenv("OPENWEBUI_URL", "http://openwebui:8080")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         self.db_path = "/tmp/openwebui/webui.db"
-        self.default_model = "llama3.2:3b"
+        self.default_model = "qwen3:4b"
         self.check_interval = int(os.getenv("CHECK_INTERVAL", "300"))  # 5 minutes default
         
     async def run_continuous_monitoring(self):

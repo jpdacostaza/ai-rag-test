@@ -425,7 +425,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
 
     # Streaming support
     if stream:
-        session_id = f"{user_id}:{body.get('model', DEFAULT_MODEL)}:{int(time.time())}"
+        session_id = f"{user_id}:{int(time.time())}"
         streaming_service.create_session(session_id, user_id, body.get("model", DEFAULT_MODEL))
 
         async def event_stream():

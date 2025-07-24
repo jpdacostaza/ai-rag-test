@@ -149,7 +149,7 @@ async def get_config() -> Dict[str, Any]:
             "ollama_url": getattr(config, "OLLAMA_BASE_URL", "http://localhost:11434"),
             "cache_enabled": True,
             "alert_system_enabled": True,
-            "default_model": getattr(config, "DEFAULT_MODEL", "llama3.2:3b"),
+            "default_model": getattr(config, "DEFAULT_MODEL", "qwen3:4b"),
             "redis_host": getattr(config, "REDIS_HOST", "localhost"),
             "redis_port": getattr(config, "REDIS_PORT", 6379),
         }

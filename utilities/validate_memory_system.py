@@ -20,12 +20,12 @@ import sys
 from typing import Dict, List, Optional
 
 # Configuration
-OPENWEBUI_URL = "http://localhost:8080"
-MEMORY_API_URL = "http://localhost:8001"
-PIPELINES_URL = "http://localhost:9099" 
-BACKEND_URL = "http://localhost:3000"
-REDIS_URL = "redis://localhost:6379"
-CHROMA_URL = "http://localhost:8000"
+OPENWEBUI_URL = "http://openwebui:8080"
+MEMORY_API_URL = "http://memory-api:5001"
+PIPELINES_URL = "http://pipelines:9099" 
+BACKEND_URL = "http://backend:3000"
+REDIS_URL = "redis://redis:6379"
+CHROMA_URL = "http://chroma:8000"
 
 class MemorySystemValidator:
     def __init__(self):

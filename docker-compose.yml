@@ -44,6 +44,10 @@ services:
     ports:
       - "6379:6379"
     restart: always
+    user: "1000:1000"
+    # Use system core only
+    cpuset: "0"
+    mem_limit: 512m
     volumes:
       - ./storage/redis:/data
     command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-2048mb} --maxmemory-policy allkeys-lru --save 300 10 --tcp-keepalive 60 --timeout 0 --maxclients 10000
@@ -70,8 +74,12 @@ services:
     ports:
       - "8000:8000"
     restart: always
+    user: "1000:1000"
+    # Use system core only
+    cpuset: "0"
+    mem_limit: 1g
     volumes:
-      - ./storage/chroma:/chroma/chroma
+      - ./storage/chroma:/data
     depends_on:
       redis:
         condition: service_healthy
@@ -87,26 +95,51 @@ services:
     ports:
       - "11434:11434"
     restart: always
+    user: "1000:1000"
+    # ARM64 OPTIMIZED CONFIGURATION FOR ORANGE PI 5 PLUS
+    # CPU affinity - dedicate cores 1-7 to Ollama, leave core 0 for system
+    cpuset: "1-7"
+    # Enhanced memory management for ARM64
+    mem_limit: 6g
+    memswap_limit: 6g               # Disable swap to prevent performance degradation
+    mem_swappiness: 0               # Disable memory swapping for better performance
+    mem_reservation: 4g             # Reserve 4GB minimum
+    # Process and file limits for ARM64 stability
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+      nproc:
+        soft: 65536
+        hard: 65536
+    # CPU scheduling optimizations for ARM64
+    cpu_shares: 2048                # Higher priority for Ollama (2x default)
+    # OOM killer protection
+    oom_kill_disable: false         # Allow OOM killer for safety
     volumes:
-      - ./storage/ollama:/root/.ollama
+      - ./storage/ollama:/home/ollama/.ollama
     environment:
+      - OLLAMA_HOME=/home/ollama/.ollama
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}  # Reduced for stability
-      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-4096}                # 4GB reasonable limit
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}  # Single model for qwen3:4b
+      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger qwen3:4b model
       - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}
-      # CPU optimization - BALANCED PERFORMANCE
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-2}           # Reduced parallel requests
-      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-4}             # Reasonable thread count
-      # Advanced performance optimizations - CONSERVATIVE
-      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-false} # Disable for stability
+      # CPU optimization - ORANGE PI 5 PLUS OPTIMIZED (cores 1-7)
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}           # Single request for stability
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-7}             # Use all 7 dedicated cores
+      # Advanced performance optimizations - STABILITY FOCUSED
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-false} # Disable for CPU stability
       - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Keep f16 cache
-      - OLLAMA_KEEP_ALIVE=10m                                   # Shorter keep-alive
-      - OLLAMA_CONCURRENT_REQUESTS=2                            # Reduced concurrent requests
-      # Timeout settings
-      - OLLAMA_REQUEST_TIMEOUT=300                              # 5-minute timeout
-      - OLLAMA_LOAD_TIMEOUT=600                                 # 10-minute model load timeout
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}              # Shorter keep-alive to free resources
+      - OLLAMA_CONCURRENT_REQUESTS=${OLLAMA_CONCURRENT_REQUESTS:-1} # Single concurrent request
+      # Timeout settings - EXTENDED FOR QWEN3:4B
+      - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-600}   # 10-minute timeout for qwen3
+      - OLLAMA_LOAD_TIMEOUT=${OLLAMA_LOAD_TIMEOUT:-900}         # 15-minute model load timeout
     depends_on:
       redis:
         condition: service_healthy
@@ -134,6 +167,9 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     user: "1000:1000"  # Run as non-root user for security and permission consistency
+    # Use system core for lightweight backend operations
+    cpuset: "0"
+    mem_limit: 2g
     env_file:
       - .env
     environment:
@@ -144,10 +180,10 @@ services:
       - HF_HOME=/opt/cache/huggingface                          # Fix transformers cache deprecation warning
       - CHROMA_COLLECTION=user_memory                           # Consistent collection name
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization
-      - LLM_TIMEOUT=300                                         # 5min timeout for large models
-      - OLLAMA_REQUEST_TIMEOUT=300                              # HTTP client timeout
-      - HTTPX_TIMEOUT=300                                       # HTTPX client timeout
-      - REQUEST_TIMEOUT=300                                     # General request timeout
+      - LLM_TIMEOUT=600                                         # 10min timeout for qwen3:4b
+      - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for qwen3
+      - HTTPX_TIMEOUT=600                                       # HTTPX client timeout for qwen3
+      - REQUEST_TIMEOUT=600                                     # General request timeout for qwen3
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-128}       # Maximum batch size
       # Performance optimizations
       - WORKERS=4                                               # 4 worker processes
@@ -159,6 +195,8 @@ services:
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
       # Stream debug logging (disabled by default for performance)
       - ENABLE_STREAM_DEBUG=${ENABLE_STREAM_DEBUG:-false}
+      # Model preloading (disabled by default to prevent startup errors)
+      - ENABLE_MODEL_PRELOAD=${ENABLE_MODEL_PRELOAD:-false}
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
@@ -295,7 +333,8 @@ services:
       # Route through our main backend API using the working v1 endpoint
       - OPENAI_API_BASE_URLS=http://backend:3000/v1;http://pipelines:9099
       - OPENAI_API_KEYS=backend-api-key;0p3n-w3bu!
-      - OLLAMA_BASE_URL=http://backend-ollama:11434
+      # OLLAMA_BASE_URL disabled - forcing all requests through backend API
+      # - OLLAMA_BASE_URL=http://backend-ollama:11434
       - ENABLE_FUNCTIONS=true
       - ENABLE_TOOLS=true
       - GLOBAL_TOOLS=true
@@ -314,7 +353,8 @@ services:
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true
       - DEFAULT_USER_ROLE=user
-      - DEFAULT_MODELS=gemma3:4b
+      - DEFAULT_MODEL=qwen3:4b
+      - DEFAULT_MODELS=qwen3:4b
       # DISABLED: Trusted header auth only works with reverse proxy
       # - WEBUI_AUTH_TRUSTED_EMAIL_HEADER=X-User-Email
       # - WEBUI_AUTH_TRUSTED_NAME_HEADER=X-User-Name
@@ -327,6 +367,9 @@ services:
       # Automatically configure Pipelines connection
       - PIPELINES_URLS=http://pipelines:9099
       - PIPELINES_API_KEY=0p3n-w3bu!
+      # Enable user context passing to pipelines - CRITICAL for authentication
+      - ENABLE_PIPELINE_USER_CONTEXT=true
+      - PIPELINE_USER_CONTEXT=true
       # Disable built-in web search to use our global function instead
       - ENABLE_WEB_SEARCH=false
       - WEB_SEARCH_ENABLED=false

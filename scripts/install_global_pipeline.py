@@ -15,7 +15,7 @@ import shutil
 import argparse
 
 # Configuration
-PIPELINES_URL = "http://localhost:9099"
+PIPELINES_URL = "http://pipelines:9099"
 PIPELINE_SOURCE_MONO = "storage/pipelines/enhanced_memory_pipeline.py"
 PIPELINE_SOURCE_MODULAR = "pipelines/enhanced_memory_pipeline_modular.py"
 PIPELINE_ID = "enhanced_memory_pipeline"
@@ -138,7 +138,7 @@ def verify_global_availability(pipeline_type="auto"):
                 print(f"   ❌ Missing: {description}")
         
         print("\n📋 Pipeline Scope:")
-        print("   • Ollama models (llama3.2:3b, mistral, etc.)")
+        print("   • Ollama models (qwen3:4b, mistral, etc.)")
         print("   • OpenAI-compatible APIs")
         print("   • Cloud-based models")
         print("   • Local models")

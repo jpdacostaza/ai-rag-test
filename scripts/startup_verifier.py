@@ -54,7 +54,7 @@ class StartupVerifier:
         self.openwebui_url = os.getenv("OPENWEBUI_URL", "http://openwebui:8080")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         self.db_path = "/tmp/openwebui/webui.db"
-        self.default_model = "llama3.2:3b"
+        self.default_model = "qwen3:4b"
         
     @handle_service_errors
     async def run_startup_verification(self) -> bool:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-refresh-models.py - Model Refresh and Synchronization Utility
+refresh-models.py - Model Refresh and Synchronization Utility                response = await client.get(f"{BACKEND_URL}/v1/models/verify/qwen3:4b")
 
 This script refreshes and synchronizes models between Ollama and OpenWebUI,
 ensuring that all available models are properly detected and accessible.
@@ -26,9 +26,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Configuration
-OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-OPENWEBUI_URL = os.getenv("OPENWEBUI_URL", "http://localhost:3000")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8001")
+OLLAMA_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+OPENWEBUI_URL = os.getenv("OPENWEBUI_URL", "http://openwebui:8080")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:3000")
 API_KEY = os.getenv("API_KEY", "demo-key-replace-with-actual")
 
 
@@ -43,34 +43,34 @@ class ModelRefreshService:
         """Get list of models from Ollama."""
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get("{OLLAMA_URL}/api/tags")
+                response = await client.get(f"{OLLAMA_URL}/api/tags")
                 if response.status_code == 200:
                     data = response.json()
                     models = data.get("models", [])
-                    logger.info("Found {len(models)} models in Ollama")
+                    logger.info(f"Found {len(models)} models in Ollama")
                     return models
                 else:
-                    logger.error("Failed to get Ollama models: {response.status_code}")
+                    logger.error(f"Failed to get Ollama models: {response.status_code}")
                     return []
-        except Exception:
-            logger.error("Error connecting to Ollama: {e}")
+        except Exception as e:
+            logger.error(f"Error connecting to Ollama: {e}")
             return []
 
     async def get_backend_models(self) -> List[Dict]:
         """Get list of models from backend API."""
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}) as client:
-                response = await client.get("{BACKEND_URL}/v1/models")
+            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": f"Bearer {API_KEY}"}) as client:
+                response = await client.get(f"{BACKEND_URL}/v1/models")
                 if response.status_code == 200:
                     data = response.json()
                     models = data.get("data", [])
-                    logger.info("Found {len(models)} models in backend")
+                    logger.info(f"Found {len(models)} models in backend")
                     return models
                 else:
-                    logger.error("Failed to get backend models: {response.status_code}")
+                    logger.error(f"Failed to get backend models: {response.status_code}")
                     return []
-        except Exception:
-            logger.error("Error connecting to backend: {e}")
+        except Exception as e:
+            logger.error(f"Error connecting to backend: {e}")
             return []
 
     async def verify_model(self, model_name: str) -> bool:
@@ -78,25 +78,26 @@ class ModelRefreshService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 payload = {"model": model_name, "prompt": "test", "stream": False}
-                response = await client.post("{OLLAMA_URL}/api/generate", json=payload)
+                response = await client.post(f"{OLLAMA_URL}/api/generate", json=payload)
                 return response.status_code == 200
-        except Exception:
-            logger.error("Error verifying model {model_name}: {e}")
+        except Exception as e:
+            logger.error(f"Error verifying model {model_name}: {e}")
             return False
 
     async def trigger_backend_model_refresh(self) -> bool:
-        """Trigger model refresh in backend."""
+        """Trigger model refresh in backend by calling the models endpoint."""
         try:
-            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": "Bearer {API_KEY}"}) as client:
-                response = await client.get("{BACKEND_URL}/v1/models/verify/llama3.2:3b")
-                if response.status_code in [200, 404]:  # 404 is ok, means model check was performed
-                    logger.info("Backend model refresh triggered")
+            async with httpx.AsyncClient(timeout=30.0, headers={"Authorization": f"Bearer {API_KEY}"}) as client:
+                # Just call the models endpoint to trigger cache refresh
+                response = await client.get(f"{BACKEND_URL}/v1/models")
+                if response.status_code == 200:
+                    logger.info("Backend model refresh triggered via /v1/models endpoint")
                     return True
                 else:
-                    logger.error("Failed to trigger backend refresh: {response.status_code}")
+                    logger.error(f"Failed to trigger backend refresh: {response.status_code}")
                     return False
-        except Exception:
-            logger.error("Error triggering backend refresh: {e}")
+        except Exception as e:
+            logger.error(f"Error triggering backend refresh: {e}")
             return False
 
     async def check_service_health(self) -> Dict[str, bool]:
@@ -106,7 +107,7 @@ class ModelRefreshService:
         # Check Ollama
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get("{OLLAMA_URL}/api/tags")
+                response = await client.get(f"{OLLAMA_URL}/api/tags")
                 health["ollama"] = response.status_code == 200
         except Exception as e:
             log_service_status("SCRIPT", "error", f"Error checking Ollama health: {e}")
@@ -115,7 +116,7 @@ class ModelRefreshService:
         # Check Backend
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get("{BACKEND_URL}/health")
+                response = await client.get(f"{BACKEND_URL}/v1/models")
                 health["backend"] = response.status_code == 200
         except Exception as e:
             log_service_status("SCRIPT", "error", f"Error checking backend health: {e}")
@@ -124,7 +125,7 @@ class ModelRefreshService:
         # Check OpenWebUI
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                response = await client.get("{OPENWEBUI_URL}/health")
+                response = await client.get(f"{OPENWEBUI_URL}/health")
                 health["openwebui"] = response.status_code == 200
         except Exception as e:
             log_service_status("SCRIPT", "error", f"Error checking OpenWebUI health: {e}")
@@ -138,7 +139,7 @@ class ModelRefreshService:
 
         # Check service health first
         health = await self.check_service_health()
-        logger.info("📊 Service health: {health}")
+        logger.info(f"📊 Service health: {health}")
 
         # Get models from all sources
         ollama_models = await self.get_ollama_models()
@@ -150,7 +151,7 @@ class ModelRefreshService:
         # Verify default model
         default_model_verified = False
         if ollama_models:
-            default_model = "llama3.2:3b"
+            default_model = "qwen2.5:3b"
             for model in ollama_models:
                 if model.get("name") == default_model:
                     default_model_verified = await self.verify_model(default_model)
@@ -172,8 +173,7 @@ class ModelRefreshService:
         }
 
         logger.info(
-            "✅ Model refresh completed: {result['ollama_models']} Ollama models, {result['backend_models']} backend \
-                models"
+            f"✅ Model refresh completed: {result['ollama_models']} Ollama models, {result['backend_models']} backend models"
         )
         return result
 
@@ -188,24 +188,24 @@ async def main():
         result = await service.refresh_all_models()
 
         if result["success"]:
-            print("✅ Refresh completed successfully at {result['timestamp']}")
-            print("📊 Services: {result['services']}")
-            print("📋 Ollama models: {result['ollama_models']}")
-            print("📋 Backend models: {result['backend_models']}")
-            print("🔍 Default model verified: {result['default_model_verified']}")
+            print(f"✅ Refresh completed successfully at {result['timestamp']}")
+            print(f"📊 Services: {result['services']}")
+            print(f"📋 Ollama models: {result['ollama_models']}")
+            print(f"📋 Backend models: {result['backend_models']}")
+            print(f"🔍 Default model verified: {result['default_model_verified']}")
 
             if result["models"]["ollama"]:
                 print("\n📝 Available Ollama models:")
                 for model in result["models"]["ollama"]:
-                    print("  - {model}")
+                    print(f"  - {model}")
 
             return 0
         else:
             print("❌ Refresh failed: Check service connectivity")
             return 1
 
-    except Exception:
-        logger.error("Unexpected error: {e}")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
         return 1
 
 

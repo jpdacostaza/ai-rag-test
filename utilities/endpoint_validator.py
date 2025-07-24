@@ -166,7 +166,7 @@ class EndpointValidator:
                 elif "/upload/document" in path:
                     return {"status": "skipped", "reason": "file upload endpoint"}
                 elif "/v1/chat/completions" in path:
-                    data = {"model": "llama3.2:3b", "messages": [{"role": "user", "content": "test"}], "max_tokens": 5}
+                    data = {"model": "qwen3:4b", "messages": [{"role": "user", "content": "test"}], "max_tokens": 5}
                 else:
                     data = {}
 
