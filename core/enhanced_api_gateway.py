@@ -305,7 +305,7 @@ class EnhancedAPIGateway:
                     id='chroma-1',
                     host='backend-chroma',
                     port=8000,
-                    health_check_url='/api/v1/heartbeat'
+                    health_check_url='/api/v2/version'
                 )]
             )
         }

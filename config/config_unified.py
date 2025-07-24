@@ -292,6 +292,50 @@ class PersonaConfig:
         
         return self.default_system_prompt
 
+@dataclass
+class LoggingConfig:
+    """Logging configuration."""
+    # Logging settings
+    log_level: LogLevel = LogLevel.INFO
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    log_file: Optional[str] = None
+    console_logging: bool = True
+    file_logging: bool = False
+    
+    # Log files
+    logs_dir: str = "./storage/logs"
+    max_log_size: int = 10 * 1024 * 1024  # 10MB
+    backup_count: int = 5
+    
+    # Zero-conf settings for Orange Pi
+    orange_pi_mode: bool = True
+    lightweight_logging: bool = True
+    
+    def __post_init__(self):
+        # Load from environment
+        log_level_str = os.getenv("LOG_LEVEL", self.log_level.value)
+        try:
+            self.log_level = LogLevel(log_level_str.lower())
+        except ValueError:
+            self.log_level = LogLevel.INFO
+        
+        self.log_format = os.getenv("LOG_FORMAT", self.log_format)
+        self.log_file = os.getenv("LOG_FILE", self.log_file)
+        self.console_logging = os.getenv("CONSOLE_LOGGING", str(self.console_logging)).lower() == "true"
+        self.file_logging = os.getenv("FILE_LOGGING", str(self.file_logging)).lower() == "true"
+        
+        self.logs_dir = os.getenv("LOGS_DIR", self.logs_dir)
+        self.max_log_size = int(os.getenv("MAX_LOG_SIZE", str(self.max_log_size)))
+        self.backup_count = int(os.getenv("LOG_BACKUP_COUNT", str(self.backup_count)))
+        
+        # Orange Pi optimizations
+        self.orange_pi_mode = os.getenv("ORANGE_PI_MODE", str(self.orange_pi_mode)).lower() == "true"
+        self.lightweight_logging = os.getenv("LIGHTWEIGHT_LOGGING", str(self.lightweight_logging)).lower() == "true"
+        
+        # Create logs directory if it doesn't exist
+        if self.file_logging:
+            Path(self.logs_dir).mkdir(parents=True, exist_ok=True)
+
 class Config:
     """Unified configuration manager (Singleton)."""
     
@@ -309,6 +353,10 @@ class Config:
         self.service = ServiceConfig()
         self.security = SecurityConfig()
         self.persona = PersonaConfig()
+        self.logging = LoggingConfig()
+        
+        # Create aliases for backward compatibility
+        self.api = self.service  # API config is the same as service config
         
         # App metadata
         self.app_start_time = _APP_START_TIME

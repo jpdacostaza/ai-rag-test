@@ -70,7 +70,7 @@ async def get_user_memories(user_id: Optional[str], query: str, memory_service =
     """
     # Use AuthValidator for consistent user validation
     auth_validator = AuthValidator()
-    validated_user = await auth_validator.extract_and_validate_user({"id": user_id})
+    validated_user = auth_validator.extract_and_validate_user({"id": user_id})
     
     if not validated_user or not validated_user.user_id:
         log_service_status("CHAT", "warning", f"Invalid user_id for memory retrieval: {user_id}")

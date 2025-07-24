@@ -1,0 +1,33 @@
+{
+  "model_liberation": {
+    "enabled": true,
+    "description": "Model Liberation Configuration - Zero-conf setup for any system",
+    "compatible_models": [
+      "llama3.2",
+      "llama3.2:1b",
+      "llama3.2:3b",
+      "llama2",
+      "mistral",
+      "gemma",
+      "phi3",
+      "qwen2"
+    ],
+    "model_selection": {
+      "auto_detect": true,
+      "fallback_model": "llama3.2:1b",
+      "prefer_small_models": true
+    },
+    "optimization": {
+      "orange_pi_mode": true,
+      "memory_efficient": true,
+      "cpu_optimized": true,
+      "max_context_length": 4096
+    },
+    "zero_conf": {
+      "auto_install": true,
+      "auto_configure": true,
+      "portable": true,
+      "working_directory": "/opt/backend"
+    }
+  }
+}

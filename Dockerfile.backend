@@ -17,6 +17,10 @@ ENV MKL_NUM_THREADS=1
 ENV NUMEXPR_NUM_THREADS=1
 ENV NUMBA_DISABLE_CUDA=1
 
+# Python optimization settings
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 # Create backend user for Linux compatibility with home directory
 RUN groupadd -r backend && useradd -r -g backend -u 1000 -m -d /home/backend backend
 

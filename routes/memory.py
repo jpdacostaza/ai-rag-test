@@ -75,7 +75,7 @@ async def store_memory(request: MemoryStoreRequest):
     try:
         # Validate user
         auth_validator = AuthValidator()
-        validated_user = await auth_validator.extract_and_validate_user({"id": request.user_id})
+        validated_user = auth_validator.extract_and_validate_user({"id": request.user_id})
         
         if not validated_user or not validated_user.user_id:
             raise HTTPException(status_code=400, detail="Invalid user_id")
@@ -120,7 +120,7 @@ async def query_memory(request: MemoryQueryRequest):
     try:
         # Validate user
         auth_validator = AuthValidator()
-        validated_user = await auth_validator.extract_and_validate_user({"id": request.user_id})
+        validated_user = auth_validator.extract_and_validate_user({"id": request.user_id})
         
         if not validated_user or not validated_user.user_id:
             raise HTTPException(status_code=400, detail="Invalid user_id")
@@ -182,7 +182,7 @@ async def get_user_memories(
     try:
         # Validate user
         auth_validator = AuthValidator()
-        validated_user = await auth_validator.extract_and_validate_user({"id": user_id})
+        validated_user = auth_validator.extract_and_validate_user({"id": user_id})
         
         if not validated_user or not validated_user.user_id:
             raise HTTPException(status_code=400, detail="Invalid user_id")
@@ -210,7 +210,7 @@ async def clear_user_memories(user_id: str):
     try:
         # Validate user
         auth_validator = AuthValidator()
-        validated_user = await auth_validator.extract_and_validate_user({"id": user_id})
+        validated_user = auth_validator.extract_and_validate_user({"id": user_id})
         
         if not validated_user or not validated_user.user_id:
             raise HTTPException(status_code=400, detail="Invalid user_id")

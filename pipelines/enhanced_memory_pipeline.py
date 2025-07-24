@@ -110,7 +110,26 @@ try:
     # Load unified configuration (no fallbacks)
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("backend_config", "/opt/backend/config/config_unified.py")
+        from pathlib import Path
+        
+        # Try multiple possible paths for config_unified.py
+        possible_paths = [
+            "/opt/backend/config/config_unified.py",  # Docker container path
+            "config/config_unified.py",  # Relative to current directory
+            "../config/config_unified.py",  # Relative to pipelines directory
+            str(Path(__file__).parent.parent / "config" / "config_unified.py"),  # Absolute from this file
+        ]
+        
+        config_path = None
+        for path in possible_paths:
+            if Path(path).exists():
+                config_path = path
+                break
+        
+        if not config_path:
+            raise FileNotFoundError(f"config_unified.py not found in any of: {possible_paths}")
+            
+        spec = importlib.util.spec_from_file_location("backend_config", config_path)
         config_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(config_module)
         enhanced_config = config_module.get_config()
@@ -158,6 +177,10 @@ try:
         except ImportError:
             print(f"[MEMORY PIPELINE INFO] Installing missing dependency: {package_spec}")
             auto_install_package(package_spec)
+        except Exception as e:
+            # Handle compatibility issues (like Pydantic version conflicts)
+            print(f"[MEMORY PIPELINE INFO] Compatibility issue with {package_import} (continuing): {e}")
+            continue
     
     # Now try importing again after installation
     try:
@@ -169,26 +192,55 @@ try:
     # Try LangChain dependencies (optional for basic functionality)
     langchain_available = False
     try:
+        # Try individual imports to isolate the issue
+        import langchain
         from langchain.tools import Tool
         from langchain_community.utilities import WikipediaAPIWrapper
         print("[MEMORY PIPELINE INFO] LangChain dependencies available")
         langchain_available = True
-    except ImportError as e:
+    except (ImportError, AttributeError, TypeError, ValueError) as e:
         print(f"[MEMORY PIPELINE INFO] LangChain dependencies not available (optional): {e}")
+        langchain_available = False
+    except Exception as e:
+        # Handle other compatibility issues (like Pydantic version conflicts)
+        print(f"[MEMORY PIPELINE INFO] LangChain compatibility issue (optional): {e}")
         langchain_available = False
     
     # Try importing web search tools
-    sys.path.insert(0, '/opt/backend/utilities')
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("web_search_tool", "/opt/backend/utilities/web_search_tool.py")
-    web_search_module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(web_search_module)
-    
-    search_web = web_search_module.search_web
-    should_trigger_web_search = web_search_module.should_trigger_web_search
-    format_web_results_for_chat = web_search_module.format_web_results_for_chat
-    web_search_available = True
-    print("[MEMORY PIPELINE INFO] Backend web search tools loaded successfully")
+    try:
+        from pathlib import Path
+        import importlib.util
+        
+        # Try multiple possible paths for web_search_tool.py
+        possible_paths = [
+            "/opt/backend/utilities/web_search_tool.py",  # Docker container path
+            "utilities/web_search_tool.py",  # Relative to current directory
+            "../utilities/web_search_tool.py",  # Relative to pipelines directory
+            str(Path(__file__).parent.parent / "utilities" / "web_search_tool.py"),  # Absolute from this file
+        ]
+        
+        web_search_path = None
+        for path in possible_paths:
+            if Path(path).exists():
+                web_search_path = path
+                break
+        
+        if not web_search_path:
+            raise FileNotFoundError(f"web_search_tool.py not found in any of: {possible_paths}")
+            
+        sys.path.insert(0, str(Path(web_search_path).parent))
+        spec = importlib.util.spec_from_file_location("web_search_tool", web_search_path)
+        web_search_module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(web_search_module)
+        
+        search_web = web_search_module.search_web
+        should_trigger_web_search = web_search_module.should_trigger_web_search
+        format_web_results_for_chat = web_search_module.format_web_results_for_chat
+        web_search_available = True
+        print("[MEMORY PIPELINE INFO] Backend web search tools loaded successfully")
+    except Exception as e:
+        print(f"[MEMORY PIPELINE INFO] Web search tools not available: {e}")
+        web_search_available = False
 except Exception as e:
     print(f"[MEMORY PIPELINE INFO] Web search tools not available: {e}")
     

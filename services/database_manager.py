@@ -817,6 +817,37 @@ class DatabaseManager:
 
         return await self.execute_redis_operation(store_operation, "store_chat") or False
 
+    async def store_vector_data(self, text: str, metadata: Dict[str, Any]) -> bool:
+        """Store text and metadata in vector database."""
+        if not self.chroma_collection:
+            log_service_status("chromadb", "error", "ChromaDB collection not available for vector storage")
+            return False
+
+        # Get embedding
+        embedding = await self.get_embedding(text)
+        if not embedding:
+            log_service_status("chromadb", "error", "Failed to generate embedding for text")
+            return False
+
+        # Add to chromadb
+        try:
+            doc_id = str(int(time.time() * 1000000))  # Use microsecond timestamp for unique ID
+            self.chroma_collection.add(
+                embeddings=[embedding], 
+                documents=[text], 
+                metadatas=[metadata], 
+                ids=[doc_id]
+            )
+            log_service_status(
+                "memory",
+                "info",
+                f"Vector data stored successfully - doc_id: {doc_id}, metadata: {metadata}"
+            )
+            return True
+        except Exception as e:
+            log_service_status("chromadb", "error", f"Failed to store vector data: {str(e)}")
+            return False
+
     async def query_chroma(self, query_text: str, n_results: int = 5) -> Optional[Dict[str, Any]]:
         """Query the chromadb collection."""
         if not self.chroma_collection or not self.embedding_model:

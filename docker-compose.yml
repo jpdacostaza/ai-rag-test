@@ -106,6 +106,7 @@ services:
       - PYTHONPATH=/opt/backend
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
+      - HF_HOME=/opt/cache/huggingface                          # Fix transformers cache deprecation warning
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization
       - LLM_TIMEOUT=300                                         # 5min timeout for large models
       - OLLAMA_REQUEST_TIMEOUT=300                              # HTTP client timeout
@@ -280,6 +281,8 @@ services:
       # Cross-platform timeout optimizations
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
       - REQUEST_TIMEOUT=180         # Longer timeout for slower devices
+      # CORS configuration for better security
+      - CORS_ALLOW_ORIGIN=http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000
     volumes:
       - ./storage/openwebui:/app/backend/data
       - ./memory/functions:/app/backend/data/functions:rw

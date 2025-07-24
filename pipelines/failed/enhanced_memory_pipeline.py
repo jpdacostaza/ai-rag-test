@@ -57,7 +57,26 @@ try:
     # Load unified configuration (no fallbacks)
     try:
         import importlib.util
-        spec = importlib.util.spec_from_file_location("backend_config", "/opt/backend/config/config_unified.py")
+        from pathlib import Path
+        
+        # Try multiple possible paths for config_unified.py
+        possible_paths = [
+            "/opt/backend/config/config_unified.py",  # Docker container path
+            "config/config_unified.py",  # Relative to current directory
+            "../config/config_unified.py",  # Relative to pipelines directory
+            str(Path(__file__).parent.parent / "config" / "config_unified.py"),  # Absolute from this file
+        ]
+        
+        config_path = None
+        for path in possible_paths:
+            if Path(path).exists():
+                config_path = path
+                break
+        
+        if not config_path:
+            raise FileNotFoundError(f"config_unified.py not found in any of: {possible_paths}")
+            
+        spec = importlib.util.spec_from_file_location("backend_config", config_path)
         config_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(config_module)
         enhanced_config = config_module.get_config()
@@ -76,9 +95,28 @@ format_web_results_for_chat = None
 
 try:
     # Try importing web search tools
-    sys.path.insert(0, '/opt/backend/utilities')
+    from pathlib import Path
     import importlib.util
-    spec = importlib.util.spec_from_file_location("web_search_tool", "/opt/backend/utilities/web_search_tool.py")
+    
+    # Try multiple possible paths for web_search_tool.py
+    possible_paths = [
+        "/opt/backend/utilities/web_search_tool.py",  # Docker container path
+        "utilities/web_search_tool.py",  # Relative to current directory
+        "../utilities/web_search_tool.py",  # Relative to pipelines directory
+        str(Path(__file__).parent.parent / "utilities" / "web_search_tool.py"),  # Absolute from this file
+    ]
+    
+    web_search_path = None
+    for path in possible_paths:
+        if Path(path).exists():
+            web_search_path = path
+            break
+    
+    if not web_search_path:
+        raise FileNotFoundError(f"web_search_tool.py not found in any of: {possible_paths}")
+        
+    sys.path.insert(0, str(Path(web_search_path).parent))
+    spec = importlib.util.spec_from_file_location("web_search_tool", web_search_path)
     web_search_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(web_search_module)
     
