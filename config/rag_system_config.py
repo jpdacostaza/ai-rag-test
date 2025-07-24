@@ -30,9 +30,9 @@ class RAGDatabaseConfig:
     chroma_collection_name: str = "rag_memories"
     chroma_embedding_function: str = "all-MiniLM-L6-v2"
     
-    # RAG Storage Strategy
-    short_term_importance_threshold: float = 0.4
-    long_term_importance_threshold: float = 0.7
+    # RAG Storage Strategy - LOWERED for better memory retention
+    short_term_importance_threshold: float = 0.2
+    long_term_importance_threshold: float = 0.5
     
     # TTL Settings
     short_term_ttl: int = 3600      # 1 hour

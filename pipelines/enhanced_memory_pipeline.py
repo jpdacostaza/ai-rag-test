@@ -263,53 +263,66 @@ UserAuthManager = None
 MemoryProcessor = None
 
 try:
-    # Try importing from the memory_system module (both Docker and local paths)
-    from .memory_system.config import MemoryValves
-    from .memory_system.api_client import MemoryAPIClient
-    from .memory_system.auth import UserAuthManager
-    from .memory_system.processor import MemoryProcessor
-    memory_system_available = True
-    print("[MEMORY PIPELINE INFO] Memory system modules imported successfully")
-except ImportError as e:
-    print(f"[MEMORY PIPELINE INFO] Memory system not available: {e}")
-    print("[MEMORY PIPELINE INFO] Attempting direct import from pipeline directory")
+    # First try absolute imports for Docker environment
+    import sys
+    sys.path.append('/app/pipelines')
+    sys.path.append('/app')
     
+    from memory_system.config import MemoryValves
+    from memory_system.api_client import MemoryAPIClient
+    from memory_system.auth import UserAuthManager
+    from memory_system.processor import MemoryProcessor
+    memory_system_available = True
+    print("[MEMORY PIPELINE INFO] Memory system modules imported successfully (absolute path)")
+except ImportError as e:
     try:
-        # Try direct imports from current directory structure
-        import importlib.util
-        
-        # Get the current directory
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        memory_system_dir = os.path.join(current_dir, 'memory_system')
-        
-        # Import each module directly
-        spec = importlib.util.spec_from_file_location("config", os.path.join(memory_system_dir, "config.py"))
-        config_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(config_module)
-        MemoryValves = config_module.MemoryValves
-        
-        spec = importlib.util.spec_from_file_location("api_client", os.path.join(memory_system_dir, "api_client.py"))
-        api_client_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(api_client_module)
-        MemoryAPIClient = api_client_module.MemoryAPIClient
-        
-        spec = importlib.util.spec_from_file_location("auth", os.path.join(memory_system_dir, "auth.py"))
-        auth_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(auth_module)
-        UserAuthManager = auth_module.UserAuthManager
-        
-        spec = importlib.util.spec_from_file_location("processor", os.path.join(memory_system_dir, "processor.py"))
-        processor_module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(processor_module)
-        MemoryProcessor = processor_module.MemoryProcessor
-        
+        # Try relative imports for local development
+        from .memory_system.config import MemoryValves
+        from .memory_system.api_client import MemoryAPIClient
+        from .memory_system.auth import UserAuthManager
+        from .memory_system.processor import MemoryProcessor
         memory_system_available = True
-        print("[MEMORY PIPELINE INFO] Memory system modules imported successfully via direct import")
+        print("[MEMORY PIPELINE INFO] Memory system modules imported successfully (relative path)")
+    except ImportError as e2:
+        print(f"[MEMORY PIPELINE INFO] Memory system not available: {e2}")
+        print("[MEMORY PIPELINE INFO] Attempting direct import from pipeline directory")
         
-    except Exception as direct_import_error:
-        print(f"[MEMORY PIPELINE WARNING] Memory system components not available - pipeline running without memory features")
-        print(f"[MEMORY PIPELINE DEBUG] Direct import error: {direct_import_error}")
-        memory_system_available = False
+        try:
+            # Try direct imports from current directory structure
+            import importlib.util
+            
+            # Get the current directory
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            memory_system_dir = os.path.join(current_dir, 'memory_system')
+            
+            # Import each module directly
+            spec = importlib.util.spec_from_file_location("config", os.path.join(memory_system_dir, "config.py"))
+            config_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(config_module)
+            MemoryValves = config_module.MemoryValves
+            
+            spec = importlib.util.spec_from_file_location("api_client", os.path.join(memory_system_dir, "api_client.py"))
+            api_client_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(api_client_module)
+            MemoryAPIClient = api_client_module.MemoryAPIClient
+            
+            spec = importlib.util.spec_from_file_location("auth", os.path.join(memory_system_dir, "auth.py"))
+            auth_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(auth_module)
+            UserAuthManager = auth_module.UserAuthManager
+            
+            spec = importlib.util.spec_from_file_location("processor", os.path.join(memory_system_dir, "processor.py"))
+            processor_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(processor_module)
+            MemoryProcessor = processor_module.MemoryProcessor
+            
+            memory_system_available = True
+            print("[MEMORY PIPELINE INFO] Memory system modules imported successfully via direct import")
+            
+        except Exception as direct_import_error:
+            print(f"[MEMORY PIPELINE WARNING] Memory system components not available - pipeline running without memory features")
+            print(f"[MEMORY PIPELINE DEBUG] Direct import error: {direct_import_error}")
+            memory_system_available = False
 
 
 class Pipeline:

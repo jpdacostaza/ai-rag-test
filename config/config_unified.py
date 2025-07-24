@@ -102,10 +102,10 @@ class MemoryConfig:
     api_port: int = 8080
     timeout: float = 10.0
     
-    # Memory behavior
+    # Memory behavior - OPTIMIZED for better retention
     max_memories: int = 5
     max_documents: int = 50
-    retrieval_threshold: float = 0.0005
+    retrieval_threshold: float = 0.0001  # Lowered for more inclusive retrieval
     auto_store_enabled: bool = True
     auto_store_threshold: int = 3
     hybrid_search: bool = True

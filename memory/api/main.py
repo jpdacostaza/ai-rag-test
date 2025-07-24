@@ -122,7 +122,7 @@ class MemoryRetrieveRequest(BaseModel):
     user_id: str
     query: str
     limit: int = 10
-    threshold: float = 0.1
+    threshold: float = 0.05  # Lowered for more inclusive retrieval
 
 class LearningInteractionRequest(BaseModel):
     user_id: str

@@ -75,8 +75,8 @@ def get_config():
                 }
             },
             'importance_thresholds': {
-                'short_term': 0.4,
-                'long_term': 0.7
+                'short_term': 0.2,  # Lowered for better memory capture
+                'long_term': 0.5    # Lowered for more long-term storage
             },
             'explicit_memory_triggers': [
                 'remember', 'don\'t forget', 'please remember',

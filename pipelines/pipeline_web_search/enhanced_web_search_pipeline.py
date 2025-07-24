@@ -41,14 +41,35 @@ class Pipeline:
         priority: int = 0
         max_results: int = 5
         auto_search_enabled: bool = True
-        news_keywords: List[str] = [
-            "news", "headlines", "current", "latest", "today", "recent",
-            "breaking", "updates", "happening", "2025", "now", "live"
+        
+        # EXPLICIT USER REQUESTS - Only trigger when user explicitly asks for web search
+        explicit_search_keywords: List[str] = [
+            "search the web", "web search", "look up", "search for", "find online",
+            "check online", "search current", "get latest", "look online",
+            "internet search", "google", "search news", "current information"
         ]
+        
+        # CURRENT/RECENT INFORMATION - Only when asking for very recent/current info
+        currency_keywords: List[str] = [
+            "latest", "current", "today", "recent", "breaking", "now", "live",
+            "updates", "2025", "this week", "this month", "happening now",
+            "just announced", "recently", "new", "fresh"
+        ]
+        
+        # MODEL UNCERTAINTY - When model admits lack of knowledge
         uncertainty_phrases: List[str] = [
             "i don't know", "i'm not sure", "i don't have", "i cannot provide",
             "i'm unable to", "no information", "not available", "unclear",
-            "uncertain", "i cannot access", "cutoff date", "knowledge cutoff"
+            "uncertain", "i cannot access", "cutoff date", "knowledge cutoff",
+            "my training data", "as of my last update", "i need to search",
+            "let me search", "i should look that up", "i'd need to check"
+        ]
+        
+        # VERIFICATION TRIGGERS - When model suggests checking for updates
+        verification_keywords: List[str] = [
+            "verify", "confirm", "double-check", "make sure", "check if",
+            "is this still", "has this changed", "is this current", "update on",
+            "still accurate", "still valid", "still true", "up to date"
         ]
     
     def __init__(self):
@@ -118,14 +139,45 @@ class Pipeline:
         return body
     
     def _should_trigger_search_from_query(self, query: str) -> bool:
-        """Check if query explicitly requests current information"""
+        """Check if query explicitly requests current information or web search"""
         query_lower = query.lower()
-        return any(keyword in query_lower for keyword in self.valves.news_keywords)
+        
+        # 1. EXPLICIT WEB SEARCH REQUEST - User directly asks for web search
+        if any(keyword in query_lower for keyword in self.valves.explicit_search_keywords):
+            print(f"🔍 Web search triggered: Explicit user request")
+            return True
+            
+        # 2. CURRENT/RECENT INFORMATION - Only for very recent/current queries
+        has_currency_keyword = any(keyword in query_lower for keyword in self.valves.currency_keywords)
+        if has_currency_keyword:
+            # Additional check: Must be asking about events, news, or status
+            context_keywords = ["news", "event", "status", "happening", "announce", "report", "update"]
+            if any(context in query_lower for context in context_keywords):
+                print(f"🔍 Web search triggered: Current information request")
+                return True
+        
+        # 3. VERIFICATION REQUEST - User wants to verify information
+        if any(keyword in query_lower for keyword in self.valves.verification_keywords):
+            print(f"🔍 Web search triggered: Verification request")
+            return True
+            
+        return False
     
     def _should_trigger_search_from_response(self, response: str) -> bool:
-        """Check if response shows uncertainty requiring web search"""
+        """Check if response shows uncertainty or suggests verification"""
         response_lower = response.lower()
-        return any(phrase in response_lower for phrase in self.valves.uncertainty_phrases)
+        
+        # 1. MODEL UNCERTAINTY - Model admits it doesn't know
+        if any(phrase in response_lower for phrase in self.valves.uncertainty_phrases):
+            print(f"🔍 Web search triggered: Model uncertainty detected")
+            return True
+            
+        # 2. VERIFICATION SUGGESTION - Model suggests checking for updates
+        if any(keyword in response_lower for keyword in self.valves.verification_keywords):
+            print(f"🔍 Web search triggered: Verification suggested")
+            return True
+            
+        return False
     
     async def _search_current_news(self, query: str) -> str:
         """Enhanced web search with multiple fallback methods"""

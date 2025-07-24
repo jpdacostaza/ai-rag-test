@@ -199,7 +199,10 @@ services:
 
   # 6. Pipelines - Data processing pipelines (SIXTH - processing layer)
   pipelines:
-    image: ghcr.io/open-webui/pipelines:main
+    build:
+      context: .
+      dockerfile: Dockerfile.pipelines
+    image: backend-pipelines-fixed
     container_name: backend-pipelines
     ports:
       - "9099:9099"

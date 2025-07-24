@@ -250,27 +250,54 @@ async def search_web(query: str, max_results: int = 5) -> str:
 
 def should_trigger_web_search(query: str, response: str) -> bool:
     """
-    Enhanced trigger detection for web search
+    Enhanced trigger detection for web search - SELECTIVE TRIGGERING
+    Only triggers when:
+    1. User explicitly requests web search
+    2. Model shows uncertainty/lack of knowledge
+    3. Need to verify/update current information
     """
-    # Always trigger for news-related queries
-    news_keywords = [
-        "news", "headlines", "current", "latest", "today", "recent",
-        "breaking", "updates", "happening", "2025", "now", "live"
-    ]
-    
     query_lower = query.lower()
-    if any(keyword in query_lower for keyword in news_keywords):
+    response_lower = response.lower()
+    
+    # 1. EXPLICIT WEB SEARCH REQUESTS
+    explicit_triggers = [
+        "search the web", "web search", "look up", "search for", "find online",
+        "check online", "search current", "get latest", "look online",
+        "internet search", "google", "search news", "current information"
+    ]
+    if any(trigger in query_lower for trigger in explicit_triggers):
         return True
     
-    # Trigger for uncertainty in responses
+    # 2. MODEL UNCERTAINTY - Model admits lack of knowledge
     uncertainty_phrases = [
         "i don't know", "i'm not sure", "i don't have", "i cannot provide",
         "i'm unable to", "no information", "not available", "unclear",
-        "uncertain", "i cannot access", "cutoff date", "knowledge cutoff"
+        "uncertain", "i cannot access", "cutoff date", "knowledge cutoff",
+        "my training data", "as of my last update", "i need to search",
+        "let me search", "i should look that up", "i'd need to check"
     ]
+    if any(phrase in response_lower for phrase in uncertainty_phrases):
+        return True
     
-    response_lower = response.lower()
-    return any(phrase in response_lower for phrase in uncertainty_phrases)
+    # 3. CURRENT/RECENT INFORMATION with context
+    currency_keywords = ["latest", "current", "today", "recent", "breaking", "now", "live", "2025"]
+    context_keywords = ["news", "event", "status", "happening", "announce", "report", "update"]
+    
+    has_currency = any(keyword in query_lower for keyword in currency_keywords)
+    has_context = any(keyword in query_lower for keyword in context_keywords)
+    
+    if has_currency and has_context:
+        return True
+    
+    # 4. VERIFICATION REQUESTS
+    verification_keywords = [
+        "verify", "confirm", "double-check", "make sure", "check if",
+        "is this still", "has this changed", "is this current", "update on"
+    ]
+    if any(keyword in query_lower or keyword in response_lower for keyword in verification_keywords):
+        return True
+        
+    return False
 
 # For testing
 if __name__ == "__main__":
