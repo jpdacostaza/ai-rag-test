@@ -15,10 +15,32 @@
 # ===============================================================================
 
 services:
+  # 0. Storage Initializer - Sets up directories with proper permissions (ZERO - init layer)
+  storage-init:
+    image: alpine:latest
+    container_name: backend-storage-init
+    restart: "no"
+    command: |
+      sh -c "
+        echo '🏗️ Initializing storage directories...'
+        mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache
+        chown -R 1000:1000 /storage
+        chmod -R 755 /storage
+        chmod -R 777 /storage/.cache /storage/models
+        echo '✅ Storage initialization complete!'
+        ls -la /storage/
+      "
+    volumes:
+      - ./storage:/storage
+    networks:
+      - backend-net
+
   # 1. Redis - Cache and message broker (FIRST - foundation layer)
   redis:
     image: redis:7-alpine
     container_name: backend-redis
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "6379:6379"
     restart: always
@@ -33,6 +55,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
     networks:
       - backend-net
 
@@ -40,6 +65,8 @@ services:
   chroma:
     image: chromadb/chroma:latest
     container_name: backend-chroma
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8000:8000"
     restart: always
@@ -55,6 +82,8 @@ services:
   ollama:
     image: ollama/ollama:latest
     container_name: backend-ollama
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "11434:11434"
     restart: always
@@ -63,18 +92,21 @@ services:
     environment:
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-3}  # Maximum models for performance
-      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-20480}               # 20GB for maximum performance
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}  # Reduced for stability
+      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-4096}                # 4GB reasonable limit
       - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}
-      # CPU optimization - MAXIMUM PERFORMANCE
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-8}           # 8 parallel requests (max cores)
-      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-8}             # All 8 CPU threads
-      # Advanced performance optimizations
-      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-true}  # Enable flash attention
-      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Faster KV cache
-      - OLLAMA_KEEP_ALIVE=24h                                   # Keep models loaded longer
-      - OLLAMA_CONCURRENT_REQUESTS=8                            # Maximum concurrent requests
+      # CPU optimization - BALANCED PERFORMANCE
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-2}           # Reduced parallel requests
+      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-4}             # Reasonable thread count
+      # Advanced performance optimizations - CONSERVATIVE
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-false} # Disable for stability
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Keep f16 cache
+      - OLLAMA_KEEP_ALIVE=10m                                   # Shorter keep-alive
+      - OLLAMA_CONCURRENT_REQUESTS=2                            # Reduced concurrent requests
+      # Timeout settings
+      - OLLAMA_REQUEST_TIMEOUT=300                              # 5-minute timeout
+      - OLLAMA_LOAD_TIMEOUT=600                                 # 10-minute model load timeout
     depends_on:
       redis:
         condition: service_healthy
@@ -95,10 +127,13 @@ services:
       context: .
       dockerfile: Dockerfile.backend
     container_name: backend-main
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
       - "3000:3000"
     restart: unless-stopped
     stop_grace_period: 30s
+    user: "1000:1000"  # Run as non-root user for security and permission consistency
     env_file:
       - .env
     environment:
@@ -107,6 +142,7 @@ services:
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
       - HF_HOME=/opt/cache/huggingface                          # Fix transformers cache deprecation warning
+      - CHROMA_COLLECTION=user_memory                           # Consistent collection name
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization
       - LLM_TIMEOUT=300                                         # 5min timeout for large models
       - OLLAMA_REQUEST_TIMEOUT=300                              # HTTP client timeout
@@ -121,9 +157,12 @@ services:
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
+      # Stream debug logging (disabled by default for performance)
+      - ENABLE_STREAM_DEBUG=${ENABLE_STREAM_DEBUG:-false}
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
+      - ./storage/models:/opt/cache/huggingface                # Model cache directory for HF_HOME
     depends_on:
       redis:
         condition: service_healthy
@@ -146,6 +185,8 @@ services:
       context: .
       dockerfile: Dockerfile.memory
     container_name: backend-memory-api
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
       - "5001:5001"
     restart: unless-stopped
@@ -165,6 +206,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - CHROMA_HOST=chroma
+      - CHROMA_COLLECTION=user_memory
       - CHROMA_PORT=8000
       - MEMORY_API_VERSION=2.0.0
       - MEMORY_API_TITLE=Enhanced Memory API with RAG
@@ -204,6 +246,8 @@ services:
       dockerfile: Dockerfile.pipelines
     image: backend-pipelines-fixed
     container_name: backend-pipelines
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
       - "9099:9099"
     restart: unless-stopped
@@ -211,6 +255,7 @@ services:
       - ENV=production
       - PIPELINES_DIR=/app/pipelines
       - USER_AGENT=OpenWebUI-Pipeline/1.0
+      - CHROMA_COLLECTION=user_memory
     volumes:
       - ./pipelines:/app/pipelines
       - ./storage/pipelines:/app/data
@@ -241,6 +286,8 @@ services:
   openwebui:
     image: ghcr.io/open-webui/open-webui:latest
     container_name: backend-openwebui
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "8080:8080"
     restart: always
@@ -263,10 +310,18 @@ services:
       - MEMORY_DEBUG=true
       - MEMORY_RETRIEVAL_THRESHOLD=0.001
       - ENABLE_COMMUNITY_SHARING=false
+      # Authentication configuration - CRITICAL for user identification
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true
       - DEFAULT_USER_ROLE=user
       - DEFAULT_MODELS=gemma3:4b
+      # DISABLED: Trusted header auth only works with reverse proxy
+      # - WEBUI_AUTH_TRUSTED_EMAIL_HEADER=X-User-Email
+      # - WEBUI_AUTH_TRUSTED_NAME_HEADER=X-User-Name
+      # - WEBUI_AUTH_TRUSTED_GROUPS_HEADER=X-User-Groups
+      # API key and security
+      - ENABLE_API_KEY=true
+      - WEBUI_SECRET_KEY=your-secret-key-for-headers
       # Disable direct Ollama access to force routing through backend
       - ENABLE_OLLAMA_API=false
       # Automatically configure Pipelines connection
@@ -346,6 +401,8 @@ services:
       context: .
       dockerfile: Dockerfile.gateway
     container_name: backend-api-gateway
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
     ports:
       - "8888:8888"
     restart: unless-stopped
@@ -413,8 +470,8 @@ services:
       - WATCHTOWER_POLL_INTERVAL=3600
       - WATCHTOWER_INCLUDE_STOPPED=true
       - WATCHTOWER_REVIVE_STOPPED=false
-      # Monitor only specific containers
-      - WATCHTOWER_DISABLE_CONTAINERS=backend,memory-api,pipelines
+      # Only update containers with watchtower.enable=true label
+      - WATCHTOWER_LABEL_ENABLE=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:

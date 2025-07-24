@@ -159,11 +159,21 @@ def log_service_status(service: str, status: str, details: str = ""):
         "failed": "❌",
         "connecting": "🔗",
         "reconnecting": "🔄",
+        "debug": "🔍",
     }
     icon = status_icons.get(status.lower(), "📝")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
-    log_level = "error" if status.lower() == "failed" else "warning" if status.lower() == "degraded" else "info"
+    # Properly map status to log level, including debug
+    if status.lower() == "failed":
+        log_level = "error"
+    elif status.lower() == "degraded":
+        log_level = "warning"
+    elif status.lower() == "debug":
+        log_level = "debug"
+    else:
+        log_level = "info"
+    
     getattr(logger, log_level)(message)
 
 

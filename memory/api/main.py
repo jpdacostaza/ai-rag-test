@@ -62,14 +62,15 @@ async def lifespan(app: FastAPI):
             heartbeat = chroma_client.heartbeat()
             print(f"✅ ChromaDB connected: {chroma_host}:{chroma_port} (heartbeat: {heartbeat})")
             
-            # Get or create collection
+            # Get or create collection - use consistent naming with database manager
+            collection_name = os.getenv("CHROMA_COLLECTION", "user_memory")
             try:
-                chroma_collection = chroma_client.get_collection("user_memories")
-                print("✅ ChromaDB collection found")
+                chroma_collection = chroma_client.get_collection(collection_name)
+                print(f"✅ ChromaDB collection '{collection_name}' found")
             except Exception as collection_error:
                 print(f"Collection not found, creating new one: {collection_error}")
-                chroma_collection = chroma_client.create_collection("user_memories")
-                print("✅ ChromaDB collection created")
+                chroma_collection = chroma_client.create_collection(collection_name)
+                print(f"✅ ChromaDB collection '{collection_name}' created")
                 
         except Exception as e:
             print(f"❌ ChromaDB connection failed: {e}")

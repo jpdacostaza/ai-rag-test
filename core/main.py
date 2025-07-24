@@ -25,6 +25,9 @@ enforce_cpu_only_mode()
 from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
 from core.logging_config import setup_logging, get_logger, log_api_request, log_service_status
+
+# Environment variable to control stream debug logging (can cause performance overhead)
+ENABLE_STREAM_DEBUG = os.getenv("ENABLE_STREAM_DEBUG", "false").lower() == "true"
 from models.models import ChatRequest, ChatResponse, OpenAIMessage, OpenAIChatRequest, ModelListResponse, ErrorResponse
 from routes import health_router, chat_router, models_router, upload_router, debug_router
 from routes import memory_router
@@ -352,8 +355,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             session_data = f"{request.client.host if request.client else 'unknown'}_{request.headers.get('user-agent', 'unknown')}"
             session_hash = hashlib.md5(session_data.encode()).hexdigest()[:16]
             user_id = f"session_{session_hash}"
-            log_service_status("AUTH", "warning", f"No user authentication from OpenWebUI - generated session ID: {user_id}")
-            log_service_status("AUTH", "warning", "OpenWebUI should be configured to send proper user authentication")
+            log_service_status("AUTH", "debug", f"Using session-based user ID: {user_id}")
+            log_service_status("AUTH", "debug", "OpenWebUI user authentication not configured - using session fallback")
     
     # Ensure user_id is clean and non-empty
     if user_id:
@@ -498,11 +501,13 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 async for token in call_llm_stream(
                     stream_messages, model=body.get("model", DEFAULT_MODEL), session_id=session_id
                 ):
-                    # Debug: log what we receive from the stream
-                    log_service_status("STREAM", "debug", f"Received token: '{token}' (type: {type(token)})")
+                    # Debug: log what we receive from the stream (only if enabled)
+                    if ENABLE_STREAM_DEBUG:
+                        log_service_status("STREAM", "debug", f"Received token: '{token}' (type: {type(token)})")
                     
                     if not token:
-                        log_service_status("STREAM", "debug", "Skipping empty token")
+                        if ENABLE_STREAM_DEBUG:
+                            log_service_status("STREAM", "debug", "Skipping empty token")
                         continue
 
                     # Check if stream was stopped
@@ -521,7 +526,8 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     }
 
                     try:
-                        log_service_status("STREAM", "debug", f"Yielding SSE data: {json.dumps(data)}")
+                        if ENABLE_STREAM_DEBUG:
+                            log_service_status("STREAM", "debug", f"Yielding SSE data: {json.dumps(data)}")
                         yield f"data: {json.dumps(data)}\n\n"
                     except Exception as e:
                         log_service_status("STREAM", "error", f"Error yielding token: {e}")
