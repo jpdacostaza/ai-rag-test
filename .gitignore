@@ -71,7 +71,7 @@ storage/models/
 storage/ollama/
 *.gguf
 *.ggml
-models/
+# Note: models/ Python package is NOT ignored - only model data files
 
 # OpenWebUI data
 storage/openwebui/

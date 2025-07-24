@@ -46,7 +46,7 @@ class ChatService:
         self.database_manager = database_manager
         self.logger = get_logger(__name__)
     
-    @handle_errors("process_chat", default_value=ChatResponse(response="I'm having trouble processing your request right now."))
+    @handle_errors("process_chat", default_value=ChatResponse(message="I'm having trouble processing your request right now."))
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
         """
         Main chat processing logic - clean and focused.
@@ -72,7 +72,7 @@ class ChatService:
         await self._store_conversation(context, response)
         await self._cache_response(context, response)
         
-        return ChatResponse(response=response)
+        return ChatResponse(message=response)
     
     async def _build_context(self, request: ChatRequest) -> ChatContext:
         """Build context for chat processing."""
@@ -110,7 +110,7 @@ class ChatService:
                         return ChatResponse(**cached_response)
                     elif isinstance(cached_response, str) and cached_response.strip():
                         logger.info(f"[CACHE] Cache hit (legacy format) for key: {context.cache_key}")
-                        return ChatResponse(response=cached_response)
+                        return ChatResponse(message=cached_response)
         except Exception as e:
             logger.warning(f"[CACHE] Cache check failed: {e}")
         
