@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 
 # Configuration
-BASE_URL = "http://localhost:8001"
+BASE_URL = "http://memory-api:5001"
 API_KEY = os.getenv("API_KEY", "default_test_key")
 
 headers = {"Content-Type": "application/json", "Authorization": f"Bearer {API_KEY}"}

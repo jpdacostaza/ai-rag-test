@@ -197,6 +197,10 @@ app.include_router(debug_router)
 app.include_router(memory_router)
 app.include_router(model_manager_router)
 
+# Include gateway router (re-enabled)
+from routes import gateway_router
+app.include_router(gateway_router)
+
 
 # OpenAI-compatible chat completions endpoint
 @app.post("/v1/chat/completions")

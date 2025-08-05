@@ -23,7 +23,7 @@ class MemoryValves(BaseModel):
     priority: int = 0
     
     # API Configuration
-    backend_url: str = "http://backend-memory-api:8080"  # Fixed: correct Docker service name
+    backend_url: str = "http://memory-api:5001"  # Fixed: correct Docker service name
     
     # Memory Settings
     enable_memory: bool = True

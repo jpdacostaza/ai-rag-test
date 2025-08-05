@@ -448,30 +448,81 @@ def configure_security(app: FastAPI):
 
 def validate_environment():
     """Validate required environment variables with fallback to config defaults."""
+    logger.info("Validating environment configuration...")
+    
+    # Import unified config for defaults
     try:
-        from config.config_unified import REDIS_HOST, CHROMA_HOST, DEFAULT_MODEL
+        from config.config_unified import Config
+        config = Config.get_instance()
+        
+        # Get values with fallbacks
+        REDIS_HOST = os.getenv("REDIS_HOST") or config.database.redis_host
+        CHROMA_HOST = os.getenv("CHROMA_HOST") or config.database.chroma_host
+        DEFAULT_MODEL = os.getenv("DEFAULT_MODEL") or config.model.default_model
+        OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL") or config.model.ollama_base_url
+        
     except ImportError:
-        # Fallback for different config location
-        try:
-            from config import REDIS_HOST, CHROMA_HOST, DEFAULT_MODEL
-        except ImportError:
-            # Set some default values if config is not available
-            REDIS_HOST = "redis"
-            CHROMA_HOST = "chroma"
-            DEFAULT_MODEL = "llama3.2:1b"
+        logger.warning("Unified config not available, using environment variables only")
+        # Fallback values if config is not available
+        REDIS_HOST = os.getenv("REDIS_HOST", "redis")
+        CHROMA_HOST = os.getenv("CHROMA_HOST", "chroma")
+        DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen3:4b")
+        OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
-    # Check if essential services are configured (either via env vars or config defaults)
-    configurations = {"REDIS_HOST": REDIS_HOST, "CHROMA_HOST": CHROMA_HOST, "DEFAULT_MODEL": DEFAULT_MODEL}
+    # Validate critical configurations
+    configurations = {
+        "REDIS_HOST": REDIS_HOST,
+        "CHROMA_HOST": CHROMA_HOST, 
+        "DEFAULT_MODEL": DEFAULT_MODEL,
+        "OLLAMA_BASE_URL": OLLAMA_BASE_URL
+    }
 
     missing_configs = []
+    invalid_configs = []
+    
     for config_name, config_value in configurations.items():
         if not config_value:
             missing_configs.append(config_name)
+        elif config_name == "OLLAMA_BASE_URL" and not _validate_url_format(config_value):
+            invalid_configs.append(f"{config_name}: {config_value}")
 
+    # Check for issues
     if missing_configs:
         raise ValueError(f"Missing required configurations: {', '.join(missing_configs)}")
+    
+    if invalid_configs:
+        raise ValueError(f"Invalid configuration formats: {', '.join(invalid_configs)}")
 
-    logger.info("Environment validation passed")
-    logger.info(f"Using Redis: {REDIS_HOST}")
-    logger.info(f"Using ChromaDB: {CHROMA_HOST}")
-    logger.info(f"Using Model: {DEFAULT_MODEL}")
+    # Validate optional but important settings
+    warnings = []
+    
+    # Check security settings
+    if not os.getenv("SECRET_KEY"):
+        warnings.append("SECRET_KEY not set - using default (insecure in production)")
+    
+    if os.getenv("ENVIRONMENT") == "production":
+        if os.getenv("ALLOWED_ORIGINS") == "*":
+            warnings.append("ALLOWED_ORIGINS set to '*' in production (security risk)")
+        
+        if not os.getenv("TRUSTED_HOSTS"):
+            warnings.append("TRUSTED_HOSTS not configured for production")
+
+    # Log warnings
+    for warning in warnings:
+        logger.warning(f"Configuration warning: {warning}")
+
+    # Log successful configuration
+    logger.info("✅ Environment validation passed")
+    logger.info(f"Redis: {REDIS_HOST}")
+    logger.info(f"ChromaDB: {CHROMA_HOST}")
+    logger.info(f"Model: {DEFAULT_MODEL}")
+    logger.info(f"Ollama URL: {OLLAMA_BASE_URL}")
+
+def _validate_url_format(url: str) -> bool:
+    """Validate URL format for configuration."""
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        return bool(parsed.scheme and parsed.netloc)
+    except Exception:
+        return False

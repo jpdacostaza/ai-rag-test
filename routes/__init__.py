@@ -8,6 +8,7 @@ from .models import models_router
 from .upload import upload_router
 from .debug import debug_router
 from .memory import memory_router
+from .gateway import gateway_router
 
-__all__ = ["health_router", "chat_router", "models_router", "upload_router", "debug_router", "memory_router"]
-# "gateway_router" removed - API Gateway disabled
+__all__ = ["health_router", "chat_router", "models_router", "upload_router", "debug_router", "memory_router", "gateway_router"]
+# gateway_router re-enabled with proper implementation

@@ -30,8 +30,8 @@ This project includes **zero-configuration optimizations** for Orange Pi 5 Plus 
 ## 📋 System Overview - RAG Dual-Database Architecture
 
 ### Core Components
-- **Memory API** (`enhanced_memory_api.py`) - RAG dual-database backend (Redis + ChromaDB)
-- **Memory Functions** (`memory_filter_function.py`) - OpenWebUI integration with RAG
+- **Memory API** (`memory/api/enhanced_memory_api.py`) - RAG dual-database backend (Redis + ChromaDB)
+- **Memory Functions** (`memory/functions/memory_filter_function.py`) - OpenWebUI integration with RAG
 - **Main API** (`main.py`) - OpenAI-compatible endpoints with RAG support
 - **Docker Services** - Redis, ChromaDB, Memory API, OpenWebUI with RAG configuration
 
@@ -52,8 +52,13 @@ This project includes **zero-configuration optimizations** for Orange Pi 5 Plus 
 backend/
 ├── 📄 Core Application Files
 │   ├── main.py                     # Main application
-│   ├── enhanced_memory_api.py      # Memory API (Redis + ChromaDB)
-│   ├── memory_filter_function.py   # OpenWebUI memory function
+│   ├── memory/
+│   │   ├── api/
+│   │   │   ├── enhanced_memory_api.py   # Memory API (Redis + ChromaDB)
+│   │   │   └── main.py                  # Memory API main entry
+│   │   └── functions/
+│   │       ├── memory_filter_function.py # OpenWebUI memory function
+│   │       └── enhanced_memory_function.py # Enhanced memory function
 │   └── docker-compose.yml          # Service orchestration
 │
 ├── 📚 docs/                        # Documentation

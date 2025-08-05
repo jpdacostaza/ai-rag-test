@@ -76,7 +76,7 @@ SSL_ENABLED=false
 
 # Cache Configuration
 CACHE_PROVIDER=redis
-REDIS_HOST=backend-redis
+REDIS_HOST=redis
 REDIS_PORT=6379
 
 # Monitoring Configuration
@@ -88,15 +88,15 @@ METRICS_ENABLED=true
 CORS_ORIGINS=*
 
 # Service Discovery
-MEMORY_API_HOST=backend-memory-api
+MEMORY_API_HOST=memory-api
 MEMORY_API_PORT=5001
-OLLAMA_HOST=backend-ollama
+OLLAMA_HOST=ollama
 OLLAMA_PORT=11434
-OPENWEBUI_HOST=backend-openwebui
+OPENWEBUI_HOST=openwebui
 OPENWEBUI_PORT=8080
-PIPELINES_HOST=backend-pipelines
+PIPELINES_HOST=pipelines
 PIPELINES_PORT=9099
-CHROMA_HOST=backend-chroma
+CHROMA_HOST=chroma
 CHROMA_PORT=8000
 EOF
         print_status "Environment configuration created in $ENV_FILE"

@@ -267,7 +267,7 @@ class EnhancedAPIGateway:
                 name='Memory API',
                 instances=[ServiceInstance(
                     id='memory-1',
-                    host='backend-memory-api',
+                    host='memory-api',
                     port=5001,
                     health_check_url='/health'
                 )]

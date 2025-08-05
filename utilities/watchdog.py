@@ -199,7 +199,7 @@ class RedisMonitor(SubsystemMonitor):
 
                 # Get Redis config from environment (same as ConnectionFactory uses)
                 metadata = {
-                    "host": os.getenv("REDIS_HOST", "localhost"),
+                    "host": os.getenv("REDIS_HOST", "redis"),
                     "port": int(os.getenv("REDIS_PORT", "6379")),
                     "connection_status": "connected",
                     "managed_by": "DatabaseConnectionFactory",
@@ -291,9 +291,9 @@ class ChromaDBMonitor(SubsystemMonitor):
                     metadata.update(
                         {
                             "mode": "http",
-                            "host": os.getenv("CHROMA_HOST", "localhost"),
+                            "host": os.getenv("CHROMA_HOST", "chroma"),
                             "port": int(os.getenv("CHROMA_PORT", "8000")),
-                            "url": f"http://{os.getenv('CHROMA_HOST', 'localhost')}:{os.getenv('CHROMA_PORT', '8000')}",
+                            "url": f"http://{os.getenv('CHROMA_HOST', 'chroma')}:{os.getenv('CHROMA_PORT', '8000')}",
                         }
                     )
                 else:

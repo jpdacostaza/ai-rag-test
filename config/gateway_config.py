@@ -139,7 +139,7 @@ class CacheConfig:
     max_cache_size: int = 1000
     
     # Redis cache settings (if provider is redis)
-    redis_host: str = "localhost"
+    redis_host: str = "redis"
     redis_port: int = 6379
     redis_db: int = 0
     redis_password: Optional[str] = None

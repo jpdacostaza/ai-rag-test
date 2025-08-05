@@ -193,8 +193,8 @@ class ServiceConfig:
     
     # Memory API
     memory_api_host: str = "0.0.0.0"
-    memory_api_port: int = 8001
-    memory_api_url: str = "http://backend-memory-api:8080"
+    memory_api_port: int = 5001
+    memory_api_url: str = "http://memory-api:5001"
     
     # OpenWebUI
     openwebui_url: str = "http://openwebui:8080"

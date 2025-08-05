@@ -83,7 +83,7 @@ class ServiceConfig:
     
     @property
     def chromadb_url(self) -> str:
-        return os.getenv("CHROMADB_URL", "http://chromadb:8000")
+        return os.getenv("CHROMADB_URL", "http://chroma:8000")
     
     @property
     def ollama_url(self) -> str:
@@ -95,7 +95,7 @@ class ServiceConfig:
     
     @property
     def backend_port(self) -> int:
-        return int(os.getenv("BACKEND_PORT", "9099"))
+        return int(os.getenv("BACKEND_PORT", "3000"))
 
 class DatabaseConfig:
     """Database configuration."""

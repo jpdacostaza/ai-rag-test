@@ -97,7 +97,7 @@ memory_system_available = False
 try:
     # Create a minimal config first
     config = {
-        'MEMORY_API_URL': os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001'),
+        'MEMORY_API_URL': os.getenv('MEMORY_API_URL', 'http://memory-api:5001'),
         'REDIS_HOST': os.getenv('REDIS_HOST', 'redis'),
         'REDIS_PORT': int(os.getenv('REDIS_PORT', '6379')),
         'OLLAMA_BASE_URL': os.getenv('OLLAMA_BASE_URL', 'http://ollama:11434'),
@@ -361,7 +361,7 @@ class Pipeline:
             model_config = {"protected_namespaces": ()}
             pipelines: List[str] = ["*"]
             priority: int = 0
-            backend_url: str = config.get('MEMORY_API_URL', 'http://backend-memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
+            backend_url: str = config.get('MEMORY_API_URL', 'http://memory-api:5001') if config else os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             enable_memory: bool = False  # Disable memory when components not available
             max_memories: int = 100
             memory_threshold: float = float(os.getenv('MEMORY_THRESHOLD', '1.5'))
@@ -386,11 +386,11 @@ class Pipeline:
         # Initialize valves with proper configuration
         if memory_system_available and config:
             # Use config values if available
-            backend_url = config.get('MEMORY_API_URL', 'http://backend-memory-api:5001')
+            backend_url = config.get('MEMORY_API_URL', 'http://memory-api:5001')
             api_timeout = config.get('API_TIMEOUT', 30)
         else:
             # Use environment variables as fallback
-            backend_url = os.getenv('MEMORY_API_URL', 'http://backend-memory-api:5001')
+            backend_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             api_timeout = int(os.getenv('API_TIMEOUT', '30'))
             
         if memory_system_available:
