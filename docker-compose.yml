@@ -45,8 +45,6 @@ services:
       - "6379:6379"
     restart: always
     user: "1000:1000"
-    # Use system core only
-    cpuset: "0"
     mem_limit: 512m
     volumes:
       - ./storage/redis:/data
@@ -75,8 +73,6 @@ services:
       - "8000:8000"
     restart: always
     user: "1000:1000"
-    # Use system core only
-    cpuset: "0"
     mem_limit: 1g
     volumes:
       - ./storage/chroma:/data
@@ -96,47 +92,21 @@ services:
       - "11434:11434"
     restart: always
     user: "1000:1000"
-    # ARM64 OPTIMIZED CONFIGURATION FOR ORANGE PI 5 PLUS
-    # CPU affinity - dedicate cores 1-7 to Ollama, leave core 0 for system
-    cpuset: "1-7"
-    # Enhanced memory management for ARM64
-    mem_limit: 6g
-    memswap_limit: 6g               # Disable swap to prevent performance degradation
-    mem_swappiness: 0               # Disable memory swapping for better performance
-    mem_reservation: 4g             # Reserve 4GB minimum
-    # Process and file limits for ARM64 stability
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-      nproc:
-        soft: 65536
-        hard: 65536
-    # CPU scheduling optimizations for ARM64
-    cpu_shares: 2048                # Higher priority for Ollama (2x default)
-    # OOM killer protection
-    oom_kill_disable: false         # Allow OOM killer for safety
+    # SIMPLIFIED CONFIGURATION FOR CROSS-PLATFORM COMPATIBILITY
+    mem_limit: 4g                   # Reduced memory limit for better compatibility
     volumes:
       - ./storage/ollama:/home/ollama/.ollama
     environment:
       - OLLAMA_HOME=/home/ollama/.ollama
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-1}  # Single model for qwen3:4b
       - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger qwen3:4b model
       - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
-      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}
-      # CPU optimization - ORANGE PI 5 PLUS OPTIMIZED (cores 1-7)
-      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}           # Single request for stability
-      - OLLAMA_NUM_THREADS=${OLLAMA_NUM_THREADS:-7}             # Use all 7 dedicated cores
-      # Advanced performance optimizations - STABILITY FOCUSED
+      # CPU optimization - UNRESTRICTED PARALLEL PROCESSING
+      # Advanced performance optimizations - PERFORMANCE FOCUSED
       - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-false} # Disable for CPU stability
       - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Keep f16 cache
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}              # Shorter keep-alive to free resources
-      - OLLAMA_CONCURRENT_REQUESTS=${OLLAMA_CONCURRENT_REQUESTS:-1} # Single concurrent request
       # Timeout settings - EXTENDED FOR QWEN3:4B
       - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-600}   # 10-minute timeout for qwen3
       - OLLAMA_LOAD_TIMEOUT=${OLLAMA_LOAD_TIMEOUT:-900}         # 15-minute model load timeout
@@ -167,8 +137,6 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     user: "1000:1000"  # Run as non-root user for security and permission consistency
-    # Use system core for lightweight backend operations
-    cpuset: "0"
     mem_limit: 2g
     env_file:
       - .env
@@ -179,7 +147,6 @@ services:
       - OLLAMA_BASE_URL=http://backend-ollama:11434
       - HF_HOME=/opt/cache/huggingface                          # Fix transformers cache deprecation warning
       - CHROMA_COLLECTION=user_memory                           # Consistent collection name
-      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-true}                # Full ARM64 optimization
       - LLM_TIMEOUT=600                                         # 10min timeout for qwen3:4b
       - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for qwen3
       - HTTPX_TIMEOUT=600                                       # HTTPX client timeout for qwen3
@@ -190,7 +157,6 @@ services:
       - MAX_CONCURRENT_REQUESTS=16                              # High concurrency
       - MEMORY_LIMIT=8G                                         # Generous memory limit
       - LOG_REQUESTS=false
-      - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
       # Stream debug logging (disabled by default for performance)
@@ -347,7 +313,7 @@ services:
       - MEMORY_AUTO_STORE=true
       - MEMORY_AUTO_STORE_THRESHOLD=1
       - MEMORY_DEBUG=true
-      - MEMORY_RETRIEVAL_THRESHOLD=0.001
+      - MEMORY_RETRIEVAL_THRESHOLD=0.8
       - ENABLE_COMMUNITY_SHARING=false
       # Authentication configuration - CRITICAL for user identification
       - WEBUI_AUTH=true

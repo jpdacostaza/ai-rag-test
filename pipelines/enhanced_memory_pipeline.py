@@ -493,96 +493,12 @@ class Pipeline:
                     query = msg.get("content", "")
                     break
             
-            # WEB SEARCH PROCESSING (Independent of authentication)
-            # This ensures web search works even if memory system fails
-            if query and web_search_available:
-                try:
-                    self.log(f"🔍 Checking web search trigger for query: '{query[:50]}...'")
-                    if should_trigger_web_search(query, ""):
-                        self.log(f"✅ WEB SEARCH TRIGGERED for query: {query}")
-                        
-                        # Perform web search with timeout protection
-                        try:
-                            search_results = await search_web(query, max_results=3)
-                            
-                            if search_results and len(search_results.strip()) > 50:
-                                # Store raw search results to memory if enabled
-                                if self.valves.save_raw_search_results and hasattr(self, 'api_client') and self.api_client:
-                                    try:
-                                        # Get user authentication
-                                        user_id, user_data = self.auth_manager.authenticate_user(body) if self.auth_manager else (None, None)
-                                        
-                                        # Apply persistent ID logic
-                                        if not user_id and body.get("__user__") and body["__user__"].get("id"):
-                                            original_id = str(body["__user__"].get("id"))
-                                            if original_id.startswith("session_"):
-                                                session_hash = original_id.replace("session_", "")
-                                                user_id = f"persistent_user_{session_hash}"
-                                            else:
-                                                user_id = original_id
-                                        
-                                        if not user_id:
-                                            user_id = "persistent_user_anonymous"
-                                        
-                                        # Store raw search results as a supplementary memory
-                                        if user_id:
-                                            raw_search_memory = {
-                                                "user_id": user_id,
-                                                "content": f"Web search results for '{query}':\n\n{search_results}",
-                                                "metadata": {
-                                                    "type": "web_search_raw",
-                                                    "query": query,
-                                                    "timestamp": str(int(time.time())),
-                                                    "search_engine": "duckduckgo",
-                                                    "importance_override": 0.3  # Lower importance than conversations
-                                                }
-                                            }
-                                            
-                                            await self.api_client.store_memory(raw_search_memory)
-                                            self.log(f"💾 Stored raw search results to memory for user {user_id}")
-                                            
-                                    except Exception as storage_error:
-                                        self.log(f"⚠️ Failed to store raw search results: {storage_error}", "WARNING")
-                                
-                                # Format and add web search results to system message
-                                web_context = search_results if isinstance(search_results, str) else str(search_results)
-                                
-                                # Find existing system message or create one
-                                system_msg_found = False
-                                for msg in body["messages"]:
-                                    if msg.get("role") == "system":
-                                        msg["content"] += f"\n\nCurrent web search results for '{query}':\n{web_context}"
-                                        system_msg_found = True
-                                        break
-                                
-                                # If no system message exists, create one
-                                if not system_msg_found:
-                                    body["messages"].insert(0, {
-                                        "role": "system",
-                                        "content": f"You are a helpful assistant with web search capabilities.\n\nCurrent web search results for '{query}':\n{web_context}"
-                                    })
-                                
-                                self.log(f"🌐 Added web search results to context")
-                            else:
-                                self.log(f"⚠️ Web search triggered but no meaningful results returned")
-                        except Exception as search_error:
-                            self.log(f"❌ Web search failed: {search_error}", "ERROR")
-                    else:
-                        self.log(f"❌ Web search NOT triggered for query: '{query[:50]}...'")
-                except Exception as trigger_error:
-                    self.log(f"❌ Web search trigger check failed: {trigger_error}", "ERROR")
-            elif query and not web_search_available:
-                # Web search not available - check if user was asking for search
-                try:
-                    if should_trigger_web_search(query, ""):
-                        self.log(f"⚠️ User requested web search but web search is in FALLBACK MODE")
-                        self.log(f"⚠️ Query would have triggered search: {query}")
-                    else:
-                        self.log(f"ℹ️ Query would not have triggered web search: '{query[:50]}...'")
-                except Exception as fallback_error:
-                    self.log(f"❌ Web search fallback check failed: {fallback_error}", "ERROR")
-            else:
-                self.log(f"ℹ️ No query found or web search unavailable")
+            # WEB SEARCH PROCESSING - MOVED TO OUTLET FOR SMART ANTI-HALLUCINATION
+            # This is the correct approach: analyze model response first, then search if needed
+            if self.valves.debug_mode:
+                self.log(f"ℹ️ Web search moved to outlet for smart anti-hallucination triggering")
+                if query and web_search_available:
+                    self.log(f"🔍 Query received: '{query[:50]}...' - will analyze response in outlet")
             
             # MEMORY SYSTEM PROCESSING (Requires authentication)
             # Check if modular components are available
@@ -744,8 +660,102 @@ class Pipeline:
         """
         Outlet filter - processes responses and stores interactions.
         This runs AFTER the model generates a response.
+        
+        NEW: Implements SMART WEB SEARCH ANTI-HALLUCINATION
+        - Analyzes model response for uncertainty or knowledge gaps
+        - Only triggers web search when model shows limitations
+        - Provides corrected/verified information when needed
         """
         try:
+            self.log("🔥 OUTLET CALLED - Analyzing model response for potential improvements")
+            
+            # SMART WEB SEARCH ANTI-HALLUCINATION LOGIC
+            # This is the CORRECT place to check if web search is needed
+            if web_search_available:
+                try:
+                    # Extract messages to get user query and model response
+                    messages = body.get("messages", [])
+                    if len(messages) >= 2:
+                        # Get the latest user query and model response
+                        user_query = ""
+                        model_response = ""
+                        
+                        # Find the most recent user message and assistant response
+                        for msg in reversed(messages):
+                            if msg.get("role") == "user" and not user_query:
+                                user_query = msg.get("content", "")
+                            elif msg.get("role") == "assistant" and not model_response:
+                                model_response = msg.get("content", "")
+                                
+                        if user_query and model_response:
+                            self.log(f"🔍 Smart analysis: Query='{user_query[:50]}...' Response='{model_response[:50]}...'")
+                            
+                            # Import and use smart trigger logic
+                            try:
+                                sys.path.insert(0, '/opt/backend/utilities')
+                                from smart_web_search_trigger import should_trigger_web_search_smart
+                                
+                                should_search, trigger_reason = should_trigger_web_search_smart(user_query, model_response)
+                                
+                                if should_search:
+                                    self.log(f"✅ SMART WEB SEARCH TRIGGERED: {trigger_reason}")
+                                    
+                                    # Perform web search
+                                    search_results = await search_web(user_query, max_results=3)
+                                    
+                                    if search_results and len(search_results.strip()) > 50:
+                                        # Determine how to integrate search results based on model's confidence
+                                        if any(phrase in model_response.lower() for phrase in ["don't know", "not sure", "don't have", "cannot provide"]):
+                                            # Model was uncertain - replace with web search results
+                                            enhanced_response = f"""Based on current web search results:
+
+{search_results}
+
+*This information has been retrieved from current web sources to provide you with accurate, up-to-date details.*"""
+                                        else:
+                                            # Model seemed confident but verification needed - add as supplement
+                                            enhanced_response = f"""{model_response}
+
+**Current Information Update:**
+{search_results}
+
+*For more specific information, please ask about particular topics.*"""
+                                        
+                                        # Update the assistant's response
+                                        for msg in reversed(messages):
+                                            if msg.get("role") == "assistant":
+                                                msg["content"] = enhanced_response
+                                                break
+                                                
+                                        self.log(f"🌐 Enhanced response with smart web search results")
+                                    else:
+                                        self.log(f"⚠️ Smart web search triggered but no meaningful results returned")
+                                        
+                                else:
+                                    self.log(f"❌ Smart web search NOT needed: {trigger_reason}")
+                                    
+                            except ImportError:
+                                self.log(f"⚠️ Smart web search trigger not available, falling back to basic logic", "WARNING")
+                                # Fallback to basic uncertainty detection
+                                uncertainty_phrases = ["don't know", "not sure", "don't have", "cannot provide", "i'm not", "i am not"]
+                                if any(phrase in model_response.lower() for phrase in uncertainty_phrases):
+                                    self.log(f"✅ BASIC UNCERTAINTY DETECTED - triggering web search")
+                                    search_results = await search_web(user_query, max_results=3)
+                                    if search_results:
+                                        enhanced_response = f"""Based on current web search results:
+
+{search_results}"""
+                                        for msg in reversed(messages):
+                                            if msg.get("role") == "assistant":
+                                                msg["content"] = enhanced_response
+                                                break
+                        else:
+                            self.log(f"Could not extract user query and model response for smart analysis")
+                            
+                except Exception as smart_search_error:
+                    self.log(f"❌ Smart web search analysis failed: {smart_search_error}", "ERROR")
+                    
+            # CONTINUE WITH EXISTING MEMORY LOGIC
             # Early return if memory is disabled
             if not self.valves.enable_memory:
                 return body

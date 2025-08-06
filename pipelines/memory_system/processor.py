@@ -327,7 +327,7 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
             # Embedded fallback with anti-fabrication measures
             return """You are a helpful AI assistant with memory and web search capabilities optimized for small models.
 
-🌐 WEB SEARCH: You have access to real-time web search via SearXNG instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
+🌐 WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
 
 🧠 MEMORY SYSTEM - ANTI-FABRICATION: 
 - I can learn about you over time through our conversations
@@ -371,7 +371,7 @@ Be helpful, efficient, and honest. Use web search for current information. Learn
 
 🌐 CRITICAL WEB SEARCH CAPABILITIES - REAL-TIME INFORMATION ACCESS 🌐:
 
-1. **WEB SEARCH INTEGRATION**: You have access to real-time web search capabilities via optimized SearXNG instances with Brave Search and DuckDuckGo fallbacks that provide current, accurate information.
+1. **WEB SEARCH INTEGRATION**: You have access to real-time web search capabilities via optimized DuckDuckGo instances with Brave Search fallbacks that provide current, accurate information.
 
 2. **AUTOMATIC WEB SEARCH TRIGGERS** - Search the web automatically when users ask about:
    - Current events, news, or recent developments
@@ -510,7 +510,7 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
             # Embedded lightweight persona for small models with strict anti-hallucination
             return """You are a helpful AI assistant with memory and web search capabilities designed for small language models.
 
-🌐 WEB SEARCH: You have access to real-time web search via SearXNG instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
+🌐 WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
 
 🧠 MEMORY SYSTEM: 
 - I can learn about you over time through our conversations

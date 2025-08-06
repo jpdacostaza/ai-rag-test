@@ -21,7 +21,7 @@ The web search functionality has been reorganized and enhanced with multiple imp
 3. Automatic triggering for relevant queries
 
 **Features:**
-- Multiple search engines (Brave, SearX, DuckDuckGo)
+- Multiple search engines (Brave, DuckDuckGo)
 - Current date awareness (July 2025)
 - Uncertainty detection and response enhancement
 - Curated fallback news when APIs fail

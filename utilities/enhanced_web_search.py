@@ -29,7 +29,7 @@ class WebSearchTool:
         methods = [
             self._search_with_duckduckgo_instant,  # Primary: Works reliably
             self._search_with_brave,  # Secondary: Good API if keys available
-            self._search_with_searx   # Fallback: Many instances currently blocked
+            self._search_with_duckduckgo   # Fallback: HTML parsing method
         ]
         
         last_error = None
@@ -75,43 +75,31 @@ class WebSearchTool:
         
         return ""
     
-    async def _search_with_searx(self, query: str, max_results: int) -> str:
-        """Search using top SearXNG instances with optimal reliability"""
-        # Top instances from searx.space sorted by reliability and response time
-        searx_instances = [
-            "https://search.inetol.net/search",      # 0.187s response, 100% uptime
-            "https://searx.stream/search",           # 0.281s response, 99% uptime  
-            "https://paulgo.io/search",              # 0.405s response, 100% uptime
-            "https://search.hbubli.cc/search",       # 0.431s response, 99% uptime
-            "https://search.rhscz.eu/search",        # 0.474s response, 99% uptime
-            "https://search.federicociro.com/search", # 0.548s response, 100% uptime
-            "https://opnxng.com/search",             # 0.597s response, 100% uptime
-            "https://searxng.site/search"            # 1.100s response, 81% uptime (backup)
+    async def _search_with_duckduckgo(self, query: str, max_results: int) -> str:
+        """Search using DuckDuckGo HTML interface with multiple fallback instances"""
+        # Top DuckDuckGo HTML instances
+        duckduckgo_instances = [
+            "https://html.duckduckgo.com/html",      # Primary HTML interface
+            "https://duckduckgo.com/html"            # Secondary HTML interface
         ]
         
-        for instance in searx_instances:
+        for instance in duckduckgo_instances:
             try:
                 params = {
                     'q': query,
-                    'format': 'json',
-                    'lang': 'en',
-                    'time_range': 'week',
-                    'categories': 'general,news'  # Include news category
+                    'kl': 'us-en',  # English results
+                    'df': 'w'       # Past week filter
                 }
                 
-                async with httpx.AsyncClient(timeout=10) as client:  # Increased timeout for better reliability
+                async with httpx.AsyncClient(timeout=10) as client:
                     response = await client.get(instance, params=params)
                     if response.status_code == 200:
-                        try:
-                            data = response.json()
-                            if data and data.get('results'):
-                                return self._format_searx_results(data, max_results)
-                        except json.JSONDecodeError:
-                            continue
+                        html_content = response.text
+                        return self._parse_duckduckgo_html(html_content, max_results)
             except Exception:
                 continue
         
-        raise Exception("All SearXNG instances are currently unavailable")
+        raise Exception("All DuckDuckGo instances are currently unavailable")
     
     async def _search_with_duckduckgo_instant(self, query: str, max_results: int) -> str:
         """Enhanced DuckDuckGo search with news focus"""
@@ -128,7 +116,7 @@ class WebSearchTool:
                 if response.status_code == 200:
                     try:
                         data = response.json()
-                        return self._format_duckduckgo_results(data, query, max_results)
+                        return self._format_duckduckgo_instant_results(data, query, max_results)
                     except json.JSONDecodeError:
                         pass
                 
@@ -185,8 +173,8 @@ Source: Current tech coverage - {self.current_date}"""
         # Default current news
         return current_topics["headlines"]
     
-    def _format_duckduckgo_results(self, data: Dict, query: str, max_results: int) -> str:
-        """Format DuckDuckGo search results"""
+    def _format_duckduckgo_instant_results(self, data: Dict, query: str, max_results: int) -> str:
+        """Format DuckDuckGo instant search results"""
         results = []
         
         # Abstract text (main answer)
@@ -248,19 +236,35 @@ Source: Current tech coverage - {self.current_date}"""
         
         return "\n".join(results)
     
-    def _format_searx_results(self, data: Dict, max_results: int) -> str:
-        """Format SearX search results"""
-        if not data.get("results"):
-            return "No current results found"
+    def _parse_duckduckgo_html(self, html_content: str, max_results: int) -> str:
+        """Parse DuckDuckGo HTML results using regex"""
+        import re
         
+        # Extract search results using regex patterns
         results = []
-        for result in data["results"][:max_results]:
-            title = result.get("title", "")
-            url = result.get("url", "")
-            content = result.get("content", "")
-            results.append(f"• **{title}**\n  {content}\n  Source: {url}\n")
         
-        return "\n".join(results)
+        # Pattern to match DuckDuckGo result blocks
+        result_pattern = r'<div class="result__body">.*?<a.*?href="([^"]*)".*?>(.*?)</a>.*?<span class="result__snippet">(.*?)</span>'
+        matches = re.findall(result_pattern, html_content, re.DOTALL | re.IGNORECASE)
+        
+        if not matches:
+            # Alternative pattern for different DuckDuckGo layouts
+            result_pattern = r'<h2 class="result__title">.*?<a.*?href="([^"]*)".*?>(.*?)</a>.*?</h2>.*?<span class="result__snippet">(.*?)</span>'
+            matches = re.findall(result_pattern, html_content, re.DOTALL | re.IGNORECASE)
+        
+        for i, (url, title, snippet) in enumerate(matches[:max_results]):
+            # Clean up HTML tags and entities
+            title_clean = re.sub(r'<[^>]+>', '', title).strip()
+            snippet_clean = re.sub(r'<[^>]+>', '', snippet).strip()
+            
+            # Decode HTML entities
+            title_clean = title_clean.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+            snippet_clean = snippet_clean.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+            
+            if title_clean and url:
+                results.append(f"• **{title_clean}**\n  {snippet_clean}\n  Source: {url}\n")
+        
+        return "\n".join(results) if results else "No search results found"
 
 
 # Global instance

@@ -42,15 +42,12 @@ class Tools:
         search_query = f"{query} {current_year} July 2025"
         
         try:
-            # Primary method: SearXNG with forced current results
+            # Primary method: DuckDuckGo HTML scraping
             try:
-                search_url = "https://searx.be/search"
+                search_url = "https://html.duckduckgo.com/html/"
                 params = {
                     'q': search_query,
-                    'format': 'json',
-                    'engines': 'google,bing',
-                    'categories': 'general',
-                    'time_range': 'day'
+                    'kl': 'us-en'
                 }
                 
                 headers = {
@@ -59,20 +56,27 @@ class Tools:
                 
                 from utilities.async_context_managers import http_client
                 async with http_client() as client:
-                    response = await client.get(search_url, params=params)
+                    response = await client.get(search_url, params=params, headers=headers)
                     if response.status_code == 200:
-                        data = response.json()
+                        html_content = response.text
                         results = []
                         
-                        for item in data.get('results', []):
+                        # Simple HTML parsing for DuckDuckGo results
+                        import re
+                        
+                        # Extract result blocks
+                        result_pattern = r'class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)</a>.*?class="result__snippet"[^>]*>([^<]*)'
+                        matches = re.findall(result_pattern, html_content, re.DOTALL)
+                        
+                        for match in matches[:max_results]:
                             if len(results) >= max_results:
                                 break
                                 
-                            title = item.get('title', '')
-                            content = item.get('content', '')
-                            url = item.get('url', '')
+                            url, title, content = match
+                            title = title.strip()
+                            content = content.strip()
                             
-                            if title and len(title) > 10:
+                            if title and len(title) > 5:
                                 results.append({
                                     'title': title[:120] + '...' if len(title) > 120 else title,
                                     'content': content[:300] + '...' if len(content) > 300 else content,
@@ -94,10 +98,10 @@ class Tools:
                             return f"🔍 No recent results found for '{query}' on {current_date}. The search engines may be experiencing issues or the query may be too specific."
                     
                     else:
-                        return f"⚠️ Search service returned status {response.status_code}. Trying alternative method..."
+                        return f"⚠️ DuckDuckGo search returned status {response.status_code}. Trying alternative method..."
                         
-            except Exception as searx_error:
-                print(f"SearXNG search failed: {searx_error}")
+            except Exception as ddg_error:
+                print(f"DuckDuckGo search failed: {ddg_error}")
                 
                 # Fallback method: Direct web search simulation
                 fallback_results = f"🌐 **WEB SEARCH RESULTS for '{query}'**\n"

@@ -7,7 +7,7 @@ This pipeline provides real-time web search capabilities with current date aware
 ## Features
 
 - ✅ **Zero Configuration**: Works out of the box
-- ✅ **Multiple Search Engines**: Brave Search, SearX, DuckDuckGo with automatic fallback
+- ✅ **Multiple Search Engines**: Brave Search, DuckDuckGo with automatic fallback
 - ✅ **Current Date Awareness**: Prioritizes July 2025 content
 - ✅ **Automatic Triggering**: Detects news queries and uncertain responses
 - ✅ **Real-time Results**: Bypasses cached outdated results
@@ -48,9 +48,9 @@ This pipeline provides real-time web search capabilities with current date aware
 
 ### Search Engines (in priority order)
 
-1. **Brave Search**: Real-time news results with API
-2. **SearX Instances**: Privacy-focused metasearch 
-3. **DuckDuckGo**: Enhanced with news site filtering
+1. **DuckDuckGo**: Enhanced HTML parsing with current filtering
+2. **Brave Search**: Real-time news results with API
+3. **DuckDuckGo Instant**: Instant answers for quick results
 4. **Curated Fallback**: Current July 2025 news when APIs fail
 
 ## Usage Examples
@@ -98,11 +98,11 @@ Pipeline Type: Filter
 ### Search Engine Flow
 
 ```
-Query → Brave Search API
+Query → DuckDuckGo HTML Parsing
       ↓ (if fails)
-      → SearX Instances
+      → Brave Search API
       ↓ (if fails)  
-      → DuckDuckGo Enhanced
+      → DuckDuckGo Instant API
       ↓ (if fails)
       → Curated Current News Fallback
 ```

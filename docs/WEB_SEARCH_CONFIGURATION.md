@@ -99,7 +99,7 @@ Auto Search: Enabled
 Max Results: 5
 
 Search Methods (in order):
-1. SearX instances (primary)
+1. DuckDuckGo instances (primary)
 2. Brave Search API (secondary) 
 3. DuckDuckGo Instant (fallback)
 4. Curated current news (emergency fallback)
