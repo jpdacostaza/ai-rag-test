@@ -692,10 +692,41 @@ class Pipeline:
                             
                             # Import and use smart trigger logic
                             try:
-                                sys.path.insert(0, '/opt/backend/utilities')
-                                from smart_web_search_trigger import should_trigger_web_search_smart
+                                sys.path.insert(0, '/app/utilities')
+                                sys.path.insert(0, '/app')
+                                from utilities.smart_web_search_trigger import should_trigger_web_search_smart
                                 
                                 should_search, trigger_reason = should_trigger_web_search_smart(user_query, model_response)
+                                
+                                # CRITICAL FIX: Don't trigger if response already contains memory-based information  
+                                memory_indicators = [
+                                    "based on what i remember", "i remember", "from what i know about you",
+                                    "according to my memory", "i have information", "your name is", "you work at",
+                                    "key information i remember", "based on the information i have"
+                                ]
+                                
+                                # Check if response already contains web search results (prevent double processing)
+                                web_result_indicators = [
+                                    "current web search results", "web search results", "search completed for",
+                                    "based on current web search", "search results are available"
+                                ]
+                                
+                                has_memory_content = any(indicator in model_response.lower() for indicator in memory_indicators)
+                                already_has_web_results = any(indicator in model_response.lower() for indicator in web_result_indicators)
+                                
+                                # Don't trigger if model already used memory successfully OR already has web results
+                                if has_memory_content:
+                                    self.log(f"✅ Model used memory successfully - no web search needed")
+                                    should_search = False
+                                    trigger_reason = "Model provided memory-based response"
+                                elif already_has_web_results:
+                                    self.log(f"✅ Response already contains web search results - no additional search needed")
+                                    should_search = False
+                                    trigger_reason = "Response already contains web search results"
+                                elif should_search:
+                                    self.log(f"✅ Smart trigger activated: {trigger_reason}")
+                                else:
+                                    self.log(f"❌ Smart web search NOT needed: {trigger_reason}")
                                 
                                 if should_search:
                                     self.log(f"✅ SMART WEB SEARCH TRIGGERED: {trigger_reason}")

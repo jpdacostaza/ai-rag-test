@@ -6,7 +6,10 @@ All test, debug, and validation files have been successfully moved to the `tests
 
 ## Files in tests/ folder:
 
-### Test Files
+### 🎯 **MAIN COMPREHENSIVE TEST** (Recommended)
+- `test_comprehensive_system.py` - **UNIFIED TEST SUITE** - Combines all tests into one comprehensive validation
+
+### Individual Test Files
 - `test_anti_fabrication.py` - Tests anti-hallucination and memory fabrication prevention
 - `test_chat_web_search.py` - Tests web search integration in chat
 - `test_persona_updates.py` - Tests persona file updates and DuckDuckGo migration
@@ -34,7 +37,22 @@ All test, debug, and validation files have been successfully moved to the `tests
 
 ## Running Tests
 
-From the project root:
+### 🚀 **Quick Start - Run the Comprehensive Test:**
+```bash
+# From project root - Run the unified comprehensive test
+python tests/test_comprehensive_system.py
+
+# This single test validates EVERYTHING:
+# ✅ Smart Web Search Trigger Logic  
+# ✅ Service Health & Connectivity
+# ✅ Memory System Integration
+# ✅ Anti-Fabrication Measures
+# ✅ Web Search Functionality
+# ✅ End-to-End Pipeline Flow
+# ✅ System Performance
+```
+
+### Individual Tests (for debugging specific components):
 ```bash
 # Run a specific test
 python tests/test_persona_updates.py
