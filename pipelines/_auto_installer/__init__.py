@@ -76,7 +76,7 @@ def auto_install_dependencies(requirements_file: Optional[str] = None):
         
     try:
         if not requirements_file:
-            requirements_file = "/opt/backend/pipelines/requirements.txt"
+            requirements_file = "/op./storage/openwebui/pipelines/requirements.txt"
         
         # Check if requirements file exists
         import os

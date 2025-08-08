@@ -30,7 +30,7 @@ from datetime import datetime
 # Add paths for imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(current_dir, 'anti_hallucination_module'))
-sys.path.insert(0, '/opt/backend/pipelines/anti_hallucination_module')
+sys.path.insert(0, '/op./storage/openwebui/pipelines/anti_hallucination_module')
 
 try:
     from pydantic import BaseModel, Field

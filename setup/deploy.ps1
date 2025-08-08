@@ -159,7 +159,7 @@ function Test-Deployment {
     
     # Memory API
     try {
-        $response = Invoke-WebRequest -Uri "http://localhost:8001/health" -UseBasicParsing -TimeoutSec 5
+        $response = Invoke-WebRequest -Uri "http://localhost:5001/health" -UseBasicParsing -TimeoutSec 5
         if ($response.StatusCode -eq 200) {
             Write-Success "Memory API is healthy"
         }
@@ -210,7 +210,7 @@ function Show-AccessInfo {
     Write-Host "🌐 Access URLs:" -ForegroundColor Cyan
     Write-Host "   OpenWebUI:    http://localhost:8080" -ForegroundColor White
     Write-Host "   Backend API:  http://localhost:3000" -ForegroundColor White
-    Write-Host "   Memory API:   http://localhost:8001" -ForegroundColor White
+    Write-Host "   Memory API:   http://localhost:5001" -ForegroundColor White
     Write-Host "   Ollama:       http://localhost:11434" -ForegroundColor White
     Write-Host ""
     Write-Host "📋 Next Steps:" -ForegroundColor Cyan

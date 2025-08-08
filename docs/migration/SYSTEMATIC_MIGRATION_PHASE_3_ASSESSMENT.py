@@ -55,7 +55,7 @@ PHASE_3_MIGRATION_TARGETS = {
             }
         },
         
-        "tests/test_memory_system.py": {
+        "tests/tests/tests/test_memory_system.py": {
             "patterns_applicable": [
                 "Error Handling Patterns",
                 "Memory Service consolidation",
@@ -109,7 +109,7 @@ PHASE_3_MIGRATION_TARGETS = {
     },
     
     "MEDIUM_PRIORITY": {
-        "tests/test_comprehensive_user_memory.py": {
+        "tests/tests/tests/test_comprehensive_user_memory.py": {
             "patterns_applicable": [
                 "Error Handling Patterns",
                 "AuthValidator consolidation"
@@ -393,7 +393,7 @@ def print_phase_3_assessment():
     
     print(f"\n RECOMMENDED PHASE 3 EXECUTION ORDER:")
     print(f"1. [FIRE] error_handler.py - High impact, standardizes error handling foundation")
-    print(f"2.  tests/test_memory_system.py - Ensures test consistency with production patterns")
+    print(f"2.  tests/tests/tests/test_memory_system.py - Ensures test consistency with production patterns")
     print(f"3. [OK] utilities/validation.py - Low complexity, quick wins with validation patterns")
     print(f"4.  scripts/startup_verifier.py - Standardizes startup verification")
     print(f"5. [CHART] database_manager.py optimizations - Complete database layer standardization")

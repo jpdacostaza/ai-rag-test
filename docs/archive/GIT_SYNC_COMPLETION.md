@@ -37,7 +37,7 @@ Files Changed: 25+ files
 - Enhanced: storage/pipelines/enhanced_memory_pipeline.py (embedded persona)
 - Simplified: docker-compose.yml (removed config mount)
 - Standardized: config/persona.json (single source of truth)
-- Updated: validate_persona_pipeline.py (Enhanced v3.0.0 validation)
+- Updated: tests/validate_persona_pipeline.py (Enhanced v3.0.0 validation)
 - Added: Comprehensive documentation and test results
 ```
 
@@ -88,7 +88,7 @@ docker-compose logs -f pipelines
 - ✅ `storage/pipelines/enhanced_memory_pipeline.py` - Core pipeline with embedded Enhanced Persona v3.0.0
 - ✅ `config/persona.json` - Single source of truth configuration (14,258 bytes)
 - ✅ `docker-compose.yml` - Simplified configuration without config mount
-- ✅ `validate_persona_pipeline.py` - Enhanced persona validation framework
+- ✅ `tests/validate_persona_pipeline.py` - Enhanced persona validation framework
 
 ### **Documentation & Analysis**
 - ✅ `ENHANCED_PERSONA_TEST_RESULTS.md` - Complete test results (4/4 passed)

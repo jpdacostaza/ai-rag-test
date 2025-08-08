@@ -17,7 +17,7 @@
 
 #### 3. **Fixed Python Utilities** (MEDIUM PRIORITY)
 - ✅ `utilities/force_refresh.py`: localhost → ollama:11434
-- ✅ `utilities/validate_memory_system.py`: All localhost URLs → service names
+- ✅ `utilities/tests/validate_memory_system.py`: All localhost URLs → service names
 - ✅ `utilities/inspect_chromadb.py`: Backend URL corrected
 - ✅ `scripts/install_global_pipeline.py`: Pipelines URL corrected
 
@@ -55,7 +55,7 @@
 python scripts/refresh-models.py --verbose
 
 # Verify service connectivity
-docker-compose exec backend python utilities/validate_memory_system.py
+docker-compose exec backend python utilities/tests/validate_memory_system.py
 
 # Check Redis connection
 docker-compose exec backend python -c "import redis; r=redis.from_url('redis://redis:6379'); print(r.ping())"

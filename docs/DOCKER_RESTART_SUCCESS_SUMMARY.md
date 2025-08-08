@@ -45,17 +45,17 @@
 ```
 tests/
 ├── README.md (documentation)
-├── debug_memory_distances.py
-├── debug_trigger.py
-├── test_anti_fabrication.py
-├── test_chat_web_search.py
-├── test_persona_updates.py (new)
-├── test_smart_memory.py
-├── test_uncertainty_triggers.py
-├── test_web_search.py
-├── validate_memory_system.py
-├── validate_pipeline.py
-├── validate_rag_system.py
+├── tests/debug_memory_distances.py
+├── tests/debug_trigger.py
+├── tests/test_anti_fabrication.py
+├── tests/test_chat_web_search.py
+├── tests/test_persona_updates.py (new)
+├── tests/test_smart_memory.py
+├── tests/test_uncertainty_triggers.py
+├── tests/test_web_search.py
+├── tests/validate_memory_system.py
+├── tests/validate_pipeline.py
+├── tests/validate_rag_system.py
 └── verify_fixes.py
 ```
 

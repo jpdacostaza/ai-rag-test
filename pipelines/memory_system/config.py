@@ -28,7 +28,7 @@ class MemoryValves(BaseModel):
     # Memory Settings
     enable_memory: bool = True
     max_memories: int = 100  # Maximum memories to retrieve per query for comprehensive context
-    memory_threshold: float = 1.5  # ChromaDB compatible threshold
+    memory_threshold: float = 2.0  # Optimized threshold for better recall
     quality_threshold: int = 3  # Minimum quality score for memory injection
     save_raw_search_results: bool = True  # Save raw web search results as supplementary memories
     

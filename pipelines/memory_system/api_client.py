@@ -66,7 +66,7 @@ class MemoryAPIClient:
                 "user_id": user_id,
                 "query": query,
                 "limit": max_memories,
-                "threshold": 1.5  # Higher threshold for better recall (ChromaDB distances around 1.1-1.3)
+                "threshold": 2.0  # Optimized threshold for better recall (ChromaDB distances around 1.1-2.0)
             }
             
             if self.debug:

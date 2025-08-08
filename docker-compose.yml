@@ -23,12 +23,12 @@ services:
     command: |
       sh -c "
         echo '🏗️ Initializing storage directories...'
-        mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache
+        mkdir -p./storage/redis./storage/chroma./storage/ollama./storage/openwebui./storage/pipelines./storage/models./storage/gateway./storage/installer./storage/.cache
         chown -R 1000:1000 /storage
         chmod -R 755 /storage
-        chmod -R 777 /storage/.cache /storage/models
+        chmod -R 777./storage/.cache./storage/models
         echo '✅ Storage initialization complete!'
-        ls -la /storage/
+        ls -la./storage/
       "
     volumes:
       - ./storage:/storage
@@ -214,7 +214,7 @@ services:
       - CHROMA_PORT=8000
       - MEMORY_API_VERSION=2.0.0
       - MEMORY_API_TITLE=Enhanced Memory API with RAG
-      - MEMORY_RETRIEVAL_THRESHOLD=1.5
+      # - MEMORY_RETRIEVAL_THRESHOLD=-0.5  # Controlled by OpenWebUI Function
       - SHORT_TERM_IMPORTANCE_THRESHOLD=0.4
       - LONG_TERM_IMPORTANCE_THRESHOLD=0.7
       - SHORT_TERM_TTL=3600
@@ -222,7 +222,7 @@ services:
       - LONG_TERM_TTL=86400
     volumes:
       - .:/app
-      - ./storage/openwebui:/app/storage/openwebui
+      - ./storage/openwebui:/ap./storage/openwebui
     depends_on:
       redis:
         condition: service_healthy
@@ -314,7 +314,7 @@ services:
       - MEMORY_AUTO_STORE=true
       - MEMORY_AUTO_STORE_THRESHOLD=1
       - MEMORY_DEBUG=true
-      - MEMORY_RETRIEVAL_THRESHOLD=1.5
+      # - MEMORY_RETRIEVAL_THRESHOLD=-0.5  # Controlled by OpenWebUI Function
       - ENABLE_COMMUNITY_SHARING=false
       # Authentication configuration - CRITICAL for user identification
       - WEBUI_AUTH=true

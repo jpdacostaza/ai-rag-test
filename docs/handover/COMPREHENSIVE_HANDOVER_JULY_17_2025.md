@@ -93,7 +93,7 @@ docker exec backend-ollama ollama list
 - **scripts/initialize-models.sh** - Model auto-pull utility
 - **build-enhanced.sh** - Enhanced build process
 - **build-robust.sh** - Robust build with error handling
-- **tests/test_docker_health.py** - Health monitoring
+- **tests/tests/test_docker_health.py** - Health monitoring
 
 ---
 
@@ -108,7 +108,7 @@ python tests/enhanced_comprehensive_test.py
 python tests/focused_memory_tests.py
 
 # Docker health checks
-python tests/test_docker_health.py
+python tests/tests/test_docker_health.py
 ```
 
 ### Manual Validation Checklist

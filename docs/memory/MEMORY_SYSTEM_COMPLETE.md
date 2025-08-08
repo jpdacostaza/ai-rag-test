@@ -54,7 +54,7 @@ curl http://localhost:8001/health
 pip install httpx
 
 # Run comprehensive validation
-python validate_memory_system.py
+python tests/validate_memory_system.py
 ```
 
 **Expected Output**:
@@ -222,7 +222,7 @@ docker-compose ps
 docker-compose logs pipelines memory_api
 
 # Run validation
-python validate_memory_system.py
+python tests/validate_memory_system.py
 
 # Stop system
 docker-compose down

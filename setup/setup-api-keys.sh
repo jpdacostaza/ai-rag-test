@@ -130,7 +130,7 @@ check_updated_tools() {
     
     local tools=(
         "../debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py"
-        "../debug/archived/demo-test/debug-tools/test_memory_cross_chat.py"
+        "../debug/archived/demo-test/debug-tools/tests/test_memory_cross_chat.py"
     )
     
     for tool in "${tools[@]}"; do
@@ -173,7 +173,7 @@ show_usage_examples() {
     echo -e "      ${CYAN}python3 ../debug/archived/demo-test/debug-tools/openwebui_memory_diagnostic.py --env=production${NC}"
     
     echo -e "\n   ${INFO} Test memory across chat sessions:"
-    echo -e "      ${CYAN}python3 ../debug/archived/demo-test/debug-tools/test_memory_cross_chat.py${NC}"
+    echo -e "      ${CYAN}python3 ../debug/archived/demo-test/debug-tools/tests/test_memory_cross_chat.py${NC}"
 }
 
 interactive_setup() {

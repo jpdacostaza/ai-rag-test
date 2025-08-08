@@ -25,7 +25,7 @@
 - **Problem**: Permission denied errors for `storage/models` directory
 - **Solution**: 
   - Updated `Dockerfile.backend` to create writable storage directories
-  - Set `SENTENCE_TRANSFORMERS_HOME=/opt/backend/storage/models`
+  - Set `SENTENCE_TRANSFORMERS_HOME=/opt/backen./storage/models`
   - Applied proper permissions (`chmod -R 777 ./storage`)
 
 #### 5. Web Search Tool Import (FIXED)

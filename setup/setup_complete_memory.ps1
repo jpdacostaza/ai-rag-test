@@ -74,7 +74,7 @@ Write-Host "📊 Service URLs:" -ForegroundColor Cyan
 Write-Host "- OpenWebUI: http://localhost:8080" -ForegroundColor White
 Write-Host "- Pipelines: http://localhost:9099 (for user-specific memory)" -ForegroundColor White
 Write-Host "- Backend API: http://localhost:3000" -ForegroundColor White
-Write-Host "- Memory API: http://localhost:8001" -ForegroundColor White
+Write-Host "- Memory API: http://localhost:5001" -ForegroundColor White
 Write-Host ""
 Write-Host "🔧 Debugging:" -ForegroundColor Cyan
 Write-Host "- Pipeline logs: docker logs backend-pipelines" -ForegroundColor White

@@ -1,0 +1,37 @@
+{
+  "overall_status": "PASS",
+  "passed_tests": 6,
+  "total_tests": 6,
+  "test_results": {
+    "memory_api_health": {
+      "status": "PASS",
+      "memory_count": 27,
+      "redis": true,
+      "chromadb": true
+    },
+    "memory_storage": {
+      "status": "PASS",
+      "memory_id": "mem_test_user_jp_1754669329"
+    },
+    "memory_retrieval_fixed": {
+      "status": "PASS",
+      "memories_found": 3,
+      "endpoint": "/api/memory/retrieve"
+    },
+    "jp_swift_memories": {
+      "status": "PASS",
+      "total_memories": 9,
+      "jp_swift_memories": 7
+    },
+    "function_file": {
+      "status": "PASS",
+      "path": "memory/functions/enhanced_memory_filter_fixed.py",
+      "size": 8475,
+      "endpoint_fixed": true
+    },
+    "openwebui_connectivity": {
+      "status": "PASS"
+    }
+  },
+  "timestamp": "2025-08-08 18:08:50"
+}

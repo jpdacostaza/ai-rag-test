@@ -61,7 +61,7 @@ KEEP:
 ### 4. **Archived Legacy Scripts** ❌ REDUNDANT
 ```
 REDUNDANT:
-- archive/memory_utils/fix_memory_relevance.py    # ❌ Legacy memory fixes
+- archive/memory_utils/tests/fix_memory_relevance.py    # ❌ Legacy memory fixes
 - archive/memory_utils/ensure_memory_active.py    # ❌ Legacy activation
 - archive/memory_utils/clean_memory_system.py     # ❌ Legacy cleanup
 
@@ -153,7 +153,7 @@ config/
 - `archive/docs/CONVERSATION_HANDOVER_2025-07-10.md`
 
 #### Legacy Memory Scripts (3 files)
-- `archive/memory_utils/fix_memory_relevance.py`
+- `archive/memory_utils/tests/fix_memory_relevance.py`
 - `archive/memory_utils/ensure_memory_active.py`
 - `archive/memory_utils/clean_memory_system.py`
 

@@ -70,16 +70,16 @@ def test_tests_folder_organization():
     print(" Testing tests folder organization...")
     
     expected_test_files = [
-        "debug_memory_distances.py",
-        "debug_trigger.py", 
-        "test_anti_fabrication.py",
-        "test_chat_web_search.py",
-        "test_smart_memory.py",
-        "test_uncertainty_triggers.py",
-        "test_web_search.py",
-        "validate_memory_system.py",
-        "validate_pipeline.py",
-        "validate_rag_system.py",
+        "tests/tests/debug_memory_distances.py",
+        "tests/tests/debug_trigger.py", 
+        "tests/tests/test_anti_fabrication.py",
+        "tests/tests/test_chat_web_search.py",
+        "tests/tests/test_smart_memory.py",
+        "tests/tests/test_uncertainty_triggers.py",
+        "tests/tests/test_web_search.py",
+        "tests/tests/validate_memory_system.py",
+        "tests/tests/validate_pipeline.py",
+        "tests/tests/validate_rag_system.py",
         "verify_fixes.py"
     ]
     

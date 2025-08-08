@@ -109,12 +109,12 @@ TESTING
 
 Run test suite:
 ```bash
-python tests/test_web_search_triggers.py
+python tests/tests/test_web_search_triggers.py
 ```
 
 Validate pipeline:
 ```bash
-python pipelines/pipeline_web_search/validate_pipeline.py
+python pipelines/pipeline_web_search/tests/validate_pipeline.py
 ```
 
 EXAMPLES OF BEHAVIOR

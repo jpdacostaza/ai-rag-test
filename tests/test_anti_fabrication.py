@@ -18,11 +18,11 @@ def test_persona_anti_fabrication():
     
     # Test persona files
     persona_files = [
-        "/opt/backend/config/persona_unified_small.json",
-        "/opt/backend/config/persona_new_user.json",
-        "/opt/backend/config/persona_enhanced.json",
-        "/opt/backend/config/persona_small_model.json",
-        "/opt/backend/config/persona.json"
+        "/op./storage/openwebui/config/persona_unified_small.json",
+        "/op./storage/openwebui/config/persona_new_user.json",
+        "/op./storage/openwebui/config/persona_enhanced.json",
+        "/op./storage/openwebui/config/persona_small_model.json",
+        "/op./storage/openwebui/config/persona.json"
     ]
     
     fabrication_indicators = [

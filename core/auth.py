@@ -12,7 +12,7 @@ import hashlib
 import hmac
 import time
 from typing import Dict, Any, Optional, Tuple, List
-from core.config import get_config
+from config.config_unified import Config
 from core.security import InputValidator, sanitize_user_input
 
 class AuthenticationError(Exception):
@@ -26,7 +26,7 @@ class UnifiedAuthManager:
     """
     
     def __init__(self, debug: bool = None):
-        self.config = get_config()
+        self.config = Config.get_instance()
         self.debug = debug if debug is not None else self.config.security.enable_debug
         self._session_cache = {}
         self._rate_limit_cache = {}

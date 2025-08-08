@@ -127,7 +127,7 @@ verify_deployment() {
     fi
     
     # Memory API
-    if curl -f -s http://localhost:8001/health > /dev/null; then
+    if curl -f -s http://localhost:5001/health > /dev/null; then
         log_success "Memory API is healthy"
     else
         log_error "Memory API health check failed"
@@ -168,7 +168,7 @@ show_access_info() {
     echo "🌐 Access URLs:"
     echo "   OpenWebUI:    http://localhost:8080"
     echo "   Backend API:  http://localhost:3000"
-    echo "   Memory API:   http://localhost:8001"
+    echo "   Memory API:   http://localhost:5001"
     echo "   Ollama:       http://localhost:11434"
     echo ""
     echo "📋 Next Steps:"

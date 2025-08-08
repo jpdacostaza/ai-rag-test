@@ -18,17 +18,17 @@
 - `storage/pipelines/enhanced_memory_pipeline.py` - Complete pipeline implementation
 
 ### 🧪 Test Suite Files (New):
-- `tests/test_comprehensive_user_memory.py` - 24 comprehensive tests
-- `tests/test_standalone_user_extraction.py` - 17 unit tests  
-- `tests/test_end_to_end_pipeline.py` - Complete pipeline testing
-- `tests/test_prompt_model_integration.py` - Model response validation
-- `tests/test_live_integration.py` - Live system testing
-- `tests/validate_storage_and_ids.py` - Storage validation
-- `tests/test_complete_system_validation.py` - Master test orchestrator
+- `tests/tests/test_comprehensive_user_memory.py` - 24 comprehensive tests
+- `tests/tests/test_standalone_user_extraction.py` - 17 unit tests  
+- `tests/tests/test_end_to_end_pipeline.py` - Complete pipeline testing
+- `tests/tests/test_prompt_model_integration.py` - Model response validation
+- `tests/tests/test_live_integration.py` - Live system testing
+- `tests/tests/validate_storage_and_ids.py` - Storage validation
+- `tests/tests/test_complete_system_validation.py` - Master test orchestrator
 - `tests/run_comprehensive_tests.py` - Test runner
-- `tests/test_simple_api.py` - API testing
-- `tests/test_user_auth.py` - User authentication tests
-- `tests/test_user_extraction.py` - User extraction tests
+- `tests/tests/test_simple_api.py` - API testing
+- `tests/tests/test_user_auth.py` - User authentication tests
+- `tests/tests/test_user_extraction.py` - User extraction tests
 
 ### 📊 Documentation Files (New):
 - `tests/ENHANCED_MEMORY_PIPELINE_V4_TEST_REPORT.md` - Complete validation report
@@ -44,8 +44,8 @@
 - `tests/simple_api_test_results.json` - API test results
 
 ### 🗂️ Moved Files:
-- `test_enhanced_memory.py` → `tests/test_enhanced_memory.py`
-- `test_pipeline_detection.py` → `tests/test_pipeline_detection.py`
+- `tests/test_enhanced_memory.py` → `tests/tests/test_enhanced_memory.py`
+- `tests/test_pipeline_detection.py` → `tests/tests/test_pipeline_detection.py`
 
 ---
 

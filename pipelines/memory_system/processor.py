@@ -299,7 +299,7 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
         """Get the enhanced persona prompt from the configuration file."""
         try:
             # Primary: Try to load unified small persona (Orange Pi optimized)
-            persona_path = "/opt/backend/config/persona_unified_small.json"
+            persona_path = "/op./storage/openwebui/config/persona_unified_small.json"
             try:
                 with open(persona_path, 'r', encoding='utf-8') as f:
                     persona_data = json.load(f)
@@ -315,7 +315,7 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
             # Fallback: Try new user persona
             fallback_paths = [
                 "config/persona_new_user.json",
-                "/opt/backend/config/persona_new_user.json",
+                "/op./storage/openwebui/config/persona_new_user.json",
                 "./config/persona_new_user.json"
             ]
             
@@ -363,7 +363,7 @@ Be helpful, efficient, and honest. Use web search for current information. Learn
         """Get the new user persona prompt without aggressive memory instructions."""
         try:
             # Try to load new user persona file first
-            persona_path = "/opt/backend/config/persona_new_user.json"
+            persona_path = "/op./storage/openwebui/config/persona_new_user.json"
             try:
                 with open(persona_path, 'r', encoding='utf-8') as f:
                     persona_data = json.load(f)
@@ -430,7 +430,7 @@ I'm here to help you with whatever you need, and I'll learn and adapt to provide
             # Try alternative paths if main path fails
             fallback_paths = [
                 "config/persona_enhanced.json",
-                "/opt/backend/config/persona_enhanced.json",
+                "/op./storage/openwebui/config/persona_enhanced.json",
                 "./config/persona_enhanced.json"
             ]
             
@@ -496,9 +496,9 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
         try:
             # Try to load unified small model persona file first
             small_persona_paths = [
-                "/opt/backend/config/persona_unified_small.json",
+                "/op./storage/openwebui/config/persona_unified_small.json",
                 "config/persona_unified_small.json",
-                "/opt/backend/config/persona_small_model.json",
+                "/op./storage/openwebui/config/persona_small_model.json",
                 "config/persona_small_model.json"
             ]
             

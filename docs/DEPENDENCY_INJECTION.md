@@ -503,7 +503,7 @@ def get_llm_service_configured(
 ### 1. Service Mocking
 
 ```python
-# tests/test_dependencies.py
+# tests/tests/test_dependencies.py
 import pytest
 from unittest.mock import AsyncMock, Mock
 from fastapi import FastAPI

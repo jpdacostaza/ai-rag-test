@@ -7,24 +7,24 @@ All test, debug, and validation files have been successfully moved to the `tests
 ## Files in tests/ folder:
 
 ### 🎯 **MAIN COMPREHENSIVE TEST** (Recommended)
-- `test_comprehensive_system.py` - **UNIFIED TEST SUITE** - Combines all tests into one comprehensive validation
+- `tests/test_comprehensive_system.py` - **UNIFIED TEST SUITE** - Combines all tests into one comprehensive validation
 
 ### Individual Test Files
-- `test_anti_fabrication.py` - Tests anti-hallucination and memory fabrication prevention
-- `test_chat_web_search.py` - Tests web search integration in chat
-- `test_persona_updates.py` - Tests persona file updates and DuckDuckGo migration
-- `test_smart_memory.py` - Tests smart memory functionality
-- `test_uncertainty_triggers.py` - Tests uncertainty detection and web search triggers
-- `test_web_search.py` - Tests web search functionality
+- `tests/test_anti_fabrication.py` - Tests anti-hallucination and memory fabrication prevention
+- `tests/test_chat_web_search.py` - Tests web search integration in chat
+- `tests/test_persona_updates.py` - Tests persona file updates and DuckDuckGo migration
+- `tests/test_smart_memory.py` - Tests smart memory functionality
+- `tests/test_uncertainty_triggers.py` - Tests uncertainty detection and web search triggers
+- `tests/test_web_search.py` - Tests web search functionality
 
 ### Debug Files
-- `debug_memory_distances.py` - Debug memory distance calculations
-- `debug_trigger.py` - Debug web search trigger mechanisms
+- `tests/debug_memory_distances.py` - Debug memory distance calculations
+- `tests/debug_trigger.py` - Debug web search trigger mechanisms
 
 ### Validation Files
-- `validate_memory_system.py` - Validates memory system functionality
-- `validate_pipeline.py` - Validates web search pipeline
-- `validate_rag_system.py` - Validates RAG system integration
+- `tests/validate_memory_system.py` - Validates memory system functionality
+- `tests/validate_pipeline.py` - Validates web search pipeline
+- `tests/validate_rag_system.py` - Validates RAG system integration
 - `verify_fixes.py` - Verifies system fixes and quality
 
 ## Organization Benefits
@@ -40,7 +40,7 @@ All test, debug, and validation files have been successfully moved to the `tests
 ### 🚀 **Quick Start - Run the Comprehensive Test:**
 ```bash
 # From project root - Run the unified comprehensive test
-python tests/test_comprehensive_system.py
+python tests/tests/test_comprehensive_system.py
 
 # This single test validates EVERYTHING:
 # ✅ Smart Web Search Trigger Logic  
@@ -55,7 +55,7 @@ python tests/test_comprehensive_system.py
 ### Individual Tests (for debugging specific components):
 ```bash
 # Run a specific test
-python tests/test_persona_updates.py
+python tests/tests/test_persona_updates.py
 
 # Run all tests in the folder
 python -m pytest tests/
@@ -67,7 +67,7 @@ python -m pytest tests/ -v
 From the tests folder:
 ```bash
 cd tests
-python test_persona_updates.py
+python tests/test_persona_updates.py
 ```
 
 ## Persona Files Updated
@@ -88,7 +88,7 @@ Both persona configuration files have been updated with the latest DuckDuckGo re
 
 Run the persona update test to verify everything is working:
 ```bash
-python tests/test_persona_updates.py
+python tests/tests/test_persona_updates.py
 ```
 
 This test verifies:

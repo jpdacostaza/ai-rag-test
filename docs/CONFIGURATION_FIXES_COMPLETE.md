@@ -74,14 +74,14 @@
 ==================================================
 🧪 Running Configuration Tests
 ==================================================
-🔍 Running tests/test_config.py...
-✅ tests/test_config.py passed (20/20 tests)
+🔍 Running tests/tests/test_config.py...
+✅ tests/tests/test_config.py passed (20/20 tests)
 
-🔍 Running tests/test_json_configs.py...
-✅ tests/test_json_configs.py passed (13/13 tests)
+🔍 Running tests/tests/test_json_configs.py...
+✅ tests/tests/test_json_configs.py passed (13/13 tests)
 
-🔍 Running tests/test_python_configs.py...
-✅ tests/test_python_configs.py passed (18/18 tests)
+🔍 Running tests/tests/test_python_configs.py...
+✅ tests/tests/test_python_configs.py passed (18/18 tests)
 
 📊 Configuration Report
 ==============================
@@ -99,9 +99,9 @@
 - `models/models.py` - Complete model definitions  
 - `memory_system/__init__.py` - Memory system compatibility
 - `memory_system.py` - Direct import compatibility
-- `tests/test_config.py` - Comprehensive config testing
-- `tests/test_json_configs.py` - JSON validation tests
-- `tests/test_python_configs.py` - Python config tests
+- `tests/tests/test_config.py` - Comprehensive config testing
+- `tests/tests/test_json_configs.py` - JSON validation tests
+- `tests/tests/test_python_configs.py` - Python config tests
 - `tests/run_config_tests.py` - Test runner with reporting
 
 ### Files Modified:

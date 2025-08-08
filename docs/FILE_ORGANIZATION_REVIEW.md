@@ -82,10 +82,10 @@ e:\Projects\opt\backend\memory\functions\memory_function.py (363 lines)
 **Problem**: System validation script in root directory
 ```
 ❌ WRONG LOCATION:
-e:\Projects\opt\backend\validate_memory_system.py
+e:\Projects\opt\backend\tests/validate_memory_system.py
 
 ✅ SHOULD BE:
-e:\Projects\opt\backend\utilities/validate_memory_system.py
+e:\Projects\opt\backend\utilities/tests/validate_memory_system.py
 ```
 
 ### **Issue 4: Duplicate Documentation Files**
@@ -133,7 +133,7 @@ Move-Item setup_*.sh setup/
 ### **Step 3: Move Validation Script**
 ```powershell
 # Move validation to utilities
-Move-Item validate_memory_system.py utilities/
+Move-Item tests/validate_memory_system.py utilities/
 ```
 
 ### **Step 4: Archive Outdated Documentation**
@@ -186,7 +186,7 @@ e:\Projects\opt\backend\
 │   └── providers/
 │
 ├── 📂 utilities/ (✅ Correct + Additions)
-│   ├── validate_memory_system.py (🔄 MOVED HERE)
+│   ├── tests/validate_memory_system.py (🔄 MOVED HERE)
 │   ├── memory_monitor.py
 │   ├── cache_manager.py
 │   └── ...
@@ -296,7 +296,7 @@ The file organization is **mostly excellent** with just a few cleanup items need
   - `setup_unified_memory.sh`
 
 #### ✅ **Validation Script Relocated**
-- 🔄 Moved: `validate_memory_system.py` → `utilities/validate_memory_system.py`
+- 🔄 Moved: `tests/validate_memory_system.py` → `utilities/tests/validate_memory_system.py`
 
 #### ✅ **Outdated Documentation Archived**
 - 🔄 Moved to `archive/docs/`:
@@ -341,7 +341,7 @@ e:\Projects\opt\backend\
 │   └── pipelines/
 │       └── enhanced_memory_pipeline.py
 ├── 📂 utilities/ ✅ (Including validation script)
-│   └── validate_memory_system.py
+│   └── tests/validate_memory_system.py
 └── 📄 Core files (main.py, config.py, etc.)
 ```
 

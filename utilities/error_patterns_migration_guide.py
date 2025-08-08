@@ -219,7 +219,7 @@ def migration_checklist():
     """Migration checklist for developers."""
     checklist = [
         "[OK] Error Handling Framework Created (utilities/error_patterns.py)",
-        "[OK] Test Suite Implemented (tests/test_error_patterns.py)", 
+        "[OK] Test Suite Implemented (tests/tests/tests/test_error_patterns.py)", 
         " Begin file-by-file migration:",
         "    routes/chat.py - Replace manual try/catch with @handle_llm_errors",
         "    database_manager.py - Replace DB errors with @handle_database_errors",

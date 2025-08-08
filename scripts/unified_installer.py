@@ -89,19 +89,19 @@ class UnifiedMemoryInstaller:
                 
             self.log(f"[FOLDER] Found memory function at: {used_path}")
             
-            # Method 1: Primary - Direct mounted volume access
+            # Method 1: PRIMARY - OpenWebUI Function Import API
+            if self._install_function_api(function_code):
+                return True
+            
+            # Method 2: FALLBACK - Direct mounted volume access
             if self._install_function_volume_mount(function_code):
                 return True
             
-            # Method 2: Primary - Docker cp method  
+            # Method 3: FALLBACK - Docker cp method  
             if self._install_function_docker_cp(function_code):
                 return True
                 
-            # Method 3: Fallback - API-based installation
-            if self._install_function_api(function_code):
-                return True
-                
-            # Method 4: Fallback - Alternative volume paths
+            # Method 4: FALLBACK - Alternative volume paths
             if self._install_function_alternative_volumes(function_code):
                 return True
                 
@@ -115,20 +115,33 @@ class UnifiedMemoryInstaller:
             return True  # Continue anyway
     
     def _load_function_code(self) -> tuple:
-        """Load function code from available sources."""
+        """Load function code from available sources - prioritizing mounted volumes for zero-config updates."""
+        # Try multiple possible paths for the function file (prioritize mounted volumes)
         function_paths = [
-            "/app/memory/functions/memory_function.py",  # Primary mounted location
-            "/app/memory_function.py",  # Container location
-            "./memory/functions/memory_function.py",  # Relative path
-            "./memory_function.py"  # Fallback
+            "/app/memory/functions/enhanced_memory_function_filter.py",  # CURRENT: Working version in mounted volume
+            "/app/memory/functions/enhanced_memory_filter_fixed.py",  # PRIMARY: Working version in mounted volume
+            "/app/memory/functions/memory_function.py",  # Alternative: Original version
+            "/app/memory/functions/enhanced_memory_function.py",  # Alternative name in mounted volume
+            "./memory/functions/enhanced_memory_function_filter.py",  # Relative mounted path (current version)
+            "./memory/functions/enhanced_memory_filter_fixed.py",  # Relative mounted path (working version)
+            "./memory/functions/memory_function.py",  # Relative mounted path
+            "./memory/functions/enhanced_memory_function.py",  # Alternative relative path
+            "/app/memory_function.py",  # DEPRECATED: Static container copy (fallback only)
         ]
         
         for path in function_paths:
             try:
                 with open(path, "r") as f:
                     function_code = f.read()
-                    return function_code, path
+                    if len(function_code.strip()) > 0:  # Ensure file is not empty
+                        self.log(f"[OK] Loaded function code from: {path} ({len(function_code)} chars)")
+                        return function_code, path
+                    else:
+                        self.log(f"[WARN] Empty file found at: {path}")
             except FileNotFoundError:
+                continue
+            except Exception as e:
+                self.log(f"[ERROR] Reading {path}: {e}")
                 continue
         
         self.log("[FAIL] Could not find memory_function.py at any expected location")
@@ -141,9 +154,9 @@ class UnifiedMemoryInstaller:
         
         try:
             # Check if we have direct access to OpenWebUI functions directory
-            openwebui_functions_dir = "/app/backend/data/functions"
+            openwebui_functions_dir = "/app/data/functions"
             if os.path.exists(openwebui_functions_dir):
-                function_file = os.path.join(openwebui_functions_dir, "enhanced_memory_function.py")
+                function_file = os.path.join(openwebui_functions_dir, "enhanced_memory_filter_fixed.py")
                 with open(function_file, "w", encoding='utf-8') as f:
                     f.write(function_code)
                 
@@ -165,7 +178,7 @@ class UnifiedMemoryInstaller:
             import subprocess
             
             # Write function to temporary location
-            temp_function_path = "/tmp/enhanced_memory_function.py"
+            temp_function_path = "/tmp/enhanced_memory_filter_fixed.py"
             with open(temp_function_path, "w", encoding='utf-8') as f:
                 f.write(function_code)
             
@@ -173,7 +186,7 @@ class UnifiedMemoryInstaller:
             copy_cmd = [
                 "docker", "cp", 
                 temp_function_path, 
-                "backend-openwebui:/app/backend/data/functions/enhanced_memory_function.py"
+                "backend-openwebui:/app/data/functions/enhanced_memory_filter_fixed.py"
             ]
             
             result = subprocess.run(copy_cmd, capture_output=True, text=True, timeout=30)
@@ -181,7 +194,7 @@ class UnifiedMemoryInstaller:
             if result.returncode == 0:
                 self.log("[OK] Method 2 SUCCESS: Function installed via docker cp!")
                 # Verify the file was actually copied
-                verify_cmd = ["docker", "exec", "backend-openwebui", "test", "-f", "/app/backend/data/functions/enhanced_memory_function.py"]
+                verify_cmd = ["docker", "exec", "backend-openwebui", "test", "-f", "/app/data/functions/enhanced_memory_filter_fixed.py"]
                 verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, timeout=10)
                 if verify_result.returncode == 0:
                     self.log("[SEARCH] Verification: File confirmed in container")
@@ -200,49 +213,77 @@ class UnifiedMemoryInstaller:
         return False
     
     def _install_function_api(self, function_code: str) -> bool:
-        """Method 3: Install via OpenWebUI API (if available)."""
-        self.log(" Attempting Method 3: API-based installation...")
+        """Method 3: Install via OpenWebUI API using proper function import format."""
+        self.log(" Attempting Method 3: OpenWebUI Function Import API...")
         
         try:
             openwebui_url = self.get_working_openwebui_url()
             
-            # Try different API endpoints that might work
-            api_endpoints = [
-                f"{openwebui_url}/api/v1/functions",
-                f"{openwebui_url}/api/functions", 
-                f"{openwebui_url}/functions/api/v1",
-                f"{openwebui_url}/admin/functions"
-            ]
+            # Extract function metadata from the docstring
+            import re
             
-            function_data = {
-                "id": "enhanced_memory_function",
-                "name": "Enhanced Memory Function",
-                "type": "filter", 
+            # Parse the function code to extract metadata
+            title_match = re.search(r'title:\s*(.+)', function_code)
+            author_match = re.search(r'author:\s*(.+)', function_code)
+            version_match = re.search(r'version:\s*(.+)', function_code)
+            description_match = re.search(r'description:\s*(.+)', function_code)
+            
+            function_title = title_match.group(1).strip() if title_match else "Enhanced Memory Filter"
+            function_author = author_match.group(1).strip() if author_match else "AI Assistant"
+            function_version = version_match.group(1).strip() if version_match else "1.0.0"
+            function_description = description_match.group(1).strip() if description_match else "Memory enhancement filter"
+            
+            # Create function ID from title
+            function_id = function_title.lower().replace(" ", "_").replace("-", "_")
+            
+            # OpenWebUI Function Import format
+            function_payload = {
+                "id": function_id,
+                "name": function_title,
+                "description": function_description,
+                "version": function_version,
+                "author": function_author,
+                "type": "filter",
                 "content": function_code,
                 "is_active": True,
                 "is_global": True
             }
             
-            with httpx.Client(timeout=15.0) as client:
+            # Try OpenWebUI function import endpoints
+            api_endpoints = [
+                f"{openwebui_url}/api/v1/functions/import",  # Primary import endpoint
+                f"{openwebui_url}/api/v1/functions",         # Standard functions endpoint
+                f"{openwebui_url}/api/functions/import",     # Alternative import
+                f"{openwebui_url}/api/functions",            # Alternative functions
+            ]
+            
+            with httpx.Client(timeout=30.0) as client:
                 for endpoint in api_endpoints:
                     try:
-                        # Try POST for creation
-                        response = client.post(endpoint, json=function_data)
+                        self.log(f"Trying endpoint: {endpoint}")
+                        
+                        # Try POST for function import/creation
+                        response = client.post(endpoint, json=function_payload)
+                        self.log(f"Response status: {response.status_code}")
+                        
                         if response.status_code in [200, 201]:
-                            self.log(f"[OK] Method 3 SUCCESS: Function installed via API ({endpoint})!")
+                            self.log(f"[OK] Method 3 SUCCESS: Function imported via OpenWebUI API ({endpoint})!")
                             return True
-                            
-                        # Try PUT for update
-                        response = client.put(f"{endpoint}/enhanced_memory_function", json=function_data)
-                        if response.status_code in [200, 201]:
-                            self.log(f"[OK] Method 3 SUCCESS: Function updated via API ({endpoint})!")
-                            return True
+                        elif response.status_code == 409:
+                            # Function already exists, try update
+                            self.log(f"Function exists, attempting update...")
+                            update_response = client.put(f"{endpoint}/{function_id}", json=function_payload)
+                            if update_response.status_code in [200, 201]:
+                                self.log(f"[OK] Method 3 SUCCESS: Function updated via API!")
+                                return True
+                        else:
+                            self.log(f"API response: {response.text[:200]}")
                             
                     except Exception as e:
-                        self.log(f"API endpoint {endpoint} failed: {e}", "DEBUG")
+                        self.log(f"API endpoint {endpoint} failed: {e}")
                         continue
                         
-            self.log("[WARN] Method 3 failed: No working API endpoints found")
+            self.log("[WARN] Method 3 failed: No working OpenWebUI API endpoints found")
             
         except Exception as e:
             self.log(f"[WARN] Method 3 failed: {e}")
@@ -258,7 +299,7 @@ class UnifiedMemoryInstaller:
             "/data/functions",
             "./openwebui_data/functions",
             "./storage/openwebui/functions",
-            "/app/backend/data/functions"  # Try again in case permissions changed
+            "/app/data/functions"  # Try again in case permissions changed
         ]
         
         for volume_path in alternative_paths:
@@ -266,7 +307,7 @@ class UnifiedMemoryInstaller:
                 # Create directory if it doesn't exist
                 os.makedirs(volume_path, exist_ok=True)
                 
-                function_file = os.path.join(volume_path, "enhanced_memory_function.py")
+                function_file = os.path.join(volume_path, "enhanced_memory_filter_fixed.py")
                 with open(function_file, "w", encoding='utf-8') as f:
                     f.write(function_code)
                 
@@ -289,9 +330,9 @@ class UnifiedMemoryInstaller:
         try:
             # Method 1: Try to write directly to the OpenWebUI data directory
             # This works if the installer has access to mounted volumes
-            openwebui_functions_dir = "/app/backend/data/functions"
+            openwebui_functions_dir = "/app/data/functions"
             if os.path.exists(openwebui_functions_dir):
-                function_file = os.path.join(openwebui_functions_dir, "enhanced_memory_function.py")
+                function_file = os.path.join(openwebui_functions_dir, "enhanced_memory_filter_fixed.py")
                 try:
                     with open(function_file, "w") as f:
                         f.write(function_code)
@@ -311,7 +352,7 @@ class UnifiedMemoryInstaller:
                 try:
                     if os.path.exists(volume_path) or os.path.exists(os.path.dirname(volume_path)):
                         os.makedirs(volume_path, exist_ok=True)
-                        function_file = os.path.join(volume_path, "enhanced_memory_function.py")
+                        function_file = os.path.join(volume_path, "enhanced_memory_filter_fixed.py")
                         with open(function_file, "w") as f:
                             f.write(function_code)
                         self.log(f"[OK] Function installed via mounted volume: {volume_path}")
@@ -366,10 +407,11 @@ class UnifiedMemoryInstaller:
             return False
     
     def _load_pipeline_code(self) -> tuple:
-        """Load pipeline code from available sources."""
+        """Load pipeline code from available sources - prioritizing mounted volumes for zero-config updates."""
         pipeline_source_paths = [
-            "./pipelines/enhanced_memory_pipeline.py",  # Primary location
-            "/app/enhanced_memory_pipeline.py",  # Container location
+            "/app/pipelines/enhanced_memory_pipeline.py",  # PRIMARY: Live mounted volume (zero-config)
+            "./pipelines/enhanced_memory_pipeline.py",  # Relative mounted path
+            "/app/enhanced_memory_pipeline.py",  # DEPRECATED: Static container copy (fallback only)
             "/app/memory_pipeline.py",  # Alternative name
             "./enhanced_memory_pipeline.py",  # Local fallback
         ]
@@ -379,7 +421,11 @@ class UnifiedMemoryInstaller:
                 if os.path.exists(path):
                     with open(path, "r", encoding='utf-8') as f:
                         pipeline_code = f.read()
-                        return pipeline_code, path
+                        if len(pipeline_code.strip()) > 0:  # Ensure file is not empty
+                            self.log(f"[OK] Loaded pipeline code from: {path} ({len(pipeline_code)} chars)")
+                            return pipeline_code, path
+                        else:
+                            self.log(f"[WARN] Empty file found at: {path}")
             except Exception as e:
                 self.log(f"Checking {path}: {e}", "DEBUG")
                 continue

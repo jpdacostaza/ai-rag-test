@@ -48,7 +48,7 @@ except ImportError:
 # Configuration
 OLLAMA_API = "http://ollama:11434"
 OPENWEBUI_API = "http://openwebui:8080"
-OPENWEBUI_DB_PATH = "/app/storage/openwebui/webui.db"
+OPENWEBUI_DB_PATH = "/ap./storage/openwebui/webui.db"
 MEMORY_FUNCTION_PATH = "/app/memory/functions/memory_function.py"
 DEFAULT_MODEL = "qwen3:4b"
 FALLBACK_MODELS = ["phi3:mini", "gemma2:2b"]

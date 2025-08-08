@@ -113,7 +113,7 @@ class MemorySettings(BaseSettings):
     
     # Memory storage settings
     enable_memory: bool = Field(default=True, description="Enable memory system")
-    memory_threshold: float = Field(default=1.5, description="Memory relevance threshold (ChromaDB compatible)")
+    # memory_threshold: float = Field(default=-0.5, description="Controlled by OpenWebUI Function")
     max_memories_per_user: int = Field(default=1000, description="Maximum memories per user")
     memory_cleanup_days: int = Field(default=30, description="Memory cleanup interval in days")
     

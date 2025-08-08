@@ -33,8 +33,8 @@
       },
       "memory_threshold": {
         "type": "float",
-        "default": 0.1,
-        "title": "Memory Similarity Threshold"
+        "default": -0.5,
+        "title": "Memory Similarity Threshold (Controlled by OpenWebUI Function)"
       },
       "max_memories": {
         "type": "int",

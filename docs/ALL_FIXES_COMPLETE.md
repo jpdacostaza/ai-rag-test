@@ -24,7 +24,7 @@
 - **✅ Timeout settings**: Optimized for Orange Pi 5 Plus
 
 #### **5. Utility Fixes ✅**
-- **✅ validate_memory_system.py**: All localhost URLs → service names
+- **✅ tests/validate_memory_system.py**: All localhost URLs → service names
 - **✅ force_refresh.py**: Updated to use ollama:11434
 - **✅ inspect_chromadb.py**: Backend URL corrected
 

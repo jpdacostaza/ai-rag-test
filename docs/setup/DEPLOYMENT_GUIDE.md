@@ -91,7 +91,7 @@ CHROMA_PORT=8000
 
 # API Configuration
 BACKEND_PORT=3000
-MEMORY_API_PORT=8001
+MEMORY_API_PORT=5001
 OPENWEBUI_PORT=8080
 
 # Performance Settings
@@ -110,7 +110,7 @@ CORS_ALLOWED_ORIGINS=*
 |---------|---------------|---------------|-------------|
 | OpenWebUI | 8080 | 8080 | Main web interface |
 | Backend API | 3000 | 3000 | Core API endpoints |
-| Memory API | 8080 | 8001 | Memory service |
+| Memory API | 8080 | 5001 | Memory service |
 | Redis | 6379 | 6379 | Short-term storage |
 | ChromaDB | 8000 | 8000 | Vector database |
 | Ollama | 11434 | 11434 | LLM service |
@@ -138,7 +138,7 @@ docker-compose ps
 # Expected output:
 # NAME                    STATUS              PORTS
 # backend                 Up 2 minutes        0.0.0.0:3000->3000/tcp
-# memory_api              Up 2 minutes        0.0.0.0:8001->8080/tcp
+# memory_api              Up 2 minutes        0.0.0.0:5001->5001/tcp
 # redis                   Up 2 minutes        0.0.0.0:6379->6379/tcp
 # chroma                  Up 2 minutes        0.0.0.0:8000->8000/tcp
 # ollama                  Up 2 minutes        0.0.0.0:11434->11434/tcp
@@ -151,7 +151,7 @@ docker-compose ps
 curl http://localhost:3000/api/health
 
 # Memory API health  
-curl http://localhost:8001/health
+curl http://localhost:5001/health
 
 # Ollama service
 curl http://localhost:11434/api/tags

@@ -174,7 +174,7 @@ function Test-UpdatedTools {
     Write-Host ""
     Write-Host "3. Checking updated diagnostic tools..."
       $tools = @(        "..\debug\archived\demo-test\debug-tools\openwebui_memory_diagnostic.py",
-        "..\debug\archived\demo-test\debug-tools\test_memory_cross_chat.py"
+        "..\debug\archived\demo-test\debug-tools\tests/test_memory_cross_chat.py"
     )
       foreach ($tool in $tools) {
         $toolPath = Join-Path $ScriptDir $tool
@@ -225,7 +225,7 @@ function Show-UsageExamples {
     
     Write-Host ""
     Write-ColorText "   $($Emojis.Info) Test memory across chat sessions:" $Colors.White
-    Write-ColorText "      python ..\debug\archived\demo-test\debug-tools\test_memory_cross_chat.py" $Colors.Cyan
+    Write-ColorText "      python ..\debug\archived\demo-test\debug-tools\tests/test_memory_cross_chat.py" $Colors.Cyan
 }
 
 function Start-InteractiveSetup {

@@ -175,7 +175,7 @@ docker-compose logs --tail=50 pipelines --follow
 docker-compose logs --tail=20 memory_api
 
 # Validate complete system
-python validate_persona_pipeline.py
+python tests/validate_persona_pipeline.py
 ```
 
 ---

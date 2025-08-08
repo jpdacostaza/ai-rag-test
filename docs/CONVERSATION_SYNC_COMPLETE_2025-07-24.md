@@ -39,7 +39,7 @@
 9. `docs/PERSONA_UPDATE_SUMMARY.md` - Update summary report
 10. `scripts/analyze_personas.py` - Persona analysis utility
 11. `scripts/safe_persona_cleanup.py` - Safe cleanup verification
-12. `scripts/test_anti_fabrication.py` - Anti-fabrication testing
+12. `scripts/tests/test_anti_fabrication.py` - Anti-fabrication testing
 
 ##### **✅ FILES REMOVED (3):**
 1. `config/persona.json` (17KB) - Moved to backup

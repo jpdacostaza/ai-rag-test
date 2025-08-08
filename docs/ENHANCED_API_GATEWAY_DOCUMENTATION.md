@@ -391,7 +391,7 @@ spec:
 pip install pytest pytest-asyncio aiohttp
 
 # Run comprehensive test suite
-python tests/test_enhanced_gateway.py
+python tests/tests/test_enhanced_gateway.py
 
 # Run specific test categories
 pytest tests/ -k "test_security"

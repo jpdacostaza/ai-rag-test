@@ -99,7 +99,7 @@ backend/
 │       ├── config.json                      # Pipeline configuration
 │       ├── requirements.txt                 # Pipeline dependencies
 │       ├── README.md                        # Pipeline documentation
-│       └── validate_pipeline.py             # Pipeline validation
+│       └── tests/validate_pipeline.py             # Pipeline validation
 ├── utilities/
 │   ├── enhanced_web_search.py              # Direct API Tool (FALLBACK)
 │   └── web_search_tool.py                  # Legacy compatibility (DEPRECATED)

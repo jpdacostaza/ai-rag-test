@@ -49,7 +49,7 @@
 #### 5. **Created Backup and Analysis**
 - **Backup:** All old persona files saved in `config/backup/`
 - **Analysis Tool:** `scripts/analyze_personas.py` for ongoing monitoring
-- **Test Tool:** `scripts/test_anti_fabrication.py` for validation
+- **Test Tool:** `scripts/tests/test_anti_fabrication.py` for validation
 
 ### ✅ **VERIFICATION RESULTS:**
 

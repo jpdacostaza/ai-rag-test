@@ -189,8 +189,8 @@ wait_for_services() {
 run_tests() {
     print_status "Running comprehensive tests..."
     
-    if [ -f "tests/test_enhanced_gateway.py" ]; then
-        python tests/test_enhanced_gateway.py
+    if [ -f "tests/tests/test_enhanced_gateway.py" ]; then
+        python tests/tests/test_enhanced_gateway.py
     else
         print_warning "Test file not found. Running basic health checks..."
         

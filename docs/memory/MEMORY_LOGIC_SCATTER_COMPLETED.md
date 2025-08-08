@@ -138,9 +138,9 @@ ALL COMPONENTS          → Single Interface → Provider Pattern (API/Database/
 - ✅ `rag.py` - Updated to use unified MemoryService
 
 ### **Testing & Validation**
-- ✅ `tests/test_memory_service_basic.py` - Basic memory service validation  
-- ✅ `tests/test_memory_service_consolidation.py` - Comprehensive consolidation tests
-- ✅ `tests/test_memory_migration_validation.py` - **NEW** - Migration validation
+- ✅ `tests/tests/test_memory_service_basic.py` - Basic memory service validation  
+- ✅ `tests/tests/test_memory_service_consolidation.py` - Comprehensive consolidation tests
+- ✅ `tests/tests/test_memory_migration_validation.py` - **NEW** - Migration validation
 
 ### **Documentation**
 - ✅ `docs/MEMORY_LOGIC_SCATTER_MIGRATION_PLAN.md` - **NEW** - Migration plan and status

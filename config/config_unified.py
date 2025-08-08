@@ -102,10 +102,10 @@ class MemoryConfig:
     api_port: int = 8080
     timeout: float = 10.0
     
-    # Memory behavior - OPTIMIZED for better retention
+    # Memory behavior - CONTROLLED BY OPENWEBUI FUNCTION
     max_memories: int = 5
     max_documents: int = 50
-    retrieval_threshold: float = 1.5  # ChromaDB compatible threshold - distances can be 0.3-1.5 for relevant matches
+    # retrieval_threshold: float = 2.0  # Controlled by OpenWebUI Function
     auto_store_enabled: bool = True
     auto_store_threshold: int = 3
     hybrid_search: bool = True
@@ -135,7 +135,7 @@ class MemoryConfig:
         
         self.max_memories = int(os.getenv("MAX_MEMORIES", str(self.max_memories)))
         self.max_documents = int(os.getenv("MEMORY_MAX_DOCUMENTS", str(self.max_documents)))
-        self.retrieval_threshold = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", str(self.retrieval_threshold)))
+        # self.retrieval_threshold = float(os.getenv("MEMORY_RETRIEVAL_THRESHOLD", str(self.retrieval_threshold)))  # Controlled by OpenWebUI Function
         self.auto_store_enabled = os.getenv("MEMORY_AUTO_STORE", str(self.auto_store_enabled)).lower() == "true"
         self.auto_store_threshold = int(os.getenv("MEMORY_AUTO_STORE_THRESHOLD", str(self.auto_store_threshold)))
         self.hybrid_search = os.getenv("MEMORY_HYBRID_SEARCH", str(self.hybrid_search)).lower() == "true"
@@ -468,7 +468,7 @@ DEFAULT_CONTEXT_LENGTH = _config.model.default_context_length
 MEMORY_CONTEXT_LENGTH = _config.model.memory_context_length
 
 # Memory settings
-MEMORY_RETRIEVAL_THRESHOLD = _config.memory.retrieval_threshold
+# MEMORY_RETRIEVAL_THRESHOLD = _config.memory.retrieval_threshold  # Controlled by OpenWebUI Function
 MEMORY_MAX_DOCUMENTS = _config.memory.max_documents
 MEMORY_HYBRID_SEARCH = _config.memory.hybrid_search
 ENABLE_CROSS_SESSION_MEMORY = _config.memory.enable_cross_session

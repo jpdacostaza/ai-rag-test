@@ -12,15 +12,14 @@ RUN pip install requests httpx
 WORKDIR /app
 RUN mkdir -p /app/pipelines
 
-# Copy installer scripts and memory components
+# Copy only the installer scripts (memory components will be loaded from mounted volumes)
 COPY scripts/auto_install_function.py /scripts/auto_install_function.py
 COPY scripts/auto_install_pipeline.py /scripts/auto_install_pipeline.py
 COPY scripts/unified_installer.py /scripts/unified_installer.py
-COPY memory/functions/memory_function.py /app/memory_function.py
-COPY pipelines/enhanced_memory_pipeline.py /app/enhanced_memory_pipeline.py
 
 # Set executable permissions
 RUN chmod +x /scripts/*.py
 
 # Run the unified installer from mounted app directory
+# Memory components are loaded live from mounted volumes for zero-configuration updates
 CMD ["python3", "/app/scripts/unified_installer.py"]

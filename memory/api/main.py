@@ -118,6 +118,7 @@ class MemoryStoreRequest(BaseModel):
     importance: float = 0.5
     forced: bool = False
     source: str = "api"
+    metadata: Optional[Dict[str, Any]] = None  # Support for custom metadata
 
 class MemoryRetrieveRequest(BaseModel):
     user_id: str
@@ -135,9 +136,10 @@ class MemoryRetrieveRequest(BaseModel):
                 sys.path.insert(0, '/app')
                 from config.config_unified import Config
                 config = Config.get_instance()
-                data['threshold'] = config.memory.retrieval_threshold
+                # data['threshold'] = config.memory.retrieval_threshold  # Controlled by OpenWebUI Function
+                data['threshold'] = -0.5  # Default fallback - should be overridden by function request
             except ImportError:
-                data['threshold'] = 1.5  # Fallback for ChromaDB compatibility
+                data['threshold'] = -0.5  # Default fallback - should be overridden by function request
         super().__init__(**data)
 
 class LearningInteractionRequest(BaseModel):
@@ -270,36 +272,60 @@ async def store_memory_regular(request: MemoryStoreRequest):
                 "reason": "Content too short for normal storage"
             })
         
-        # Reduce importance for normal storage (unless forced)
-        importance = min(request.importance, 0.5) if not request.forced else request.importance
+        # Handle metadata extraction
+        if request.metadata:
+            # Use metadata if provided
+            user_id = request.metadata.get("user_id", request.user_id)
+            context = request.metadata.get("context", request.context or "")
+            importance = min(request.metadata.get("importance", request.importance), 0.5) if not request.forced else request.metadata.get("importance", request.importance)
+            source = request.metadata.get("source", request.source)
+            memory_id = request.metadata.get("memory_id", f"mem_{request.user_id}_{int(time.time())}")
+            
+            # Preserve all custom metadata fields
+            full_metadata = request.metadata.copy()
+        else:
+            # Fallback to request fields
+            user_id = request.user_id
+            context = request.context or ""
+            importance = min(request.importance, 0.5) if not request.forced else request.importance
+            source = request.source
+            memory_id = f"mem_{request.user_id}_{int(time.time())}"
+            
+            # Create basic metadata
+            full_metadata = {
+                "user_id": user_id,
+                "context": context,
+                "importance": importance,
+                "source": source
+            }
         
-        memory_id = f"mem_{request.user_id}_{int(time.time())}"
         timestamp = datetime.now().isoformat()
+        full_metadata["timestamp"] = timestamp
+        full_metadata["memory_id"] = memory_id
         
         # Store in Redis for quick access
-        redis_key = f"memory:{request.user_id}:{memory_id}"
+        redis_key = f"memory:{user_id}:{memory_id}"
         redis_data = {
             "content": request.content,
-            "context": request.context or "",
+            "context": context,
             "importance": importance,
-            "source": request.source,
+            "source": source,
             "timestamp": timestamp
         }
+        
+        # Add custom metadata fields to Redis
+        if request.metadata:
+            for key, value in request.metadata.items():
+                if key not in ["content"]:  # Don't duplicate content
+                    redis_data[key] = str(value)
         
         await redis_client.hset(redis_key, mapping=redis_data)
         await redis_client.expire(redis_key, 86400)  # 24 hours
         
-        # Store in ChromaDB for semantic search
+        # Store in ChromaDB for semantic search with full metadata
         chroma_collection.add(
             documents=[request.content],
-            metadatas=[{
-                "user_id": request.user_id,
-                "context": request.context or "",
-                "importance": importance,
-                "source": request.source,
-                "timestamp": timestamp,
-                "memory_id": memory_id
-            }],
+            metadatas=[full_metadata],
             ids=[memory_id]
         )
         

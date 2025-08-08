@@ -117,7 +117,7 @@ document_indicators = {
 - ✅ `docs/MEMORY_AUTHENTICATION_SECURITY_AUDIT.md` - Security documentation
 - ✅ `docs/STRICT_AUTHENTICATION_COMPLETE.md` - Authentication guide
 - ✅ `docs/FALLBACK_LOGIC_ANALYSIS.md` - Logic analysis
-- ✅ `test_enhanced_memory.py` - Test coverage
+- ✅ `tests/test_enhanced_memory.py` - Test coverage
 
 ---
 
