@@ -60,9 +60,9 @@ class FeatureRegistry:
         
         # Log feature status
         if available:
-            self._logger.info(f"✅ Feature '{name}' available: {description}")
+            self._logger.info(f"[OK] Feature '{name}' available: {description}")
         else:
-            self._logger.warning(f"⚠️ Feature '{name}' disabled: {error or 'Not available'}")
+            self._logger.warning(f"[WARN] Feature '{name}' disabled: {error or 'Not available'}")
     
     def is_available(self, name: str) -> bool:
         """Check if a feature is available."""

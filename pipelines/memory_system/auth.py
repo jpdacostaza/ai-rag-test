@@ -47,18 +47,18 @@ class UserAuthManager:
             user_data = user_obj
             
             if self.debug:
-                self.log(f"🔍 DEBUG: Received __user__ object: {user_obj}")
+                self.log(f"[SEARCH] DEBUG: Received __user__ object: {user_obj}")
             
             if user_id and self.validate_uuid(user_id):
                 if self.debug:
-                    self.log(f"✅ Valid UUID format: {user_id}")
+                    self.log(f"[OK] Valid UUID format: {user_id}")
                 return user_id, user_data
         
         # Method 2: Direct user_id field
         user_id = body.get("user_id")
         if user_id and self.validate_uuid(user_id):
             if self.debug:
-                self.log(f"✅ Found valid user_id in body: {user_id}")
+                self.log(f"[OK] Found valid user_id in body: {user_id}")
             return user_id, user_data
         
         # Method 3: Extract from messages metadata
@@ -69,7 +69,7 @@ class UserAuthManager:
                 if "user_id" in message and self.validate_uuid(message["user_id"]):
                     user_id = message["user_id"]
                     if self.debug:
-                        self.log(f"✅ Found user_id in message metadata: {user_id}")
+                        self.log(f"[OK] Found user_id in message metadata: {user_id}")
                     return user_id, user_data
                 
                 # Check for user info in content
@@ -81,7 +81,7 @@ class UserAuthManager:
                         if self.validate_uuid(extracted_id):
                             user_id = extracted_id
                             if self.debug:
-                                self.log(f"✅ Extracted user_id from content: {user_id}")
+                                self.log(f"[OK] Extracted user_id from content: {user_id}")
                             return user_id, user_data
         
         # Method 4: Check top-level body fields
@@ -90,11 +90,11 @@ class UserAuthManager:
                 if "user" in key.lower():
                     user_id = value
                     if self.debug:
-                        self.log(f"✅ Found user_id in field {key}: {user_id}")
+                        self.log(f"[OK] Found user_id in field {key}: {user_id}")
                     return user_id, user_data
         
         if self.debug:
-            self.log("❌ No valid user_id found in request")
+            self.log("[FAIL] No valid user_id found in request")
         
         return None, user_data
     
@@ -104,16 +104,16 @@ class UserAuthManager:
         
         if not user_id:
             if self.debug:
-                self.log("❌ USER AUTHENTICATION FAILED: No valid user_id found")
+                self.log("[FAIL] USER AUTHENTICATION FAILED: No valid user_id found")
             return None, {}
         
         if self.debug:
-            self.log(f"✅ USER AUTHENTICATED: {user_id}")
+            self.log(f"[OK] USER AUTHENTICATED: {user_id}")
             if user_data:
                 name = user_data.get("name", "Unknown")
                 email = user_data.get("email", "Unknown")
                 role = user_data.get("role", "Unknown")
-                self.log(f"📋 User Profile: {name} ({email}) - Role: {role}")
+                self.log(f" User Profile: {name} ({email}) - Role: {role}")
         
         return user_id, user_data
     
@@ -144,16 +144,16 @@ class UserAuthManager:
             unique_ids = set(found_ids)
             if len(unique_ids) <= 1 and (not unique_ids or user_id in unique_ids):
                 if self.debug:
-                    self.log(f"✅ Session consistency validated for user {user_id}")
+                    self.log(f"[OK] Session consistency validated for user {user_id}")
                 return True
             else:
                 if self.debug:
-                    self.log(f"❌ Session inconsistency detected: found {unique_ids}, expected {user_id}")
+                    self.log(f"[FAIL] Session inconsistency detected: found {unique_ids}, expected {user_id}")
                 return False
         
         except Exception as e:
             if self.debug:
-                self.log(f"❌ Session validation error: {e}", "ERROR")
+                self.log(f"[FAIL] Session validation error: {e}", "ERROR")
             return False
     
     def get_user_context_summary(self, user_data: Dict[str, Any]) -> str:

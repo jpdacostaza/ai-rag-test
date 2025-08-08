@@ -36,6 +36,7 @@ USAGE:
 
 import asyncio
 import logging
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from core.logging_config import get_logger
@@ -137,10 +138,21 @@ class MemoryQuery:
     user_id: str
     query: str
     limit: int = 10
-    threshold: float = 0.1
+    threshold: float = None  # Will be set from unified config
     memory_types: Optional[List[str]] = None
     time_range: Optional[Dict[str, str]] = None
     include_metadata: bool = True
+    
+    def __post_init__(self):
+        """Set threshold from unified config if not provided."""
+        if self.threshold is None:
+            try:
+                from config.config_unified import Config
+                config = Config.get_instance()
+                self.threshold = config.memory.retrieval_threshold
+            except ImportError:
+                # Fallback if unified config not available
+                self.threshold = 1.5
 
 
 @dataclass
@@ -424,277 +436,241 @@ class DatabaseMemoryProvider:
 
 
 class PipelineMemoryProvider:
-    """Memory provider using pipeline/valves architecture."""
+    """Memory provider using pipeline/valves architecture via HTTP API."""
     
     provider_type = "pipeline"
     
     def __init__(self):
-        self.pipeline_instance = None
-        self.pipeline_module = None
+        self.pipeline_service_url = os.getenv('PIPELINES_HOST', 'backend-pipelines')
+        self.pipeline_service_port = int(os.getenv('PIPELINES_PORT', '9099'))
+        self.base_url = f"http://{self.pipeline_service_url}:{self.pipeline_service_port}"
         self.logger = get_logger(__name__)
+        self._client = None
+        self.pipeline_available = None
     
-    async def _get_pipeline(self):
-        """Get or initialize the enhanced memory pipeline."""
-        if self.pipeline_instance is None:
+    async def _get_http_client(self):
+        """Get HTTP client for pipeline service communication."""
+        if self._client is None:
+            import httpx
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+    
+    async def _check_pipeline_health(self):
+        """Check if pipeline service is available."""
+        if self.pipeline_available is None:
             try:
-                # Import the enhanced memory pipeline
-                import sys
-                import os
-                
-                # Add pipelines directory to path
-                pipelines_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipelines")
-                if pipelines_path not in sys.path:
-                    sys.path.insert(0, pipelines_path)
-                
-                # Import the pipeline module
-                from enhanced_memory_pipeline import Pipeline as EnhancedMemoryPipeline
-                
-                # Initialize pipeline instance
-                self.pipeline_instance = EnhancedMemoryPipeline()
-                self.pipeline_module = EnhancedMemoryPipeline
-                
-                # Debug: log available methods
-                available_methods = [method for method in dir(self.pipeline_instance) if not method.startswith('_')]
-                self.logger.info(
-                    "Pipeline memory provider initialized",
-                    extra={"available_methods": available_methods[:10]}
-                )
-                
+                client = await self._get_http_client()
+                response = await client.get(f"{self.base_url}/")
+                self.pipeline_available = response.status_code == 200
+                if self.pipeline_available:
+                    self.logger.info(
+                        "Pipeline service connection established",
+                        extra={"service_url": self.base_url}
+                    )
+                else:
+                    self.logger.warning(
+                        "Pipeline service not responding correctly",
+                        extra={"status_code": response.status_code, "service_url": self.base_url}
+                    )
             except Exception as e:
+                self.pipeline_available = False
                 self.logger.warning(
-                    "Pipeline initialization failed",
-                    extra={"error": str(e)}
+                    "Pipeline service connection failed",
+                    extra={"error": str(e), "service_url": self.base_url}
                 )
-                self.pipeline_instance = None
         
-        return self.pipeline_instance
+        return self.pipeline_available
     
     @handle_memory_errors(operation_name="pipeline_store_memory") 
     async def store_memory(self, entry: MemoryEntry) -> bool:
-        """Store memory via pipeline."""
+        """Store memory via pipeline HTTP API."""
         try:
-            pipeline = await self._get_pipeline()
-            if not pipeline:
+            # Check if pipeline service is available
+            if not await self._check_pipeline_health():
+                self.logger.warning("Pipeline service not available for memory storage")
                 return False
             
-            # Extract data from memory entry
-            user_id = entry.metadata.user_id
-            content = entry.content
-            context = entry.metadata.context
-            importance = entry.metadata.importance
-            source = entry.metadata.source
+            # For now, fall back to the memory API since OpenWebUI pipelines 
+            # are designed for chat flow processing, not direct memory API calls
+            # The pipeline processes memories through the chat inlet/outlet flow
+            memory_api_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             
-            # Create memory entry data
+            client = await self._get_http_client()
             memory_data = {
-                "user_id": user_id,
-                "content": content,
-                "context": context,
-                "importance": importance,
-                "source": source,
+                "user_id": entry.metadata.user_id,
+                "content": entry.content,
+                "context": entry.metadata.context or {},
+                "importance": entry.metadata.importance,
+                "source": entry.metadata.source,
                 "timestamp": datetime.now().isoformat()
             }
             
-            # Use pipeline's memory storage functionality
-            # Debug: Check what methods are available
-            pipeline_methods = [method for method in dir(pipeline) if not method.startswith('_')]
-            self.logger.info(
-                "Available pipeline methods",
-                extra={"methods": pipeline_methods[:10]}
+            response = await client.post(
+                f"{memory_api_url}/api/memory/store",
+                json=memory_data,
+                headers={"Content-Type": "application/json"}
             )
             
-            # Check if pipeline has direct memory methods (new enhanced pipeline)
-            if hasattr(pipeline, 'store_memory'):
-                self.logger.info("Using pipeline.store_memory method")
-                success = await pipeline.store_memory(user_id, content, memory_data)
-                if success:
-                    self.logger.info(
-                        "Pipeline memory stored",
-                        extra={"user_id": user_id}
-                    )
-                    return True
-            
-            # Check if pipeline has memory_manager property that returns the pipeline itself
-            elif hasattr(pipeline, 'memory_manager') and pipeline.memory_manager:
-                self.logger.info("Using pipeline.memory_manager.store_memory method")
-                success = await pipeline.memory_manager.store_memory(user_id, content, memory_data)
-                if success:
-                    self.logger.info(
-                        "Pipeline memory stored via memory_manager",
-                        extra={"user_id": user_id}
-                    )
-                    return True
-            
-            # Fallback: use pipeline's internal storage method if available
-            elif hasattr(pipeline, '_store_user_memory'):
-                self.logger.info("Using pipeline._store_user_memory fallback method")
-                await pipeline._store_user_memory(user_id, content, context)
-                self.logger.info(
-                    "Pipeline memory stored with fallback",
-                    extra={"user_id": user_id}
-                )
+            if response.status_code == 200:
+                self.logger.info("Pipeline memory stored via API")
                 return True
-            
-            # Final fallback: use database provider directly if pipeline doesn't support memory storage
             else:
-                self.logger.info("Pipeline doesn't support memory storage, using database fallback")
-                try:
-                    from services.database_manager import store_vector_data
-                    success = await store_vector_data(
-                        text=content,
-                        metadata=memory_data
-                    )
-                    if success:
-                        self.logger.info(
-                            "Memory stored via database fallback",
-                            extra={"user_id": user_id}
-                        )
-                        return True
-                except Exception as e:
-                    self.logger.warning(
-                        "Database fallback also failed",
-                        extra={"error": str(e)}
-                    )
-            
-            self.logger.warning(
-                "All pipeline memory storage methods failed",
-                extra={"available_methods": pipeline_methods[:5]}
-            )
-            return False
-            
+                self.logger.warning(
+                    "Memory storage failed",
+                    extra={"status_code": response.status_code, "response": response.text}
+                )
+                return False
+                
         except Exception as e:
             self.logger.error(
-                "Pipeline memory storage failed",
+                "Pipeline memory storage error",
                 extra={"error": str(e)}
             )
             return False
-    
+
     @handle_memory_errors(operation_name="pipeline_get_memories")
     async def get_memories(self, query: MemoryQuery) -> List[MemoryEntry]:
-        """Retrieve memories via pipeline."""
+        """Retrieve memories via pipeline HTTP API."""
         try:
-            pipeline = await self._get_pipeline()
-            if not pipeline:
+            # Check if pipeline service is available
+            if not await self._check_pipeline_health():
+                self.logger.warning("Pipeline service not available for memory retrieval")
                 return []
             
-            # Use pipeline's memory retrieval functionality
-            # Check if pipeline has direct memory methods (new enhanced pipeline)
-            if hasattr(pipeline, 'get_relevant_memories'):
-                memories_data = await pipeline.get_relevant_memories(
-                    query.user_id, 
-                    query.query, 
-                    query.limit
-                )
-            elif hasattr(pipeline, 'memory_manager') and pipeline.memory_manager and hasattr(pipeline.memory_manager, 'get_relevant_memories'):
-                memories_data = await pipeline.memory_manager.get_relevant_memories(
-                    query.user_id, 
-                    query.query, 
-                    query.limit
-                )
-            elif hasattr(pipeline, '_get_relevant_memories'):
-                # Fallback method
-                memories_data = await pipeline._get_relevant_memories(
-                    query.user_id,
-                    query.query,
-                    query.limit
-                )
-            else:
-                self.logger.warning("Pipeline memory retrieval method not available")
-                return []
+            # For now, fall back to the memory API since OpenWebUI pipelines 
+            # are designed for chat flow processing, not direct memory API calls
+            memory_api_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             
-            # Convert to MemoryEntry objects
-            memories = []
-            for memory_data in memories_data:
-                if isinstance(memory_data, dict):
-                    metadata = MemoryMetadata(
-                        user_id=query.user_id,
-                        timestamp=memory_data.get("timestamp", datetime.now().isoformat()),
-                        source="pipeline",
-                        importance=memory_data.get("importance", 0.5),
-                        memory_type=memory_data.get("memory_type", "conversation"),
-                        context=memory_data.get("context"),
-                        conversation_id=memory_data.get("conversation_id"),
-                        explicit=memory_data.get("explicit", False)
-                    )
-                    
-                    memories.append(MemoryEntry(
-                        content=memory_data.get("content", ""),
-                        metadata=metadata,
-                        similarity_score=memory_data.get("similarity_score"),
-                        distance=memory_data.get("distance", 0.0)
-                    ))
+            client = await self._get_http_client()
+            request_data = {
+                "user_id": query.user_id,
+                "query": query.query,
+                "limit": query.limit
+            }
             
-            self.logger.info(
-                "Retrieved memories from pipeline",
-                extra={"count": len(memories), "user_id": query.user_id}
+            response = await client.post(
+                f"{memory_api_url}/api/memory/retrieve",
+                json=request_data,
+                headers={"Content-Type": "application/json"}
             )
-            return memories
             
+            if response.status_code == 200:
+                memories_data = response.json()
+                # Convert to MemoryEntry objects
+                memories = []
+                for mem_data in memories_data.get("memories", []):
+                    metadata = MemoryMetadata(
+                        user_id=mem_data.get("user_id"),
+                        context=mem_data.get("context", {}),
+                        importance=mem_data.get("importance", 1.0),
+                        source=mem_data.get("source", "pipeline")
+                    )
+                    memory = MemoryEntry(
+                        content=mem_data.get("content", ""),
+                        metadata=metadata
+                    )
+                    memories.append(memory)
+                
+                self.logger.info(
+                    "Retrieved memories via pipeline API",
+                    extra={"count": len(memories)}
+                )
+                return memories
+            else:
+                self.logger.warning(
+                    "Memory retrieval failed",
+                    extra={"status_code": response.status_code, "response": response.text}
+                )
+                return []
+                
         except Exception as e:
             self.logger.error(
-                "Pipeline memory retrieval failed",
+                "Pipeline memory retrieval error",
                 extra={"error": str(e)}
             )
             return []
-    
+
     @handle_memory_errors(operation_name="pipeline_delete_memory")
     async def delete_memory(self, user_id: str, memory_id: str) -> bool:
-        """Delete memory via pipeline."""
+        """Delete memory via pipeline HTTP API."""
         try:
-            pipeline = await self._get_pipeline()
-            if not pipeline:
+            # Check if pipeline service is available
+            if not await self._check_pipeline_health():
+                self.logger.warning("Pipeline service not available for memory deletion")
                 return False
             
-            # Check if pipeline supports memory deletion
-            if hasattr(pipeline, 'memory_manager') and hasattr(pipeline.memory_manager, 'delete_memory'):
-                return await pipeline.memory_manager.delete_memory(user_id, memory_id)
+            # For now, fall back to the memory API since OpenWebUI pipelines 
+            # are designed for chat flow processing, not direct memory API calls
+            memory_api_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             
-            self.logger.warning("Pipeline memory deletion not supported")
-            return False
+            client = await self._get_http_client()
+            response = await client.delete(
+                f"{memory_api_url}/api/memory/{user_id}/{memory_id}",
+                headers={"Content-Type": "application/json"}
+            )
             
+            if response.status_code == 200:
+                self.logger.info("Pipeline memory deleted via API")
+                return True
+            else:
+                self.logger.warning(
+                    "Memory deletion failed",
+                    extra={"status_code": response.status_code, "response": response.text}
+                )
+                return False
+                
         except Exception as e:
             self.logger.error(
-                "Pipeline memory deletion failed",
+                "Pipeline memory deletion error",
                 extra={"error": str(e)}
             )
             return False
-    
+
     @handle_memory_errors(operation_name="pipeline_get_stats")
     async def get_stats(self, user_id: str) -> MemoryStats:
-        """Get user stats via pipeline."""
+        """Get user stats via pipeline HTTP API."""
         try:
-            pipeline = await self._get_pipeline()
-            if not pipeline:
+            # Check if pipeline service is available
+            if not await self._check_pipeline_health():
+                self.logger.warning("Pipeline service not available for stats")
                 return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
             
-            # Get memories to calculate stats
-            query = MemoryQuery(user_id=user_id, query="", limit=1000)
-            memories = await self.get_memories(query)
+            # For now, fall back to the memory API since OpenWebUI pipelines 
+            # are designed for chat flow processing, not direct memory API calls
+            memory_api_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             
-            # Calculate memory type counts
-            memory_types = {}
-            for memory in memories:
-                mem_type = memory.metadata.memory_type
-                memory_types[mem_type] = memory_types.get(mem_type, 0) + 1
-            
-            return MemoryStats(
-                user_id=user_id,
-                total_memories=len(memories),
-                memory_types=memory_types
+            client = await self._get_http_client()
+            response = await client.get(
+                f"{memory_api_url}/api/memory/stats/{user_id}",
+                headers={"Content-Type": "application/json"}
             )
             
+            if response.status_code == 200:
+                stats_data = response.json()
+                return MemoryStats(
+                    user_id=user_id,
+                    total_memories=stats_data.get("total_memories", 0),
+                    memory_types=stats_data.get("memory_types", {})
+                )
+            else:
+                self.logger.warning(
+                    "Stats retrieval failed",
+                    extra={"status_code": response.status_code, "response": response.text}
+                )
+                return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
+                
         except Exception as e:
             self.logger.error(
-                "Pipeline stats failed",
+                "Pipeline stats error",
                 extra={"error": str(e)}
             )
             return MemoryStats(user_id=user_id, total_memories=0, memory_types={})
-    
+
     @handle_memory_errors(operation_name="pipeline_health_check")
     async def health_check(self) -> bool:
         """Check pipeline health."""
         try:
-            pipeline = await self._get_pipeline()
-            return pipeline is not None
+            return await self._check_pipeline_health()
         except Exception as e:
             self.logger.error(
                 "Pipeline health check failed",
@@ -705,22 +681,12 @@ class PipelineMemoryProvider:
     async def cleanup(self):
         """Clean up pipeline resources."""
         try:
-            if self.pipeline_instance:
-                # Check if pipeline has async cleanup method
-                if hasattr(self.pipeline_instance, 'cleanup'):
-                    if asyncio.iscoroutinefunction(self.pipeline_instance.cleanup):
-                        await self.pipeline_instance.cleanup()
-                    else:
-                        self.pipeline_instance.cleanup()
+            if self._client:
+                await self._client.aclose()
+                self._client = None
                 
-                # Suppress garbage collection warnings by deleting reference properly
-                import warnings
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*coroutine.*never awaited.*")
-                    self.pipeline_instance = None
-                    self.pipeline_module = None
-                    
-                self.logger.info("Pipeline memory provider cleaned up")
+            self.pipeline_available = None
+            self.logger.info("Pipeline memory provider cleaned up")
         except Exception as e:
             self.logger.error(
                 "Pipeline cleanup failed",
@@ -791,19 +757,28 @@ class MemoryService:
     
     @handle_memory_errors(operation_name="get_memories")
     async def get_memories(self, user_id: str, query: str, limit: int = 10,
-                          threshold: float = 0.1) -> List[MemoryEntry]:
+                          threshold: float = None) -> List[MemoryEntry]:
         """
         Retrieve memories for a user based on query.
         
         Args:
             user_id: User identifier  
             query: Search query
-            limit: Maximum number of memories to return
-            threshold: Similarity threshold
-            
+            limit: Maximum memories to return
+            threshold: Similarity threshold (will use unified config if None)
+        
         Returns:
             List[MemoryEntry]: Retrieved memories
         """
+        # Use unified config threshold if not provided
+        if threshold is None:
+            try:
+                from config.config_unified import Config
+                config = Config.get_instance()
+                threshold = config.memory.retrieval_threshold
+            except ImportError:
+                threshold = 1.5  # Fallback
+        
         memory_query = MemoryQuery(
             user_id=user_id,
             query=query,

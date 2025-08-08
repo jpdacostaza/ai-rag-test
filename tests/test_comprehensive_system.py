@@ -55,10 +55,10 @@ class ComprehensiveSystemTester:
         timestamp = time.strftime("%H:%M:%S")
         elapsed = time.time() - self.start_time
         emoji = {
-            "INFO": "📝", "SUCCESS": "✅", "WARNING": "⚠️", 
-            "ERROR": "❌", "DEBUG": "🔍", "TEST": "🧪",
-            "SECTION": "🎯", "RESULT": "📊"
-        }.get(level, "📝")
+            "INFO": "", "SUCCESS": "[OK]", "WARNING": "[WARN]", 
+            "ERROR": "[FAIL]", "DEBUG": "[SEARCH]", "TEST": "",
+            "SECTION": "", "RESULT": "[CHART]"
+        }.get(level, "")
         print(f"[{timestamp}] {emoji} [{level}] [{elapsed:.1f}s] {message}")
     
     def record_test(self, test_name: str, passed: bool, details: str = ""):
@@ -542,7 +542,7 @@ class ComprehensiveSystemTester:
         self.log("=" * 80, "INFO")
         
         for suite_name, result in test_results:
-            status = "✅ PASSED" if result else "❌ FAILED"
+            status = "[OK] PASSED" if result else "[FAIL] FAILED"
             self.log(f"{suite_name}: {status}", "RESULT")
         
         self.log("-" * 80, "INFO")
@@ -553,9 +553,9 @@ class ComprehensiveSystemTester:
         # Final verdict
         overall_success = passed_suites == total_suites
         if overall_success:
-            self.log("🎉 ALL TESTS PASSED - Smart Anti-Hallucination System is WORKING PERFECTLY!", "SUCCESS")
+            self.log(" ALL TESTS PASSED - Smart Anti-Hallucination System is WORKING PERFECTLY!", "SUCCESS")
         else:
-            self.log("🚨 SOME TESTS FAILED - System needs attention", "ERROR")
+            self.log("*** SOME TESTS FAILED - System needs attention", "ERROR")
         
         return {
             "overall_success": overall_success,
@@ -572,16 +572,16 @@ class ComprehensiveSystemTester:
 
 async def main():
     """Main test execution function"""
-    print("🚀 COMPREHENSIVE SMART ANTI-HALLUCINATION SYSTEM TEST SUITE")
+    print(" COMPREHENSIVE SMART ANTI-HALLUCINATION SYSTEM TEST SUITE")
     print("=" * 80)
     print("Testing all components of the Smart Anti-Hallucination System:")
-    print("• Smart Web Search Trigger Logic")
-    print("• Service Health & Connectivity") 
-    print("• Memory System Integration")
-    print("• Anti-Fabrication Measures")
-    print("• Web Search Functionality")
-    print("• End-to-End Pipeline Flow")
-    print("• System Performance")
+    print("- Smart Web Search Trigger Logic")
+    print("- Service Health & Connectivity") 
+    print("- Memory System Integration")
+    print("- Anti-Fabrication Measures")
+    print("- Web Search Functionality")
+    print("- End-to-End Pipeline Flow")
+    print("- System Performance")
     print("=" * 80)
     
     tester = ComprehensiveSystemTester()
@@ -594,9 +594,9 @@ async def main():
     try:
         with open(results_file, 'w') as f:
             json.dump(results, f, indent=2, default=str)
-        print(f"\n📄 Detailed results saved to: {results_file}")
+        print(f"\n Detailed results saved to: {results_file}")
     except Exception as e:
-        print(f"\n⚠️ Could not save results file: {e}")
+        print(f"\n[WARN] Could not save results file: {e}")
     
     # Exit with appropriate code
     exit_code = 0 if results["overall_success"] else 1
@@ -607,8 +607,8 @@ if __name__ == "__main__":
         exit_code = asyncio.run(main())
         sys.exit(exit_code)
     except KeyboardInterrupt:
-        print("\n\n🛑 Test interrupted by user")
+        print("\n\n Test interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n\n💥 Test suite crashed: {e}")
+        print(f"\n\n Test suite crashed: {e}")
         sys.exit(1)

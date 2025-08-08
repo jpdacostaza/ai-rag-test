@@ -59,7 +59,7 @@ class StartupVerifier:
     @handle_service_errors
     async def run_startup_verification(self) -> bool:
         """Run startup verification and auto-fixing"""
-        logger.info("🔍 Starting startup verification...")
+        logger.info("[SEARCH] Starting startup verification...")
         
         try:
             # Wait for services to be ready
@@ -72,21 +72,21 @@ class StartupVerifier:
             function_ok = await self.verify_and_fix_function()
             
             if model_ok and function_ok:
-                logger.info("✅ 🎉 STARTUP VERIFICATION PASSED!")
-                logger.info("🎯 System is ready: Model available, Function active")
+                logger.info("[OK]  STARTUP VERIFICATION PASSED!")
+                logger.info(" System is ready: Model available, Function active")
                 return True
             else:
-                logger.error("❌ 🚨 STARTUP VERIFICATION FAILED!")
+                logger.error("[FAIL] *** STARTUP VERIFICATION FAILED!")
                 return False
                 
         except Exception as e:
-            logger.error(f"❌ Startup verification error: {str(e)}")
+            logger.error(f"[FAIL] Startup verification error: {str(e)}")
             return False
 
     @handle_api_errors
     async def wait_for_services(self) -> bool:
         """Wait for essential services"""
-        logger.info("⏳ Waiting for services...")
+        logger.info(" Waiting for services...")
         
         # Wait for OpenWebUI
         for attempt in range(30):
@@ -94,7 +94,7 @@ class StartupVerifier:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.get(self.openwebui_url)
                     if response.status_code == 200:
-                        logger.info("✅ OpenWebUI is ready")
+                        logger.info("[OK] OpenWebUI is ready")
                         break
             except:
                 pass
@@ -107,7 +107,7 @@ class StartupVerifier:
                     response = await client.get(self.ollama_url)
                     # Ollama returns 404 for root but is working
                     if response.status_code in [200, 404]:
-                        logger.info("✅ Ollama is ready")
+                        logger.info("[OK] Ollama is ready")
                         break
             except:
                 pass
@@ -118,7 +118,7 @@ class StartupVerifier:
     @handle_api_errors
     async def verify_and_fix_model(self) -> bool:
         """Verify model exists, download if missing"""
-        logger.info(f"🤖 Verifying model {self.default_model}...")
+        logger.info(f" Verifying model {self.default_model}...")
         
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -129,11 +129,11 @@ class StartupVerifier:
                     existing_models = [model['name'] for model in models.get('models', [])]
                     
                     if self.default_model in existing_models:
-                        logger.info(f"✅ Model {self.default_model} is available")
+                        logger.info(f"[OK] Model {self.default_model} is available")
                         return True
                     
                     # Model missing, download it
-                    logger.info(f"📥 Model missing, downloading {self.default_model}...")
+                    logger.info(f" Model missing, downloading {self.default_model}...")
                     
                     download_response = await client.post(
                         f"{self.ollama_url}/api/pull",
@@ -142,24 +142,24 @@ class StartupVerifier:
                     )
                     
                     if download_response.status_code == 200:
-                        logger.info(f"✅ Model {self.default_model} downloaded successfully")
+                        logger.info(f"[OK] Model {self.default_model} downloaded successfully")
                         return True
                     else:
-                        logger.error(f"❌ Model download failed: {download_response.status_code}")
+                        logger.error(f"[FAIL] Model download failed: {download_response.status_code}")
                         return False
                         
         except Exception as e:
-            logger.error(f"❌ Model verification error: {str(e)}")
+            logger.error(f"[FAIL] Model verification error: {str(e)}")
             return False
 
     @handle_database_errors
     async def verify_and_fix_function(self) -> bool:
         """Verify function exists and is active, install if missing"""
-        logger.info("🔧 Verifying memory function...")
+        logger.info(" Verifying memory function...")
         
         try:
             if not os.path.exists(self.db_path):
-                logger.warning("⚠️  Database not found, function cannot be verified")
+                logger.warning("[WARN]  Database not found, function cannot be verified")
                 return False
             
             conn = sqlite3.connect(self.db_path)
@@ -173,12 +173,12 @@ class StartupVerifier:
                 function_id, is_active, is_global = result
                 
                 if is_active and is_global:
-                    logger.info("✅ Memory function is active and global")
+                    logger.info("[OK] Memory function is active and global")
                     conn.close()
                     return True
                 else:
                     # Function exists but not properly configured
-                    logger.info("⚠️  Function exists but not properly configured, fixing...")
+                    logger.info("[WARN]  Function exists but not properly configured, fixing...")
                     cursor.execute("""
                         UPDATE function 
                         SET is_active = ?, is_global = ?, updated_at = ?
@@ -186,17 +186,17 @@ class StartupVerifier:
                     """, (True, True, int(time.time()), "memory_function"))
                     conn.commit()
                     conn.close()
-                    logger.info("✅ Function configuration fixed")
+                    logger.info("[OK] Function configuration fixed")
                     return True
             else:
                 # Function doesn't exist, install it
-                logger.info("⚠️  Function missing, installing...")
+                logger.info("[WARN]  Function missing, installing...")
                 success = await self.install_missing_function(cursor)
                 conn.close()
                 return success
                 
         except Exception as e:
-            logger.error(f"❌ Function verification error: {str(e)}")
+            logger.error(f"[FAIL] Function verification error: {str(e)}")
             return False
 
     @handle_database_errors
@@ -233,11 +233,11 @@ class StartupVerifier:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (function_id, function_name, function_code, "function", True, True, created_at, created_at, user_id))
             
-            logger.info("✅ Function installed successfully")
+            logger.info("[OK] Function installed successfully")
             return True
             
         except Exception as e:
-            logger.error(f"❌ Function installation error: {str(e)}")
+            logger.error(f"[FAIL] Function installation error: {str(e)}")
             return False
 
     async def read_function_code(self) -> Optional[str]:
@@ -253,7 +253,7 @@ class StartupVerifier:
             if path.exists():
                 return path.read_text(encoding='utf-8')
         
-        logger.error("❌ Memory function file not found")
+        logger.error("[FAIL] Memory function file not found")
         return None
 
 async def main():
@@ -263,10 +263,10 @@ async def main():
     success = await verifier.run_startup_verification()
     
     if success:
-        logger.info("🎉 ✅ STARTUP VERIFICATION COMPLETED!")
+        logger.info(" [OK] STARTUP VERIFICATION COMPLETED!")
         sys.exit(0)
     else:
-        logger.error("❌ 🚨 STARTUP VERIFICATION FAILED!")
+        logger.error("[FAIL] *** STARTUP VERIFICATION FAILED!")
         sys.exit(1)
 
 if __name__ == "__main__":

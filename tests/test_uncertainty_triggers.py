@@ -7,7 +7,7 @@ import requests
 import json
 
 def test_uncertainty_triggers():
-    print("🧪 Testing Uncertainty Trigger for Web Search")
+    print(" Testing Uncertainty Trigger for Web Search")
     print("=" * 60)
     
     # Test cases with uncertainty phrases that should trigger web search
@@ -31,7 +31,7 @@ def test_uncertainty_triggers():
     ]
     
     for i, test_case in enumerate(test_cases, 1):
-        print(f"\n🧪 Test {i}: {test_case['name']}")
+        print(f"\n Test {i}: {test_case['name']}")
         print(f"Query: {test_case['query']}")
         print("-" * 50)
         
@@ -58,7 +58,7 @@ def test_uncertainty_triggers():
                 result = response.json()
                 assistant_message = result.get('choices', [{}])[0].get('message', {}).get('content', '')
                 
-                print("📝 Response:")
+                print(" Response:")
                 print(assistant_message[:300] + "..." if len(assistant_message) > 300 else assistant_message)
                 
                 # Check for web search indicators
@@ -69,19 +69,19 @@ def test_uncertainty_triggers():
                 ]
                 
                 if any(indicator in assistant_message.lower() for indicator in web_indicators):
-                    print("✅ Web search was triggered!")
+                    print("[OK] Web search was triggered!")
                 else:
-                    print("❌ No web search detected")
+                    print("[FAIL] No web search detected")
                     
             else:
-                print(f"❌ Request failed: {response.status_code}")
+                print(f"[FAIL] Request failed: {response.status_code}")
                 
         except Exception as e:
-            print(f"❌ Test failed: {e}")
+            print(f"[FAIL] Test failed: {e}")
         
         print("-" * 50)
     
-    print("\n🏁 Uncertainty Trigger Test Complete")
+    print("\n Uncertainty Trigger Test Complete")
 
 if __name__ == "__main__":
     test_uncertainty_triggers()

@@ -13,7 +13,7 @@ from pathlib import Path
 def analyze_persona_files():
     """Analyze all persona files and recommend which to keep."""
     
-    print("🔍 PERSONA FILE ANALYSIS FOR ORANGE PI OPTIMIZATION")
+    print("[SEARCH] PERSONA FILE ANALYSIS FOR ORANGE PI OPTIMIZATION")
     print("=" * 60)
     
     persona_files = {
@@ -77,45 +77,45 @@ def analyze_persona_files():
             info["exists"] = False
     
     # Display analysis
-    print("\n📊 PERSONA FILE STATUS:")
+    print("\n[CHART] PERSONA FILE STATUS:")
     for filename, info in sorted(persona_files.items(), key=lambda x: x[1]["priority"]):
-        status = "✅ EXISTS" if info["exists"] else "❌ MISSING"
+        status = "[OK] EXISTS" if info["exists"] else "[FAIL] MISSING"
         size = f"{info['size']} bytes" if info["exists"] else "N/A"
         
-        print(f"\n📄 {filename}")
+        print(f"\n {filename}")
         print(f"   Status: {status}")
         print(f"   Size: {size}")
         print(f"   Purpose: {info['purpose']}")
         print(f"   Recommendation: {info['recommendation']}")
         
         if info["exists"]:
-            risk_indicator = "🚨 HIGH RISK" if info.get("fabrication_risk") else "✅ SAFE"
-            safety_indicator = "🛡️ PROTECTED" if info.get("safety_measures") else "⚠️ NO PROTECTION"
+            risk_indicator = "*** HIGH RISK" if info.get("fabrication_risk") else "[OK] SAFE"
+            safety_indicator = " PROTECTED" if info.get("safety_measures") else "[WARN] NO PROTECTION"
             print(f"   Fabrication Risk: {risk_indicator}")
             print(f"   Safety Measures: {safety_indicator}")
     
-    print(f"\n🎯 RECOMMENDATIONS FOR ORANGE PI (<7B MODELS):")
+    print(f"\n RECOMMENDATIONS FOR ORANGE PI (<7B MODELS):")
     print(f"")
-    print(f"✅ KEEP THESE FILES:")
-    print(f"   • persona_unified_small.json (PRIMARY - best for Orange Pi)")
-    print(f"   • persona_new_user.json (for new user handling)")
+    print(f"[OK] KEEP THESE FILES:")
+    print(f"   - persona_unified_small.json (PRIMARY - best for Orange Pi)")
+    print(f"   - persona_new_user.json (for new user handling)")
     print(f"")
-    print(f"🗑️ SAFE TO REMOVE:")
-    print(f"   • persona_enhanced.json (too complex for small models)")
-    print(f"   • persona.json (legacy, has fabrication risks)")
-    print(f"   • persona_small_model.json (redundant with unified)")
+    print(f" SAFE TO REMOVE:")
+    print(f"   - persona_enhanced.json (too complex for small models)")
+    print(f"   - persona.json (legacy, has fabrication risks)")
+    print(f"   - persona_small_model.json (redundant with unified)")
     print(f"")
-    print(f"🔧 SYSTEM UPDATES NEEDED:")
-    print(f"   • Update memory processor to prioritize persona_unified_small.json")
-    print(f"   • Update all config files to use unified persona first")
-    print(f"   • Test with small models to ensure no fabrication")
+    print(f" SYSTEM UPDATES NEEDED:")
+    print(f"   - Update memory processor to prioritize persona_unified_small.json")
+    print(f"   - Update all config files to use unified persona first")
+    print(f"   - Test with small models to ensure no fabrication")
     
     return persona_files
 
 def generate_cleanup_commands():
     """Generate cleanup commands."""
     
-    print(f"\n🧹 CLEANUP COMMANDS:")
+    print(f"\n CLEANUP COMMANDS:")
     print(f"")
     print(f"# Backup existing files first:")
     print(f"mkdir -p config/backup")
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     analysis = analyze_persona_files()
     generate_cleanup_commands()
     
-    print(f"\n✨ SUMMARY:")
+    print(f"\n SUMMARY:")
     print(f"For optimal Orange Pi performance with <7B models:")
     print(f"1. Use persona_unified_small.json as primary persona")
     print(f"2. Keep persona_new_user.json for new user scenarios") 

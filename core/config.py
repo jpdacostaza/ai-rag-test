@@ -1,5 +1,5 @@
 """
-⚠️  DEPRECATED: This configuration file has been replaced by config_unified.py
+[WARN]  DEPRECATED: This configuration file has been replaced by config_unified.py
 ==============================================================================
 
 This file is kept for backward compatibility but should not be modified.

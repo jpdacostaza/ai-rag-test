@@ -25,7 +25,7 @@ def enforce_cpu_only_mode():
     os.environ["MKL_NUM_THREADS"] = "1"
     os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
-    logging.info("🔧 CPU-only mode enforced via environment variables")
+    logging.info(" CPU-only mode enforced via environment variables")
 
 
 def verify_cpu_only_setup():
@@ -58,10 +58,10 @@ def verify_cpu_only_setup():
         results["torch_device"] = str(torch.device("cpu"))
 
         if torch.cuda.is_available():
-            results["warnings"].append("⚠️  PyTorch reports CUDA is available - this should be false in CPU-only mode")
+            results["warnings"].append("[WARN]  PyTorch reports CUDA is available - this should be false in CPU-only mode")
             results["status"] = "warning"
         else:
-            logging.info("✅ PyTorch CUDA is disabled")
+            logging.info("[OK] PyTorch CUDA is disabled")
 
     except ImportError:
         results["warnings"].append("PyTorch not available")
@@ -80,19 +80,19 @@ def verify_cpu_only_setup():
         # Check if the model is actually on CPU
         if hasattr(test_model, "device") and "cpu" in str(test_model.device):
             results["sentence_transformers_device"] = "cpu"
-            logging.info("✅ SentenceTransformers is using CPU")
+            logging.info("[OK] SentenceTransformers is using CPU")
         elif hasattr(test_model, "_modules"):
             # Check the underlying modules
             for name, module in test_model._modules.items():
                 if hasattr(module, "device"):
                     device = str(module.device)
                     if "cuda" in device.lower():
-                        results["warnings"].append(f"⚠️  SentenceTransformers module {name} is on GPU: {device}")
+                        results["warnings"].append(f"[WARN]  SentenceTransformers module {name} is on GPU: {device}")
                         results["status"] = "warning"
                         break
             else:
                 results["sentence_transformers_device"] = "cpu"
-                logging.info("✅ SentenceTransformers modules are on CPU")
+                logging.info("[OK] SentenceTransformers modules are on CPU")
 
     except ImportError:
         results["warnings"].append("SentenceTransformers not available")
@@ -102,7 +102,7 @@ def verify_cpu_only_setup():
     # Determine overall status
     if not results["warnings"]:
         results["status"] = "cpu_only_verified"
-        logging.info("✅ CPU-only mode verified successfully")
+        logging.info("[OK] CPU-only mode verified successfully")
     elif results["status"] != "warning":
         results["status"] = "verification_incomplete"
 
@@ -111,7 +111,7 @@ def verify_cpu_only_setup():
 
 def log_cpu_verification_results(results):
     """Log the CPU verification results in a readable format."""
-    logging.info("🔍 CPU-Only Mode Verification Results:")
+    logging.info("[SEARCH] CPU-Only Mode Verification Results:")
     logging.info("=" * 50)
 
     # Environment variables
@@ -134,9 +134,9 @@ def log_cpu_verification_results(results):
             logging.warning(f"  {warning}")
 
     # Overall status
-    status_emoji = {"cpu_only_verified": "✅", "warning": "⚠️", "verification_incomplete": "❓", "unknown": "❓"}
+    status_emoji = {"cpu_only_verified": "[OK]", "warning": "[WARN]", "verification_incomplete": "", "unknown": ""}
 
-    emoji = status_emoji.get(results["status"], "❓")
+    emoji = status_emoji.get(results["status"], "")
     logging.info(f"Overall Status: {emoji} {results['status']}")
     logging.info("=" * 50)
 

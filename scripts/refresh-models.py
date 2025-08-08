@@ -135,11 +135,11 @@ class ModelRefreshService:
 
     async def refresh_all_models(self) -> Dict:
         """Refresh and synchronize all models."""
-        logger.info("🔄 Starting model refresh and synchronization")
+        logger.info("[SYNC] Starting model refresh and synchronization")
 
         # Check service health first
         health = await self.check_service_health()
-        logger.info(f"📊 Service health: {health}")
+        logger.info(f"[CHART] Service health: {health}")
 
         # Get models from all sources
         ollama_models = await self.get_ollama_models()
@@ -173,14 +173,14 @@ class ModelRefreshService:
         }
 
         logger.info(
-            f"✅ Model refresh completed: {result['ollama_models']} Ollama models, {result['backend_models']} backend models"
+            f"[OK] Model refresh completed: {result['ollama_models']} Ollama models, {result['backend_models']} backend models"
         )
         return result
 
 
 async def main():
     """Main function to run model refresh."""
-    print("🤖 Model Refresh and Synchronization Utility")
+    print(" Model Refresh and Synchronization Utility")
     print("=" * 50)
 
     try:
@@ -188,20 +188,20 @@ async def main():
         result = await service.refresh_all_models()
 
         if result["success"]:
-            print(f"✅ Refresh completed successfully at {result['timestamp']}")
-            print(f"📊 Services: {result['services']}")
-            print(f"📋 Ollama models: {result['ollama_models']}")
-            print(f"📋 Backend models: {result['backend_models']}")
-            print(f"🔍 Default model verified: {result['default_model_verified']}")
+            print(f"[OK] Refresh completed successfully at {result['timestamp']}")
+            print(f"[CHART] Services: {result['services']}")
+            print(f" Ollama models: {result['ollama_models']}")
+            print(f" Backend models: {result['backend_models']}")
+            print(f"[SEARCH] Default model verified: {result['default_model_verified']}")
 
             if result["models"]["ollama"]:
-                print("\n📝 Available Ollama models:")
+                print("\n Available Ollama models:")
                 for model in result["models"]["ollama"]:
                     print(f"  - {model}")
 
             return 0
         else:
-            print("❌ Refresh failed: Check service connectivity")
+            print("[FAIL] Refresh failed: Check service connectivity")
             return 1
 
     except Exception as e:
@@ -214,7 +214,7 @@ def sync_refresh():
     try:
         return asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n⚠️  Refresh interrupted by user")
+        print("\n[WARN]  Refresh interrupted by user")
         return 130
 
 

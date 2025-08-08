@@ -61,12 +61,12 @@ class SmartMemoryTester:
                 )
                 
                 if response.status_code == 200:
-                    print(f"✅ Stored {memory['type']}: {memory['content'][:50]}...")
+                    print(f"[OK] Stored {memory['type']}: {memory['content'][:50]}...")
                 else:
-                    print(f"❌ Failed to store {memory['type']}: {response.status_code}")
+                    print(f"[FAIL] Failed to store {memory['type']}: {response.status_code}")
                     
             except Exception as e:
-                print(f"❌ Error storing {memory['type']}: {e}")
+                print(f"[FAIL] Error storing {memory['type']}: {e}")
                 
         time.sleep(2)  # Allow processing time
         
@@ -97,8 +97,8 @@ class SmartMemoryTester:
                 
                 if response.status_code == 200:
                     results = response.json()
-                    print(f"\n🔍 Query: {query}")
-                    print(f"📝 Found {len(results.get('memories', []))} memories:")
+                    print(f"\n[SEARCH] Query: {query}")
+                    print(f" Found {len(results.get('memories', []))} memories:")
                     
                     for i, memory in enumerate(results.get('memories', [])[:2]):
                         score = memory.get('score', 0)
@@ -106,10 +106,10 @@ class SmartMemoryTester:
                         print(f"   {i+1}. Score: {score:.3f} - {content}")
                         
                 else:
-                    print(f"❌ Query failed: {response.status_code}")
+                    print(f"[FAIL] Query failed: {response.status_code}")
                     
             except Exception as e:
-                print(f"❌ Error retrieving memories: {e}")
+                print(f"[FAIL] Error retrieving memories: {e}")
                 
     def test_cross_session_memory(self):
         """Test that memories persist across sessions"""
@@ -134,7 +134,7 @@ class SmartMemoryTester:
             )
             
             if store_response.status_code == 200:
-                print("✅ Stored session memory")
+                print("[OK] Stored session memory")
                 
                 # Wait and try to retrieve it
                 time.sleep(1)
@@ -154,21 +154,21 @@ class SmartMemoryTester:
                     if results.get('memories'):
                         memory = results['memories'][0]
                         score = memory.get('score', 0)
-                        print(f"✅ Retrieved session memory with score: {score:.3f}")
+                        print(f"[OK] Retrieved session memory with score: {score:.3f}")
                         
                         if score >= 0.2:  # Good similarity threshold
-                            print("✅ Smart memory system working - good similarity match")
+                            print("[OK] Smart memory system working - good similarity match")
                         else:
-                            print(f"⚠️  Memory retrieved but score {score:.3f} below good threshold")
+                            print(f"[WARN]  Memory retrieved but score {score:.3f} below good threshold")
                     else:
-                        print("❌ Session memory not retrieved")
+                        print("[FAIL] Session memory not retrieved")
                 else:
-                    print(f"❌ Retrieval failed: {retrieve_response.status_code}")
+                    print(f"[FAIL] Retrieval failed: {retrieve_response.status_code}")
             else:
-                print(f"❌ Storage failed: {store_response.status_code}")
+                print(f"[FAIL] Storage failed: {store_response.status_code}")
                 
         except Exception as e:
-            print(f"❌ Cross-session test error: {e}")
+            print(f"[FAIL] Cross-session test error: {e}")
             
     def test_chat_integration(self):
         """Test that chat system uses the smart memory"""
@@ -198,26 +198,26 @@ class SmartMemoryTester:
                 result = response.json()
                 assistant_message = result.get('choices', [{}])[0].get('message', {}).get('content', '')
                 
-                print("✅ Chat response received")
-                print(f"📝 Response preview: {assistant_message[:150]}...")
+                print("[OK] Chat response received")
+                print(f" Response preview: {assistant_message[:150]}...")
                 
                 # Check if response indicates memory was used
                 memory_indicators = ['discussed', 'talked about', 'mentioned', 'previous', 'earlier']
                 if any(indicator in assistant_message.lower() for indicator in memory_indicators):
-                    print("✅ Chat appears to be using memory context")
+                    print("[OK] Chat appears to be using memory context")
                 else:
-                    print("⚠️  Chat may not be using memory context")
+                    print("[WARN]  Chat may not be using memory context")
                     
             else:
-                print(f"❌ Chat failed: {response.status_code}")
+                print(f"[FAIL] Chat failed: {response.status_code}")
                 
         except Exception as e:
-            print(f"❌ Chat integration test error: {e}")
+            print(f"[FAIL] Chat integration test error: {e}")
             
     def run_all_tests(self):
         """Run complete smart memory test suite"""
         
-        print("🧠 Smart Memory System Test Suite")
+        print(" Smart Memory System Test Suite")
         print("=" * 50)
         
         # Test storage
@@ -233,7 +233,7 @@ class SmartMemoryTester:
         self.test_chat_integration()
         
         print("\n" + "=" * 50)
-        print("🏁 Smart Memory Test Suite Complete")
+        print(" Smart Memory Test Suite Complete")
 
 if __name__ == "__main__":
     tester = SmartMemoryTester()

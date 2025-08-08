@@ -14,7 +14,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def test_persona_files_updated():
     """Test that persona files have been updated with DuckDuckGo references."""
-    print("🧪 Testing persona file updates...")
+    print(" Testing persona file updates...")
     
     # Test persona_unified_small.json
     try:
@@ -32,10 +32,10 @@ def test_persona_files_updated():
         web_search = capabilities.get("web_search", {})
         assert web_search.get("primary_engine") == "duckduckgo", "Primary engine should be duckduckgo"
         
-        print("✅ persona_unified_small.json updated correctly")
+        print("[OK] persona_unified_small.json updated correctly")
         
     except Exception as e:
-        print(f"❌ Error testing persona_unified_small.json: {e}")
+        print(f"[FAIL] Error testing persona_unified_small.json: {e}")
         return False
     
     # Test persona_new_user.json
@@ -57,17 +57,17 @@ def test_persona_files_updated():
         primary_instances = web_search.get("search_quality", {}).get("primary_instances", [])
         assert "html.duckduckgo.com" in primary_instances, "Should include html.duckduckgo.com"
         
-        print("✅ persona_new_user.json updated correctly")
+        print("[OK] persona_new_user.json updated correctly")
         
     except Exception as e:
-        print(f"❌ Error testing persona_new_user.json: {e}")
+        print(f"[FAIL] Error testing persona_new_user.json: {e}")
         return False
     
     return True
 
 def test_tests_folder_organization():
     """Test that all test files are properly organized in tests folder."""
-    print("🧪 Testing tests folder organization...")
+    print(" Testing tests folder organization...")
     
     expected_test_files = [
         "debug_memory_distances.py",
@@ -92,15 +92,15 @@ def test_tests_folder_organization():
             missing_files.append(expected_file)
     
     if missing_files:
-        print(f"❌ Missing test files: {missing_files}")
+        print(f"[FAIL] Missing test files: {missing_files}")
         return False
     
-    print(f"✅ All {len(expected_test_files)} test files found in tests folder")
+    print(f"[OK] All {len(expected_test_files)} test files found in tests folder")
     return True
 
 def test_no_test_files_in_root():
     """Test that no test/debug files remain in root directory."""
-    print("🧪 Testing that no test files remain in root...")
+    print(" Testing that no test files remain in root...")
     
     root_dir = ".."
     root_files = os.listdir(root_dir)
@@ -113,15 +113,15 @@ def test_no_test_files_in_root():
             remaining_test_files.append(file)
     
     if remaining_test_files:
-        print(f"❌ Test files still in root directory: {remaining_test_files}")
+        print(f"[FAIL] Test files still in root directory: {remaining_test_files}")
         return False
     
-    print("✅ No test files remain in root directory")
+    print("[OK] No test files remain in root directory")
     return True
 
 def main():
     """Run all tests."""
-    print("🚀 Running persona update and test organization tests...\n")
+    print(" Running persona update and test organization tests...\n")
     
     tests = [
         test_persona_files_updated,
@@ -138,15 +138,15 @@ def main():
                 passed += 1
             print()  # Empty line between tests
         except Exception as e:
-            print(f"❌ Test {test.__name__} failed with exception: {e}\n")
+            print(f"[FAIL] Test {test.__name__} failed with exception: {e}\n")
     
-    print(f"📊 Test Results: {passed}/{total} tests passed")
+    print(f"[CHART] Test Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 All tests passed! Persona files updated and tests organized correctly.")
+        print(" All tests passed! Persona files updated and tests organized correctly.")
         return True
     else:
-        print("⚠️ Some tests failed. Please check the output above.")
+        print("[WARN] Some tests failed. Please check the output above.")
         return False
 
 if __name__ == "__main__":

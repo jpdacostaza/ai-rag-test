@@ -84,38 +84,38 @@ class Tools:
                                 })
                         
                         if results:
-                            formatted_results = f"🌐 **REAL-TIME WEB SEARCH RESULTS for '{query}'**\n"
-                            formatted_results += f"*🕐 Search performed on {current_date} at {datetime.now().strftime('%H:%M:%S')}*\n\n"
+                            formatted_results = f" **REAL-TIME WEB SEARCH RESULTS for '{query}'**\n"
+                            formatted_results += f"* Search performed on {current_date} at {datetime.now().strftime('%H:%M:%S')}*\n\n"
                             
                             for i, result in enumerate(results, 1):
                                 formatted_results += f"**{i}. {result['title']}**\n"
                                 formatted_results += f"{result['content']}\n"
-                                formatted_results += f"🔗 Source: {result['url']}\n\n"
+                                formatted_results += f" Source: {result['url']}\n\n"
                             
                             return formatted_results
                         
                         else:
-                            return f"🔍 No recent results found for '{query}' on {current_date}. The search engines may be experiencing issues or the query may be too specific."
+                            return f"[SEARCH] No recent results found for '{query}' on {current_date}. The search engines may be experiencing issues or the query may be too specific."
                     
                     else:
-                        return f"⚠️ DuckDuckGo search returned status {response.status_code}. Trying alternative method..."
+                        return f"[WARN] DuckDuckGo search returned status {response.status_code}. Trying alternative method..."
                         
             except Exception as ddg_error:
                 print(f"DuckDuckGo search failed: {ddg_error}")
                 
                 # Fallback method: Direct web search simulation
-                fallback_results = f"🌐 **WEB SEARCH RESULTS for '{query}'**\n"
-                fallback_results += f"*🕐 Search performed on {current_date}*\n\n"
+                fallback_results = f" **WEB SEARCH RESULTS for '{query}'**\n"
+                fallback_results += f"* Search performed on {current_date}*\n\n"
                 fallback_results += f"**Real-time information for: {query}**\n"
                 fallback_results += f"Based on current data as of {current_date}.\n\n"
-                fallback_results += f"💡 **Note:** Live web search temporarily unavailable. Please verify current information independently.\n"
-                fallback_results += f"🔗 Suggested verification sources: Official websites, news outlets, government sources.\n"
+                fallback_results += f" **Note:** Live web search temporarily unavailable. Please verify current information independently.\n"
+                fallback_results += f" Suggested verification sources: Official websites, news outlets, government sources.\n"
                 
                 return fallback_results
                 
         except Exception as e:
-            error_msg = f"🚨 **Web Search Error**\n"
+            error_msg = f"*** **Web Search Error**\n"
             error_msg += f"Unable to perform web search for '{query}' on {current_date}.\n"
             error_msg += f"Error: {str(e)}\n\n"
-            error_msg += f"💡 **Suggestion:** Please try rephrasing your query or check the information manually.\n"
+            error_msg += f" **Suggestion:** Please try rephrasing your query or check the information manually.\n"
             return error_msg

@@ -36,9 +36,9 @@ class MemorySystemValidator:
         timestamp = time.strftime("%H:%M:%S")
         elapsed = time.time() - self.start_time
         emoji = {
-            "INFO": "📝", "SUCCESS": "✅", "WARNING": "⚠️", 
-            "ERROR": "❌", "DEBUG": "🔍", "TEST": "🧪"
-        }.get(level, "📝")
+            "INFO": "", "SUCCESS": "[OK]", "WARNING": "[WARN]", 
+            "ERROR": "[FAIL]", "DEBUG": "[SEARCH]", "TEST": ""
+        }.get(level, "")
         print(f"[{timestamp}] {emoji} [{level}] [{elapsed:.1f}s] {message}")
     
     async def check_service_health(self, name: str, url: str, endpoint: str = "/health") -> bool:
@@ -207,9 +207,9 @@ class MemorySystemValidator:
         self.log(f"Overall: {passed}/{total} tests passed", "SUCCESS" if passed == total else "WARNING")
         
         if passed == total:
-            self.log("🎉 All tests passed! Memory system is fully operational.", "SUCCESS")
+            self.log(" All tests passed! Memory system is fully operational.", "SUCCESS")
         else:
-            self.log("⚠️ Some tests failed. Check the logs above for details.", "WARNING")
+            self.log("[WARN] Some tests failed. Check the logs above for details.", "WARNING")
         
         return results
 
@@ -241,8 +241,8 @@ Commands to start system:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n🚫 Validation interrupted by user")
+        print("\n Validation interrupted by user")
         sys.exit(130)
     except Exception as e:
-        print(f"\n❌ Validation failed with error: {e}")
+        print(f"\n[FAIL] Validation failed with error: {e}")
         sys.exit(1)

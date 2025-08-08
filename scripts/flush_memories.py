@@ -13,7 +13,7 @@ import time
 
 def flush_all_memories():
     """Flush all memories from Redis and ChromaDB."""
-    print("🗑️ Starting memory database flush...")
+    print(" Starting memory database flush...")
     
     memory_api_url = "http://localhost:5001"
     
@@ -23,15 +23,15 @@ def flush_all_memories():
         if response.status_code == 200:
             data = response.json()
             current_count = data.get("memory_count", 0)
-            print(f"📊 Current memory count: {current_count}")
+            print(f"[CHART] Current memory count: {current_count}")
         else:
-            print(f"⚠️ Could not get current status: {response.status_code}")
+            print(f"[WARN] Could not get current status: {response.status_code}")
     except Exception as e:
-        print(f"❌ Error checking status: {e}")
+        print(f"[FAIL] Error checking status: {e}")
         return False
     
     # Method 1: Try to clear via memory API endpoints
-    print("\n🔄 Method 1: Attempting to clear via Memory API...")
+    print("\n[SYNC] Method 1: Attempting to clear via Memory API...")
     
     # Common user IDs to try clearing
     user_ids_to_clear = [
@@ -60,52 +60,52 @@ def flush_all_memories():
             if response.status_code == 200:
                 data = response.json()
                 memories = data.get("memories", [])
-                print(f"📝 Found {len(memories)} memories for user {user_id}")
+                print(f" Found {len(memories)} memories for user {user_id}")
                 
                 # Unfortunately, there's no bulk delete endpoint, so this is mainly for info
                 
             else:
-                print(f"⚠️ Could not retrieve memories for {user_id}: {response.status_code}")
+                print(f"[WARN] Could not retrieve memories for {user_id}: {response.status_code}")
                 
         except Exception as e:
-            print(f"❌ Error processing user {user_id}: {e}")
+            print(f"[FAIL] Error processing user {user_id}: {e}")
     
-    print("\n🔄 Method 2: Direct Docker operations...")
+    print("\n[SYNC] Method 2: Direct Docker operations...")
     
     # Method 2: Direct Docker redis flush
     import subprocess
     try:
-        print("🗑️ Flushing Redis...")
+        print(" Flushing Redis...")
         result = subprocess.run([
             "docker-compose", "exec", "-T", "redis", 
             "redis-cli", "FLUSHALL"
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("✅ Redis flushed successfully")
+            print("[OK] Redis flushed successfully")
         else:
-            print(f"❌ Redis flush failed: {result.stderr}")
+            print(f"[FAIL] Redis flush failed: {result.stderr}")
             
     except Exception as e:
-        print(f"❌ Error flushing Redis: {e}")
+        print(f"[FAIL] Error flushing Redis: {e}")
     
     # Method 3: Restart ChromaDB for clean slate
     try:
-        print("🔄 Restarting ChromaDB...")
+        print("[SYNC] Restarting ChromaDB...")
         result = subprocess.run([
             "docker-compose", "restart", "chroma"
         ], capture_output=True, text=True)
         
         if result.returncode == 0:
-            print("✅ ChromaDB restarted successfully")
+            print("[OK] ChromaDB restarted successfully")
         else:
-            print(f"❌ ChromaDB restart failed: {result.stderr}")
+            print(f"[FAIL] ChromaDB restart failed: {result.stderr}")
             
     except Exception as e:
-        print(f"❌ Error restarting ChromaDB: {e}")
+        print(f"[FAIL] Error restarting ChromaDB: {e}")
     
     # Wait for services to stabilize
-    print("⏳ Waiting for services to stabilize...")
+    print(" Waiting for services to stabilize...")
     time.sleep(5)
     
     # Check final status
@@ -114,17 +114,17 @@ def flush_all_memories():
         if response.status_code == 200:
             data = response.json()
             final_count = data.get("memory_count", 0)
-            print(f"\n📊 Final memory count: {final_count}")
+            print(f"\n[CHART] Final memory count: {final_count}")
             
             if final_count == 0:
-                print("🎉 SUCCESS: All memories cleared!")
+                print(" SUCCESS: All memories cleared!")
             else:
-                print(f"⚠️ WARNING: Still {final_count} memories remaining")
-                print("💡 Try running the script again or manually restart memory-api container")
+                print(f"[WARN] WARNING: Still {final_count} memories remaining")
+                print(" Try running the script again or manually restart memory-api container")
         else:
-            print(f"⚠️ Could not verify final status: {response.status_code}")
+            print(f"[WARN] Could not verify final status: {response.status_code}")
     except Exception as e:
-        print(f"❌ Error checking final status: {e}")
+        print(f"[FAIL] Error checking final status: {e}")
 
 if __name__ == "__main__":
     flush_all_memories()

@@ -34,24 +34,24 @@ async def lifespan(app: FastAPI):
     
     # Startup
     try:
-        print("🚀 Starting Memory API initialization...")
+        print(" Starting Memory API initialization...")
         
         # Redis connection - use exact configuration only
         redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
         try:
-            print(f"🔍 Connecting to Redis: {redis_url}")
+            print(f"[SEARCH] Connecting to Redis: {redis_url}")
             redis_client = redis.from_url(redis_url)
             await asyncio.wait_for(redis_client.ping(), timeout=5.0)
-            print(f"✅ Redis connected: {redis_url}")
+            print(f"[OK] Redis connected: {redis_url}")
         except Exception as e:
-            print(f"❌ Redis connection failed: {e}")
+            print(f"[FAIL] Redis connection failed: {e}")
             redis_client = None
         
         # ChromaDB connection - use exact configuration only
         chroma_host = os.getenv("CHROMA_HOST", "chroma")
         chroma_port = int(os.getenv("CHROMA_PORT", "8000"))
         try:
-            print(f"🔍 Connecting to ChromaDB: {chroma_host}:{chroma_port}")
+            print(f"[SEARCH] Connecting to ChromaDB: {chroma_host}:{chroma_port}")
             chroma_client = chromadb.HttpClient(
                 host=chroma_host,
                 port=chroma_port,
@@ -60,36 +60,36 @@ async def lifespan(app: FastAPI):
             
             # Test connection
             heartbeat = chroma_client.heartbeat()
-            print(f"✅ ChromaDB connected: {chroma_host}:{chroma_port} (heartbeat: {heartbeat})")
+            print(f"[OK] ChromaDB connected: {chroma_host}:{chroma_port} (heartbeat: {heartbeat})")
             
             # Get or create collection - use consistent naming with database manager
             collection_name = os.getenv("CHROMA_COLLECTION", "user_memory")
             try:
                 chroma_collection = chroma_client.get_collection(collection_name)
-                print(f"✅ ChromaDB collection '{collection_name}' found")
+                print(f"[OK] ChromaDB collection '{collection_name}' found")
             except Exception as collection_error:
                 print(f"Collection not found, creating new one: {collection_error}")
                 chroma_collection = chroma_client.create_collection(collection_name)
-                print(f"✅ ChromaDB collection '{collection_name}' created")
+                print(f"[OK] ChromaDB collection '{collection_name}' created")
                 
         except Exception as e:
-            print(f"❌ ChromaDB connection failed: {e}")
+            print(f"[FAIL] ChromaDB connection failed: {e}")
             chroma_client = None
             chroma_collection = None
         
         # Status summary - no fallbacks
         if redis_client and chroma_collection:
-            print("✅ Memory API fully initialized (Redis + ChromaDB)")
+            print("[OK] Memory API fully initialized (Redis + ChromaDB)")
         elif redis_client:
-            print("⚠️ Memory API partially initialized (Redis only)")
+            print("[WARN] Memory API partially initialized (Redis only)")
         elif chroma_collection:
-            print("⚠️ Memory API partially initialized (ChromaDB only)")
+            print("[WARN] Memory API partially initialized (ChromaDB only)")
         else:
-            print("❌ Memory API running in degraded mode (no external connections)")
+            print("[FAIL] Memory API running in degraded mode (no external connections)")
         
     except Exception as e:
-        print(f"❌ Startup failed: {e}")
-        print(f"❌ Error type: {type(e).__name__}")
+        print(f"[FAIL] Startup failed: {e}")
+        print(f"[FAIL] Error type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
     
@@ -99,9 +99,9 @@ async def lifespan(app: FastAPI):
     if redis_client:
         try:
             await redis_client.aclose()
-            print("✅ Redis connection closed")
+            print("[OK] Redis connection closed")
         except Exception as e:
-            print(f"⚠️ Redis shutdown warning: {e}")
+            print(f"[WARN] Redis shutdown warning: {e}")
 
 # FastAPI app with lifespan
 app = FastAPI(
@@ -123,7 +123,22 @@ class MemoryRetrieveRequest(BaseModel):
     user_id: str
     query: str
     limit: int = 10
-    threshold: float = 0.05  # Lowered for more inclusive retrieval
+    threshold: float = None  # Will be set from unified config if None
+    
+    def __init__(self, **data):
+        # Set threshold from unified config if not provided
+        if data.get('threshold') is None:
+            try:
+                import sys
+                import os
+                sys.path.insert(0, '/opt/backend')
+                sys.path.insert(0, '/app')
+                from config.config_unified import Config
+                config = Config.get_instance()
+                data['threshold'] = config.memory.retrieval_threshold
+            except ImportError:
+                data['threshold'] = 1.5  # Fallback for ChromaDB compatibility
+        super().__init__(**data)
 
 class LearningInteractionRequest(BaseModel):
     user_id: str

@@ -196,7 +196,7 @@ async def _initialize_models_and_cache():
         ollama_url = OLLAMA_BASE_URL  # Use the same URL as main config
         default_model = DEFAULT_MODEL
         
-        log_service_status("MODEL", "info", f"🤖 Verifying model {default_model}...")
+        log_service_status("MODEL", "info", f" Verifying model {default_model}...")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(f"{ollama_url}/api/tags")
@@ -206,13 +206,13 @@ async def _initialize_models_and_cache():
                 existing_models = [model['name'] for model in models.get('models', [])]
                 
                 if default_model in existing_models:
-                    log_service_status("MODEL", "ready", f"✅ Model {default_model} is available")
+                    log_service_status("MODEL", "ready", f"[OK] Model {default_model} is available")
                     
                     # Check if preloading is enabled
                     enable_preload = os.getenv("ENABLE_MODEL_PRELOAD", "false").lower() == "true"
                     if enable_preload:
                         # Preload model into memory
-                        log_service_status("MODEL", "info", f"🔄 Preloading {default_model} into memory...")
+                        log_service_status("MODEL", "info", f"[SYNC] Preloading {default_model} into memory...")
                         try:
                             preload_response = await client.post(
                                 f"{ollama_url}/api/generate",
@@ -226,19 +226,19 @@ async def _initialize_models_and_cache():
                             )
                             
                             if preload_response.status_code == 200:
-                                log_service_status("MODEL", "ready", f"🚀 Model {default_model} preloaded and ready!")
+                                log_service_status("MODEL", "ready", f" Model {default_model} preloaded and ready!")
                             else:
-                                log_service_status("MODEL", "warning", f"⚠️ Model preload failed: {preload_response.status_code}")
+                                log_service_status("MODEL", "warning", f"[WARN] Model preload failed: {preload_response.status_code}")
                                 
                         except Exception as preload_error:
-                            log_service_status("MODEL", "warning", f"⚠️ Model preload error: {preload_error}")
+                            log_service_status("MODEL", "warning", f"[WARN] Model preload error: {preload_error}")
                     else:
-                        log_service_status("MODEL", "info", f"⏭️ Model preloading disabled, {default_model} will load on first request")
+                        log_service_status("MODEL", "info", f" Model preloading disabled, {default_model} will load on first request")
                         
                 else:
                     # Model missing, download it with progress monitoring
-                    log_service_status("MODEL", "info", f"📥 Model missing, downloading {default_model}...")
-                    log_service_status("MODEL", "info", f"⏳ Large models may take several minutes to download...")
+                    log_service_status("MODEL", "info", f" Model missing, downloading {default_model}...")
+                    log_service_status("MODEL", "info", f" Large models may take several minutes to download...")
                     
                     # Start download with streaming to monitor progress
                     download_start_time = time.time()
@@ -251,7 +251,7 @@ async def _initialize_models_and_cache():
                             timeout=600.0
                         ) as response:
                             if response.status_code == 200:
-                                log_service_status("MODEL", "info", f"🔄 Download started for {default_model}...")
+                                log_service_status("MODEL", "info", f"[SYNC] Download started for {default_model}...")
                                 
                                 # Read streaming response to monitor progress
                                 last_log_time = time.time()
@@ -260,28 +260,28 @@ async def _initialize_models_and_cache():
                                     # Log progress every 30 seconds
                                     if current_time - last_log_time > 30:
                                         elapsed = current_time - download_start_time
-                                        log_service_status("MODEL", "info", f"⏳ Still downloading {default_model}... ({elapsed:.0f}s elapsed)")
+                                        log_service_status("MODEL", "info", f" Still downloading {default_model}... ({elapsed:.0f}s elapsed)")
                                         last_log_time = current_time
                                 
                                 download_time = time.time() - download_start_time
-                                log_service_status("MODEL", "ready", f"✅ Model {default_model} downloaded successfully in {download_time:.1f}s")
+                                log_service_status("MODEL", "ready", f"[OK] Model {default_model} downloaded successfully in {download_time:.1f}s")
                                 
                                 # Verify download by checking model list
-                                log_service_status("MODEL", "info", f"🔍 Verifying {default_model} is available...")
+                                log_service_status("MODEL", "info", f"[SEARCH] Verifying {default_model} is available...")
                                 verify_response = await client.get(f"{ollama_url}/api/tags")
                                 if verify_response.status_code == 200:
                                     models = verify_response.json()
                                     available_models = [model['name'] for model in models.get('models', [])]
                                     if default_model in available_models:
-                                        log_service_status("MODEL", "ready", f"✅ Model {default_model} verified in model list")
+                                        log_service_status("MODEL", "ready", f"[OK] Model {default_model} verified in model list")
                                     else:
-                                        log_service_status("MODEL", "warning", f"⚠️ Model {default_model} not found in list after download")
+                                        log_service_status("MODEL", "warning", f"[WARN] Model {default_model} not found in list after download")
                                 
                                 # Check if preloading is enabled for newly downloaded model
                                 enable_preload = os.getenv("ENABLE_MODEL_PRELOAD", "false").lower() == "true"
                                 if enable_preload:
                                     # Preload newly downloaded model
-                                    log_service_status("MODEL", "info", f"🔄 Preloading newly downloaded {default_model}...")
+                                    log_service_status("MODEL", "info", f"[SYNC] Preloading newly downloaded {default_model}...")
                                     try:
                                         preload_response = await client.post(
                                             f"{ollama_url}/api/generate",
@@ -295,22 +295,22 @@ async def _initialize_models_and_cache():
                                         )
                                         
                                         if preload_response.status_code == 200:
-                                            log_service_status("MODEL", "ready", f"🚀 Model {default_model} downloaded and preloaded!")
+                                            log_service_status("MODEL", "ready", f" Model {default_model} downloaded and preloaded!")
                                         else:
-                                            log_service_status("MODEL", "warning", f"⚠️ Downloaded model preload failed: {preload_response.status_code}")
+                                            log_service_status("MODEL", "warning", f"[WARN] Downloaded model preload failed: {preload_response.status_code}")
                                             
                                     except Exception as preload_error:
-                                        log_service_status("MODEL", "warning", f"⚠️ Downloaded model preload error: {preload_error}")
+                                        log_service_status("MODEL", "warning", f"[WARN] Downloaded model preload error: {preload_error}")
                                 else:
-                                    log_service_status("MODEL", "info", f"⏭️ Model preloading disabled, {default_model} will load on first request")
+                                    log_service_status("MODEL", "info", f" Model preloading disabled, {default_model} will load on first request")
                             else:
-                                log_service_status("MODEL", "warning", f"❌ Model download failed: {response.status_code}")
+                                log_service_status("MODEL", "warning", f"[FAIL] Model download failed: {response.status_code}")
                     
                     except Exception as download_error:
                         download_time = time.time() - download_start_time
-                        log_service_status("MODEL", "warning", f"❌ Model download error after {download_time:.1f}s: {download_error}")
+                        log_service_status("MODEL", "warning", f"[FAIL] Model download error after {download_time:.1f}s: {download_error}")
             else:
-                log_service_status("MODEL", "warning", f"❌ Cannot connect to Ollama: {response.status_code}")
+                log_service_status("MODEL", "warning", f"[FAIL] Cannot connect to Ollama: {response.status_code}")
                 
     except Exception as e:
         log_service_status("MODEL", "warning", f"Model verification failed: {e} - will load on first request")

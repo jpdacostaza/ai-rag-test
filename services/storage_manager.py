@@ -238,7 +238,7 @@ if __name__ == "__main__":
 
     print("\nStorage directories:")
     for name, dir_info in info["directories"].items():
-        status = "✅" if dir_info["exists"] else "❌"
+        status = "[OK]" if dir_info["exists"] else "[FAIL]"
         size_info = f" ({dir_info['size_mb']} MB, {dir_info['file_count']} files)" if dir_info["exists"] else ""
         print(f"{status} {name}: {dir_info['description']}{size_info}")
 
@@ -246,5 +246,5 @@ if __name__ == "__main__":
     permissions = StorageManager.validate_permissions()
     print("\nPermission validation:")
     for name, valid in permissions.items():
-        status = "✅" if valid else "❌"
+        status = "[OK]" if valid else "[FAIL]"
         print(f"{status} {name}: {'Write access OK' if valid else 'Write access FAILED'}")

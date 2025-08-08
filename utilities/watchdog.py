@@ -722,7 +722,7 @@ if __name__ == "__main__":
 
             print("\n=== SYSTEM HEALTH REPORT ===")
             for service_name, health in results.items():
-                status_emoji = "✅" if health.status == HealthStatus.HEALTHY else "❌"
+                status_emoji = "[OK]" if health.status == HealthStatus.HEALTHY else "[FAIL]"
                 print(f"{status_emoji} {service_name}: {health.status.value}")
                 print(f"   Response time: {health.response_time_ms:.2f}ms")
                 if health.error_message:

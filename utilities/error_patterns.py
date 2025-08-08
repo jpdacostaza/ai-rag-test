@@ -166,7 +166,7 @@ def handle_service_errors(
                         log_service_status(
                             config.service_type.value.upper(),
                             "info",
-                            f"✅ {context['operation_name']} succeeded on retry {attempt + 1}"
+                            f"[OK] {context['operation_name']} succeeded on retry {attempt + 1}"
                         )
                     
                     return result
@@ -179,7 +179,7 @@ def handle_service_errors(
                     context["max_attempts"] = config.max_retries + 1
                     
                     # Log the error with appropriate severity
-                    error_message = f"❌ {context['operation_name']} failed"
+                    error_message = f"[FAIL] {context['operation_name']} failed"
                     if attempt < config.max_retries:
                         error_message += f" (attempt {attempt + 1}/{config.max_retries + 1}), retrying..."
                         log_level = "warning"
@@ -233,7 +233,7 @@ def handle_service_errors(
                         log_service_status(
                             config.service_type.value.upper(),
                             "info",
-                            f"✅ {context['operation_name']} succeeded on retry {attempt + 1}"
+                            f"[OK] {context['operation_name']} succeeded on retry {attempt + 1}"
                         )
                     
                     return result
@@ -246,7 +246,7 @@ def handle_service_errors(
                     context["max_attempts"] = config.max_retries + 1
                     
                     # Log the error with appropriate severity
-                    error_message = f"❌ {context['operation_name']} failed"
+                    error_message = f"[FAIL] {context['operation_name']} failed"
                     if attempt < config.max_retries:
                         error_message += f" (attempt {attempt + 1}/{config.max_retries + 1}), retrying..."
                         log_level = "warning"
@@ -296,14 +296,14 @@ def _handle_final_error(exception: Exception, config: ErrorHandlerConfig, contex
             log_service_status(
                 config.service_type.value.upper(),
                 "info",
-                f"🔄 Attempting fallback for {context['operation_name']}"
+                f"[SYNC] Attempting fallback for {context['operation_name']}"
             )
             return config.fallback_function()
         except Exception as fallback_error:
             log_service_status(
                 config.service_type.value.upper(),
                 "error",
-                f"❌ Fallback also failed for {context['operation_name']}: {fallback_error}"
+                f"[FAIL] Fallback also failed for {context['operation_name']}: {fallback_error}"
             )
     
     # Handle based on configured action
@@ -354,7 +354,7 @@ async def error_context(
         log_service_status(
             config.service_type.value.upper(),
             "info",
-            f"🔄 Starting {operation_name}")
+            f"[SYNC] Starting {operation_name}")
         
         yield context
         
@@ -363,7 +363,7 @@ async def error_context(
         log_service_status(
             config.service_type.value.upper(),
             "info",
-            f"✅ {operation_name} completed successfully in {duration:.2f}s"
+            f"[OK] {operation_name} completed successfully in {duration:.2f}s"
         )
         
     except Exception as e:
@@ -377,7 +377,7 @@ async def error_context(
         log_service_status(
             config.service_type.value.upper(),
             "error" if config.severity in [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL] else "warning",
-            f"❌ {operation_name} failed after {duration:.2f}s: {str(e)}"
+            f"[FAIL] {operation_name} failed after {duration:.2f}s: {str(e)}"
         )
         
         if config.log_traceback:
@@ -393,13 +393,13 @@ async def error_context(
                 log_service_status(
                     config.service_type.value.upper(),
                     "info", 
-                    f"🔄 Executed fallback function for {operation_name}"
+                    f"[SYNC] Executed fallback function for {operation_name}"
                 )
             except Exception as fallback_error:
                 log_service_status(
                     config.service_type.value.upper(),
                     "error",
-                    f"❌ Fallback also failed for {operation_name}: {fallback_error}"
+                    f"[FAIL] Fallback also failed for {operation_name}: {fallback_error}"
                 )
                 if config.action == ErrorAction.RAISE:
                     raise
@@ -437,7 +437,7 @@ def sync_error_context(
         log_service_status(
             config.service_type.value.upper(),
             "info",
-            f"🔄 Starting {operation_name}")
+            f"[SYNC] Starting {operation_name}")
         
         yield context
         
@@ -446,7 +446,7 @@ def sync_error_context(
         log_service_status(
             config.service_type.value.upper(),
             "info",
-            f"✅ {operation_name} completed successfully in {duration:.2f}s"
+            f"[OK] {operation_name} completed successfully in {duration:.2f}s"
         )
         
     except Exception as e:
@@ -460,7 +460,7 @@ def sync_error_context(
         log_service_status(
             config.service_type.value.upper(),
             "error" if config.severity in [ErrorSeverity.HIGH, ErrorSeverity.CRITICAL] else "warning",
-            f"❌ {operation_name} failed after {duration:.2f}s: {str(e)}"
+            f"[FAIL] {operation_name} failed after {duration:.2f}s: {str(e)}"
         )
         
         if config.log_traceback:
@@ -476,13 +476,13 @@ def sync_error_context(
                 log_service_status(
                     config.service_type.value.upper(),
                     "info",
-                    f"🔄 Executed fallback function for {operation_name}"
+                    f"[SYNC] Executed fallback function for {operation_name}"
                 )
             except Exception as fallback_error:
                 log_service_status(
                     config.service_type.value.upper(),
                     "error",
-                    f"❌ Fallback also failed for {operation_name}: {fallback_error}"
+                    f"[FAIL] Fallback also failed for {operation_name}: {fallback_error}"
                 )
                 if config.action == ErrorAction.RAISE:
                     raise

@@ -82,14 +82,14 @@ def upload_pipeline():
         )
         
         if response.status_code in [200, 201]:
-            log("✅ Enhanced Memory Pipeline uploaded successfully!")
+            log("[OK] Enhanced Memory Pipeline uploaded successfully!")
             return True
         else:
-            log(f"❌ Failed to upload pipeline: {response.status_code} - {response.text}", "ERROR")
+            log(f"[FAIL] Failed to upload pipeline: {response.status_code} - {response.text}", "ERROR")
             return False
             
     except Exception as e:
-        log(f"❌ Error uploading pipeline: {str(e)}", "ERROR")
+        log(f"[FAIL] Error uploading pipeline: {str(e)}", "ERROR")
         return False
 
 def configure_pipeline():
@@ -131,14 +131,14 @@ def configure_pipeline():
         )
         
         if response.status_code in [200, 201]:
-            log("✅ Pipeline valves configured successfully!")
+            log("[OK] Pipeline valves configured successfully!")
             return True
         else:
-            log(f"⚠️ Failed to configure pipeline valves: {response.status_code} - {response.text}", "WARN")
+            log(f"[WARN] Failed to configure pipeline valves: {response.status_code} - {response.text}", "WARN")
             return True  # Pipeline still works, just not optimally configured
             
     except Exception as e:
-        log(f"⚠️ Error configuring pipeline: {str(e)}", "WARN")
+        log(f"[WARN] Error configuring pipeline: {str(e)}", "WARN")
         return True  # Pipeline still works
 
 def main():
@@ -147,24 +147,24 @@ def main():
     
     # Step 1: Wait for Pipelines service
     if not wait_for_pipelines_service():
-        log("❌ Installation failed: Pipelines service unavailable", "ERROR")
+        log("[FAIL] Installation failed: Pipelines service unavailable", "ERROR")
         sys.exit(1)
     
     # Step 2: Check if pipeline already exists
     if check_pipeline_exists():
-        log("✅ Enhanced Memory Pipeline is already installed")
+        log("[OK] Enhanced Memory Pipeline is already installed")
         return
     
     # Step 3: Upload the pipeline
     if not upload_pipeline():
-        log("❌ Installation failed: Could not upload pipeline", "ERROR")
+        log("[FAIL] Installation failed: Could not upload pipeline", "ERROR")
         sys.exit(1)
     
     # Step 4: Configure the pipeline
     if configure_pipeline():
-        log("✅ Pipeline configuration completed")
+        log("[OK] Pipeline configuration completed")
     
-    log("🎉 Enhanced Memory Pipeline installation completed successfully!")
+    log(" Enhanced Memory Pipeline installation completed successfully!")
     log("")
     log("Next steps:")
     log("1. Go to OpenWebUI Admin Panel > Settings > Connections")

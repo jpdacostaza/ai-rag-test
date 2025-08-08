@@ -259,17 +259,17 @@ def setup_api_keys_interactive():
     """Interactive setup for API keys."""
     manager = APIKeyManager()
 
-    print("🔑 OpenWebUI API Key Setup")
+    print(" OpenWebUI API Key Setup")
     print("=" * 40)
 
     # Check if we have any existing keys
     if manager.get_default_key():
-        print("✅ Default key already configured")
+        print("[OK] Default key already configured")
         users = manager.list_users()
         if users:
-            print(f"✅ {len(users)} user(s) configured: {', '.join(users.keys())}")
+            print(f"[OK] {len(users)} user(s) configured: {', '.join(users.keys())}")
     else:
-        print("⚠️  No API keys configured yet")
+        print("[WARN]  No API keys configured yet")
 
     print("\nOptions:")
     print("1. Set default API key")
@@ -290,9 +290,9 @@ def setup_api_keys_interactive():
             )
 
             if manager.set_default_key(api_key, base_url, description):
-                print("✅ Default key saved successfully")
+                print("[OK] Default key saved successfully")
             else:
-                print("❌ Failed to save default key")
+                print("[FAIL] Failed to save default key")
 
         elif choice == "2":
             username = input("Enter username: ").strip()
@@ -302,9 +302,9 @@ def setup_api_keys_interactive():
             description = input("Enter description (optional): ").strip()
 
             if manager.add_user_key(username, api_key, base_url, email, description):
-                print(f"✅ Key for user '{username}' saved successfully")
+                print(f"[OK] Key for user '{username}' saved successfully")
             else:
-                print(f"❌ Failed to save key for user '{username}'")
+                print(f"[FAIL] Failed to save key for user '{username}'")
 
         elif choice == "3":
             env_name = input("Enter environment name: ").strip()
@@ -312,12 +312,12 @@ def setup_api_keys_interactive():
             base_url = input("Enter base URL: ").strip()
 
             if manager.add_environment_key(env_name, api_key, base_url):
-                print(f"✅ Key for environment '{env_name}' saved successfully")
+                print(f"[OK] Key for environment '{env_name}' saved successfully")
             else:
-                print(f"❌ Failed to save key for environment '{env_name}'")
+                print(f"[FAIL] Failed to save key for environment '{env_name}'")
 
         elif choice == "4":
-            print("\n📋 Configured Keys:")
+            print("\n Configured Keys:")
 
             default = manager.get_default_key()
             if default:
@@ -340,11 +340,11 @@ def setup_api_keys_interactive():
             api_key = input("Enter API key to test: ").strip()
             base_url = input("Enter base URL [http://localhost:3000]: ").strip() or "http://localhost:3000"
 
-            print("🧪 Testing API key...")
+            print(" Testing API key...")
             if manager.validate_key(api_key, base_url):
-                print("✅ API key is valid")
+                print("[OK] API key is valid")
             else:
-                print("❌ API key validation failed")
+                print("[FAIL] API key validation failed")
 
         elif choice == "6":
             break

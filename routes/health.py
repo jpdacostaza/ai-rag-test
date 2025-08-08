@@ -89,7 +89,7 @@ async def health_check(
     healthy = sum(1 for _, ok in services if ok)
     total = len(services)
     summary = f"Health check: {healthy}/{total} services healthy. " + ", ".join(
-        [f"{name}: {'✅' if ok else '❌'}" for name, ok in services]
+        [f"{name}: {'[OK]' if ok else '[FAIL]'}" for name, ok in services]
     )
 
     # Determine overall status

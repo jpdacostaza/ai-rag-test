@@ -39,7 +39,7 @@ class RAGSystemValidator:
         }
         self.test_results.append(result)
         
-        status = "✅" if success else "❌"
+        status = "[OK]" if success else "[FAIL]"
         print(f"{status} {test_name}: {message} ({duration:.2f}s)")
         
     def validate_configuration(self):
@@ -568,10 +568,10 @@ class RAGSystemValidator:
         print()
         
         if passed_tests == total_tests:
-            print("✅ RAG DUAL-DATABASE MEMORY SYSTEM VALIDATION PASSED")
+            print("[OK] RAG DUAL-DATABASE MEMORY SYSTEM VALIDATION PASSED")
             return True
         else:
-            print("❌ RAG DUAL-DATABASE MEMORY SYSTEM VALIDATION FAILED")
+            print("[FAIL] RAG DUAL-DATABASE MEMORY SYSTEM VALIDATION FAILED")
             return False
     
     def generate_report(self):
@@ -609,10 +609,10 @@ def main():
         sys.exit(0 if success else 1)
         
     except KeyboardInterrupt:
-        print("\n❌ Validation interrupted by user")
+        print("\n[FAIL] Validation interrupted by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Validation failed with error: {str(e)}")
+        print(f"\n[FAIL] Validation failed with error: {str(e)}")
         sys.exit(1)
 
 

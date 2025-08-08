@@ -60,7 +60,7 @@ def get_weather_weatherapi(city: str = "London") -> str:
         c = data["current"]
         loc = data["location"]
         return (
-            f"Weather in {loc['name']}, {loc['country']}: {c['temp_c']}°C, "
+            f"Weather in {loc['name']}, {loc['country']}: {c['temp_c']}C, "
             f"{c['condition']['text']}, wind {c['wind_kph']} kph, humidity {c['humidity']}%"
         )
     except Exception as e:
@@ -95,7 +95,7 @@ def get_weather(city: str = "London") -> str:
             weather = weather_resp.json()
         logger.debug(f"[WeatherTool] Open-Meteo weather response: {weather}")
         w = weather.get("current_weather", {})
-        return f"Weather in {city}: {w.get('temperature', '?')}°C, wind {w.get('windspeed', '?')} km/h, code {w.get('weathercode', '?')}"
+        return f"Weather in {city}: {w.get('temperature', '?')}C, wind {w.get('windspeed', '?')} km/h, code {w.get('weathercode', '?')}"
     except Exception as e:
         logger.error(f"[WeatherTool] Error fetching weather for {city}: {e}")
         return f"Error fetching weather for {city}: {e}"
@@ -199,16 +199,16 @@ def convert_units(value: float, from_unit: str, to_unit: str) -> str:
         # Temperature conversions (special handling)
         if from_unit in ["celsius", "c"] and to_unit in ["fahrenheit", "f"]:
             result = (value * 9 / 5) + 32
-            return f"{value}°C = {result:.2f}°F"
+            return f"{value}C = {result:.2f}F"
         elif from_unit in ["fahrenheit", "f"] and to_unit in ["celsius", "c"]:
             result = (value - 32) * 5 / 9
-            return f"{value}°F = {result:.2f}°C"
+            return f"{value}F = {result:.2f}C"
         elif from_unit in ["celsius", "c"] and to_unit in ["kelvin", "k"]:
             result = value + 273.15
-            return f"{value}°C = {result:.2f}K"
+            return f"{value}C = {result:.2f}K"
         elif from_unit in ["kelvin", "k"] and to_unit in ["celsius", "c"]:
             result = value - 273.15
-            return f"{value}K = {result:.2f}°C"
+            return f"{value}K = {result:.2f}C"
 
         # Check conversions dictionaries
         conversion_key = (from_unit, to_unit)

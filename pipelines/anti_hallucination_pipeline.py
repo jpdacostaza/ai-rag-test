@@ -234,11 +234,11 @@ class Pipeline:
         """Generate appropriate safety message based on detection results"""
         if self.valves.safety_message_mode == "append":
             confidence_note = f" [Confidence: {result.confidence_score:.2f}]" if self.valves.show_confidence_scores else ""
-            return f"{original_response}\n\n⚠️ *Note: I'm not entirely confident in this response. Please verify from reliable sources.*{confidence_note}"
+            return f"{original_response}\n\n[WARN] *Note: I'm not entirely confident in this response. Please verify from reliable sources.*{confidence_note}"
         
         elif self.valves.safety_message_mode == "flag":
             confidence_note = f" (Confidence: {result.confidence_score:.2f})" if self.valves.show_confidence_scores else ""
-            return f"🚨 **Potential Hallucination Detected**{confidence_note}\n\n{original_response}\n\n*This response has been flagged for potential inaccuracies. Please verify information from reliable sources.*"
+            return f"*** **Potential Hallucination Detected**{confidence_note}\n\n{original_response}\n\n*This response has been flagged for potential inaccuracies. Please verify information from reliable sources.*"
         
         else:  # replace mode
             base_message = "I'm not entirely confident in my previous response. "
@@ -447,7 +447,7 @@ if __name__ == "__main__":
     
     async def test_pipeline():
         """Test the pipeline directly"""
-        print("🧪 Testing Anti-Hallucination Pipeline")
+        print(" Testing Anti-Hallucination Pipeline")
         print("=" * 50)
         
         # Initialize

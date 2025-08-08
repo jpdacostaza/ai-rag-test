@@ -25,30 +25,30 @@ COLORS = {
 
 # Emojis for different log levels
 EMOJIS = {
-    "DEBUG": "🔍",
-    "INFO": "✅",
-    "WARNING": "⚠️",
-    "ERROR": "❌",
-    "CRITICAL": "🚨",
+    "DEBUG": "[SEARCH]",
+    "INFO": "[OK]",
+    "WARNING": "[WARN]",
+    "ERROR": "[FAIL]",
+    "CRITICAL": "***",
 }
 
 # Icons for various services and components
 SERVICE_ICONS = {
-    "REDIS": "🔴",
-    "CHROMADB": "🟣",
-    "OLLAMA": "🤖",
-    "DATABASE": "💾",
-    "API": "🚀",
-    "HEALTH": "🏥",
-    "MEMORY": "🧠",
-    "CHAT": "💬",
-    "TOOLS": "🔧",
-    "WATCHDOG": "👀",
-    "STARTUP": "🏁",
-    "CACHE": "⚡",
-    "ERROR": "💥",
-    "NETWORK": "🌐",
-    "EMBEDDINGS": "🧠",
+    "REDIS": "",
+    "CHROMADB": "",
+    "OLLAMA": "",
+    "DATABASE": "",
+    "API": "",
+    "HEALTH": "",
+    "MEMORY": "",
+    "CHAT": "",
+    "TOOLS": "",
+    "WATCHDOG": "",
+    "STARTUP": "",
+    "CACHE": "",
+    "ERROR": "",
+    "NETWORK": "",
+    "EMBEDDINGS": "",
 }
 
 # --- Formatter ---
@@ -76,7 +76,7 @@ class ColoredFormatter(logging.Formatter):
         else:
             level_color = reset = bold = dim = ""
 
-        emoji = EMOJIS.get(level_name, "📝")
+        emoji = EMOJIS.get(level_name, "")
         timestamp = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
 
         # Extract service icon from message (e.g., "[REDIS]")
@@ -87,14 +87,14 @@ class ColoredFormatter(logging.Formatter):
                 service_icon = f"{icon} "
                 break  # Define format based on log level
         log_formats = {
-            "ERROR": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
-            "CRITICAL": f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}",
-            "WARNING": f"{emoji} {level_color}{timestamp}{reset} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
-            "INFO": f"{emoji} {timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}",
-            "DEBUG": f"{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}",
+            "ERROR": f"{emoji} {bold}{level_color}{timestamp}{reset}  {level_color}{bold}{level_name:<8}{reset}  {service_icon}{bold}{message}{reset}",
+            "CRITICAL": f"{emoji} {bold}{level_color}{timestamp}{reset}  {level_color}{bold}{level_name:<8}{reset}  {service_icon}{bold}{message}{reset}",
+            "WARNING": f"{emoji} {level_color}{timestamp}{reset}  {level_color}{level_name:<8}{reset}  {service_icon}{message}",
+            "INFO": f"{emoji} {timestamp}  {level_color}{level_name:<8}{reset}  {service_icon}{message}",
+            "DEBUG": f"{emoji} {dim}{timestamp}  {level_color}{level_name:<8}{reset}  {service_icon}{message}{reset}",
         }
 
-        return log_formats.get(level_name, f"{emoji} {timestamp} │ {level_name:<8} │ {service_icon}{message}")
+        return log_formats.get(level_name, f"{emoji} {timestamp}  {level_name:<8}  {service_icon}{message}")
 
 
 # --- Logger Setup ---
@@ -136,7 +136,7 @@ class HumanLogger:
         if sys.stdout.isatty():
             formatter = ColoredFormatter()
         else:
-            formatter = logging.Formatter("%(asctime)s │ %(levelname)-8s │ %(message)s", datefmt="%H:%M:%S")
+            formatter = logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s", datefmt="%H:%M:%S")
 
         console_handler.setFormatter(formatter)
         
@@ -144,7 +144,7 @@ class HumanLogger:
         root_logger.addHandler(console_handler)
         logger.addHandler(console_handler)
 
-        logger.info(f"[STARTUP] 🎨 Enhanced logging initialized at level {level.upper()}")
+        logger.info(f"[STARTUP]  Enhanced logging initialized at level {level.upper()}")
 
 
 # --- Convenience Functions ---
@@ -153,15 +153,15 @@ class HumanLogger:
 def log_service_status(service: str, status: str, details: str = ""):
     """Log service status in a consistent, structured format."""
     status_icons = {
-        "starting": "🟡",
-        "ready": "✅",
-        "degraded": "⚠️",
-        "failed": "❌",
-        "connecting": "🔗",
-        "reconnecting": "🔄",
-        "debug": "🔍",
+        "starting": "",
+        "ready": "[OK]",
+        "degraded": "[WARN]",
+        "failed": "[FAIL]",
+        "connecting": "",
+        "reconnecting": "[SYNC]",
+        "debug": "[SEARCH]",
     }
-    icon = status_icons.get(status.lower(), "📝")
+    icon = status_icons.get(status.lower(), "")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
     # Properly map status to log level, including debug
@@ -180,12 +180,12 @@ def log_service_status(service: str, status: str, details: str = ""):
 def log_api_request(method: str, endpoint: str, status_code: int, response_time_ms: float):
     """Log API requests with color-coded status and timing."""
     if status_code < 400:
-        status_emoji = "✅"
+        status_emoji = "[OK]"
     elif 400 <= status_code < 500:
-        status_emoji = "⚠️"
+        status_emoji = "[WARN]"
     else:
-        status_emoji = "❌"
-    logger.info(f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)")
+        status_emoji = "[FAIL]"
+    logger.info(f"[API] {status_emoji} {method} {endpoint} -> {status_code} ({response_time_ms:.2f}ms)")
 
 
 def log_chat_interaction(
@@ -197,7 +197,7 @@ def log_chat_interaction(
     """Log key details of a chat interaction."""
     tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ""
     req_id_info = f" [ReqID: {request_id}]" if request_id else ""
-    logger.info(f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}")
+    logger.info(f"[CHAT]  User {user_id}: {message_len} chars -> {response_len} chars{tools_info}{req_id_info}")
 
 
 # --- Initialization ---

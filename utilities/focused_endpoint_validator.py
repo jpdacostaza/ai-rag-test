@@ -27,7 +27,7 @@ def print_section(title):
         title (str): The title to display in the section header
     """
     print(f"\n{'='*60}")
-    print(f"🔍 {title}")
+    print(f"[SEARCH] {title}")
     print(f"{'='*60}")
 
 
@@ -72,7 +72,7 @@ def get_routes_from_app():
 
         return sorted(routes)
     except Exception as e:
-        print(f"❌ Error getting app routes: {e}")
+        print(f"[FAIL] Error getting app routes: {e}")
         return []
 
 
@@ -102,7 +102,7 @@ def find_endpoint_definitions():
                     endpoint_files[filename].append(f"{method.upper()} {path}")
 
             except Exception as e:
-                print(f"⚠️ Error reading {filename}: {e}")
+                print(f"[WARN] Error reading {filename}: {e}")
 
     return endpoint_files
 
@@ -114,13 +114,13 @@ def main():
     Performs route discovery, endpoint testing, and generates a detailed
     validation report for the backend API endpoints.
     """
-    print("🚀 FOCUSED ENDPOINT VALIDATION")
-    print(f"🎯 Target: {BASE_URL}")
+    print(" FOCUSED ENDPOINT VALIDATION")
+    print(f" Target: {BASE_URL}")
 
     # Get live routes
     print_section("LIVE ROUTE DISCOVERY")
     live_routes = get_routes_from_app()
-    print(f"📡 Found {len(live_routes)} live routes:")
+    print(f" Found {len(live_routes)} live routes:")
     for route in live_routes:
         print(f"   {route}")
 
@@ -128,7 +128,7 @@ def main():
     print_section("ENDPOINT DEFINITIONS")
     definitions = find_endpoint_definitions()
     total_defined = sum(len(endpoints) for endpoints in definitions.values())
-    print(f"📝 Found {total_defined} defined endpoints across files:")
+    print(f" Found {total_defined} defined endpoints across files:")
     for filename, endpoints in definitions.items():
         if endpoints:
             print(f"   {filename}: {len(endpoints)} endpoints")
@@ -170,7 +170,7 @@ def main():
 
     results = {}
     for method, path, data, description in key_tests:
-        print(f"🔄 Testing {method} {path} - {description}")
+        print(f"[SYNC] Testing {method} {path} - {description}")
         result = test_endpoint(method, path, data, description)
         results[f"{method} {path}"] = result
 
@@ -178,13 +178,13 @@ def main():
         if status == "success":
             code = result["status_code"]
             time_ms = result["response_time"] * 1000
-            print(f"   ✅ HTTP {code} ({time_ms:.0f}ms)")
+            print(f"   [OK] HTTP {code} ({time_ms:.0f}ms)")
         elif status == "error":
             code = result["status_code"]
-            print(f"   ❌ HTTP {code}")
+            print(f"   [FAIL] HTTP {code}")
         else:
             error = result.get("error", "unknown")
-            print(f"   ❌ {status}: {error}")
+            print(f"   [FAIL] {status}: {error}")
 
         time.sleep(0.5)  # Brief pause between tests
 
@@ -195,23 +195,23 @@ def main():
     total_tests = len(results)
     success_rate = success_count / total_tests * 100
 
-    print(f"📊 Test Results:")
-    print(f"   ✅ Successful: {success_count}/{total_tests}")
-    print(f"   📈 Success Rate: {success_rate:.1f}%")
+    print(f"[CHART] Test Results:")
+    print(f"   [OK] Successful: {success_count}/{total_tests}")
+    print(f"    Success Rate: {success_rate:.1f}%")
 
     # Detailed results
-    print(f"\n📋 Detailed Results:")
+    print(f"\n Detailed Results:")
     for endpoint, result in results.items():
         status = result["status"]
         desc = result["description"]
         if status == "success":
             code = result["status_code"]
-            print(f"   ✅ {endpoint} → HTTP {code} ({desc})")
+            print(f"   [OK] {endpoint} -> HTTP {code} ({desc})")
         else:
-            print(f"   ❌ {endpoint} → {status} ({desc})")
+            print(f"   [FAIL] {endpoint} -> {status} ({desc})")
 
     # Cross-reference check
-    print(f"\n🔄 Cross-Reference Analysis:")
+    print(f"\n[SYNC] Cross-Reference Analysis:")
     live_set = set(live_routes)
     defined_set = set()
     for endpoints in definitions.values():
@@ -221,12 +221,12 @@ def main():
     live_only = live_set - defined_set
     defined_only = defined_set - live_set
 
-    print(f"   📊 Common (live + defined): {len(common)}")
-    print(f"   📡 Live only: {len(live_only)}")
-    print(f"   📝 Defined only: {len(defined_only)}")
+    print(f"   [CHART] Common (live + defined): {len(common)}")
+    print(f"    Live only: {len(live_only)}")
+    print(f"    Defined only: {len(defined_only)}")
 
     if live_only:
-        print(f"   🔍 Live but not found in code:")
+        print(f"   [SEARCH] Live but not found in code:")
         for endpoint in sorted(live_only):
             print(f"      {endpoint}")
 
@@ -234,13 +234,13 @@ def main():
     print_section("FINAL ASSESSMENT")
 
     if success_rate >= 90:
-        print("🎉 EXCELLENT: All key endpoints fully functional!")
+        print(" EXCELLENT: All key endpoints fully functional!")
     elif success_rate >= 80:
-        print("✅ GOOD: Most endpoints working, minor issues.")
+        print("[OK] GOOD: Most endpoints working, minor issues.")
     elif success_rate >= 60:
-        print("⚠️ PARTIAL: Some endpoints working, needs attention.")
+        print("[WARN] PARTIAL: Some endpoints working, needs attention.")
     else:
-        print("❌ CRITICAL: Multiple endpoint failures detected.")
+        print("[FAIL] CRITICAL: Multiple endpoint failures detected.")
 
     # Memory system specific check (Functions only)
     memory_endpoints = [
@@ -252,9 +252,9 @@ def main():
     memory_working = all(results.get(ep, {}).get("status") == "success" for ep in memory_endpoints)
 
     if memory_working:
-        print("🧠 MEMORY SYSTEM: ✅ Fully operational!")
+        print(" MEMORY SYSTEM: [OK] Fully operational!")
     else:
-        print("🧠 MEMORY SYSTEM: ❌ Issues detected!")
+        print(" MEMORY SYSTEM: [FAIL] Issues detected!")
         for ep in memory_endpoints:
             status = results.get(ep, {}).get("status", "not_tested")
             print(f"   {ep}: {status}")
@@ -272,9 +272,9 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n🛑 Validation interrupted")
+        print("\n Validation interrupted")
     except Exception as e:
-        print(f"\n❌ Validation failed: {e}")
+        print(f"\n[FAIL] Validation failed: {e}")
         import traceback
 
         traceback.print_exc()

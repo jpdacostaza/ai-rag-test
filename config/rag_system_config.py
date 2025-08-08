@@ -392,14 +392,14 @@ if __name__ == "__main__":
     print("=" * 50)
     
     if validate_configuration():
-        print("✅ Configuration validation passed")
+        print("[OK] Configuration validation passed")
         
         system_info = get_system_info()
-        print(f"✅ System version: {system_info['system_status']['version']}")
-        print(f"✅ Architecture: {system_info['system_status']['architecture']}")
-        print(f"✅ Status: {system_info['system_status']['status']}")
-        print(f"✅ Databases: {', '.join(system_info['system_status']['databases'])}")
-        print(f"✅ Features: {len(system_info['system_status']['features'])} enabled")
+        print(f"[OK] System version: {system_info['system_status']['version']}")
+        print(f"[OK] Architecture: {system_info['system_status']['architecture']}")
+        print(f"[OK] Status: {system_info['system_status']['status']}")
+        print(f"[OK] Databases: {', '.join(system_info['system_status']['databases'])}")
+        print(f"[OK] Features: {len(system_info['system_status']['features'])} enabled")
         
     else:
-        print("❌ Configuration validation failed")
+        print("[FAIL] Configuration validation failed")

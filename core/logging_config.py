@@ -42,18 +42,18 @@ COLORS = {
 }
 
 EMOJIS = {
-    "DEBUG": "🔍",
-    "INFO": "✅", 
-    "WARNING": "⚠️",
-    "ERROR": "❌",
-    "CRITICAL": "🚨",
+    "DEBUG": "[SEARCH]",
+    "INFO": "[OK]", 
+    "WARNING": "[WARN]",
+    "ERROR": "[FAIL]",
+    "CRITICAL": "***",
 }
 
 SERVICE_ICONS = {
-    "REDIS": "🔴", "CHROMADB": "🟣", "OLLAMA": "🤖", "DATABASE": "💾",
-    "API": "🚀", "HEALTH": "🏥", "MEMORY": "🧠", "CHAT": "💬",
-    "TOOLS": "🔧", "WATCHDOG": "👀", "STARTUP": "🏁", "CACHE": "⚡",
-    "ERROR": "💥", "NETWORK": "🌐", "EMBEDDINGS": "🧠",
+    "REDIS": "", "CHROMADB": "", "OLLAMA": "", "DATABASE": "",
+    "API": "", "HEALTH": "", "MEMORY": "", "CHAT": "",
+    "TOOLS": "", "WATCHDOG": "", "STARTUP": "", "CACHE": "",
+    "ERROR": "", "NETWORK": "", "EMBEDDINGS": "",
 }
 
 
@@ -111,7 +111,7 @@ class UnifiedFormatter(logging.Formatter):
         else:
             level_color = reset = bold = dim = ""
         
-        emoji = EMOJIS.get(level_name, "📝")
+        emoji = EMOJIS.get(level_name, "")
         timestamp = datetime.fromtimestamp(record.created).strftime("%H:%M:%S")
         
         # Extract service icon from message (e.g., "[REDIS]")
@@ -124,13 +124,13 @@ class UnifiedFormatter(logging.Formatter):
         
         # Format based on log level
         if level_name in ["ERROR", "CRITICAL"]:
-            return f"{emoji} {bold}{level_color}{timestamp}{reset} │ {level_color}{bold}{level_name:<8}{reset} │ {service_icon}{bold}{message}{reset}"
+            return f"{emoji} {bold}{level_color}{timestamp}{reset}  {level_color}{bold}{level_name:<8}{reset}  {service_icon}{bold}{message}{reset}"
         elif level_name == "WARNING":
-            return f"{emoji} {level_color}{timestamp}{reset} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}"
+            return f"{emoji} {level_color}{timestamp}{reset}  {level_color}{level_name:<8}{reset}  {service_icon}{message}"
         elif level_name == "INFO":
-            return f"{emoji} {timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}"
+            return f"{emoji} {timestamp}  {level_color}{level_name:<8}{reset}  {service_icon}{message}"
         else:  # DEBUG
-            return f"{emoji} {dim}{timestamp} │ {level_color}{level_name:<8}{reset} │ {service_icon}{message}{reset}"
+            return f"{emoji} {dim}{timestamp}  {level_color}{level_name:<8}{reset}  {service_icon}{message}{reset}"
 
 
 def setup_logging(
@@ -194,7 +194,7 @@ def setup_logging(
     
     # Log successful initialization
     logger = logging.getLogger(__name__)
-    logger.info(f"[STARTUP] 🎨 Unified logging initialized: level={log_level}, style={log_style}")
+    logger.info(f"[STARTUP]  Unified logging initialized: level={log_level}, style={log_style}")
 
 
 def get_logger(name: str = None) -> logging.Logger:
@@ -231,15 +231,15 @@ def log_service_status(service: str, status: str, details: str = ""):
     logger = get_logger("service_status")
     
     status_icons = {
-        "starting": "🟡",
-        "ready": "✅", 
-        "degraded": "⚠️",
-        "failed": "❌",
-        "connecting": "🔗",
-        "reconnecting": "🔄",
-        "debug": "🔍",
+        "starting": "",
+        "ready": "[OK]", 
+        "degraded": "[WARN]",
+        "failed": "[FAIL]",
+        "connecting": "",
+        "reconnecting": "[SYNC]",
+        "debug": "[SEARCH]",
     }
-    icon = status_icons.get(status.lower(), "📝")
+    icon = status_icons.get(status.lower(), "")
     message = f"[{service.upper()}] {icon} {status.title()}{' - ' + details if details else ''}"
 
     # Properly map status to log level, including debug
@@ -260,12 +260,12 @@ def log_api_request(method: str, endpoint: str, status_code: int, response_time_
     logger = get_logger("api_requests")
     
     if status_code < 400:
-        status_emoji = "✅"
+        status_emoji = "[OK]"
     elif 400 <= status_code < 500:
-        status_emoji = "⚠️"
+        status_emoji = "[WARN]"
     else:
-        status_emoji = "❌"
-    logger.info(f"[API] {status_emoji} {method} {endpoint} → {status_code} ({response_time_ms:.2f}ms)")
+        status_emoji = "[FAIL]"
+    logger.info(f"[API] {status_emoji} {method} {endpoint} -> {status_code} ({response_time_ms:.2f}ms)")
 
 
 def log_chat_interaction(
@@ -276,7 +276,7 @@ def log_chat_interaction(
     logger = get_logger()
     tools_info = f" (tools: {', '.join(tools_used)})" if tools_used else ""
     req_id_info = f" [ReqID: {request_id}]" if request_id else ""
-    logger.info(f"[CHAT] 💬 User {user_id}: {message_len} chars → {response_len} chars{tools_info}{req_id_info}")
+    logger.info(f"[CHAT]  User {user_id}: {message_len} chars -> {response_len} chars{tools_info}{req_id_info}")
 
 
 def log_function_call(func: Callable) -> Callable:
@@ -295,16 +295,16 @@ def log_function_call(func: Callable) -> Callable:
         start_time = time.time()
         
         # Log function entry
-        logger.debug(f"🔧 Calling {func.__name__} with args={args[:3]}{'...' if len(args) > 3 else ''}, kwargs={list(kwargs.keys())}")
+        logger.debug(f" Calling {func.__name__} with args={args[:3]}{'...' if len(args) > 3 else ''}, kwargs={list(kwargs.keys())}")
         
         try:
             result = func(*args, **kwargs)
             execution_time = (time.time() - start_time) * 1000
-            logger.debug(f"✅ {func.__name__} completed in {execution_time:.2f}ms")
+            logger.debug(f"[OK] {func.__name__} completed in {execution_time:.2f}ms")
             return result
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
-            logger.error(f"❌ {func.__name__} failed after {execution_time:.2f}ms: {e}")
+            logger.error(f"[FAIL] {func.__name__} failed after {execution_time:.2f}ms: {e}")
             raise
     
     return wrapper
@@ -332,9 +332,9 @@ def log_performance(operation: str, start_time: float, metadata: Dict[str, Any] 
         log_data.update(metadata)
     
     if execution_time > 1000:  # > 1 second
-        logger.warning(f"⚠️ Slow operation: {operation} took {execution_time:.2f}ms", extra=log_data)
+        logger.warning(f"[WARN] Slow operation: {operation} took {execution_time:.2f}ms", extra=log_data)
     else:
-        logger.info(f"📊 {operation} completed in {execution_time:.2f}ms", extra=log_data)
+        logger.info(f"[CHART] {operation} completed in {execution_time:.2f}ms", extra=log_data)
 
 
 # Initialize logging when module is imported

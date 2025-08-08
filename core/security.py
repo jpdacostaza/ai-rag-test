@@ -512,7 +512,7 @@ def validate_environment():
         logger.warning(f"Configuration warning: {warning}")
 
     # Log successful configuration
-    logger.info("✅ Environment validation passed")
+    logger.info("[OK] Environment validation passed")
     logger.info(f"Redis: {REDIS_HOST}")
     logger.info(f"ChromaDB: {CHROMA_HOST}")
     logger.info(f"Model: {DEFAULT_MODEL}")

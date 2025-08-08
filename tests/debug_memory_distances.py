@@ -23,7 +23,7 @@ def debug_memory_retrieval():
     
     if response.status_code == 200:
         results = response.json()
-        print("🔍 Memory Retrieval Debug Results:")
+        print("[SEARCH] Memory Retrieval Debug Results:")
         print(f"Found {len(results.get('memories', []))} memories")
         
         for i, memory in enumerate(results.get('memories', [])):
@@ -44,7 +44,7 @@ def debug_memory_retrieval():
         ]
         
         print("\n" + "="*50)
-        print("🧪 Testing Different Queries:")
+        print(" Testing Different Queries:")
         
         for query in test_queries:
             resp = requests.post(

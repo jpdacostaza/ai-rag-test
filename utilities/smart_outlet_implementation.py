@@ -19,7 +19,7 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
     This is the CORRECT place for anti-hallucination web search.
     """
     try:
-        self.log("🔥 OUTLET CALLED - Analyzing model response for potential web search needs")
+        self.log("[FIRE] OUTLET CALLED - Analyzing model response for potential web search needs")
         
         # Early return if web search is disabled
         if not web_search_available:
@@ -45,7 +45,7 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
             self.log("Could not find user query and model response pair")
             return body
             
-        self.log(f"🔍 Analyzing: Query='{user_query[:50]}...' Response='{model_response[:50]}...'")
+        self.log(f"[SEARCH] Analyzing: Query='{user_query[:50]}...' Response='{model_response[:50]}...'")
         
         # Use smart trigger logic
         from utilities.smart_web_search_trigger import should_trigger_web_search_smart, analyze_response_quality
@@ -53,7 +53,7 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
         should_search, trigger_reason = should_trigger_web_search_smart(user_query, model_response)
         
         if should_search:
-            self.log(f"✅ WEB SEARCH TRIGGERED: {trigger_reason}")
+            self.log(f"[OK] WEB SEARCH TRIGGERED: {trigger_reason}")
             
             try:
                 # Perform web search
@@ -86,7 +86,7 @@ Let me provide you with the most up-to-date information about your query."""
                             msg["content"] = enhanced_response
                             break
                             
-                    self.log(f"🌐 Enhanced response with web search results")
+                    self.log(f" Enhanced response with web search results")
                     
                     # Store web search results to memory if enabled and user is authenticated
                     if self.valves.save_raw_search_results and hasattr(self, 'api_client') and self.api_client:
@@ -108,18 +108,18 @@ Let me provide you with the most up-to-date information about your query."""
                                 }
                                 
                                 await self.api_client.store_memory(web_search_memory)
-                                self.log(f"💾 Stored web search verification to memory")
+                                self.log(f" Stored web search verification to memory")
                         except Exception as storage_error:
-                            self.log(f"⚠️ Failed to store web search results: {storage_error}", "WARNING")
+                            self.log(f"[WARN] Failed to store web search results: {storage_error}", "WARNING")
                             
                 else:
-                    self.log(f"⚠️ Web search triggered but no meaningful results returned")
+                    self.log(f"[WARN] Web search triggered but no meaningful results returned")
                     
             except Exception as search_error:
-                self.log(f"❌ Web search failed: {search_error}", "ERROR")
+                self.log(f"[FAIL] Web search failed: {search_error}", "ERROR")
                 
         else:
-            self.log(f"❌ Web search NOT needed: {trigger_reason}")
+            self.log(f"[FAIL] Web search NOT needed: {trigger_reason}")
             
         # Continue with memory storage if that's still enabled
         if self.valves.enable_memory and hasattr(self, 'api_client') and self.api_client:
@@ -130,5 +130,5 @@ Let me provide you with the most up-to-date information about your query."""
         return body
         
     except Exception as e:
-        self.log(f"❌ Outlet processing failed: {e}", "ERROR")
+        self.log(f"[FAIL] Outlet processing failed: {e}", "ERROR")
         return body

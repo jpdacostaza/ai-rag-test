@@ -20,20 +20,20 @@ RETRY_DELAY = 10
 
 def wait_for_openwebui():
     """Wait for OpenWebUI to be ready."""
-    print("🔍 Waiting for OpenWebUI to be ready...")
+    print("[SEARCH] Waiting for OpenWebUI to be ready...")
     
     for attempt in range(MAX_RETRIES):
         try:
             with httpx.Client(timeout=5.0) as client:
                 response = client.get(f"{OPENWEBUI_URL}/health")
                 if response.status_code == 200:
-                    print("✅ OpenWebUI is ready!")
+                    print("[OK] OpenWebUI is ready!")
                     return True
         except Exception as e:
-            print(f"⏳ Attempt {attempt + 1}/{MAX_RETRIES} - OpenWebUI not ready yet: {e}")
+            print(f" Attempt {attempt + 1}/{MAX_RETRIES} - OpenWebUI not ready yet: {e}")
             time.sleep(RETRY_DELAY)
     
-    print("❌ OpenWebUI failed to become ready within timeout")
+    print("[FAIL] OpenWebUI failed to become ready within timeout")
     return False
 
 
@@ -51,10 +51,10 @@ def load_memory_function():
                 with open(filter_path, 'r', encoding='utf-8') as f:
                     return f.read()
             else:
-                print("❌ No memory function file found")
+                print("[FAIL] No memory function file found")
                 return None
     except Exception as e:
-        print(f"❌ Error loading memory function: {e}")
+        print(f"[FAIL] Error loading memory function: {e}")
         return None
 
 
@@ -77,7 +77,7 @@ def install_function():
     }
     
     try:
-        print("🚀 Installing memory function...")
+        print(" Installing memory function...")
         
         with httpx.Client(timeout=30.0) as client:
             # Try the functions API endpoint
@@ -88,10 +88,10 @@ def install_function():
             )
             
             if response.status_code in [200, 201]:
-                print("✅ Memory function installed successfully!")
+                print("[OK] Memory function installed successfully!")
                 return True
             else:
-                print(f"❌ Failed to install function: {response.status_code}")
+                print(f"[FAIL] Failed to install function: {response.status_code}")
                 print(f"Response: {response.text}")
                 
                 # Try alternative endpoint
@@ -101,20 +101,20 @@ def install_function():
                 )
                 
                 if response.status_code in [200, 201]:
-                    print("✅ Memory function installed via import endpoint!")
+                    print("[OK] Memory function installed via import endpoint!")
                     return True
                 else:
-                    print(f"❌ Alternative endpoint also failed: {response.status_code}")
+                    print(f"[FAIL] Alternative endpoint also failed: {response.status_code}")
                     return False
                 
     except Exception as e:
-        print(f"❌ Error installing function: {e}")
+        print(f"[FAIL] Error installing function: {e}")
         return False
 
 
 def main():
     """Main installation process."""
-    print("🎯 Enhanced Memory Function Auto-Installer")
+    print(" Enhanced Memory Function Auto-Installer")
     print("=" * 50)
     
     # Wait for OpenWebUI
@@ -123,12 +123,12 @@ def main():
     
     # Install function
     if install_function():
-        print("\n🎉 Installation completed successfully!")
-        print("💡 The Enhanced Memory Function is now available in OpenWebUI")
-        print("📋 Go to Admin → Functions to configure it")
+        print("\n Installation completed successfully!")
+        print(" The Enhanced Memory Function is now available in OpenWebUI")
+        print(" Go to Admin -> Functions to configure it")
     else:
-        print("\n❌ Installation failed")
-        print("💡 You may need to install the function manually")
+        print("\n[FAIL] Installation failed")
+        print(" You may need to install the function manually")
         exit(1)
 
 

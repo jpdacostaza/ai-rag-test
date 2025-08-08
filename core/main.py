@@ -116,9 +116,9 @@ def initialize_memory_service():
         try:
             from services.memory_service import get_memory_service
             global_memory_service = get_memory_service()
-            logger.info("✅ Memory service initialized successfully")
+            logger.info("[OK] Memory service initialized successfully")
         except Exception as e:
-            logger.warning(f"⚠️ Memory service initialization failed: {e}")
+            logger.warning(f"[WARN] Memory service initialization failed: {e}")
             global_memory_service = None
     return global_memory_service
 
@@ -294,7 +294,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     pipeline_user_id = content.replace("AUTHENTICATED_USER_ID:", "").strip()
                     if pipeline_user_id:
                         user_id = pipeline_user_id
-                        log_service_status("AUTH", "info", f"✅ Found AUTHENTICATED user_id from pipeline: {user_id}")
+                        log_service_status("AUTH", "info", f"[OK] Found AUTHENTICATED user_id from pipeline: {user_id}")
                         break
                 except Exception as e:
                     log_service_status("AUTH", "warning", f"Failed to extract pipeline user ID: {e}")
@@ -338,7 +338,7 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
     
     # 7. Final authentication validation
     if not user_id or not user_id.strip():
-        # ⚠️ TEMPORARY SOLUTION: OpenWebUI is not sending user authentication
+        # [WARN] TEMPORARY SOLUTION: OpenWebUI is not sending user authentication
         # Generate a session-based user ID for memory functionality
         # In production, OpenWebUI should be configured to send proper user authentication
         

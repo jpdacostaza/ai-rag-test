@@ -44,13 +44,13 @@ class UnifiedMemoryInstaller:
             try:
                 response = requests.get(f"{url}/health", timeout=5)
                 if response.status_code == 200:
-                    self.log(f"✅ Found working OpenWebUI at: {url}")
+                    self.log(f"[OK] Found working OpenWebUI at: {url}")
                     return url
             except:
                 continue
         
         # Fallback to first URL if none work
-        self.log(f"⚠️ No working URL found, using fallback: {self.openwebui_urls[0]}")
+        self.log(f"[WARN] No working URL found, using fallback: {self.openwebui_urls[0]}")
         return self.openwebui_urls[0]
     
     def wait_for_service(self, url: str, service_name: str, max_retries: int = 30):
@@ -66,20 +66,20 @@ class UnifiedMemoryInstaller:
                     response = requests.get(f"{url}/health", timeout=5)
                     
                 if response.status_code == 200:
-                    self.log(f"✅ {service_name} is ready!")
+                    self.log(f"[OK] {service_name} is ready!")
                     return True
             except Exception as e:
                 if attempt < max_retries - 1:
                     self.log(f"Attempt {attempt + 1}/{max_retries}: {service_name} not ready yet...")
                     time.sleep(10)
                 else:
-                    self.log(f"❌ Failed to connect to {service_name}: {str(e)}", "ERROR")
+                    self.log(f"[FAIL] Failed to connect to {service_name}: {str(e)}", "ERROR")
         
         return False
     
     def install_function_automatic(self) -> bool:
         """Install Enhanced Memory Function using multiple methods for maximum reliability."""
-        self.log("🔧 Installing Enhanced Memory Function with primary and fallback methods...")
+        self.log(" Installing Enhanced Memory Function with primary and fallback methods...")
         
         try:
             # Load function code first
@@ -87,7 +87,7 @@ class UnifiedMemoryInstaller:
             if not function_code:
                 return False
                 
-            self.log(f"📁 Found memory function at: {used_path}")
+            self.log(f"[FOLDER] Found memory function at: {used_path}")
             
             # Method 1: Primary - Direct mounted volume access
             if self._install_function_volume_mount(function_code):
@@ -106,12 +106,12 @@ class UnifiedMemoryInstaller:
                 return True
                 
             # If all methods fail, log but continue (function may already exist)
-            self.log("⚠️ All installation methods failed - function may already be installed")
-            self.log("✅ Continuing with pipeline installation...")
+            self.log("[WARN] All installation methods failed - function may already be installed")
+            self.log("[OK] Continuing with pipeline installation...")
             return True
             
         except Exception as e:
-            self.log(f"❌ Error in function installation: {str(e)}", "ERROR")
+            self.log(f"[FAIL] Error in function installation: {str(e)}", "ERROR")
             return True  # Continue anyway
     
     def _load_function_code(self) -> tuple:
@@ -131,13 +131,13 @@ class UnifiedMemoryInstaller:
             except FileNotFoundError:
                 continue
         
-        self.log("❌ Could not find memory_function.py at any expected location")
+        self.log("[FAIL] Could not find memory_function.py at any expected location")
         self.log(f"   Searched: {', '.join(function_paths)}")
         return None, None
     
     def _install_function_volume_mount(self, function_code: str) -> bool:
         """Method 1: Install via direct mounted volume access."""
-        self.log("📂 Attempting Method 1: Direct volume mount installation...")
+        self.log(" Attempting Method 1: Direct volume mount installation...")
         
         try:
             # Check if we have direct access to OpenWebUI functions directory
@@ -149,17 +149,17 @@ class UnifiedMemoryInstaller:
                 
                 # Verify the file was written
                 if os.path.exists(function_file) and os.path.getsize(function_file) > 0:
-                    self.log("✅ Method 1 SUCCESS: Function installed via direct volume mount!")
+                    self.log("[OK] Method 1 SUCCESS: Function installed via direct volume mount!")
                     return True
                     
         except Exception as e:
-            self.log(f"⚠️ Method 1 failed: {e}")
+            self.log(f"[WARN] Method 1 failed: {e}")
         
         return False
     
     def _install_function_docker_cp(self, function_code: str) -> bool:
         """Method 2: Install via docker cp command."""
-        self.log("🐳 Attempting Method 2: Docker cp installation...")
+        self.log(" Attempting Method 2: Docker cp installation...")
         
         try:
             import subprocess
@@ -179,29 +179,29 @@ class UnifiedMemoryInstaller:
             result = subprocess.run(copy_cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
-                self.log("✅ Method 2 SUCCESS: Function installed via docker cp!")
+                self.log("[OK] Method 2 SUCCESS: Function installed via docker cp!")
                 # Verify the file was actually copied
                 verify_cmd = ["docker", "exec", "backend-openwebui", "test", "-f", "/app/backend/data/functions/enhanced_memory_function.py"]
                 verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, timeout=10)
                 if verify_result.returncode == 0:
-                    self.log("🔍 Verification: File confirmed in container")
+                    self.log("[SEARCH] Verification: File confirmed in container")
                     return True
                 else:
-                    self.log("⚠️ Verification failed: File not found after copy")
+                    self.log("[WARN] Verification failed: File not found after copy")
                     return False
             else:
-                self.log(f"⚠️ Method 2 failed: {result.stderr}")
+                self.log(f"[WARN] Method 2 failed: {result.stderr}")
                 
         except subprocess.TimeoutExpired:
-            self.log("⚠️ Method 2 failed: Docker cp operation timed out")
+            self.log("[WARN] Method 2 failed: Docker cp operation timed out")
         except Exception as e:
-            self.log(f"⚠️ Method 2 failed: {e}")
+            self.log(f"[WARN] Method 2 failed: {e}")
         
         return False
     
     def _install_function_api(self, function_code: str) -> bool:
         """Method 3: Install via OpenWebUI API (if available)."""
-        self.log("🌐 Attempting Method 3: API-based installation...")
+        self.log(" Attempting Method 3: API-based installation...")
         
         try:
             openwebui_url = self.get_working_openwebui_url()
@@ -229,29 +229,29 @@ class UnifiedMemoryInstaller:
                         # Try POST for creation
                         response = client.post(endpoint, json=function_data)
                         if response.status_code in [200, 201]:
-                            self.log(f"✅ Method 3 SUCCESS: Function installed via API ({endpoint})!")
+                            self.log(f"[OK] Method 3 SUCCESS: Function installed via API ({endpoint})!")
                             return True
                             
                         # Try PUT for update
                         response = client.put(f"{endpoint}/enhanced_memory_function", json=function_data)
                         if response.status_code in [200, 201]:
-                            self.log(f"✅ Method 3 SUCCESS: Function updated via API ({endpoint})!")
+                            self.log(f"[OK] Method 3 SUCCESS: Function updated via API ({endpoint})!")
                             return True
                             
                     except Exception as e:
                         self.log(f"API endpoint {endpoint} failed: {e}", "DEBUG")
                         continue
                         
-            self.log("⚠️ Method 3 failed: No working API endpoints found")
+            self.log("[WARN] Method 3 failed: No working API endpoints found")
             
         except Exception as e:
-            self.log(f"⚠️ Method 3 failed: {e}")
+            self.log(f"[WARN] Method 3 failed: {e}")
         
         return False
     
     def _install_function_alternative_volumes(self, function_code: str) -> bool:
         """Method 4: Try alternative volume mount paths."""
-        self.log("📁 Attempting Method 4: Alternative volume paths...")
+        self.log("[FOLDER] Attempting Method 4: Alternative volume paths...")
         
         alternative_paths = [
             "/app/data/functions",
@@ -272,19 +272,19 @@ class UnifiedMemoryInstaller:
                 
                 # Verify the file was written
                 if os.path.exists(function_file) and os.path.getsize(function_file) > 0:
-                    self.log(f"✅ Method 4 SUCCESS: Function installed at {volume_path}!")
+                    self.log(f"[OK] Method 4 SUCCESS: Function installed at {volume_path}!")
                     return True
                     
             except Exception as e:
                 self.log(f"Alternative path {volume_path} failed: {e}", "DEBUG")
                 continue
         
-        self.log("⚠️ Method 4 failed: No alternative volume paths worked")
+        self.log("[WARN] Method 4 failed: No alternative volume paths worked")
         return False
 
     def install_function_manual_fallback(self, function_code: str) -> bool:
         """Attempt alternative file-based installation methods."""
-        self.log("� Attempting alternative installation methods...")
+        self.log(" Attempting alternative installation methods...")
         
         try:
             # Method 1: Try to write directly to the OpenWebUI data directory
@@ -295,10 +295,10 @@ class UnifiedMemoryInstaller:
                 try:
                     with open(function_file, "w") as f:
                         f.write(function_code)
-                    self.log("✅ Function installed via direct file access!")
+                    self.log("[OK] Function installed via direct file access!")
                     return True
                 except Exception as e:
-                    self.log(f"⚠️ Direct file access failed: {e}")
+                    self.log(f"[WARN] Direct file access failed: {e}")
             
             # Method 2: Try using the mounted volume if available
             mounted_volumes = [
@@ -314,25 +314,25 @@ class UnifiedMemoryInstaller:
                         function_file = os.path.join(volume_path, "enhanced_memory_function.py")
                         with open(function_file, "w") as f:
                             f.write(function_code)
-                        self.log(f"✅ Function installed via mounted volume: {volume_path}")
+                        self.log(f"[OK] Function installed via mounted volume: {volume_path}")
                         return True
                 except Exception as e:
                     self.log(f"Volume {volume_path} failed: {e}", "DEBUG")
                     continue
                     
             # If all methods fail, the function is already in the system from previous installation
-            self.log("⚠️ Could not install function automatically")
-            self.log("ℹ️ Function may already be installed from previous setup")
-            self.log("✅ System will continue with Pipeline installation")
+            self.log("[WARN] Could not install function automatically")
+            self.log("[INFO] Function may already be installed from previous setup")
+            self.log("[OK] System will continue with Pipeline installation")
             return True  # Return True to continue with pipeline installation
             
         except Exception as e:
-            self.log(f"❌ All installation methods failed: {e}", "ERROR")
+            self.log(f"[FAIL] All installation methods failed: {e}", "ERROR")
             return True  # Still return True to continue with pipeline
     
     def install_pipeline_file(self) -> bool:
         """Install Enhanced Memory Pipeline using multiple methods for maximum reliability."""
-        self.log("🔧 Installing Enhanced Memory Pipeline with primary and fallback methods...")
+        self.log(" Installing Enhanced Memory Pipeline with primary and fallback methods...")
         
         try:
             # Load pipeline code first
@@ -340,7 +340,7 @@ class UnifiedMemoryInstaller:
             if not pipeline_code:
                 return False
                 
-            self.log(f"📁 Found pipeline source at: {source_path}")
+            self.log(f"[FOLDER] Found pipeline source at: {source_path}")
             
             # Method 1: Primary - Direct mounted volume access
             if self._install_pipeline_volume_mount(pipeline_code):
@@ -358,11 +358,11 @@ class UnifiedMemoryInstaller:
             if self._install_pipeline_container_copy(pipeline_code):
                 return True
                 
-            self.log("❌ All pipeline installation methods failed", "ERROR")
+            self.log("[FAIL] All pipeline installation methods failed", "ERROR")
             return False
             
         except Exception as e:
-            self.log(f"❌ Pipeline installation error: {e}", "ERROR")
+            self.log(f"[FAIL] Pipeline installation error: {e}", "ERROR")
             return False
     
     def _load_pipeline_code(self) -> tuple:
@@ -385,17 +385,17 @@ class UnifiedMemoryInstaller:
                 continue
         
         # If no source file found, create from template
-        self.log("⚠️ No pipeline source file found, creating from template", "WARN")
+        self.log("[WARN] No pipeline source file found, creating from template", "WARN")
         pipeline_code = self._get_pipeline_template()
         if pipeline_code:
             return pipeline_code, "generated_template"
         
-        self.log("❌ Could not create pipeline - no template available", "ERROR")
+        self.log("[FAIL] Could not create pipeline - no template available", "ERROR")
         return None, None
     
     def _install_pipeline_volume_mount(self, pipeline_code: str) -> bool:
         """Method 1: Install via direct mounted volume access."""
-        self.log("📂 Attempting Pipeline Method 1: Direct volume mount installation...")
+        self.log(" Attempting Pipeline Method 1: Direct volume mount installation...")
         
         try:
             # Primary pipelines directory
@@ -412,17 +412,17 @@ class UnifiedMemoryInstaller:
             # Verify the file was written correctly
             if os.path.exists(pipeline_file) and os.path.getsize(pipeline_file) > 0:
                 file_size = os.path.getsize(pipeline_file)
-                self.log(f"✅ Pipeline Method 1 SUCCESS: File installed ({file_size} bytes)!")
+                self.log(f"[OK] Pipeline Method 1 SUCCESS: File installed ({file_size} bytes)!")
                 return True
                 
         except Exception as e:
-            self.log(f"⚠️ Pipeline Method 1 failed: {e}")
+            self.log(f"[WARN] Pipeline Method 1 failed: {e}")
         
         return False
     
     def _install_pipeline_docker_cp(self, pipeline_code: str) -> bool:
         """Method 2: Install via docker cp command."""
-        self.log("🐳 Attempting Pipeline Method 2: Docker cp installation...")
+        self.log(" Attempting Pipeline Method 2: Docker cp installation...")
         
         try:
             import subprocess
@@ -442,29 +442,29 @@ class UnifiedMemoryInstaller:
             result = subprocess.run(copy_cmd, capture_output=True, text=True, timeout=30)
             
             if result.returncode == 0:
-                self.log("✅ Pipeline Method 2 SUCCESS: Installed via docker cp!")
+                self.log("[OK] Pipeline Method 2 SUCCESS: Installed via docker cp!")
                 # Verify the file was actually copied
                 verify_cmd = ["docker", "exec", "backend-pipelines", "test", "-f", "/app/pipelines/enhanced_memory_pipeline.py"]
                 verify_result = subprocess.run(verify_cmd, capture_output=True, text=True, timeout=10)
                 if verify_result.returncode == 0:
-                    self.log("🔍 Verification: Pipeline file confirmed in container")
+                    self.log("[SEARCH] Verification: Pipeline file confirmed in container")
                     return True
                 else:
-                    self.log("⚠️ Verification failed: Pipeline file not found after copy")
+                    self.log("[WARN] Verification failed: Pipeline file not found after copy")
                     return False
             else:
-                self.log(f"⚠️ Pipeline Method 2 failed: {result.stderr}")
+                self.log(f"[WARN] Pipeline Method 2 failed: {result.stderr}")
                 
         except subprocess.TimeoutExpired:
-            self.log("⚠️ Pipeline Method 2 failed: Docker cp operation timed out")
+            self.log("[WARN] Pipeline Method 2 failed: Docker cp operation timed out")
         except Exception as e:
-            self.log(f"⚠️ Pipeline Method 2 failed: {e}")
+            self.log(f"[WARN] Pipeline Method 2 failed: {e}")
         
         return False
     
     def _install_pipeline_alternative_volumes(self, pipeline_code: str) -> bool:
         """Method 3: Try alternative volume mount paths."""
-        self.log("📁 Attempting Pipeline Method 3: Alternative volume paths...")
+        self.log("[FOLDER] Attempting Pipeline Method 3: Alternative volume paths...")
         
         alternative_paths = [
             "/app/data/pipelines",
@@ -486,19 +486,19 @@ class UnifiedMemoryInstaller:
                 # Verify the file was written
                 if os.path.exists(pipeline_file) and os.path.getsize(pipeline_file) > 0:
                     file_size = os.path.getsize(pipeline_file)
-                    self.log(f"✅ Pipeline Method 3 SUCCESS: Installed at {volume_path} ({file_size} bytes)!")
+                    self.log(f"[OK] Pipeline Method 3 SUCCESS: Installed at {volume_path} ({file_size} bytes)!")
                     return True
                     
             except Exception as e:
                 self.log(f"Alternative path {volume_path} failed: {e}", "DEBUG")
                 continue
         
-        self.log("⚠️ Pipeline Method 3 failed: No alternative volume paths worked")
+        self.log("[WARN] Pipeline Method 3 failed: No alternative volume paths worked")
         return False
     
     def _install_pipeline_container_copy(self, pipeline_code: str) -> bool:
         """Method 4: Create locally and attempt container restart to pick up."""
-        self.log("🔄 Attempting Pipeline Method 4: Container copy with restart...")
+        self.log("[SYNC] Attempting Pipeline Method 4: Container copy with restart...")
         
         try:
             # Try to write to a location that might be picked up on restart
@@ -518,24 +518,24 @@ class UnifiedMemoryInstaller:
                     
                     if os.path.exists(location) and os.path.getsize(location) > 0:
                         file_size = os.path.getsize(location)
-                        self.log(f"✅ Pipeline Method 4 SUCCESS: Created at {location} ({file_size} bytes)!")
-                        self.log("🔄 Pipeline will be loaded on next container restart")
+                        self.log(f"[OK] Pipeline Method 4 SUCCESS: Created at {location} ({file_size} bytes)!")
+                        self.log("[SYNC] Pipeline will be loaded on next container restart")
                         return True
                         
                 except Exception as e:
                     self.log(f"Location {location} failed: {e}", "DEBUG")
                     continue
             
-            self.log("⚠️ Pipeline Method 4 failed: Could not create pipeline file")
+            self.log("[WARN] Pipeline Method 4 failed: Could not create pipeline file")
             
         except Exception as e:
-            self.log(f"⚠️ Pipeline Method 4 failed: {e}")
+            self.log(f"[WARN] Pipeline Method 4 failed: {e}")
         
         return False
     
     def install_pipeline_manual(self):
         """Provide manual installation instructions for the pipeline."""
-        self.log("📋 Manual Installation Instructions for Enhanced Memory Pipeline:")
+        self.log(" Manual Installation Instructions for Enhanced Memory Pipeline:")
         self.log("=" * 70)
         self.log("1. The pipeline file should be copied from the host to the pipelines container")
         self.log("2. Run this command from your backend directory:")
@@ -579,11 +579,11 @@ class Pipeline:
 
     async def on_startup(self):
         """Called when the pipeline starts."""
-        print("🚀 Enhanced Memory Pipeline - Auto-generated template loaded")
+        print(" Enhanced Memory Pipeline - Auto-generated template loaded")
 
     async def on_shutdown(self):
         """Called when the pipeline shuts down."""
-        print("🛑 Enhanced Memory Pipeline - Shutting down")
+        print(" Enhanced Memory Pipeline - Shutting down")
 
     def pipe(
         self, user_message: str, model_id: str, messages: List[dict], body: dict
@@ -596,19 +596,19 @@ class Pipeline:
         try:
             # Basic memory integration (simplified template)
             if self.valves.debug:
-                print(f"🧠 Memory Pipeline: Processing message for model {model_id}")
+                print(f" Memory Pipeline: Processing message for model {model_id}")
             
             # This is a template - full functionality requires the complete pipeline file
             return body
             
         except Exception as e:
-            print(f"❌ Memory Pipeline Error: {e}")
+            print(f"[FAIL] Memory Pipeline Error: {e}")
             return body
 '''
     
     async def run_installation(self):
         """Run the complete installation process."""
-        self.log("🚀 Starting Unified Memory Installation...")
+        self.log(" Starting Unified Memory Installation...")
         self.log("=" * 60)
         
         # Find working OpenWebUI URL
@@ -619,48 +619,48 @@ class Pipeline:
         pipelines_available = self.wait_for_service(self.pipelines_url, "Pipelines")
         
         # Install Function (try automatic first, fallback to manual)
-        self.log("🔧 Installing Enhanced Memory Function...")
+        self.log(" Installing Enhanced Memory Function...")
         function_success = self.install_function_automatic()
         
         # Install Pipeline (file-based method)
         if pipelines_available:
             pipeline_success = self.install_pipeline_file()
         else:
-            self.log("❌ Pipelines not available, skipping Pipeline installation", "ERROR")
+            self.log("[FAIL] Pipelines not available, skipping Pipeline installation", "ERROR")
             pipeline_success = False
         
         # Summary
         self.log("=" * 60)
-        self.log("📋 Installation Summary:")
+        self.log(" Installation Summary:")
         
         if function_success:
-            self.log("   • Enhanced Memory Function: ✅ Installed successfully")
+            self.log("   - Enhanced Memory Function: [OK] Installed successfully")
         else:
-            self.log("   • Enhanced Memory Function: ⚠️ Installation attempted (may already exist)")
+            self.log("   - Enhanced Memory Function: [WARN] Installation attempted (may already exist)")
             
         if pipeline_success:
-            self.log("   • Enhanced Memory Pipeline: ✅ File-based installation completed")
+            self.log("   - Enhanced Memory Pipeline: [OK] File-based installation completed")
         else:
-            self.log("   • Enhanced Memory Pipeline: ❌ Failed")
+            self.log("   - Enhanced Memory Pipeline: [FAIL] Failed")
         
         # Always show success if at least pipeline works
         if pipeline_success:
-            self.log("🎉 Memory system setup completed!")
+            self.log(" Memory system setup completed!")
             self.log("")
-            self.log("📚 Next Steps:")
-            self.log("   • Memory system is ready to use")
-            self.log("   • Pipeline service will auto-load enhanced memory capabilities")
-            self.log("   • Function components provide additional user context features")
+            self.log(" Next Steps:")
+            self.log("   - Memory system is ready to use")
+            self.log("   - Pipeline service will auto-load enhanced memory capabilities")
+            self.log("   - Function components provide additional user context features")
             
             self.log("")
-            self.log("🔗 Access your memory-enhanced OpenWebUI at: http://localhost:8080")
+            self.log(" Access your memory-enhanced OpenWebUI at: http://localhost:8080")
             self.log("")
-            self.log("📖 Architecture Overview:")
-            self.log("   • Functions: File-based system (shared user context)")
-            self.log("   • Pipelines: Separate service (proper user authentication)")
-            self.log("   • Both systems share the same backend memory API")
+            self.log(" Architecture Overview:")
+            self.log("   - Functions: File-based system (shared user context)")
+            self.log("   - Pipelines: Separate service (proper user authentication)")
+            self.log("   - Both systems share the same backend memory API")
         else:
-            self.log("❌ Critical installation failure - Pipeline system required", "ERROR")
+            self.log("[FAIL] Critical installation failure - Pipeline system required", "ERROR")
             return False
         
         return True

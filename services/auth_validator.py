@@ -267,7 +267,7 @@ class AuthValidator:
                         try:
                             user_id = line.split(f"{self.config.pipeline_injection_key}:")[1].strip()
                             if user_id and self.is_valid_user_id(user_id):
-                                self._log_debug(f"✅ Found pipeline-injected user ID: {user_id}")
+                                self._log_debug(f"[OK] Found pipeline-injected user ID: {user_id}")
                                 metadata = {
                                     "source": "pipeline_injection",
                                     "extracted_from": "system_message",
@@ -312,10 +312,10 @@ class AuthValidator:
             if value and isinstance(value, str) and value.strip():
                 candidate_id = value.strip()
                 if self.is_valid_user_id(candidate_id):
-                    self._log_debug(f"✅ Extracted user ID from {field}: {candidate_id}")
+                    self._log_debug(f"[OK] Extracted user ID from {field}: {candidate_id}")
                     return candidate_id, user_obj
         
-        self._log_debug("❌ No valid user ID found in user object")
+        self._log_debug("[FAIL] No valid user ID found in user object")
         return None, user_obj
     
     @handle_service_errors(
@@ -353,7 +353,7 @@ class AuthValidator:
             if user_id:
                 user_type = UserIDType.PIPELINE_INJECTION
                 validation_score = 1.0  # Highest confidence
-                self._log_debug(f"✅ Pipeline injection user: {user_id}")
+                self._log_debug(f"[OK] Pipeline injection user: {user_id}")
                 return UserContext(
                     user_id=user_id,
                     user_type=user_type,
@@ -368,7 +368,7 @@ class AuthValidator:
             if user_id:
                 user_type = self._determine_user_type(user_id)
                 validation_score = 0.9  # High confidence
-                self._log_debug(f"✅ User object extraction: {user_id} (type: {user_type.value})")
+                self._log_debug(f"[OK] User object extraction: {user_id} (type: {user_type.value})")
                 return UserContext(
                     user_id=user_id,
                     user_type=user_type,
@@ -381,7 +381,7 @@ class AuthValidator:
         if direct_user_id and self.is_valid_user_id(direct_user_id):
             user_type = self._determine_user_type(direct_user_id)
             validation_score = 0.8  # Good confidence
-            self._log_debug(f"✅ Direct user_id field: {direct_user_id}")
+            self._log_debug(f"[OK] Direct user_id field: {direct_user_id}")
             return UserContext(
                 user_id=direct_user_id,
                 user_type=user_type,
@@ -396,7 +396,7 @@ class AuthValidator:
                 if self.is_valid_user_id(candidate_id):
                     user_type = self._determine_user_type(candidate_id)
                     validation_score = 0.7  # Moderate confidence
-                    self._log_debug(f"✅ Message metadata user: {candidate_id}")
+                    self._log_debug(f"[OK] Message metadata user: {candidate_id}")
                     return UserContext(
                         user_id=candidate_id,
                         user_type=user_type,
@@ -406,7 +406,7 @@ class AuthValidator:
         
         # Priority 5: Anonymous fallback
         if self.config.allow_anonymous:
-            self._log_debug("⚠️ Falling back to anonymous user")
+            self._log_debug("[WARN] Falling back to anonymous user")
             return UserContext(
                 user_id="anonymous",
                 user_type=UserIDType.ANONYMOUS,
@@ -473,7 +473,7 @@ class AuthValidator:
                 # The extracted user ID is among the found IDs
                 return True
             
-            self._log_debug(f"❌ Session inconsistency: found {found_ids}, extracted {user_context.user_id}")
+            self._log_debug(f"[FAIL] Session inconsistency: found {found_ids}, extracted {user_context.user_id}")
             return False
             
         except Exception as e:
@@ -494,7 +494,7 @@ class AuthValidator:
         user_context.session_id = session_id
         self._active_sessions[session_id] = user_context
         
-        self._log_debug(f"✅ Created session {session_id} for user {user_context.user_id}")
+        self._log_debug(f"[OK] Created session {session_id} for user {user_context.user_id}")
         return session_id
     
     def get_session(self, session_id: str) -> Optional[UserContext]:

@@ -418,7 +418,7 @@ class DatabaseManager:
             os.makedirs(SENTENCE_TRANSFORMERS_HOME, exist_ok=True)
 
             # SentenceTransformers handles downloading automatically if model doesn't exist
-            log_service_status("embeddings", "info", f"📥 Loading/downloading model '{model_name}'...")
+            log_service_status("embeddings", "info", f" Loading/downloading model '{model_name}'...")
 
             def load_or_download_model():
                 """TODO: Add proper docstring for load_or_download_model."""
@@ -437,9 +437,9 @@ class DatabaseManager:
 
             if model is not None:
                 self.embedding_model = model
-                log_service_status("embeddings", "info", f"✅ Successfully loaded model '{model_name}'")
+                log_service_status("embeddings", "info", f"[OK] Successfully loaded model '{model_name}'")
                 log_service_status(
-                    "embeddings", "info", f"📊 Model dimensions: {model.get_sentence_embedding_dimension()}"
+                    "embeddings", "info", f"[CHART] Model dimensions: {model.get_sentence_embedding_dimension()}"
                 )
             else:
                 log_service_status("embeddings", "error", f"Failed to load model '{model_name}'")
@@ -472,7 +472,7 @@ class DatabaseManager:
 
                         if model_name in model_names:
                             log_service_status(
-                                "embeddings", "info", f"✅ Embedding model '{model_name}' found in Ollama"
+                                "embeddings", "info", f"[OK] Embedding model '{model_name}' found in Ollama"
                             )
                             self.embedding_model = model_name  # Store model name for Ollama usage
                             return
@@ -480,7 +480,7 @@ class DatabaseManager:
                             log_service_status(
                                 "embeddings", "info", f"Model '{model_name}' not found. Available models: {model_names}"
                             )
-                            log_service_status("embeddings", "info", f"� Automatically pulling model '{model_name}'...")
+                            log_service_status("embeddings", "info", f" Automatically pulling model '{model_name}'...")
 
                             # Attempt to pull the model automatically
                             await self._pull_embedding_model(client, model_name)
@@ -491,7 +491,7 @@ class DatabaseManager:
                 except Exception as e:
                     log_service_status("embeddings", "warning", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
                     log_service_status(
-                        "embeddings", "info", "💡 To fix: Ensure Ollama is running with 'docker-compose up -d ollama'"
+                        "embeddings", "info", " To fix: Ensure Ollama is running with 'docker-compose up -d ollama'"
                     )
 
             # Fallback: mark as unavailable but don't fail startup
@@ -520,7 +520,7 @@ class DatabaseManager:
             )
 
             if pull_response.status_code == 200:
-                log_service_status("embeddings", "info", f"✅ Successfully pulled model '{model_name}'")
+                log_service_status("embeddings", "info", f"[OK] Successfully pulled model '{model_name}'")
                 self.embedding_model = model_name
 
                 # Verify the model is now available
@@ -529,7 +529,7 @@ class DatabaseManager:
                     models = verify_response.json().get("models", [])
                     model_names = [model.get("name", "").split(":")[0] for model in models]
                     if model_name in model_names:
-                        log_service_status("embeddings", "info", f"✅ Model '{model_name}' verified and ready")
+                        log_service_status("embeddings", "info", f"[OK] Model '{model_name}' verified and ready")
                     else:
                         log_service_status(
                             "embeddings", "warning", f"Model '{model_name}' pull succeeded but not found in model list"
@@ -539,14 +539,14 @@ class DatabaseManager:
                     "embeddings", "error", f"Failed to pull model '{model_name}': HTTP {pull_response.status_code}"
                 )
                 log_service_status(
-                    "embeddings", "info", f"💡 Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
+                    "embeddings", "info", f" Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
                 )
                 self.embedding_model = None
 
         except Exception as e:
             log_service_status("embeddings", "error", f"Error pulling model '{model_name}': {str(e)}")
             log_service_status(
-                "embeddings", "info", f"💡 Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
+                "embeddings", "info", f" Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
             )
             self.embedding_model = None
 
@@ -1547,27 +1547,27 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
             return []
 
         # Enhanced logging for debugging
-        logging.info(f"[MEMORY] 🔍 Starting memory retrieval for user_id={user_id}, n_results={n_results}")
+        logging.info(f"[MEMORY] [SEARCH] Starting memory retrieval for user_id={user_id}, n_results={n_results}")
 
         # Ensure query_embedding is properly formatted
-        logging.debug(f"[MEMORY] 📊 Query embedding type: {type(query_embedding)}")
+        logging.debug(f"[MEMORY] [CHART] Query embedding type: {type(query_embedding)}")
 
         if query_embedding is None:
-            logging.error("[MEMORY] ❌ Query embedding is None")
+            logging.error("[MEMORY] [FAIL] Query embedding is None")
             return []
         elif hasattr(query_embedding, "tolist"):
             embedding_list = query_embedding.tolist()
             logging.debug(
-                f"[MEMORY] 📊 Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}"
+                f"[MEMORY] [CHART] Converted numpy array to list, shape: {query_embedding.shape if hasattr(query_embedding, 'shape') else 'unknown'}"
             )
         elif hasattr(query_embedding, "__iter__") and not isinstance(query_embedding, str):
             embedding_list = list(query_embedding)
-            logging.debug(f"[MEMORY] 📊 Converted iterable to list, length: {len(embedding_list)}")
+            logging.debug(f"[MEMORY] [CHART] Converted iterable to list, length: {len(embedding_list)}")
         else:
-            logging.error(f"[MEMORY] ❌ Invalid embedding format: {type(query_embedding)}")
+            logging.error(f"[MEMORY] [FAIL] Invalid embedding format: {type(query_embedding)}")
             return []
 
-        logging.debug(f"[MEMORY] 📐 Query embedding dimension: {len(embedding_list)}")
+        logging.debug(f"[MEMORY]  Query embedding dimension: {len(embedding_list)}")
 
         results = db_manager.chroma_collection.query(
             query_embeddings=[embedding_list],
@@ -1575,22 +1575,22 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
             where={"user_id": user_id},
             include=["documents", "metadatas", "distances"])
 
-        logging.info(f"[MEMORY] 📊 chromadb query results: {results}")
+        logging.info(f"[MEMORY] [CHART] chromadb query results: {results}")
 
         docs = results.get("documents", [[]])[0] if results else []
         metadatas = results.get("metadatas", [[]])[0] if results else []
         distances = results.get("distances", [[]])[0] if results else []
 
-        logging.info(f"[MEMORY] ✅ Retrieved {len(docs)} memory chunks for user_id={user_id}")
+        logging.info(f"[MEMORY] [OK] Retrieved {len(docs)} memory chunks for user_id={user_id}")
 
         # Use len() check instead of boolean check to avoid numpy array truth value error
         if len(docs) > 0:
             for i, (doc, metadata, distance) in enumerate(zip(docs, metadatas, distances)):
                 similarity = 1 - distance if distance is not None else 0.0
-                logging.info(f"[MEMORY] 📄 Chunk {i+1}: similarity={similarity:.4f}, metadata={metadata}")
-                logging.debug(f"[MEMORY] 📄 Content: {doc[:100]}...")
+                logging.info(f"[MEMORY]  Chunk {i+1}: similarity={similarity:.4f}, metadata={metadata}")
+                logging.debug(f"[MEMORY]  Content: {doc[:100]}...")
         else:
-            logging.warning(f"[MEMORY] ⚠️ No relevant memory found for user_id={user_id}")
+            logging.warning(f"[MEMORY] [WARN] No relevant memory found for user_id={user_id}")
 
         # Return formatted results for semantic search
         formatted_results = []
@@ -1610,7 +1610,7 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
                             "distance": 0.0,  # Highest relevance
                         }
                     )
-                    logging.info(f"[MEMORY] 👤 Added user profile context for {user_id}")
+                    logging.info(f"[MEMORY]  Added user profile context for {user_id}")
         except ImportError:
             logging.debug("[MEMORY] User profile system not available")
         except Exception as e:
@@ -1622,7 +1622,7 @@ def retrieve_user_memory(db_manager, user_id, query_embedding, n_results=5, requ
                 {"content": doc, "metadata": metadata, "similarity": similarity, "distance": distance, "rank": i + 1}
             )
 
-        logging.info(f"[MEMORY] 📋 Returning {len(formatted_results)} formatted results")
+        logging.info(f"[MEMORY]  Returning {len(formatted_results)} formatted results")
         return formatted_results
 
     return _retrieve_memory()
@@ -1639,7 +1639,7 @@ def get_embedding_sync(db_manager, text, request_id=""):
     Returns:
         The embedding vector if successful, None otherwise
     """
-    logging.critical(f"🔍 [DATABASE] get_embedding called with text: '{text[:50]}...'")
+    logging.critical(f"[SEARCH] [DATABASE] get_embedding called with text: '{text[:50]}...'")
 
     def _get_embedding():
         """Generate an embedding vector for the given text using the embedding model.
@@ -1654,21 +1654,21 @@ def get_embedding_sync(db_manager, text, request_id=""):
         """
         if not db_manager.is_embeddings_available():
             logging.warning("[EMBEDDINGS] Embedding model not available")
-            logging.critical(f"❌ [DATABASE] Embedding model not available")
+            logging.critical(f"[FAIL] [DATABASE] Embedding model not available")
             return None
 
-        logging.critical(f"🔍 [DATABASE] Generating embedding using model: {type(db_manager.embedding_model)}")
+        logging.critical(f"[SEARCH] [DATABASE] Generating embedding using model: {type(db_manager.embedding_model)}")
         # Get the embedding and return the first element (single text input)
         embedding = db_manager.embedding_model.encode([text])
-        logging.critical(f"🔍 [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}")
+        logging.critical(f"[SEARCH] [DATABASE] Raw embedding result: type={type(embedding)}, shape={getattr(embedding, 'shape', 'no shape')}")
         
         if embedding is not None:
             if hasattr(embedding, "__len__") and len(embedding) > 0:
                 result = embedding[0]
-                logging.critical(f"🔍 [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}")
+                logging.critical(f"[SEARCH] [DATABASE] Returning embedding[0]: type={type(result)}, shape={getattr(result, 'shape', 'no shape')}")
                 return result
             
-        logging.critical(f"❌ [DATABASE] Embedding invalid or empty")
+        logging.critical(f"[FAIL] [DATABASE] Embedding invalid or empty")
         return None
 
     # Execute synchronously in the current thread

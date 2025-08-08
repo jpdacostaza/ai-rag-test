@@ -212,10 +212,10 @@ def extract_authenticated_user_id(messages: list) -> Optional[str]:
                 pipeline_user_id = content.replace("AUTHENTICATED_USER_ID:", "").strip()
                 
                 if pipeline_user_id and validate_openwebui_user_id(pipeline_user_id):
-                    log_service_status("CHAT", "info", f"✅ Found valid authenticated user ID: {pipeline_user_id}")
+                    log_service_status("CHAT", "info", f"[OK] Found valid authenticated user ID: {pipeline_user_id}")
                     return pipeline_user_id
                 else:
-                    log_service_status("CHAT", "warning", f"❌ Invalid user ID from pipeline: {pipeline_user_id}")
+                    log_service_status("CHAT", "warning", f"[FAIL] Invalid user ID from pipeline: {pipeline_user_id}")
             except Exception as e:
                 log_service_status("CHAT", "error", f"Failed to extract pipeline user ID: {e}")
     
@@ -264,7 +264,7 @@ async def chat_endpoint(
     log_service_status(
         "api",
         "info", 
-        f"[REQUEST] 📝 Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms"
+        f"[REQUEST]  Info - [{request_id}] POST /chat - Completed 200 in {duration:.2f}ms"
     )
     
     return response

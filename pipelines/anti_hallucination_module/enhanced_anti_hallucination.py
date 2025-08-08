@@ -542,7 +542,7 @@ class EnhancedAntiHallucination:
 
 async def demo_enhanced_anti_hallucination():
     """Demonstrate the enhanced anti-hallucination system"""
-    print("🚀 Enhanced Anti-Hallucination System Demo")
+    print(" Enhanced Anti-Hallucination System Demo")
     print("=" * 60)
     
     # Initialize the system
@@ -582,7 +582,7 @@ async def demo_enhanced_anti_hallucination():
     results = []
     
     for i, test_case in enumerate(test_cases, 1):
-        print(f"\n📝 Test Case {i}: {test_case['description']}")
+        print(f"\n Test Case {i}: {test_case['description']}")
         print(f"Response: \"{test_case['response']}\"")
         
         # Evaluate the response
@@ -590,20 +590,20 @@ async def demo_enhanced_anti_hallucination():
         results.append(result)
         
         # Display results
-        print(f"🎯 Confidence Score: {result.confidence_score:.3f}")
-        print(f"🚨 Hallucination Detected: {result.is_hallucination}")
-        print(f"📚 Source Citation: {result.source_citation_detected}")
+        print(f" Confidence Score: {result.confidence_score:.3f}")
+        print(f"*** Hallucination Detected: {result.is_hallucination}")
+        print(f" Source Citation: {result.source_citation_detected}")
         
         if result.uncertainty_indicators:
-            print(f"⚠️  Uncertainty Indicators:")
+            print(f"[WARN]  Uncertainty Indicators:")
             for indicator in result.uncertainty_indicators:
-                print(f"   • {indicator}")
+                print(f"   - {indicator}")
         
         if result.details and result.details.get("pattern_details"):
-            print(f"🔍 Pattern Match: {result.details['pattern_details']['category']}")
+            print(f"[SEARCH] Pattern Match: {result.details['pattern_details']['category']}")
     
     # Generate overall statistics
-    print(f"\n📊 Overall Statistics")
+    print(f"\n[CHART] Overall Statistics")
     print("=" * 30)
     stats = ah_system.get_hallucination_statistics(results)
     
@@ -615,7 +615,7 @@ async def demo_enhanced_anti_hallucination():
     if stats['common_uncertainty_indicators']:
         print(f"\nCommon Uncertainty Patterns:")
         for indicator in stats['common_uncertainty_indicators'][:5]:  # Show top 5
-            print(f"   • {indicator}")
+            print(f"   - {indicator}")
 
 
 if __name__ == "__main__":

@@ -40,25 +40,25 @@ class SystemMonitor:
         
     async def run_continuous_monitoring(self):
         """Run continuous system monitoring"""
-        logger.info("🔄 Starting continuous system monitoring...")
-        logger.info(f"⏱️  Check interval: {self.check_interval} seconds")
+        logger.info("[SYNC] Starting continuous system monitoring...")
+        logger.info(f"  Check interval: {self.check_interval} seconds")
         
         while True:
             try:
                 await self.perform_health_check()
-                logger.info(f"😴 Sleeping for {self.check_interval} seconds...")
+                logger.info(f" Sleeping for {self.check_interval} seconds...")
                 await asyncio.sleep(self.check_interval)
                 
             except KeyboardInterrupt:
-                logger.info("⏹️  Monitor stopped by user")
+                logger.info("  Monitor stopped by user")
                 break
             except Exception as e:
-                logger.error(f"❌ Monitor error: {str(e)}")
+                logger.error(f"[FAIL] Monitor error: {str(e)}")
                 await asyncio.sleep(60)  # Wait 1 minute on error
 
     async def perform_health_check(self):
         """Perform comprehensive health check"""
-        logger.info("🩺 Performing health check...")
+        logger.info(" Performing health check...")
         
         try:
             # Check services
@@ -71,13 +71,13 @@ class SystemMonitor:
             function_ok = await self.check_function_health()
             
             if services_ok and model_ok and function_ok:
-                logger.info("✅ 💚 ALL SYSTEMS HEALTHY")
+                logger.info("[OK]  ALL SYSTEMS HEALTHY")
             else:
-                logger.warning("⚠️  🔧 SOME ISSUES DETECTED - AUTO-FIXING...")
+                logger.warning("[WARN]   SOME ISSUES DETECTED - AUTO-FIXING...")
                 await self.auto_fix_issues()
                 
         except Exception as e:
-            logger.error(f"❌ Health check error: {str(e)}")
+            logger.error(f"[FAIL] Health check error: {str(e)}")
 
     async def check_services_health(self) -> bool:
         """Check if all services are responding"""
@@ -93,12 +93,12 @@ class SystemMonitor:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.get(url)
                     if response.status_code in [200, 404]:  # 404 is OK for Ollama root
-                        logger.debug(f"✅ {service_name} healthy")
+                        logger.debug(f"[OK] {service_name} healthy")
                     else:
-                        logger.warning(f"⚠️  {service_name} returned {response.status_code}")
+                        logger.warning(f"[WARN]  {service_name} returned {response.status_code}")
                         all_healthy = False
             except Exception as e:
-                logger.warning(f"⚠️  {service_name} connection failed: {str(e)}")
+                logger.warning(f"[WARN]  {service_name} connection failed: {str(e)}")
                 all_healthy = False
         
         return all_healthy
@@ -114,24 +114,24 @@ class SystemMonitor:
                     existing_models = [model['name'] for model in models.get('models', [])]
                     
                     if self.default_model in existing_models:
-                        logger.debug(f"✅ Model {self.default_model} available")
+                        logger.debug(f"[OK] Model {self.default_model} available")
                         return True
                     else:
-                        logger.warning(f"⚠️  Model {self.default_model} missing")
+                        logger.warning(f"[WARN]  Model {self.default_model} missing")
                         return False
                 else:
-                    logger.warning(f"⚠️  Cannot check models: {response.status_code}")
+                    logger.warning(f"[WARN]  Cannot check models: {response.status_code}")
                     return False
                     
         except Exception as e:
-            logger.warning(f"⚠️  Model check failed: {str(e)}")
+            logger.warning(f"[WARN]  Model check failed: {str(e)}")
             return False
 
     async def check_function_health(self) -> bool:
         """Check if memory function is installed and active"""
         try:
             if not os.path.exists(self.db_path):
-                logger.warning("⚠️  Database not accessible")
+                logger.warning("[WARN]  Database not accessible")
                 return False
             
             conn = sqlite3.connect(self.db_path)
@@ -144,25 +144,25 @@ class SystemMonitor:
                 function_id, is_active, is_global = result
                 
                 if is_active and is_global:
-                    logger.debug("✅ Memory function active and global")
+                    logger.debug("[OK] Memory function active and global")
                     conn.close()
                     return True
                 else:
-                    logger.warning("⚠️  Memory function not properly configured")
+                    logger.warning("[WARN]  Memory function not properly configured")
                     conn.close()
                     return False
             else:
-                logger.warning("⚠️  Memory function not found")
+                logger.warning("[WARN]  Memory function not found")
                 conn.close()
                 return False
                 
         except Exception as e:
-            logger.warning(f"⚠️  Function check failed: {str(e)}")
+            logger.warning(f"[WARN]  Function check failed: {str(e)}")
             return False
 
     async def auto_fix_issues(self):
         """Automatically fix detected issues"""
-        logger.info("🔧 Starting auto-fix procedures...")
+        logger.info(" Starting auto-fix procedures...")
         
         # Fix model if missing
         if not await self.check_model_health():
@@ -172,11 +172,11 @@ class SystemMonitor:
         if not await self.check_function_health():
             await self.fix_function_issue()
         
-        logger.info("🔧 Auto-fix procedures completed")
+        logger.info(" Auto-fix procedures completed")
 
     async def fix_model_issue(self):
         """Fix model-related issues"""
-        logger.info(f"📥 Downloading missing model {self.default_model}...")
+        logger.info(f" Downloading missing model {self.default_model}...")
         
         try:
             async with httpx.AsyncClient(timeout=600.0) as client:
@@ -186,20 +186,20 @@ class SystemMonitor:
                 )
                 
                 if response.status_code == 200:
-                    logger.info(f"✅ Model {self.default_model} downloaded successfully")
+                    logger.info(f"[OK] Model {self.default_model} downloaded successfully")
                 else:
-                    logger.error(f"❌ Model download failed: {response.status_code}")
+                    logger.error(f"[FAIL] Model download failed: {response.status_code}")
                     
         except Exception as e:
-            logger.error(f"❌ Model fix failed: {str(e)}")
+            logger.error(f"[FAIL] Model fix failed: {str(e)}")
 
     async def fix_function_issue(self):
         """Fix function-related issues"""
-        logger.info("🔧 Fixing memory function issues...")
+        logger.info(" Fixing memory function issues...")
         
         try:
             if not os.path.exists(self.db_path):
-                logger.error("❌ Cannot fix function: database not accessible")
+                logger.error("[FAIL] Cannot fix function: database not accessible")
                 return
             
             conn = sqlite3.connect(self.db_path)
@@ -211,30 +211,30 @@ class SystemMonitor:
             
             if result:
                 # Function exists, fix configuration
-                logger.info("🔧 Fixing function configuration...")
+                logger.info(" Fixing function configuration...")
                 cursor.execute("""
                     UPDATE function 
                     SET is_active = ?, is_global = ?, updated_at = ?
                     WHERE id = ?
                 """, (True, True, int(time.time()), "memory_function"))
                 conn.commit()
-                logger.info("✅ Function configuration fixed")
+                logger.info("[OK] Function configuration fixed")
             else:
                 # Function doesn't exist, install it
-                logger.info("📦 Installing missing function...")
+                logger.info(" Installing missing function...")
                 await self.install_function(cursor)
             
             conn.close()
             
         except Exception as e:
-            logger.error(f"❌ Function fix failed: {str(e)}")
+            logger.error(f"[FAIL] Function fix failed: {str(e)}")
 
     async def install_function(self, cursor):
         """Install missing function"""
         try:
             function_code = await self.read_function_code()
             if not function_code:
-                logger.error("❌ Cannot install function: code not found")
+                logger.error("[FAIL] Cannot install function: code not found")
                 return
             
             # Ensure we have a user
@@ -263,10 +263,10 @@ class SystemMonitor:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (function_id, function_name, function_code, "function", True, True, created_at, created_at, user_id))
             
-            logger.info("✅ Function installed successfully")
+            logger.info("[OK] Function installed successfully")
             
         except Exception as e:
-            logger.error(f"❌ Function installation failed: {str(e)}")
+            logger.error(f"[FAIL] Function installation failed: {str(e)}")
 
     async def read_function_code(self) -> Optional[str]:
         """Read the memory function code"""
@@ -290,7 +290,7 @@ async def main():
     try:
         await monitor.run_continuous_monitoring()
     except KeyboardInterrupt:
-        logger.info("🛑 System monitor stopped")
+        logger.info(" System monitor stopped")
         sys.exit(0)
 
 if __name__ == "__main__":

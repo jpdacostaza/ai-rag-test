@@ -105,13 +105,13 @@ class StartupOrderValidator:
                 elapsed = time.time() - start_time
                 service.startup_time = elapsed
                 service.healthy = True
-                logger.info(f"[{service.startup_order}] ✅ {service.name} healthy after {elapsed:.1f}s")
+                logger.info(f"[{service.startup_order}] [OK] {service.name} healthy after {elapsed:.1f}s")
                 return True
             
             await asyncio.sleep(1)
         
         elapsed = time.time() - start_time
-        logger.warning(f"[{service.startup_order}] ❌ {service.name} timeout after {elapsed:.1f}s")
+        logger.warning(f"[{service.startup_order}] [FAIL] {service.name} timeout after {elapsed:.1f}s")
         return False
     
     async def validate_dependencies(self, service: ServiceConfig) -> bool:
@@ -154,7 +154,7 @@ class StartupOrderValidator:
             
             # Skip non-critical services that don't have health endpoints
             if not service.critical and not service.health_endpoint:
-                logger.info(f"[{service.startup_order}] ⏭️  Skipping {service.name} (no health endpoint)")
+                logger.info(f"[{service.startup_order}]   Skipping {service.name} (no health endpoint)")
                 results["services"][service.name] = {
                     "status": "skipped",
                     "startup_time": 0,
@@ -217,7 +217,7 @@ class StartupOrderValidator:
         # Service details
         logger.info("SERVICE STARTUP DETAILS:")
         for service_name, service_data in results["services"].items():
-            status_icon = "✅" if service_data["healthy"] else "❌" if service_data["status"] != "skipped" else "⏭️"
+            status_icon = "[OK]" if service_data["healthy"] else "[FAIL]" if service_data["status"] != "skipped" else ""
             startup_time = service_data["startup_time"]
             order = service_data.get("startup_order", 0)
             
@@ -229,27 +229,27 @@ class StartupOrderValidator:
         if results["critical_failures"]:
             logger.error("CRITICAL FAILURES:")
             for failure in results["critical_failures"]:
-                logger.error(f"   ❌ {failure}")
+                logger.error(f"   [FAIL] {failure}")
             logger.info("")
         
         if results["dependency_failures"]:
             logger.warning("DEPENDENCY FAILURES:")
             for failure in results["dependency_failures"]:
-                logger.warning(f"   ⚠️  {failure}")
+                logger.warning(f"   [WARN]  {failure}")
             logger.info("")
         
         # Recommendations
         logger.info("STARTUP ORDER ANALYSIS:")
-        logger.info("   1. ✅ Redis (Foundation) - Should start first")
-        logger.info("   2. ✅ ChromaDB (Data) - Depends on Redis")
-        logger.info("   3. ✅ Ollama (AI) - Depends on Redis + ChromaDB")
-        logger.info("   4. ✅ Backend (Core) - Depends on all foundation services")
-        logger.info("   5. ✅ Memory API (Enhanced) - Depends on core services")
-        logger.info("   6. ✅ Pipelines (Advanced) - Depends on enhanced services")
-        logger.info("   7. ✅ OpenWebUI (UI) - Depends on all backend services")
-        logger.info("   8. ✅ Installer (Setup) - Runs after UI is ready")
-        logger.info("   9. ✅ API Gateway (Monitor) - Last core service")
-        logger.info("  10. ✅ Watchtower (Maintenance) - Background monitoring")
+        logger.info("   1. [OK] Redis (Foundation) - Should start first")
+        logger.info("   2. [OK] ChromaDB (Data) - Depends on Redis")
+        logger.info("   3. [OK] Ollama (AI) - Depends on Redis + ChromaDB")
+        logger.info("   4. [OK] Backend (Core) - Depends on all foundation services")
+        logger.info("   5. [OK] Memory API (Enhanced) - Depends on core services")
+        logger.info("   6. [OK] Pipelines (Advanced) - Depends on enhanced services")
+        logger.info("   7. [OK] OpenWebUI (UI) - Depends on all backend services")
+        logger.info("   8. [OK] Installer (Setup) - Runs after UI is ready")
+        logger.info("   9. [OK] API Gateway (Monitor) - Last core service")
+        logger.info("  10. [OK] Watchtower (Maintenance) - Background monitoring")
         
         logger.info("====================================================================================================")
     
@@ -269,11 +269,11 @@ class StartupOrderValidator:
             try:
                 healthy = await task
                 results[name] = healthy
-                status = "✅" if healthy else "❌"
+                status = "[OK]" if healthy else "[FAIL]"
                 logger.info(f"   {status} {name}")
             except Exception as e:
                 results[name] = False
-                logger.error(f"   ❌ {name} - Error: {e}")
+                logger.error(f"   [FAIL] {name} - Error: {e}")
         
         return results
 

@@ -11,7 +11,7 @@ from utilities.enhanced_web_search import should_trigger_web_search
 query = "Hello my name is J.P. I work at swift, can you remember that.. ? I like pizza and sanwiches,"
 result = should_trigger_web_search(query, "")
 
-print(f"🧪 Testing Web Search Trigger Logic")
+print(f" Testing Web Search Trigger Logic")
 print(f"=" * 50)
 print(f"Query: {query}")
 print(f"Should trigger: {result}")

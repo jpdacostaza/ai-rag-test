@@ -42,7 +42,7 @@ try:
         ErrorSeverity
     )
 except ImportError:
-    print("⚠️ Error patterns module not available - this is a migration guide")
+    print("[WARN] Error patterns module not available - this is a migration guide")
 
 
 # ============================================================================
@@ -209,7 +209,7 @@ def count_old_patterns():
         "security.py"
     ]
     
-    print(f"📊 Files identified for migration: {len(files_with_patterns)}")
+    print(f"[CHART] Files identified for migration: {len(files_with_patterns)}")
     print("   Estimated error handling patterns to replace: 50+")
     print("   Expected code reduction: ~80% in error handling")
     return files_with_patterns
@@ -218,33 +218,33 @@ def count_old_patterns():
 def migration_checklist():
     """Migration checklist for developers."""
     checklist = [
-        "✅ Error Handling Framework Created (utilities/error_patterns.py)",
-        "✅ Test Suite Implemented (tests/test_error_patterns.py)", 
-        "⏳ Begin file-by-file migration:",
-        "   ⏳ routes/chat.py - Replace manual try/catch with @handle_llm_errors",
-        "   ⏳ database_manager.py - Replace DB errors with @handle_database_errors",
-        "   ⏳ memory_function.py - Replace memory errors with @handle_memory_errors",
-        "   ⏳ web_search_tool.py - Replace API errors with @handle_api_errors",
-        "   ⏳ rag.py - Replace search errors with custom configs",
-        "   ⏳ Other files - Apply appropriate decorators",
-        "⏳ Integration testing",
-        "⏳ Update project.md completion status"
+        "[OK] Error Handling Framework Created (utilities/error_patterns.py)",
+        "[OK] Test Suite Implemented (tests/test_error_patterns.py)", 
+        " Begin file-by-file migration:",
+        "    routes/chat.py - Replace manual try/catch with @handle_llm_errors",
+        "    database_manager.py - Replace DB errors with @handle_database_errors",
+        "    memory_function.py - Replace memory errors with @handle_memory_errors",
+        "    web_search_tool.py - Replace API errors with @handle_api_errors",
+        "    rag.py - Replace search errors with custom configs",
+        "    Other files - Apply appropriate decorators",
+        " Integration testing",
+        " Update project.md completion status"
     ]
     
-    print("📋 Error Handling Patterns Migration Checklist:")
+    print(" Error Handling Patterns Migration Checklist:")
     for item in checklist:
         print(f"   {item}")
 
 
 if __name__ == "__main__":
-    print("🚀 Error Handling Patterns Migration Guide")
+    print(" Error Handling Patterns Migration Guide")
     print("=" * 50)
     
     migration_checklist()
     print()
     count_old_patterns()
     
-    print("\n🎯 Next Steps:")
+    print("\n Next Steps:")
     print("1. Begin systematic migration of identified files")
     print("2. Test each migration thoroughly")
     print("3. Validate backward compatibility")

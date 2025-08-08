@@ -7,7 +7,7 @@ import requests
 import json
 
 def test_chat_with_web_search():
-    print("🧪 Testing Chat with Web Search Integration")
+    print(" Testing Chat with Web Search Integration")
     print("=" * 60)
     
     # Test chat with explicit web search request
@@ -34,8 +34,8 @@ def test_chat_with_web_search():
             result = response.json()
             assistant_message = result.get('choices', [{}])[0].get('message', {}).get('content', '')
             
-            print("✅ Chat response received")
-            print("📝 Response:")
+            print("[OK] Chat response received")
+            print(" Response:")
             print("-" * 40)
             print(assistant_message)
             print("-" * 40)
@@ -47,16 +47,16 @@ def test_chat_with_web_search():
             ]
             
             if any(indicator in assistant_message.lower() for indicator in web_search_indicators):
-                print("\n✅ Chat appears to be using web search!")
+                print("\n[OK] Chat appears to be using web search!")
             else:
-                print("\n⚠️  Chat may still be using cached/training data")
+                print("\n[WARN]  Chat may still be using cached/training data")
                 
         else:
-            print(f"❌ Chat failed: {response.status_code}")
+            print(f"[FAIL] Chat failed: {response.status_code}")
             print(f"Response: {response.text}")
             
     except Exception as e:
-        print(f"❌ Test failed: {e}")
+        print(f"[FAIL] Test failed: {e}")
 
 if __name__ == "__main__":
     test_chat_with_web_search()

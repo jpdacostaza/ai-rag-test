@@ -44,26 +44,26 @@ class PipelineManager:
         monolithic_path = self.storage_pipelines / "enhanced_memory_pipeline.py"
         if monolithic_path.exists():
             size = monolithic_path.stat().st_size
-            self.log(f"✅ Monolithic: {monolithic_path} ({size:,} bytes)")
+            self.log(f"[OK] Monolithic: {monolithic_path} ({size:,} bytes)")
         else:
-            self.log("❌ Monolithic: Not found")
+            self.log("[FAIL] Monolithic: Not found")
         
         # Check modular pipeline
         modular_path = self.modular_pipelines / "enhanced_memory_pipeline_modular.py"
         if modular_path.exists():
             size = modular_path.stat().st_size
-            self.log(f"✅ Modular: {modular_path} ({size:,} bytes)")
+            self.log(f"[OK] Modular: {modular_path} ({size:,} bytes)")
             
             # List modular components
             memory_system_path = self.modular_pipelines / "memory_system"
             if memory_system_path.exists():
-                self.log("   📁 Modular Components:")
+                self.log("   [FOLDER] Modular Components:")
                 for component in memory_system_path.glob("*.py"):
                     if component.name != "__init__.py":
                         comp_size = component.stat().st_size
-                        self.log(f"      • {component.name}: {comp_size:,} bytes")
+                        self.log(f"      - {component.name}: {comp_size:,} bytes")
         else:
-            self.log("❌ Modular: Not found")
+            self.log("[FAIL] Modular: Not found")
     
     @handle_service_errors
     def deploy_monolithic(self):
@@ -71,17 +71,17 @@ class PipelineManager:
         try:
             source = self.storage_pipelines / "enhanced_memory_pipeline.py"
             if not source.exists():
-                self.log("❌ Monolithic pipeline not found", "ERROR")
+                self.log("[FAIL] Monolithic pipeline not found", "ERROR")
                 return False
             
-            self.log("🚀 Deploying Monolithic Pipeline...")
-            self.log(f"📁 Source: {source}")
-            self.log("✅ Monolithic pipeline is already active in storage/pipelines/")
-            self.log("💡 To activate: Restart the pipelines service")
+            self.log(" Deploying Monolithic Pipeline...")
+            self.log(f"[FOLDER] Source: {source}")
+            self.log("[OK] Monolithic pipeline is already active in storage/pipelines/")
+            self.log(" To activate: Restart the pipelines service")
             return True
             
         except Exception as e:
-            self.log(f"❌ Error deploying monolithic pipeline: {e}", "ERROR")
+            self.log(f"[FAIL] Error deploying monolithic pipeline: {e}", "ERROR")
             return False
     
     @handle_service_errors
@@ -93,33 +93,33 @@ class PipelineManager:
             memory_system_source = self.modular_pipelines / "memory_system"
             
             if not modular_source.exists():
-                self.log("❌ Modular pipeline not found", "ERROR")
+                self.log("[FAIL] Modular pipeline not found", "ERROR")
                 return False
             
             if not memory_system_source.exists():
-                self.log("❌ Memory system components not found", "ERROR")
+                self.log("[FAIL] Memory system components not found", "ERROR")
                 return False
             
-            self.log("🚀 Deploying Modular Pipeline...")
+            self.log(" Deploying Modular Pipeline...")
             
             # Copy modular pipeline to storage/pipelines
             target = self.storage_pipelines / "enhanced_memory_pipeline.py"
             shutil.copy2(modular_source, target)
-            self.log(f"📁 Copied main pipeline: {modular_source} -> {target}")
+            self.log(f"[FOLDER] Copied main pipeline: {modular_source} -> {target}")
             
             # Copy memory system components
             target_memory_system = self.storage_pipelines / "memory_system"
             if target_memory_system.exists():
                 shutil.rmtree(target_memory_system)
             shutil.copytree(memory_system_source, target_memory_system)
-            self.log(f"📁 Copied memory system: {memory_system_source} -> {target_memory_system}")
+            self.log(f"[FOLDER] Copied memory system: {memory_system_source} -> {target_memory_system}")
             
-            self.log("✅ Modular pipeline deployed successfully!")
-            self.log("💡 To activate: Restart the pipelines service")
+            self.log("[OK] Modular pipeline deployed successfully!")
+            self.log(" To activate: Restart the pipelines service")
             return True
             
         except Exception as e:
-            self.log(f"❌ Error deploying modular pipeline: {e}", "ERROR")
+            self.log(f"[FAIL] Error deploying modular pipeline: {e}", "ERROR")
             return False
     
     def show_pipeline_structure(self):
@@ -128,22 +128,22 @@ class PipelineManager:
         self.log("=" * 40)
         
         # Show storage/pipelines structure
-        self.log("📁 storage/pipelines/ (Active Deployment):")
+        self.log("[FOLDER] storage/pipelines/ (Active Deployment):")
         if self.storage_pipelines.exists():
             for item in sorted(self.storage_pipelines.rglob("*")):
                 if item.is_file() and item.suffix == ".py":
                     rel_path = item.relative_to(self.storage_pipelines)
                     size = item.stat().st_size
-                    self.log(f"   📄 {rel_path} ({size:,} bytes)")
+                    self.log(f"    {rel_path} ({size:,} bytes)")
         
         # Show pipelines structure
-        self.log("\n📁 pipelines/ (Modular Source):")
+        self.log("\n[FOLDER] pipelines/ (Modular Source):")
         if self.modular_pipelines.exists():
             for item in sorted(self.modular_pipelines.rglob("*")):
                 if item.is_file() and item.suffix == ".py":
                     rel_path = item.relative_to(self.modular_pipelines)
                     size = item.stat().st_size
-                    self.log(f"   📄 {rel_path} ({size:,} bytes)")
+                    self.log(f"    {rel_path} ({size:,} bytes)")
     
     def compare_implementations(self):
         """Compare monolithic vs modular implementations."""
@@ -164,22 +164,22 @@ class PipelineManager:
             for component in memory_system_dir.glob("*.py"):
                 modular_size += component.stat().st_size
         
-        self.log(f"📊 Monolithic: {mono_size:,} bytes (1 file)")
-        self.log(f"📊 Modular: {modular_size:,} bytes (multiple files)")
-        self.log(f"📊 Size Difference: {modular_size - mono_size:+,} bytes")
+        self.log(f"[CHART] Monolithic: {mono_size:,} bytes (1 file)")
+        self.log(f"[CHART] Modular: {modular_size:,} bytes (multiple files)")
+        self.log(f"[CHART] Size Difference: {modular_size - mono_size:+,} bytes")
         
-        self.log("\n🔍 Advantages:")
+        self.log("\n[SEARCH] Advantages:")
         self.log("Monolithic:")
-        self.log("  ✅ Single file deployment")
-        self.log("  ✅ No import dependencies")
-        self.log("  ✅ Simpler debugging")
+        self.log("  [OK] Single file deployment")
+        self.log("  [OK] No import dependencies")
+        self.log("  [OK] Simpler debugging")
         
         self.log("Modular:")
-        self.log("  ✅ Better code organization")
-        self.log("  ✅ Easier to maintain/extend")
-        self.log("  ✅ Component-based debugging")
-        self.log("  ✅ Reusable components")
-        self.log("  ✅ Better separation of concerns")
+        self.log("  [OK] Better code organization")
+        self.log("  [OK] Easier to maintain/extend")
+        self.log("  [OK] Component-based debugging")
+        self.log("  [OK] Reusable components")
+        self.log("  [OK] Better separation of concerns")
 
 
 def main():

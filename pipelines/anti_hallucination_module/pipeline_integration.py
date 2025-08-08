@@ -456,7 +456,7 @@ class AntiHallucinationPipeline:
 
 async def demo_pipeline_integration():
     """Demonstrate the integrated anti-hallucination pipeline"""
-    print("🔧 Anti-Hallucination Pipeline Integration Demo")
+    print(" Anti-Hallucination Pipeline Integration Demo")
     print("=" * 60)
     
     # Initialize pipeline
@@ -498,7 +498,7 @@ async def demo_pipeline_integration():
     ]
     
     for i, scenario in enumerate(test_scenarios, 1):
-        print(f"\n📝 Scenario {i}: {scenario['query']}")
+        print(f"\n Scenario {i}: {scenario['query']}")
         print("-" * 40)
         
         # Run comprehensive validation
@@ -515,27 +515,27 @@ async def demo_pipeline_integration():
         
         if "response_validation" in results["validation_results"]:
             rv = results["validation_results"]["response_validation"]
-            print(f"🎯 Confidence: {rv['confidence_score']:.3f}")
-            print(f"🚨 Hallucination: {rv['is_hallucination']}")
+            print(f" Confidence: {rv['confidence_score']:.3f}")
+            print(f"*** Hallucination: {rv['is_hallucination']}")
             
             if rv["uncertainty_indicators"]:
-                print(f"⚠️  Indicators: {', '.join(rv['uncertainty_indicators'])}")
+                print(f"[WARN]  Indicators: {', '.join(rv['uncertainty_indicators'])}")
         
         if "context_grounding" in results["validation_results"]:
             cg = results["validation_results"]["context_grounding"]
-            print(f"🔗 Grounding Score: {cg['grounding_score']:.3f}")
+            print(f" Grounding Score: {cg['grounding_score']:.3f}")
             
             if cg["unsupported_claims"]:
-                print(f"❓ Unsupported Claims: {len(cg['unsupported_claims'])}")
+                print(f" Unsupported Claims: {len(cg['unsupported_claims'])}")
         
-        print(f"📊 Overall Confidence: {results['overall_assessment']['confidence_score']:.3f}")
-        print(f"💡 Recommendation: {results['overall_assessment']['recommendation']}")
+        print(f"[CHART] Overall Confidence: {results['overall_assessment']['confidence_score']:.3f}")
+        print(f" Recommendation: {results['overall_assessment']['recommendation']}")
         
         if results["overall_assessment"]["should_filter"]:
-            print("🛡️  Response would be filtered/flagged")
+            print("  Response would be filtered/flagged")
     
     # Show pipeline statistics
-    print(f"\n📈 Pipeline Statistics")
+    print(f"\n Pipeline Statistics")
     print("=" * 30)
     stats = pipeline.get_pipeline_statistics()
     
@@ -545,7 +545,7 @@ async def demo_pipeline_integration():
     print(f"Average Processing Time: {stats['performance_stats']['average_processing_time_ms']:.1f}ms")
     
     # Health check
-    print(f"\n🏥 Health Check")
+    print(f"\n Health Check")
     print("=" * 20)
     health = await pipeline.health_check()
     print(f"Status: {health['status']}")

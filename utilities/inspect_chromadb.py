@@ -16,13 +16,13 @@ API_KEY = os.getenv("API_KEY", "default_test_key")
 def inspect_chromadb_collection():
     """Inspect ChromaDB collection contents directly"""
 
-    print("🔍 ChromaDB Collection Inspector")
+    print("[SEARCH] ChromaDB Collection Inspector")
     print("=" * 50)
 
     headers = {"Authorization": f"Bearer {API_KEY}", "Content-Type": "application/json"}
 
     # 1. First store a memory to ensure we have something
-    print("📝 Step 1: Store a test memory")
+    print(" Step 1: Store a test memory")
     user_id = "inspector_test_user"
     test_message = "Please remember: my name is Alice and I love programming in Python."
 
@@ -46,19 +46,19 @@ def inspect_chromadb_collection():
             print(f"Storage failed: {storage_response.text}")
 
     except Exception as e:
-        print(f"❌ Storage error: {e}")
+        print(f"[FAIL] Storage error: {e}")
         return
 
     # 2. Wait for indexing
-    print("\n⏳ Waiting 5 seconds for indexing...")
+    print("\n Waiting 5 seconds for indexing...")
     time.sleep(5)
 
     # 3. Try to retrieve with exact match
-    print(f"\n🔍 Step 2: Try exact keyword retrieval")
+    print(f"\n[SEARCH] Step 2: Try exact keyword retrieval")
     exact_queries = ["Alice", "Python", "programming", "Hello"]
 
     for query in exact_queries:
-        print(f"\n🔍 Testing exact query: '{query}'")
+        print(f"\n[SEARCH] Testing exact query: '{query}'")
         retrieval_data = {
             "user_id": user_id,
             "query": query,
@@ -88,10 +88,10 @@ def inspect_chromadb_collection():
                 print(f"  Retrieval failed: {retrieval_response.text}")
 
         except Exception as e:
-            print(f"  ❌ Retrieval error: {e}")
+            print(f"  [FAIL] Retrieval error: {e}")
 
     # 4. Test with different user to see if it's user-specific
-    print(f"\n🔍 Step 3: Test with different user_id")
+    print(f"\n[SEARCH] Step 3: Test with different user_id")
     retrieval_data = {"user_id": "different_user", "query": "Alice", "limit": 10, "threshold": 0.0}
 
     try:
@@ -107,7 +107,7 @@ def inspect_chromadb_collection():
             print(f"Different user query failed: {retrieval_response.text}")
 
     except Exception as e:
-        print(f"❌ Different user query error: {e}")
+        print(f"[FAIL] Different user query error: {e}")
 
 
 if __name__ == "__main__":

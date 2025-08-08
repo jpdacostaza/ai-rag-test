@@ -44,14 +44,14 @@ def test_router_imports() -> Dict[str, Any]:
                     "prefix": getattr(router, 'prefix', '/'),
                     "tags": getattr(router, 'tags', [])
                 })
-                print(f"✅ {module_path}.{router_name} - {endpoint_count} endpoints")
+                print(f"[OK] {module_path}.{router_name} - {endpoint_count} endpoints")
             else:
                 results["failures"].append({
                     "module": module_path,
                     "router": router_name,
                     "error": "Not a valid router object"
                 })
-                print(f"❌ {module_path}.{router_name} - Invalid router")
+                print(f"[FAIL] {module_path}.{router_name} - Invalid router")
                 
         except Exception as e:
             results["failures"].append({
@@ -59,7 +59,7 @@ def test_router_imports() -> Dict[str, Any]:
                 "router": router_name,
                 "error": str(e)
             })
-            print(f"❌ {module_path}.{router_name} - {str(e)}")
+            print(f"[FAIL] {module_path}.{router_name} - {str(e)}")
     
     return results
 
@@ -79,10 +79,10 @@ def test_core_imports() -> Dict[str, Any]:
         try:
             __import__(module_name)
             results["success"].append(module_name)
-            print(f"✅ Core import: {module_name}")
+            print(f"[OK] Core import: {module_name}")
         except Exception as e:
             results["failures"].append({"module": module_name, "error": str(e)})
-            print(f"❌ Core import failed: {module_name} - {str(e)}")
+            print(f"[FAIL] Core import failed: {module_name} - {str(e)}")
     
     return results
 
@@ -104,10 +104,10 @@ def verify_file_organization() -> Dict[str, Any]:
         if os.path.exists(file_path):
             file_size = os.path.getsize(file_path)
             results["found"].append({"file": file_path, "size": file_size})
-            print(f"✅ File exists: {file_path} ({file_size} bytes)")
+            print(f"[OK] File exists: {file_path} ({file_size} bytes)")
         else:
             results["missing"].append(file_path)
-            print(f"❌ Missing: {file_path}")
+            print(f"[FAIL] Missing: {file_path}")
     
     # Check that removed files are gone
     removed_files = [
@@ -117,56 +117,56 @@ def verify_file_organization() -> Dict[str, Any]:
     
     for file_path in removed_files:
         if not os.path.exists(file_path):
-            print(f"✅ Confirmed removed: {file_path}")
+            print(f"[OK] Confirmed removed: {file_path}")
         else:
-            print(f"⚠️  Still exists (should be removed): {file_path}")
+            print(f"[WARN]  Still exists (should be removed): {file_path}")
     
     return results
 
 def main():
     """Run all verification tests"""
     print("=" * 60)
-    print("🔍 FINAL ENDPOINT VERIFICATION")
+    print("[SEARCH] FINAL ENDPOINT VERIFICATION")
     print("=" * 60)
     
-    print("\n📦 Testing Router Imports...")
+    print("\n Testing Router Imports...")
     router_results = test_router_imports()
     
-    print("\n🔧 Testing Core Imports...")
+    print("\n Testing Core Imports...")
     core_results = test_core_imports()
     
-    print("\n📁 Verifying File Organization...")
+    print("\n[FOLDER] Verifying File Organization...")
     file_results = verify_file_organization()
     
     # Summary
     print("\n" + "=" * 60)
-    print("📊 VERIFICATION SUMMARY")
+    print("[CHART] VERIFICATION SUMMARY")
     print("=" * 60)
     
     total_routers = router_results["total_tested"]
     successful_routers = len(router_results["success"])
     failed_routers = len(router_results["failures"])
     
-    print(f"🔌 Routers: {successful_routers}/{total_routers} successful")
+    print(f" Routers: {successful_routers}/{total_routers} successful")
     
     successful_core = len(core_results["success"])
     failed_core = len(core_results["failures"])
     total_core = successful_core + failed_core
     
-    print(f"🔧 Core Imports: {successful_core}/{total_core} successful")
+    print(f" Core Imports: {successful_core}/{total_core} successful")
     
     found_files = len(file_results["found"])
     missing_files = len(file_results["missing"])
     total_files = found_files + missing_files
     
-    print(f"📁 Critical Files: {found_files}/{total_files} found")
+    print(f"[FOLDER] Critical Files: {found_files}/{total_files} found")
     
     # Overall status
     if failed_routers == 0 and failed_core == 0 and missing_files == 0:
-        print("\n🏆 ALL VERIFICATIONS PASSED! System is ready.")
+        print("\n ALL VERIFICATIONS PASSED! System is ready.")
         return 0
     else:
-        print("\n⚠️  Some issues found - check details above.")
+        print("\n[WARN]  Some issues found - check details above.")
         return 1
 
 if __name__ == "__main__":

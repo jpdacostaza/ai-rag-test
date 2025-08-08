@@ -30,7 +30,7 @@ class MemoryProcessor:
                         original_query = content.strip()
                         
                         if self.debug:
-                            self.log(f"🔍 Original query: '{original_query}'")
+                            self.log(f"[SEARCH] Original query: '{original_query}'")
                         
                         # If it's a generic "what do you know about me" type query,
                         # use a search query optimized for factual content
@@ -46,7 +46,7 @@ class MemoryProcessor:
                             # Use factual search terms instead of the question
                             factual_query = "name work profession user information details"
                             if self.debug:
-                                self.log(f"🔄 Converting generic query '{original_query}' → factual search: '{factual_query}'")
+                                self.log(f"[SYNC] Converting generic query '{original_query}' -> factual search: '{factual_query}'")
                             return factual_query
                         
                         return original_query
@@ -88,7 +88,7 @@ class MemoryProcessor:
                 memory_text = ""
                 
                 if self.debug and i < 5:  # Debug first 5 memories instead of 3
-                    self.log(f"🔍 Memory {i+1} structure: {list(memory.keys())}")
+                    self.log(f"[SEARCH] Memory {i+1} structure: {list(memory.keys())}")
                     if "content" in memory:
                         self.log(f"   Content type: {type(memory['content'])}")
                         if isinstance(memory["content"], dict):
@@ -106,7 +106,17 @@ class MemoryProcessor:
                         elif "summary" in content:
                             memory_text = content["summary"]
                     elif isinstance(content, str):
-                        memory_text = content
+                        # Handle conversation format: "User: ... Assistant: ..."
+                        if "User:" in content and "Assistant:" in content:
+                            # Extract the user part which contains factual information
+                            lines = content.split('\n')
+                            user_lines = [line for line in lines if line.startswith('User:')]
+                            if user_lines:
+                                memory_text = user_lines[0].replace('User:', '').strip()
+                            else:
+                                memory_text = content
+                        else:
+                            memory_text = content
                 
                 # Extract from other fields if content is empty
                 if not memory_text:
@@ -163,18 +173,18 @@ class MemoryProcessor:
             # Create a more comprehensive context with clear structure
             if context_parts:
                 # Add more structured context for better memory visibility
-                formatted_context = "Key information I remember about you:\n" + "\n".join([f"• {part}" for part in context_parts[:10]])
+                formatted_context = "Key information I remember about you:\n" + "\n".join([f"- {part}" for part in context_parts[:10]])
                 
                 if self.debug:
-                    self.log(f"📝 Formatted {len(context_parts)} memory parts into {len(formatted_context)} chars")
-                    self.log(f"🔍 First few context parts:")
+                    self.log(f" Formatted {len(context_parts)} memory parts into {len(formatted_context)} chars")
+                    self.log(f"[SEARCH] First few context parts:")
                     for i, part in enumerate(context_parts[:3]):
                         self.log(f"   Part {i+1}: {part[:100]}...")
                 
                 return formatted_context
             else:
                 if self.debug:
-                    self.log(f"⚠️ No valid context parts extracted from {len(memories)} memories")
+                    self.log(f"[WARN] No valid context parts extracted from {len(memories)} memories")
                 return ""
             
         except Exception as e:
@@ -243,7 +253,7 @@ class MemoryProcessor:
                     # Enhanced memory integration for small models with anti-fabrication
                     system_message = f"""{base_persona}
 
-🧠 VERIFIED MEMORIES ABOUT THIS USER:
+ VERIFIED MEMORIES ABOUT THIS USER:
 {memory_context}
 
 CRITICAL INSTRUCTIONS:
@@ -255,7 +265,7 @@ CRITICAL INSTRUCTIONS:
                     # Full memory integration for larger models with anti-fabrication
                     system_message = f"""{base_persona}
 
-🧠 VERIFIED MEMORY CONTEXT - PREVIOUS CONVERSATIONS 🧠
+ VERIFIED MEMORY CONTEXT - PREVIOUS CONVERSATIONS 
 
 CONFIRMED MEMORIES:
 {memory_context}
@@ -269,14 +279,14 @@ INSTRUCTIONS:
 Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliability of the memory information."""
                 
                 if self.debug:
-                    self.log(f"✅ Created {model_size} model system message with {len(memory_context)} chars of memory context")
-                    self.log(f"🔍 System message preview: {system_message[:200]}...")
+                    self.log(f"[OK] Created {model_size} model system message with {len(memory_context)} chars of memory context")
+                    self.log(f"[SEARCH] System message preview: {system_message[:200]}...")
                     
                 return system_message
             else:
                 # No memories yet - use appropriate new user persona
                 if self.debug:
-                    self.log(f"✅ Using {model_size} model NEW USER persona without memory context for user {user_id}")
+                    self.log(f"[OK] Using {model_size} model NEW USER persona without memory context for user {user_id}")
                 return base_persona
                 
         except Exception as e:
@@ -296,11 +306,11 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
                     enhanced_persona = persona_data.get("system_prompt", "")
                     if enhanced_persona:
                         if self.debug:
-                            self.log(f"✅ Loaded unified small persona ({len(enhanced_persona)} chars) from {persona_path}")
+                            self.log(f"[OK] Loaded unified small persona ({len(enhanced_persona)} chars) from {persona_path}")
                         return enhanced_persona
             except Exception as e:
                 if self.debug:
-                    self.log(f"⚠️ Could not load unified small persona: {e}, trying new user persona")
+                    self.log(f"[WARN] Could not load unified small persona: {e}, trying new user persona")
             
             # Fallback: Try new user persona
             fallback_paths = [
@@ -316,27 +326,27 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
                         enhanced_persona = persona_data.get("system_prompt", "")
                         if enhanced_persona:
                             if self.debug:
-                                self.log(f"✅ Loaded fallback persona from: {path}")
+                                self.log(f"[OK] Loaded fallback persona from: {path}")
                             return enhanced_persona
                 except Exception:
                     continue
             
             if self.debug:
-                self.log("⚠️ All persona paths failed, using embedded fallback")
+                self.log("[WARN] All persona paths failed, using embedded fallback")
             
             # Embedded fallback with anti-fabrication measures
             return """You are a helpful AI assistant with memory and web search capabilities optimized for small models.
 
-🌐 WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
+ WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
 
-🧠 MEMORY SYSTEM - ANTI-FABRICATION: 
+ MEMORY SYSTEM - ANTI-FABRICATION: 
 - I can learn about you over time through our conversations
 - **CRITICAL**: I only acknowledge memories when they are actually provided to me in the system context
 - I NEVER fabricate or hallucinate personal details about users
 - If no memory context is provided, I treat this as a new conversation
 - I'm transparent about what I know vs. what I'm learning
 
-🛡️ ANTI-HALLUCINATION:
+ ANTI-HALLUCINATION:
 - I never make up personal details, names, jobs, or interests
 - I never claim to remember things I don't actually know  
 - I only reference memories when they're explicitly provided
@@ -360,16 +370,16 @@ Be helpful, efficient, and honest. Use web search for current information. Learn
                     new_user_persona = persona_data.get("system_prompt", "")
                     if new_user_persona:
                         if self.debug:
-                            self.log(f"✅ Loaded new user persona ({len(new_user_persona)} chars) from {persona_path}")
+                            self.log(f"[OK] Loaded new user persona ({len(new_user_persona)} chars) from {persona_path}")
                         return new_user_persona
             except Exception as e:
                 if self.debug:
-                    self.log(f"⚠️ Could not load new user persona file: {e}, using fallback")
+                    self.log(f"[WARN] Could not load new user persona file: {e}, using fallback")
             
             # Fallback to clean new user persona without memory instructions
             return """You are an advanced AI assistant with comprehensive memory capabilities, persistent learning, and real-time web search functionality, designed for seamless integration with OpenWebUI. You can learn about users over time and provide personalized experiences.
 
-🌐 CRITICAL WEB SEARCH CAPABILITIES - REAL-TIME INFORMATION ACCESS 🌐:
+ CRITICAL WEB SEARCH CAPABILITIES - REAL-TIME INFORMATION ACCESS :
 
 1. **WEB SEARCH INTEGRATION**: You have access to real-time web search capabilities via optimized DuckDuckGo instances with Brave Search fallbacks that provide current, accurate information.
 
@@ -395,7 +405,7 @@ Be helpful, efficient, and honest. Use web search for current information. Learn
    - Never hallucinate facts when web search is available
    - Be transparent about information sources (web search vs. training data)
 
-🧠 MEMORY LEARNING CAPABILITIES:
+ MEMORY LEARNING CAPABILITIES:
 
 1. **MEMORY DEVELOPMENT**: As we interact, I can learn and remember important information about you, your preferences, and our conversations.
 
@@ -431,25 +441,25 @@ I'm here to help you with whatever you need, and I'll learn and adapt to provide
                         enhanced_persona = persona_data.get("system_prompt", "")
                         if enhanced_persona:
                             if self.debug:
-                                self.log(f"✅ Loaded enhanced persona from fallback path: {path}")
+                                self.log(f"[OK] Loaded enhanced persona from fallback path: {path}")
                             return enhanced_persona
                 except Exception:
                     continue
             
             if self.debug:
-                self.log("⚠️ All persona paths failed, using embedded fallback")
+                self.log("[WARN] All persona paths failed, using embedded fallback")
             
             # Fallback to an enhanced embedded version based on the persona_enhanced.json structure
             return """You are an advanced AI assistant with comprehensive memory capabilities, persistent learning, and real-time web search functionality. You maintain personalized relationships with each user through their unique user ID and comprehensive memory system.
 
-🌐 CRITICAL WEB SEARCH CAPABILITIES:
+ CRITICAL WEB SEARCH CAPABILITIES:
 - You have access to real-time web search via DuckDuckGo
 - Automatically search for current events, weather, stock prices, recent developments
 - Always use web search for time-sensitive information
 - Never hallucinate facts when web search is available
 - Integrate search results naturally into your responses
 
-🧠 CRITICAL MEMORY SYSTEM INSTRUCTIONS:
+ CRITICAL MEMORY SYSTEM INSTRUCTIONS:
 When you receive system messages with memory context:
 - IMMEDIATELY acknowledge the memories in your response
 - Reference specific details to prove recognition
@@ -462,7 +472,7 @@ MANDATORY MEMORY ACKNOWLEDGMENT PATTERNS:
 - "Based on our previous conversations about [topic], I know you [detail]"
 - "I recall that you [specific memory], so [relevant connection]"
 
-🛡️ ENHANCED SECURITY & PRIVACY:
+ ENHANCED SECURITY & PRIVACY:
 - Complete memory separation between users
 - Validate user identity across conversations
 - Block storage of passwords, tokens, secrets
@@ -499,27 +509,27 @@ You are helpful, knowledgeable, and genuinely interested in building meaningful 
                         small_persona = persona_data.get("system_prompt", "")
                         if small_persona:
                             if self.debug:
-                                self.log(f"✅ Loaded small model persona ({len(small_persona)} chars) from {path}")
+                                self.log(f"[OK] Loaded small model persona ({len(small_persona)} chars) from {path}")
                             return small_persona
                 except Exception:
                     continue
             
             if self.debug:
-                self.log("⚠️ Small model persona file not found, using embedded anti-hallucination version")
+                self.log("[WARN] Small model persona file not found, using embedded anti-hallucination version")
             
             # Embedded lightweight persona for small models with strict anti-hallucination
             return """You are a helpful AI assistant with memory and web search capabilities designed for small language models.
 
-🌐 WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
+ WEB SEARCH: You have access to real-time web search via DuckDuckGo instances. Automatically search for current events, weather, recent information when users ask about "today", "latest", "current" topics.
 
-🧠 MEMORY SYSTEM: 
+ MEMORY SYSTEM: 
 - I can learn about you over time through our conversations
 - **CRITICAL**: I only acknowledge memories when they are actually provided to me in the system context
 - I NEVER fabricate or hallucinate personal details about users
 - If no memory context is provided, I treat this as a new conversation
 - I'm transparent about what I know vs. what I'm learning
 
-🛡️ ANTI-HALLUCINATION:
+ ANTI-HALLUCINATION:
 - I never make up personal details, names, jobs, or interests
 - I never claim to remember things I don't actually know  
 - I only reference memories when they're explicitly provided

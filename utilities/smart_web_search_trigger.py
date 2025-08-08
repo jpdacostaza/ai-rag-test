@@ -228,11 +228,11 @@ def test_smart_trigger():
         }
     ]
     
-    print("🧪 Testing Smart Web Search Trigger Logic\n")
+    print(" Testing Smart Web Search Trigger Logic\n")
     
     for i, test in enumerate(test_cases, 1):
         should_trigger, reason = should_trigger_web_search_smart(test["query"], test["response"])
-        status = "✅ PASS" if should_trigger == test["expected"] else "❌ FAIL"
+        status = "[OK] PASS" if should_trigger == test["expected"] else "[FAIL] FAIL"
         
         print(f"Test {i}: {status}")
         print(f"Query: {test['query']}")

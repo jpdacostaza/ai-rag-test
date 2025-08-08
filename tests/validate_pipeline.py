@@ -15,24 +15,24 @@ sys.path.insert(0, current_dir)
 
 try:
     from enhanced_web_search_pipeline import Pipeline
-    print("✅ Pipeline import successful")
+    print("[OK] Pipeline import successful")
 except ImportError as e:
-    print(f"❌ Pipeline import failed: {e}")
+    print(f"[FAIL] Pipeline import failed: {e}")
     sys.exit(1)
 
 async def test_pipeline():
     """Test the pipeline functionality"""
-    print("\n🧪 Testing Enhanced Web Search Pipeline...")
+    print("\n Testing Enhanced Web Search Pipeline...")
     
     # Initialize pipeline
     pipeline = Pipeline()
-    print("✅ Pipeline initialized")
+    print("[OK] Pipeline initialized")
     
     # Test valve configuration
-    print(f"📋 Pipeline name: {pipeline.name}")
-    print(f"📋 Pipeline type: {pipeline.type}")
-    print(f"📋 Max results: {pipeline.valves.max_results}")
-    print(f"📋 Auto search: {pipeline.valves.auto_search_enabled}")
+    print(f" Pipeline name: {pipeline.name}")
+    print(f" Pipeline type: {pipeline.type}")
+    print(f" Max results: {pipeline.valves.max_results}")
+    print(f" Auto search: {pipeline.valves.auto_search_enabled}")
     
     # Test trigger detection
     test_queries = [
@@ -42,10 +42,10 @@ async def test_pipeline():
         "breaking news today"
     ]
     
-    print("\n🔍 Testing search triggers:")
+    print("\n[SEARCH] Testing search triggers:")
     for query in test_queries:
         trigger = pipeline._should_trigger_search_from_query(query)
-        print(f"   '{query}' → {'✅ Triggers' if trigger else '❌ No trigger'}")
+        print(f"   '{query}' -> {'[OK] Triggers' if trigger else '[FAIL] No trigger'}")
     
     # Test uncertainty detection
     test_responses = [
@@ -55,13 +55,13 @@ async def test_pipeline():
         "I cannot provide current information"
     ]
     
-    print("\n🤔 Testing uncertainty detection:")
+    print("\n Testing uncertainty detection:")
     for response in test_responses:
         uncertain = pipeline._should_trigger_search_from_response(response)
-        print(f"   '{response}' → {'✅ Uncertain' if uncertain else '❌ Confident'}")
+        print(f"   '{response}' -> {'[OK] Uncertain' if uncertain else '[FAIL] Confident'}")
     
     # Test message processing (mock)
-    print("\n📨 Testing message processing:")
+    print("\n[MSG] Testing message processing:")
     test_body = {
         "messages": [
             {"role": "user", "content": "what are the latest news headlines?"},
@@ -72,16 +72,16 @@ async def test_pipeline():
     try:
         # Test inlet
         result = await pipeline.inlet(test_body.copy())
-        print("✅ Inlet processing successful")
+        print("[OK] Inlet processing successful")
         
         # Test outlet  
         result = await pipeline.outlet(test_body.copy())
-        print("✅ Outlet processing successful")
+        print("[OK] Outlet processing successful")
         
     except Exception as e:
-        print(f"❌ Message processing failed: {e}")
+        print(f"[FAIL] Message processing failed: {e}")
     
-    print("\n🎉 Pipeline validation complete!")
+    print("\n Pipeline validation complete!")
 
 if __name__ == "__main__":
     print("Enhanced Web Search Pipeline Validator")
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     try:
         asyncio.run(test_pipeline())
     except Exception as e:
-        print(f"❌ Validation failed: {e}")
+        print(f"[FAIL] Validation failed: {e}")
         sys.exit(1)
     
-    print("\n✅ All tests passed! Pipeline is ready for use.")
+    print("\n[OK] All tests passed! Pipeline is ready for use.")

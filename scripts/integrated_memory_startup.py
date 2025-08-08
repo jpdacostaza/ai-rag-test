@@ -65,10 +65,10 @@ class IntegratedLogger:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         elapsed = time.time() - self.start_time
         emoji = {
-            "INFO": "📝", "SUCCESS": "✅", "WARNING": "⚠️", 
-            "ERROR": "❌", "DEBUG": "🔍", "MEMORY": "🧠",
-            "MODEL": "🤖", "FUNCTION": "⚙️", "API": "🌐"
-        }.get(level, "📝")
+            "INFO": "", "SUCCESS": "[OK]", "WARNING": "[WARN]", 
+            "ERROR": "[FAIL]", "DEBUG": "[SEARCH]", "MEMORY": "",
+            "MODEL": "", "FUNCTION": "", "API": ""
+        }.get(level, "")
         print(f"[{timestamp}] {emoji} [{level}] [{elapsed:.1f}s] {message}", flush=True)
 
 class ServiceWaiter:
@@ -447,7 +447,7 @@ class IntegratedMemoryAPI:
     def run_background_setup(self):
         """Run background setup process."""
         def setup_thread():
-            self.logger.log("🚀 Starting integrated auto-setup...", "INFO")
+            self.logger.log(" Starting integrated auto-setup...", "INFO")
             
             try:
                 # Wait for Ollama
@@ -483,11 +483,11 @@ class IntegratedMemoryAPI:
                 # Setup pipeline connection (zero-conf)
                 if self.pipeline_manager.wait_for_pipelines():
                     if self.function_manager.install_pipeline_connection():
-                        self.logger.log("✅ Pipeline connection configured for zero-conf deployment", "SUCCESS")
+                        self.logger.log("[OK] Pipeline connection configured for zero-conf deployment", "SUCCESS")
                     else:
-                        self.logger.log("⚠️ Pipeline connection setup failed", "WARNING")
+                        self.logger.log("[WARN] Pipeline connection setup failed", "WARNING")
                 else:
-                    self.logger.log("⚠️ Pipelines service not ready, skipping connection setup", "WARNING")
+                    self.logger.log("[WARN] Pipelines service not ready, skipping connection setup", "WARNING")
                 
                 # Verify function
                 if not self.function_manager.verify_function():
@@ -495,11 +495,11 @@ class IntegratedMemoryAPI:
                     return
                 
                 self.setup_complete = True
-                self.logger.log("🎉 Integrated auto-setup completed successfully!", "SUCCESS")
-                self.logger.log("✅ Model downloaded and available", "SUCCESS")
-                self.logger.log("✅ Memory function installed and active", "SUCCESS")
-                self.logger.log("✅ Pipeline connection configured", "SUCCESS")
-                self.logger.log("✅ System fully operational with zero-conf deployment", "SUCCESS")
+                self.logger.log(" Integrated auto-setup completed successfully!", "SUCCESS")
+                self.logger.log("[OK] Model downloaded and available", "SUCCESS")
+                self.logger.log("[OK] Memory function installed and active", "SUCCESS")
+                self.logger.log("[OK] Pipeline connection configured", "SUCCESS")
+                self.logger.log("[OK] System fully operational with zero-conf deployment", "SUCCESS")
                 
             except Exception as e:
                 self.logger.log(f"Setup failed with error: {e}", "ERROR")
@@ -511,7 +511,7 @@ class IntegratedMemoryAPI:
     
     def start_memory_api(self):
         """Start the main memory API service."""
-        self.logger.log("🧠 Starting Memory API service...", "API")
+        self.logger.log(" Starting Memory API service...", "API")
         
         # Start the main memory API
         try:
@@ -560,7 +560,7 @@ class IntegratedMemoryAPI:
     
     def run(self):
         """Run the integrated service."""
-        self.logger.log("🚀 Starting Integrated Memory API with Auto-Setup", "INFO")
+        self.logger.log(" Starting Integrated Memory API with Auto-Setup", "INFO")
         
         # Start memory API service
         api_thread = self.start_memory_api()
@@ -578,9 +578,9 @@ class IntegratedMemoryAPI:
                 
                 # Log status periodically
                 if self.setup_complete:
-                    self.logger.log("✅ System operational - Memory API running with auto-setup complete", "INFO")
+                    self.logger.log("[OK] System operational - Memory API running with auto-setup complete", "INFO")
                 else:
-                    self.logger.log("⏳ Memory API running - Auto-setup in progress...", "INFO")
+                    self.logger.log(" Memory API running - Auto-setup in progress...", "INFO")
                     
         except KeyboardInterrupt:
             self.logger.log("Shutting down...", "INFO")

@@ -35,7 +35,7 @@ class EndpointValidator:
 
     def scan_project_files(self):
         """Scan all Python files in the project."""
-        print("🔍 Scanning project files...")
+        print("[SEARCH] Scanning project files...")
 
         project_root = Path(".")
         python_files = list(project_root.rglob("*.py"))
@@ -45,7 +45,7 @@ class EndpointValidator:
                 continue
             self.backend_files.append(file_path)
 
-        print(f"📁 Found {len(self.backend_files)} Python files")
+        print(f"[FOLDER] Found {len(self.backend_files)} Python files")
         return self.backend_files
 
     def extract_endpoints_from_file(self, file_path: Path) -> List[Dict]:
@@ -83,13 +83,13 @@ class EndpointValidator:
                                             endpoints.append(endpoint)
 
         except Exception as e:
-            print(f"⚠️ Error parsing {file_path}: {e}")
+            print(f"[WARN] Error parsing {file_path}: {e}")
 
         return endpoints
 
     def extract_all_endpoints(self):
         """Extract all endpoints from all files."""
-        print("🔍 Extracting endpoints from all files...")
+        print("[SEARCH] Extracting endpoints from all files...")
 
         all_endpoints = []
         for file_path in self.backend_files:
@@ -100,12 +100,12 @@ class EndpointValidator:
                 self.file_references[str(file_path)] = file_endpoints
 
         self.declared_endpoints = all_endpoints
-        print(f"📡 Found {len(all_endpoints)} declared endpoints")
+        print(f" Found {len(all_endpoints)} declared endpoints")
         return all_endpoints
 
     def get_live_routes(self):
         """Get routes from the live FastAPI application."""
-        print("🌐 Getting live routes from FastAPI app...")
+        print(" Getting live routes from FastAPI app...")
 
         try:
             # Import the app and get routes
@@ -124,11 +124,11 @@ class EndpointValidator:
                                     {"method": method, "path": path, "name": getattr(route, "name", "unknown")}
                                 )
 
-            print(f"🚀 Found {len(live_routes)} live routes")
+            print(f" Found {len(live_routes)} live routes")
             return live_routes
 
         except Exception as e:
-            print(f"❌ Error getting live routes: {e}")
+            print(f"[FAIL] Error getting live routes: {e}")
             traceback.print_exc()
             return []
 
@@ -198,7 +198,7 @@ class EndpointValidator:
 
     def cross_reference_endpoints(self):
         """Cross-reference declared vs live endpoints."""
-        print("🔄 Cross-referencing declared vs live endpoints...")
+        print("[SYNC] Cross-referencing declared vs live endpoints...")
 
         declared_set = set((ep["method"], ep["path"]) for ep in self.declared_endpoints)
         live_routes = self.get_live_routes()
@@ -209,18 +209,18 @@ class EndpointValidator:
         live_only = live_set - declared_set
         common = declared_set & live_set
 
-        print(f"📊 Cross-reference results:")
+        print(f"[CHART] Cross-reference results:")
         print(f"   Common endpoints: {len(common)}")
         print(f"   Declared only: {len(declared_only)}")
         print(f"   Live only: {len(live_only)}")
 
         if declared_only:
-            print(f"\n⚠️ Declared but not live:")
+            print(f"\n[WARN] Declared but not live:")
             for method, path in declared_only:
                 print(f"   {method} {path}")
 
         if live_only:
-            print(f"\n⚠️ Live but not found in code:")
+            print(f"\n[WARN] Live but not found in code:")
             for method, path in live_only:
                 print(f"   {method} {path}")
 
@@ -228,7 +228,7 @@ class EndpointValidator:
 
     def test_all_endpoints(self, live_routes: List[Dict]):
         """Test all live endpoints."""
-        print("🧪 Testing all live endpoints...")
+        print(" Testing all live endpoints...")
 
         results = {}
         total_endpoints = len(live_routes)
@@ -238,7 +238,7 @@ class EndpointValidator:
             path = route["path"]
             endpoint_key = f"{method} {path}"
 
-            print(f"🔄 [{i}/{total_endpoints}] Testing {endpoint_key}...")
+            print(f"[SYNC] [{i}/{total_endpoints}] Testing {endpoint_key}...")
 
             result = self.test_endpoint_response(method, path)
             results[endpoint_key] = result
@@ -251,15 +251,15 @@ class EndpointValidator:
     def generate_report(self, cross_ref: Dict, test_results: Dict):
         """Generate comprehensive validation report."""
         print("\n" + "=" * 80)
-        print("📋 COMPREHENSIVE ENDPOINT VALIDATION REPORT")
+        print(" COMPREHENSIVE ENDPOINT VALIDATION REPORT")
         print("=" * 80)
 
         # File analysis
-        print(f"\n📁 PROJECT FILE ANALYSIS:")
+        print(f"\n[FOLDER] PROJECT FILE ANALYSIS:")
         print(f"   Total Python files scanned: {len(self.backend_files)}")
         print(f"   Files with endpoints: {len(self.file_references)}")
 
-        print(f"\n📡 ENDPOINT INVENTORY:")
+        print(f"\n ENDPOINT INVENTORY:")
         print(f"   Declared endpoints: {len(self.declared_endpoints)}")
         print(f"   Live endpoints: {len(cross_ref['live_routes'])}")
         print(f"   Common (declared + live): {len(cross_ref['common'])}")
@@ -270,40 +270,40 @@ class EndpointValidator:
         skipped_count = sum(1 for r in test_results.values() if r.get("status") == "skipped")
         other_count = len(test_results) - success_count - error_count - skipped_count
 
-        print(f"\n🧪 ENDPOINT TESTING RESULTS:")
-        print(f"   ✅ Successful: {success_count}")
-        print(f"   ❌ Errors: {error_count}")
-        print(f"   ⏭️ Skipped: {skipped_count}")
-        print(f"   ⚠️ Other: {other_count}")
-        print(f"   📊 Success rate: {success_count/len(test_results)*100:.1f}%")
+        print(f"\n ENDPOINT TESTING RESULTS:")
+        print(f"   [OK] Successful: {success_count}")
+        print(f"   [FAIL] Errors: {error_count}")
+        print(f"    Skipped: {skipped_count}")
+        print(f"   [WARN] Other: {other_count}")
+        print(f"   [CHART] Success rate: {success_count/len(test_results)*100:.1f}%")
 
         # Detailed results
-        print(f"\n🔍 DETAILED TEST RESULTS:")
+        print(f"\n[SEARCH] DETAILED TEST RESULTS:")
         for endpoint, result in test_results.items():
             status = result.get("status", "unknown")
             if status == "success":
                 code = result.get("status_code", "N/A")
                 time_ms = result.get("response_time", 0) * 1000
-                print(f"   ✅ {endpoint} → HTTP {code} ({time_ms:.1f}ms)")
+                print(f"   [OK] {endpoint} -> HTTP {code} ({time_ms:.1f}ms)")
             elif status == "error":
                 code = result.get("status_code", "N/A")
-                print(f"   ❌ {endpoint} → HTTP {code}")
+                print(f"   [FAIL] {endpoint} -> HTTP {code}")
             elif status == "skipped":
                 reason = result.get("reason", "unknown")
-                print(f"   ⏭️ {endpoint} → skipped ({reason})")
+                print(f"    {endpoint} -> skipped ({reason})")
             else:
-                print(f"   ⚠️ {endpoint} → {status}")
+                print(f"   [WARN] {endpoint} -> {status}")
 
         # File reference breakdown
-        print(f"\n📂 ENDPOINT DISTRIBUTION BY FILE:")
+        print(f"\n ENDPOINT DISTRIBUTION BY FILE:")
         for file_path, endpoints in self.file_references.items():
             filename = Path(file_path).name
             print(f"   {filename}: {len(endpoints)} endpoints")
             for ep in endpoints:
-                print(f"      {ep['method']} {ep['path']} → {ep['function']}()")
+                print(f"      {ep['method']} {ep['path']} -> {ep['function']}()")
 
         # Key endpoints validation
-        print(f"\n🎯 KEY MEMORY SYSTEM ENDPOINTS:")
+        print(f"\n KEY MEMORY SYSTEM ENDPOINTS:")
         key_endpoints = [
             
             "POST /api/memory/retrieve",
@@ -317,13 +317,13 @@ class EndpointValidator:
                 result = test_results[endpoint]
                 status = result.get("status", "unknown")
                 if status == "success":
-                    print(f"   ✅ {endpoint}")
+                    print(f"   [OK] {endpoint}")
                 else:
-                    print(f"   ❌ {endpoint} → {status}")
+                    print(f"   [FAIL] {endpoint} -> {status}")
             else:
-                print(f"   ❓ {endpoint} → not found")
+                print(f"    {endpoint} -> not found")
 
-        print(f"\n🏁 VALIDATION COMPLETE")
+        print(f"\n VALIDATION COMPLETE")
         return {
             "total_files": len(self.backend_files),
             "total_declared": len(self.declared_endpoints),
@@ -335,8 +335,8 @@ class EndpointValidator:
 
 def main():
     """Run comprehensive endpoint validation."""
-    print("🚀 COMPREHENSIVE ENDPOINT CROSS-REFERENCE VALIDATOR")
-    print(f"🎯 Target: {BASE_URL}")
+    print(" COMPREHENSIVE ENDPOINT CROSS-REFERENCE VALIDATOR")
+    print(f" Target: {BASE_URL}")
     print("=" * 80)
 
     validator = EndpointValidator()
@@ -365,14 +365,14 @@ if __name__ == "__main__":
 
         # Final status
         if report["success_rate"] >= 80:
-            print("🎉 VALIDATION PASSED: System is highly functional!")
+            print(" VALIDATION PASSED: System is highly functional!")
         elif report["success_rate"] >= 60:
-            print("✅ VALIDATION PARTIAL: Most endpoints working, some issues.")
+            print("[OK] VALIDATION PARTIAL: Most endpoints working, some issues.")
         else:
-            print("⚠️ VALIDATION CONCERNS: Multiple endpoint issues detected.")
+            print("[WARN] VALIDATION CONCERNS: Multiple endpoint issues detected.")
 
     except KeyboardInterrupt:
-        print("\n🛑 Validation interrupted by user")
+        print("\n Validation interrupted by user")
     except Exception as e:
-        print(f"\n❌ Validation failed: {e}")
+        print(f"\n[FAIL] Validation failed: {e}")
         traceback.print_exc()

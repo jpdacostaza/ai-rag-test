@@ -32,7 +32,7 @@ try:
     RAG_SERVICE_AVAILABLE = True
 except ImportError:
     RAG_SERVICE_AVAILABLE = False
-    print("⚠️ RAG service not available, using fallback")
+    print("[WARN] RAG service not available, using fallback")
 
 # Request/Response Models
 class MemoryStoreRequest(BaseModel):
@@ -73,14 +73,14 @@ async def startup_event():
             memory_service = rag_service
             success = await memory_service.initialize()
             if success:
-                print("✅ RAG dual-database service initialized successfully")
+                print("[OK] RAG dual-database service initialized successfully")
             else:
-                print("⚠️ RAG service initialized with limited functionality")
+                print("[WARN] RAG service initialized with limited functionality")
         else:
-            print("⚠️ Memory API started without RAG service")
+            print("[WARN] Memory API started without RAG service")
             
     except Exception as e:
-        print(f"❌ Failed to initialize RAG service: {e}")
+        print(f"[FAIL] Failed to initialize RAG service: {e}")
 
 @app.get("/health")
 async def health_check():

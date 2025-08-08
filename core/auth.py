@@ -63,7 +63,7 @@ class UnifiedAuthManager:
             if user_id:
                 user_data = user_param
                 if self.debug:
-                    self.log(f"✅ User ID from parameter: {user_id}")
+                    self.log(f"[OK] User ID from parameter: {user_id}")
                 return user_id, user_data
         
         # Method 2: From __user__ object in body (most reliable)
@@ -73,14 +73,14 @@ class UnifiedAuthManager:
             if user_id:
                 user_data = user_obj
                 if self.debug:
-                    self.log(f"✅ User ID from __user__ object: {user_id}")
+                    self.log(f"[OK] User ID from __user__ object: {user_id}")
                 return user_id, user_data
         
         # Method 3: From direct user_id field
         user_id = body.get("user_id")
         if user_id and self.validate_user_id(user_id):
             if self.debug:
-                self.log(f"✅ User ID from body field: {user_id}")
+                self.log(f"[OK] User ID from body field: {user_id}")
             return user_id, user_data
         
         # Method 4: From user object in body
@@ -90,11 +90,11 @@ class UnifiedAuthManager:
             if user_id:
                 user_data = user_obj
                 if self.debug:
-                    self.log(f"✅ User ID from user object: {user_id}")
+                    self.log(f"[OK] User ID from user object: {user_id}")
                 return user_id, user_data
         
         if self.debug:
-            self.log("❌ No valid user ID found in request")
+            self.log("[FAIL] No valid user ID found in request")
         
         return None, user_data
     
@@ -126,29 +126,29 @@ class UnifiedAuthManager:
         
         if not user_id:
             if self.debug:
-                self.log("❌ AUTHENTICATION FAILED: No valid user ID found")
+                self.log("[FAIL] AUTHENTICATION FAILED: No valid user ID found")
             return None, {}
         
         # Strict validation
         if not self._validate_user_data(user_data):
             if self.debug:
-                self.log(f"❌ AUTHENTICATION FAILED: Invalid user data for user {user_id}")
+                self.log(f"[FAIL] AUTHENTICATION FAILED: Invalid user data for user {user_id}")
             return None, {}
         
         # Rate limiting check
         if not self._check_rate_limit(user_id):
             if self.debug:
-                self.log(f"❌ AUTHENTICATION FAILED: Rate limit exceeded for user {user_id}")
+                self.log(f"[FAIL] AUTHENTICATION FAILED: Rate limit exceeded for user {user_id}")
             return None, {}
         
         # Success
         if self.debug:
-            self.log(f"✅ AUTHENTICATION SUCCESS: {user_id}")
+            self.log(f"[OK] AUTHENTICATION SUCCESS: {user_id}")
             if user_data:
                 email = user_data.get("email", "Unknown")
                 name = user_data.get("name", "Unknown")
                 role = user_data.get("role", "user")
-                self.log(f"📋 User Profile: {name} ({email}) - Role: {role}")
+                self.log(f" User Profile: {name} ({email}) - Role: {role}")
         
         return user_id, user_data
     
@@ -226,16 +226,16 @@ class UnifiedAuthManager:
             unique_ids = set(found_ids)
             if len(unique_ids) <= 1 and (not unique_ids or user_id in unique_ids):
                 if self.debug:
-                    self.log(f"✅ Session consistency validated for user {user_id}")
+                    self.log(f"[OK] Session consistency validated for user {user_id}")
                 return True
             else:
                 if self.debug:
-                    self.log(f"❌ Session inconsistency detected: found {unique_ids}, expected {user_id}")
+                    self.log(f"[FAIL] Session inconsistency detected: found {unique_ids}, expected {user_id}")
                 return False
         
         except Exception as e:
             if self.debug:
-                self.log(f"❌ Session validation error: {e}", "ERROR")
+                self.log(f"[FAIL] Session validation error: {e}", "ERROR")
             return False
     
     def generate_session_token(self, user_id: str, user_data: Dict[str, Any]) -> str:
@@ -284,7 +284,7 @@ class UnifiedAuthManager:
             
         except Exception as e:
             if self.debug:
-                self.log(f"❌ Token validation error: {e}", "ERROR")
+                self.log(f"[FAIL] Token validation error: {e}", "ERROR")
             return None
     
     def get_user_context_summary(self, user_data: Dict[str, Any]) -> str:

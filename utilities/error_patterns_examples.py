@@ -31,7 +31,7 @@ from utilities.error_patterns import (
 # EXAMPLE 1: Database Operations (chat.py retrieve_user_memory)
 # ==============================================================================
 
-# ❌ OLD PATTERN (from routes/chat.py):
+# [FAIL] OLD PATTERN (from routes/chat.py):
 async def retrieve_user_memory_old(user_id: str, query: str, n_results: int = 5):
     """OLD: Scattered error handling with inconsistent logging."""
     memory_service = get_memory_service()
@@ -65,7 +65,7 @@ async def retrieve_user_memory_old(user_id: str, query: str, n_results: int = 5)
         return []
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 @handle_memory_errors(operation_name="retrieve_user_memory")
 async def retrieve_user_memory_new(user_id: str, query: str, n_results: int = 5):
     """NEW: Clean function with standardized error handling."""
@@ -121,7 +121,7 @@ async def retrieve_user_memory_custom(user_id: str, query: str, n_results: int =
 # EXAMPLE 2: LLM Service Operations (services/llm_service.py)
 # ==============================================================================
 
-# ❌ OLD PATTERN:
+# [FAIL] OLD PATTERN:
 async def call_ollama_old(messages: List[Dict], model: str):
     """OLD: Manual error handling and logging."""
     try:
@@ -144,7 +144,7 @@ async def call_ollama_old(messages: List[Dict], model: str):
         return f"Error: {str(e)}"
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 @handle_llm_errors(operation_name="call_ollama")
 async def call_ollama_new(messages: List[Dict], model: str):
     """NEW: Clean LLM call with standardized error handling."""
@@ -162,7 +162,7 @@ async def call_ollama_new(messages: List[Dict], model: str):
 # EXAMPLE 3: Database Connection Operations (database_manager.py)
 # ==============================================================================
 
-# ❌ OLD PATTERN:
+# [FAIL] OLD PATTERN:
 async def initialize_redis_old(self):
     """OLD: Repetitive connection and error handling."""
     try:
@@ -176,7 +176,7 @@ async def initialize_redis_old(self):
         return False
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 @handle_database_errors(operation_name="initialize_redis", default_value=False)
 async def initialize_redis_new(self):
     """NEW: Clean initialization with standardized error handling."""
@@ -189,7 +189,7 @@ async def initialize_redis_new(self):
 # EXAMPLE 4: Complex Operations with Context Manager
 # ==============================================================================
 
-# ❌ OLD PATTERN:
+# [FAIL] OLD PATTERN:
 async def process_user_message_old(user_id: str, message: str):
     """OLD: Multiple try/catch blocks for different operations."""
     start_time = time.time()
@@ -230,7 +230,7 @@ async def process_user_message_old(user_id: str, message: str):
     return response
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 async def process_user_message_new(user_id: str, message: str):
     """NEW: Using error context manager for complex operations."""
     async with error_context(
@@ -281,31 +281,31 @@ async def store_conversation_safe(user_id: str, message: str, response: str):
 # EXAMPLE 5: Validation Operations (scattered across multiple files)
 # ==============================================================================
 
-# ❌ OLD PATTERN:
+# [FAIL] OLD PATTERN:
 def validate_user_id_old(user_id: str) -> bool:
     """OLD: Manual validation with scattered error handling."""
     try:
         if not user_id:
-            print("❌ User ID is empty")
+            print("[FAIL] User ID is empty")
             return False
         
         if not user_id.strip():
-            print("❌ User ID is whitespace only")
+            print("[FAIL] User ID is whitespace only")
             return False
         
         if len(user_id) < 3:
-            print("❌ User ID too short")
+            print("[FAIL] User ID too short")
             return False
         
         # Additional validation logic...
         return True
         
     except Exception as e:
-        print(f"❌ Validation error: {e}")
+        print(f"[FAIL] Validation error: {e}")
         return False
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 @handle_service_errors(
     config=ServiceErrorConfigs.VALIDATION,
     service_name="AuthValidator",
@@ -327,58 +327,58 @@ def validate_user_id_new(user_id: str) -> bool:
 # EXAMPLE 6: Utility Functions (flush_databases.py, utilities/)
 # ==============================================================================
 
-# ❌ OLD PATTERN:
+# [FAIL] OLD PATTERN:
 async def flush_redis_old():
     """OLD: Manual error handling in utility functions."""
     try:
-        print("🔄 Connecting to Redis...")
+        print("[SYNC] Connecting to Redis...")
         factory = get_connection_factory()
         redis_client = await factory.create_redis_connection(connection_name="flush_script")
         
         # Test connection
         redis_client.ping()
-        print("✅ Redis connection successful")
+        print("[OK] Redis connection successful")
         
         # Get memory count before flush
         memory_keys = redis_client.keys("memory:*")
-        print(f"📊 Found {len(memory_keys)} memory keys in Redis")
+        print(f"[CHART] Found {len(memory_keys)} memory keys in Redis")
         
         if len(memory_keys) > 0:
             # Delete memory keys
             deleted_count = redis_client.delete(*memory_keys)
-            print(f"🗑️ Deleted {deleted_count} memory keys from Redis")
+            print(f" Deleted {deleted_count} memory keys from Redis")
         else:
-            print("✅ Redis already clean - no memory keys found")
+            print("[OK] Redis already clean - no memory keys found")
         
         return True
         
     except Exception as e:
-        print(f"❌ Redis flush error: {e}")
+        print(f"[FAIL] Redis flush error: {e}")
         return False
 
 
-# ✅ NEW PATTERN:
+# [OK] NEW PATTERN:
 @handle_database_errors(operation_name="flush_redis", default_value=False)
 async def flush_redis_new():
     """NEW: Clean utility function with standardized error handling."""
-    print("🔄 Connecting to Redis...")
+    print("[SYNC] Connecting to Redis...")
     factory = get_connection_factory()
     redis_client = await factory.create_redis_connection(connection_name="flush_script")
     
     # Test connection
     redis_client.ping()
-    print("✅ Redis connection successful")
+    print("[OK] Redis connection successful")
     
     # Get memory count before flush
     memory_keys = redis_client.keys("memory:*")
-    print(f"📊 Found {len(memory_keys)} memory keys in Redis")
+    print(f"[CHART] Found {len(memory_keys)} memory keys in Redis")
     
     if len(memory_keys) > 0:
         # Delete memory keys
         deleted_count = redis_client.delete(*memory_keys)
-        print(f"🗑️ Deleted {deleted_count} memory keys from Redis")
+        print(f" Deleted {deleted_count} memory keys from Redis")
     else:
-        print("✅ Redis already clean - no memory keys found")
+        print("[OK] Redis already clean - no memory keys found")
     
     return True
 
