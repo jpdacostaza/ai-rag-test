@@ -34,6 +34,7 @@ from routes import memory_router
 from services.llm_service import call_llm, call_llm_stream
 print("[MAIN.PY] LLM service imported successfully!", flush=True)
 from services.streaming_service import streaming_service, STREAM_SESSION_STOP, STREAM_SESSION_METADATA
+from services.user_identity import resolve_user_id
 from core.startup import startup_event
 
 # Initialize unified logging first
@@ -231,148 +232,11 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
         if "role" not in message or "content" not in message:
             raise HTTPException(status_code=400, detail=f"Message at index {i} must have 'role' and 'content' fields")
 
-    # Extract user_id from various sources - match pipeline logic exactly
-    # INFO: Log the full request details for troubleshooting
-    log_service_status("AUTH", "info", f"=== USER IDENTIFICATION START ===")
-    log_service_status("AUTH", "info", f"Request body keys: {list(body.keys())}")
-    log_service_status("AUTH", "info", f"Request headers: {dict(request.headers)}")
-    if "user" in body:
-        log_service_status("AUTH", "info", f"User field in body: {body.get('user')} (type: {type(body.get('user'))})")
-    
-    # 1. Check body.user field which can be string or object (OpenWebUI style)
-    user_field = body.get("user")
-    
-    # If user field is an object (like pipeline receives), extract email/id
-    if isinstance(user_field, dict):
-        # Match pipeline's EXACT user identification strategy
-        log_service_status("AUTH", "info", f"User object received: {json.dumps(user_field, indent=2)}")
-        
-        # Strategy 1: Use email (most specific) - SAME AS PIPELINE
-        if "email" in user_field and user_field["email"]:
-            user_id = user_field["email"]
-            log_service_status("AUTH", "info", f"Using email as user_id: {user_id}")
-        # Strategy 2: Use user ID
-        elif "id" in user_field and user_field["id"]:
-            user_id = user_field["id"]
-            log_service_status("AUTH", "info", f"Using id as user_id: {user_id}")
-        # Strategy 3: Use username
-        elif "username" in user_field and user_field["username"]:
-            user_id = user_field["username"]
-            log_service_status("AUTH", "info", f"Using username as user_id: {user_id}")
-        # Strategy 4: Use name
-        elif "name" in user_field and user_field["name"]:
-            user_id = user_field["name"]
-            log_service_status("AUTH", "info", f"Using name as user_id: {user_id}")
-        else:
-            log_service_status("AUTH", "info", "No suitable user identifier found in user object")
-    elif isinstance(user_field, str) and user_field:
-        # If it's a simple string, use it
-        user_id = user_field
-        log_service_status("AUTH", "info", f"Using string user_id: {user_id}")
-    
-    # 2. Check headers for user information (OpenWebUI may send via headers)
-    if not user_id:
-        # Common header names used by OpenWebUI and similar systems
-        user_id = (
-            request.headers.get("x-user-id") or
-            request.headers.get("x-user") or 
-            request.headers.get("x-openwebui-user") or
-            request.headers.get("user-id") or
-            request.headers.get("authorization", "").split(":")[-1] if ":" in request.headers.get("authorization", "") else None
-        )
-        if user_id:
-            log_service_status("AUTH", "info", f"Found user_id in headers: {user_id}")
-    
-    # 3. PRIORITY: Extract authenticated user ID injected by Enhanced Memory Pipeline
-    if not user_id and messages:
-        # Look for pipeline-injected authenticated user ID (highest priority)
-        for msg in messages:
-            if (msg.get("role") == "system" and 
-                msg.get("content", "").startswith("AUTHENTICATED_USER_ID:")):
-                try:
-                    content = msg.get("content", "")
-                    pipeline_user_id = content.replace("AUTHENTICATED_USER_ID:", "").strip()
-                    if pipeline_user_id:
-                        user_id = pipeline_user_id
-                        log_service_status("AUTH", "info", f"[OK] Found AUTHENTICATED user_id from pipeline: {user_id}")
-                        break
-                except Exception as e:
-                    log_service_status("AUTH", "warning", f"Failed to extract pipeline user ID: {e}")
-    
-    # 4. Fallback: Try to extract from session context or chat history
-    if not user_id and messages:
-        # Look for user identification in system messages or metadata
-        for msg in messages:
-            if msg.get("role") == "system" and "user_id:" in msg.get("content", ""):
-                try:
-                    content = msg.get("content", "")
-                    if "user_id:" in content:
-                        user_id = content.split("user_id:")[1].split()[0].strip()
-                        log_service_status("AUTH", "info", f"Found user_id in system message: {user_id}")
-                        break
-                except:
-                    pass
-    
-    # 5. Check if we can extract user from injected memory context by pipeline
-    if not user_id and messages:
-        # Look for pipeline-injected memory messages that contain user context
-        for msg in messages:
-            if (msg.get("role") == "system" and 
-                "Previous conversation context and memories" in msg.get("content", "")):
-                # Pipeline has processed this request - look for user mentions
-                content = msg.get("content", "")
-                log_service_status("AUTH", "info", "Found pipeline-injected memory context")
-                
-                # The pipeline must have identified a user to inject memories
-                # Check if there are any user-specific patterns in the memory content
-                if "@" in content and ".net" in content:  # Email pattern
-                    import re
-                    email_match = re.search(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}', content)
-                    if email_match:
-                        user_id = email_match.group()
-                        log_service_status("AUTH", "info", f"Extracted user_id from memory context: {user_id}")
-                        break
-    
-    # 6. Enhanced user identification: DISABLED - Enhanced Memory Pipeline handles this
-    # Conversation-based user extraction disabled for security - no pseudo-user creation
-    
-    # 7. Final authentication validation
-    if not user_id or not user_id.strip():
-        # [WARN] TEMPORARY SOLUTION: OpenWebUI is not sending user authentication
-        # Generate a session-based user ID for memory functionality
-        # In production, OpenWebUI should be configured to send proper user authentication
-        
-        # Try to extract from authorization header first
-        auth_header = request.headers.get("authorization", "")
-        if auth_header and "Bearer" in auth_header:
-            # Extract token part after Bearer
-            token = auth_header.replace("Bearer ", "").strip()
-            if token and token != "backend-api-key":  # Skip generic API keys
-                user_id = f"auth_{token[:16]}"  # Use first 16 chars of token as user ID
-                log_service_status("AUTH", "info", f"Generated user_id from auth token: {user_id}")
-        
-        # If still no user_id, generate session-based ID
-        if not user_id:
-            # Generate a consistent user ID based on request characteristics
-            # This ensures same user gets same ID across requests in same session
-            import hashlib
-            session_data = f"{request.client.host if request.client else 'unknown'}_{request.headers.get('user-agent', 'unknown')}"
-            session_hash = hashlib.md5(session_data.encode()).hexdigest()[:16]
-            user_id = f"session_{session_hash}"
-            log_service_status("AUTH", "debug", f"Using session-based user ID: {user_id}")
-            log_service_status("AUTH", "debug", "OpenWebUI user authentication not configured - using session fallback")
-    
-    # Ensure user_id is clean and non-empty
-    if user_id:
-        user_id = user_id.strip()
-        if not user_id:
-            user_id = None
-    
-    # Log user identification for debugging
+    user_id = resolve_user_id(request, body, messages)
     if user_id:
         log_service_status("AUTH", "info", f"Identified user: {user_id}")
     else:
-        log_service_status("AUTH", "warning", "No user authentication - memory functionality disabled")
+        log_service_status("AUTH", "warning", "No user identification resolved")
     
     stream = body.get("stream", False)
 
