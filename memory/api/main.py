@@ -137,9 +137,11 @@ class MemoryRetrieveRequest(BaseModel):
                 from config.config_unified import Config
                 config = Config.get_instance()
                 # data['threshold'] = config.memory.retrieval_threshold  # Controlled by OpenWebUI Function
-                data['threshold'] = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                data['threshold'] = get_default_memory_threshold()  # Centralized fallback
             except ImportError:
-                data['threshold'] = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                data['threshold'] = get_default_memory_threshold()  # Centralized fallback
         super().__init__(**data)
 
 class LearningInteractionRequest(BaseModel):

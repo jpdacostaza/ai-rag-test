@@ -150,10 +150,12 @@ class MemoryQuery:
                 from config.config_unified import Config
                 config = Config.get_instance()
                 # self.threshold = config.memory.retrieval_threshold  # Controlled by OpenWebUI Function
-                self.threshold = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                self.threshold = get_default_memory_threshold()  # Centralized fallback
             except ImportError:
                 # Fallback if unified config not available
-                self.threshold = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                self.threshold = get_default_memory_threshold()  # Centralized fallback
 
 
 @dataclass
@@ -777,9 +779,11 @@ class MemoryService:
                 from config.config_unified import Config
                 config = Config.get_instance()
                 # threshold = config.memory.retrieval_threshold  # Controlled by OpenWebUI Function
-                threshold = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                threshold = get_default_memory_threshold()  # Centralized fallback
             except ImportError:
-                threshold = -0.5  # Default fallback - should be overridden by function request
+                from config.memory_threshold import get_default_memory_threshold
+                threshold = get_default_memory_threshold()  # Centralized fallback
         
         memory_query = MemoryQuery(
             user_id=user_id,
