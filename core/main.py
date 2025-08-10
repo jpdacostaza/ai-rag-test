@@ -24,7 +24,7 @@ enforce_cpu_only_mode()
 # Import modules
 from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
 from handlers import create_exception_handlers
-from core.logging_config import setup_logging, get_logger, log_api_request, log_service_status
+from core.logging_config import setup_logging, get_logger, log_api_request, log_service_status, set_correlation_id, get_correlation_id
 
 # Environment variable to control stream debug logging (can cause performance overhead)
 ENABLE_STREAM_DEBUG = os.getenv("ENABLE_STREAM_DEBUG", "false").lower() == "true"
@@ -184,7 +184,28 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
                 })
 
 
-# Add timeout middleware
+class CorrelationIdMiddleware(BaseHTTPMiddleware):
+    """Assign or propagate a correlation ID per request and expose to logging + response headers."""
+    def __init__(self, app):
+        super().__init__(app)
+
+    async def dispatch(self, request: Request, call_next):
+        incoming = request.headers.get("x-correlation-id") or request.headers.get("x-request-id")
+        cid = incoming or str(uuid.uuid4())
+        # store in context and request.state
+        set_correlation_id(cid)
+        request.state.correlation_id = cid
+        try:
+            response = await call_next(request)
+        finally:
+            # no cleanup needed; context var will be overwritten next request
+            pass
+        if hasattr(response, 'headers'):
+            response.headers['X-Correlation-ID'] = cid
+        return response
+
+# Add correlation + timeout middleware (order: correlation first so others can read it)
+app.add_middleware(CorrelationIdMiddleware)
 app.add_middleware(TimeoutMiddleware, timeout=45)
 
 # Include route modules

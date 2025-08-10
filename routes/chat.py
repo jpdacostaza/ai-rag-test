@@ -39,6 +39,33 @@ def get_memory_service():
     return get_memory_service_or_legacy()
 
 
+@handle_errors("get_user_memories", default_value=[])
+async def get_user_memories(user_id: Optional[str], query: str, memory_service=None, n_results: int = 3):
+    """Retrieve user memories (compat shim for legacy imports)."""
+    if not user_id:
+        return []
+    if not memory_service:
+        memory_service = get_memory_service()
+    if not memory_service:
+        return []
+    try:
+        memories = await memory_service.get_relevant_memories(
+            user_id=user_id,
+            context=query,
+            max_memories=n_results
+        )
+    except Exception:
+        return []
+    out = []
+    for m in memories:
+        out.append({
+            "document": getattr(m, 'content', ''),
+            "metadata": getattr(m, 'metadata', {}) or {},
+            "distance": 1.0 - (getattr(m, 'relevance_score', 0.0) or 0.0)
+        })
+    return out
+
+
 @handle_errors("get_cache_manager", default_value=None)
 def get_cache_manager():
     return get_cache()
@@ -131,4 +158,3 @@ async def store_conversation_memory(
         log_service_status("CHAT", "error", f"Failed to store conversation memory: {e}")
         debug_info.append(f"Error storing memory: {e}")
         return False
-    message_hash = hashlib.md5(message.encode()).hexdigest()[:8]
