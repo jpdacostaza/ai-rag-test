@@ -45,6 +45,8 @@ This project includes **zero-configuration optimizations** for Orange Pi 5 Plus 
 - ✅ **Automatic Injection** - Filter-based context injection with RAG
 - ✅ **Fallback Retrieval** - Always provides relevant context with semantic search
 - ✅ **Network Resilience** - Multi-host Docker networking with fallback strategies
+ - ✅ **Unified User Identity Resolution** - Centralized resolution logic (services/user_identity.py) ensuring consistent user mapping across endpoints and pipelines
+ - ✅ **Correlation IDs** - Automatic per-request correlation IDs with header propagation (X-Correlation-ID) for traceability
 
 ## 📁 Directory Structure
 
@@ -157,6 +159,12 @@ REDIS_URL=redis://localhost:6379
 CHROMADB_URL=http://localhost:8002
 MEMORY_API_URL=http://localhost:8000
 OPENWEBUI_URL=http://localhost:3000
+# Optional logging / tracing
+LOG_LEVEL=INFO
+LOG_STYLE=human            # or json
+
+# Correlation / request tracing
+ENABLE_CORRELATION_ID=true  # (middleware auto-enabled; header X-Correlation-ID respected)
 ```
 
 ### Memory Filter Settings
@@ -172,6 +180,8 @@ OPENWEBUI_URL=http://localhost:3000
 2. **No memories**: Verify Redis/ChromaDB connectivity
 3. **Import fails**: Use debug import script
 4. **Performance issues**: Check service logs
+5. **User not recognized**: Confirm client sends one of: body.user.{email|id|username}, X-User-Id header, AUTHENTICATED_USER_ID system message (pipeline), or Authorization Bearer token
+6. **Missing correlation ID**: Ensure reverse proxy forwards X-Correlation-ID or allow backend to generate one
 
 ### Debug Commands
 ```bash
@@ -183,6 +193,12 @@ curl http://localhost:8000/health
 
 # Verify filter installation
 ./tests/memory/memory_system_status.ps1
+
+# Identity resolver unit tests
+pytest -q tests/test_user_identity.py
+
+# Correlation ID middleware tests
+pytest -q tests/test_correlation_id.py
 ```
 
 ## 🎉 Success Indicators
