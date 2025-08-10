@@ -202,7 +202,7 @@ async def store_memory(request: MemoryStoreRequest):
         timestamp = datetime.now().isoformat()
         
         storage_results = []
-        
+
         # Store in Redis if available
         if redis_client:
             try:
@@ -212,15 +212,16 @@ async def store_memory(request: MemoryStoreRequest):
                     "context": request.context or "",
                     "importance": request.importance,
                     "source": request.source,
-                    "timestamp": timestamp
+                    "timestamp": timestamp,
+                    "user_id": request.user_id
                 }
-                
+
                 await redis_client.hset(redis_key, mapping=redis_data)
                 await redis_client.expire(redis_key, 86400)  # 24 hours
                 storage_results.append("redis")
             except Exception as e:
                 print(f"Redis storage failed: {e}")
-        
+
         # Store in ChromaDB if available
         if chroma_collection:
             try:
@@ -312,7 +313,8 @@ async def store_memory_regular(request: MemoryStoreRequest):
             "context": context,
             "importance": importance,
             "source": source,
-            "timestamp": timestamp
+            "timestamp": timestamp,
+            "user_id": user_id
         }
         
         # Add custom metadata fields to Redis
@@ -324,6 +326,10 @@ async def store_memory_regular(request: MemoryStoreRequest):
         await redis_client.hset(redis_key, mapping=redis_data)
         await redis_client.expire(redis_key, 86400)  # 24 hours
         
+        # Ensure user_id stored in metadata for retrieval filtering
+        if 'user_id' not in full_metadata:
+            full_metadata['user_id'] = user_id
+
         # Store in ChromaDB for semantic search with full metadata
         chroma_collection.add(
             documents=[request.content],
@@ -363,23 +369,42 @@ async def retrieve_memories(request: MemoryRetrieveRequest):
         )
         
         if results['documents']:
+            # Interpret threshold semantics:
+            #   * Positive value  -> maximum allowed distance (distance <= threshold)
+            #   * Zero / None     -> include all results
+            #   * Negative value  -> DISABLE filtering (include all) -- used as sentinel default (-0.5)
             for i, doc in enumerate(results['documents'][0]):
                 metadata = results['metadatas'][0][i] if results['metadatas'] else {}
                 distance = results['distances'][0][i] if results['distances'] else 0.0
-                
-                # Only include if below threshold
-                if distance <= request.threshold:
+                similarity = 1.0 - distance
+
+                include = False
+                if request.threshold is None:
+                    include = True
+                elif request.threshold == 0:
+                    include = True  # explicit 0 means no filtering
+                elif request.threshold < 0:
+                    # Negative sentinel = no filtering
+                    include = True
+                else:
+                    # Positive interpreted as max distance
+                    if distance <= request.threshold:
+                        include = True
+
+                if include:
                     memories.append({
                         "content": doc,
                         "metadata": metadata,
                         "distance": distance,
-                        "similarity_score": 1.0 - distance
+                        "similarity_score": similarity
                     })
         
         return JSONResponse({
             "memories": memories,
             "count": len(memories),
-            "user_id": request.user_id
+            "user_id": request.user_id,
+            "applied_threshold": request.threshold,
+            "threshold_mode": ("disabled" if (request.threshold is not None and request.threshold < 0) else ("distance_max" if (request.threshold is not None and request.threshold > 0) else "none"))
         })
         
     except Exception as e:

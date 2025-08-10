@@ -20,16 +20,14 @@ services:
     image: alpine:latest
     container_name: backend-storage-init
     restart: "no"
-    command: |
-      sh -c "
-        echo '🏗️ Initializing storage directories...'
-        mkdir -p./storage/redis./storage/chroma./storage/ollama./storage/openwebui./storage/pipelines./storage/models./storage/gateway./storage/installer./storage/.cache
-        chown -R 1000:1000 /storage
-        chmod -R 755 /storage
-        chmod -R 777./storage/.cache./storage/models
-        echo '✅ Storage initialization complete!'
-        ls -la./storage/
-      "
+    command: >-
+      sh -c "echo '🏗️ Initializing storage directories...' && \
+      mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache && \
+      chown -R 1000:1000 /storage && \
+      chmod -R 755 /storage && \
+      chmod -R 777 /storage/.cache /storage/models && \
+      echo '✅ Storage initialization complete!' && \
+      ls -la /storage"
     volumes:
       - ./storage:/storage
     networks:

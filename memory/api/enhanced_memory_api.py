@@ -150,11 +150,33 @@ async def retrieve_memories(request: MemoryRetrieveRequest):
         # Convert to API format
         memory_list = []
         for memory in memories:
+            # memory.metadata is a dataclass (MemoryMetadata); convert safely
+            metadata_obj = memory.metadata
+            metadata_dict = {
+                "user_id": metadata_obj.user_id,
+                "timestamp": metadata_obj.timestamp,
+                "source": metadata_obj.source,
+                "importance": metadata_obj.importance,
+                "memory_type": metadata_obj.memory_type,
+                "context": metadata_obj.context,
+                "conversation_id": metadata_obj.conversation_id,
+                "explicit": metadata_obj.explicit
+            } if metadata_obj else {}
+
+            relevance = None
+            # Prefer similarity_score if populated
+            if memory.similarity_score is not None:
+                relevance = memory.similarity_score
+            elif memory.distance is not None:
+                relevance = 1.0 - memory.distance
+            else:
+                relevance = 0.0
+
             memory_list.append({
                 "content": memory.content,
-                "metadata": memory.metadata,
-                "relevance_score": memory.relevance_score or 0.0,
-                "timestamp": memory.metadata.get("timestamp", "") if memory.metadata else ""
+                "metadata": metadata_dict,
+                "relevance_score": relevance,
+                "timestamp": metadata_dict.get("timestamp", "")
             })
         
         log_service_status("MEMORY_API", "info", f"Retrieved {len(memory_list)} memories for user {request.user_id}")
