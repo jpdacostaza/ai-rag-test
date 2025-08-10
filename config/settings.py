@@ -10,9 +10,16 @@ import os
 from typing import Optional, Dict, Any, List
 try:
     from pydantic_settings import BaseSettings
-    from pydantic import Field, validator
+    from pydantic import Field, field_validator
 except ImportError:
-    from pydantic import BaseSettings, Field, validator
+    from pydantic import BaseSettings, Field
+    try:
+        from pydantic import field_validator  # type: ignore
+    except ImportError:  # pragma: no cover
+        def field_validator(*fields, **kwargs):  # type: ignore
+            def deco(fn):
+                return fn
+            return deco
 from pathlib import Path
 
 
@@ -79,7 +86,7 @@ class APISettings(BaseSettings):
     max_request_size: int = Field(default=10 * 1024 * 1024, description="Maximum request size")  # 10MB
     request_timeout: int = Field(default=300, description="Request timeout in seconds")  # 5 minutes
     
-    @validator('cors_origins', 'cors_methods', 'cors_headers', pre=True)
+    @field_validator('cors_origins', 'cors_methods', 'cors_headers', mode='before')
     def parse_cors_list(cls, v):
         """Parse comma-separated CORS values."""
         if isinstance(v, str):
@@ -144,7 +151,7 @@ class LoggingSettings(BaseSettings):
     enable_structured_logging: bool = Field(default=False, env="ENABLE_STRUCTURED_LOGGING")
     log_correlation_ids: bool = Field(default=True, env="LOG_CORRELATION_IDS")
     
-    @validator('log_level')
+    @field_validator('log_level')
     def validate_log_level(cls, v):
         """Validate log level."""
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
@@ -205,7 +212,7 @@ class AppSettings(BaseSettings):
     logging: LoggingSettings = LoggingSettings()
     security: SecuritySettings = SecuritySettings()
     
-    @validator('data_dir', 'logs_dir', 'config_dir')
+    @field_validator('data_dir', 'logs_dir', 'config_dir')
     def ensure_directories_exist(cls, v):
         """Ensure directories exist."""
         if isinstance(v, str):
@@ -213,7 +220,7 @@ class AppSettings(BaseSettings):
         v.mkdir(parents=True, exist_ok=True)
         return v
     
-    @validator('environment')
+    @field_validator('environment')
     def validate_environment(cls, v):
         """Validate environment."""
         valid_envs = ['development', 'testing', 'staging', 'production']

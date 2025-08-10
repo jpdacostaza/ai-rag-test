@@ -3,7 +3,15 @@ Input validation utilities for database operations.
 """
 
 from typing import Any, Dict, List, Optional, Union
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
+try:
+    from pydantic import field_validator
+except ImportError:  # pragma: no cover
+    # Fallback for older pydantic; define shim
+    def field_validator(*fields, mode="after", **kwargs):  # type: ignore
+        def deco(fn):
+            return fn
+        return deco
 import re
 
 from utilities.error_patterns import handle_service_errors, ErrorHandlerConfig
@@ -17,7 +25,7 @@ class DatabaseConfig(BaseModel):
     chroma_host: Optional[str]
     chroma_port: Optional[int]
 
-    @validator("redis_port", "chroma_port")
+    @field_validator("redis_port", "chroma_port")
     def validate_port(cls, v):
         """
         Validate that port numbers are within valid range (1-65535).
@@ -35,7 +43,7 @@ class DatabaseConfig(BaseModel):
             raise ValueError("Port must be between 1 and 65535")
         return v
 
-    @validator("redis_host", "chroma_host")
+    @field_validator("redis_host", "chroma_host")
     def validate_host(cls, v):
         """
         Validate host names for database connections.
@@ -69,7 +77,7 @@ class ChatMessage(BaseModel):
     metadata: Dict[str, Any]
     timestamp: Optional[float]
 
-    @validator("content")
+    @field_validator("content")
     def validate_content(cls, v):
         """
         Validate chat message content.
@@ -89,7 +97,7 @@ class ChatMessage(BaseModel):
             raise ValueError("Content too large")
         return v
 
-    @validator("metadata")
+    @field_validator("metadata")
     def validate_metadata(cls, v):
         """
         Validate chat message metadata.
