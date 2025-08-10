@@ -14,6 +14,7 @@ import time
 from typing import Dict, Any, Optional, Tuple, List
 from config.config_unified import Config
 from core.security import InputValidator, sanitize_user_input
+from core.unified_logging import get_logger, log_service_status
 
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
@@ -28,14 +29,22 @@ class UnifiedAuthManager:
     def __init__(self, debug: bool = None):
         self.config = Config.get_instance()
         self.debug = debug if debug is not None else self.config.security.enable_debug
-        self._session_cache = {}
-        self._rate_limit_cache = {}
+        # in-memory rate limit tracking: {user_id: [timestamps]}
+        self._rate_limit_cache: Dict[str, List[float]] = {}
+        self.logger = get_logger("auth")
     
     def log(self, message: str, level: str = "INFO"):
-        """Log messages with consistent formatting."""
-        if self.debug:
-            timestamp = time.strftime("%H:%M:%S")
-            print(f"[{timestamp}] [AUTH {level}] {message}")
+        """Log messages via unified logger when debug enabled."""
+        if not self.debug:
+            return
+        if level == "ERROR":
+            self.logger.error(message)
+        elif level == "WARNING":
+            self.logger.warning(message)
+        elif level == "DEBUG":
+            self.logger.debug(message)
+        else:
+            self.logger.info(message)
     
     def validate_uuid(self, user_id: str) -> bool:
         """Validate UUID format using centralized validation."""
@@ -78,10 +87,12 @@ class UnifiedAuthManager:
         
         # Method 3: From direct user_id field
         user_id = body.get("user_id")
-        if user_id and self.validate_user_id(user_id):
-            if self.debug:
-                self.log(f"[OK] User ID from body field: {user_id}")
-            return user_id, user_data
+        if user_id and isinstance(user_id, str):
+            candidate = sanitize_user_input(user_id.strip())
+            if self.validate_user_id(candidate):
+                if self.debug:
+                    self.log(f"[OK] User ID from body field: {candidate}")
+                return candidate, user_data
         
         # Method 4: From user object in body
         if "user" in body and isinstance(body["user"], dict):
@@ -172,31 +183,29 @@ class UnifiedAuthManager:
         return True
     
     def _check_rate_limit(self, user_id: str) -> bool:
-        """Check rate limiting for user."""
+        """Check rate limiting for user (simple sliding window)."""
         if not self.config.security.enable_rate_limiting:
             return True
-        
+
         current_time = time.time()
-        window_size = 60  # 1 minute window
+        window_size = 60  # seconds
         max_requests = self.config.security.max_requests_per_minute
-        
-        # Clean old entries
         cutoff_time = current_time - window_size
-        self._rate_limit_cache = {
-            uid: [timestamp for timestamp in timestamps if timestamp > cutoff_time]
-            for uid, timestamps in self._rate_limit_cache.items()
-        }
-        
-        # Check current user
+
+        # Prune old timestamps and empty keys
+        for uid, timestamps in list(self._rate_limit_cache.items()):
+            pruned = [t for t in timestamps if t > cutoff_time]
+            if pruned:
+                self._rate_limit_cache[uid] = pruned
+            else:
+                # remove empty user key to prevent unbounded growth
+                self._rate_limit_cache.pop(uid, None)
+
         user_requests = self._rate_limit_cache.get(user_id, [])
-        
         if len(user_requests) >= max_requests:
             return False
-        
-        # Add current request
         user_requests.append(current_time)
         self._rate_limit_cache[user_id] = user_requests
-        
         return True
     
     def validate_session_consistency(self, user_id: str, body: Dict[str, Any]) -> bool:
@@ -253,35 +262,39 @@ class UnifiedAuthManager:
         return f"{payload}:{signature}"
     
     def validate_session_token(self, token: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-        """Validate a session token and return user info if valid."""
+        """Validate a session token and return user info if valid.
+
+        Format: user_id:timestamp:email(optional):hmac
+        """
         try:
-            parts = token.split(':')
+            parts = token.split(':', 3)
             if len(parts) != 4:
                 return None
-            
-            user_id, timestamp, email, signature = parts
-            
-            # Verify signature
-            payload = f"{user_id}:{timestamp}:{email}"
+            user_id, timestamp_str, email, signature = parts
+            # basic sanity
+            if not self.validate_user_id(user_id):
+                return None
+            try:
+                ts_int = int(timestamp_str)
+            except ValueError:
+                return None
+
+            payload = f"{user_id}:{timestamp_str}:{email}"
             expected_signature = hmac.new(
                 self.config.security.jwt_secret.encode(),
                 payload.encode(),
                 hashlib.sha256
             ).hexdigest()
-            
             if not hmac.compare_digest(signature, expected_signature):
                 return None
-            
-            # Check token age (24 hours max)
-            token_age = time.time() - int(timestamp)
-            if token_age > 86400:  # 24 hours
+            # configurable max age (default 24h)
+            max_age = getattr(self.config.security, 'session_token_ttl_seconds', 86400)
+            if (time.time() - ts_int) > max_age:
                 return None
-            
-            # Reconstruct user data
-            user_data = {"id": user_id, "email": email} if email else {"id": user_id}
-            
+            user_data = {"id": user_id}
+            if email:
+                user_data["email"] = email
             return user_id, user_data
-            
         except Exception as e:
             if self.debug:
                 self.log(f"[FAIL] Token validation error: {e}", "ERROR")

@@ -40,8 +40,8 @@ search_engines: List[str] = ["duckduckgo"]  # DDGS only for reliability
 ### 3. Zero-Configuration Dependencies
 
 **Updated Files:**
-- `pipelines/startup.sh` - DDGS dependencies
-- `requirements.txt` - Modern ddgs>=6.3.0 + legacy duckduckgo-search support
+- `requirements.txt` - Modern ddgs>=6.3.0 (legacy duckduckgo-search fully removed)
+- Removed legacy standalone `pipelines/enhanced_web_search_pipeline.py` in favor of package directory implementation.
 
 ## Test Results
 

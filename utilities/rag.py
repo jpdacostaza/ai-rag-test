@@ -14,17 +14,23 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from utilities.feature_registry import feature_registry, register_import_attempt
 
 # Register PDF processing capability
+def _import_pdf_lib():
+    try:
+        return __import__("pypdf")
+    except ImportError:
+        return __import__("PyPDF2")  # fallback (deprecated)
+
 PDF_PROCESSING_AVAILABLE = register_import_attempt(
     "pdf_processing",
-    lambda: __import__("PyPDF2"),
-    "PDF document processing for RAG ingestion"
+    _import_pdf_lib,
+    "PDF document processing for RAG ingestion (pypdf preferred)"
 )
 
 from services.database_manager import db_manager
 from services.database_manager import get_embedding, index_document_chunks
 from core.error_handler import log_error
 from utilities.simple_error_handling import handle_api_errors
-from core.logging_config import get_logger
+from core.unified_logging import get_logger
 
 logger = get_logger(__name__)
 from utilities.error_patterns import handle_service_errors, handle_api_errors, ErrorHandlerConfig
@@ -101,9 +107,12 @@ class RAGProcessor:
             raise Exception("PDF processing not available - PyPDF2 not installed")
         
         import io
-        import PyPDF2  # Import here after availability check
+        try:
+            import pypdf as _pdf
+        except ImportError:  # pragma: no cover - fallback path
+            import PyPDF2 as _pdf  # type: ignore
         pdf_file = io.BytesIO(file_content)
-        pdf_reader = PyPDF2.PdfReader(pdf_file)
+        pdf_reader = _pdf.PdfReader(pdf_file)
         
         text = ""
         for page_num, page in enumerate(pdf_reader.pages):

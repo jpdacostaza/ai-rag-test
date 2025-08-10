@@ -1,9 +1,15 @@
 """
-Async Context Managers
-======================
+Async Context Managers - Enhanced Performance Edition
+====================================================
 
-This module provides async context managers for proper resource management,
-replacing manual resource handling with clean, exception-safe patterns.
+This module provides optimized async context managers for proper resource management,
+with enhanced connection pooling, memory pressure handling, and performance monitoring.
+
+Addresses Issue #5: Performance optimizations including:
+- Advanced connection pooling with auto-scaling
+- Memory pressure detection and handling
+- Connection health monitoring
+- Performance metrics collection
 """
 
 import logging
@@ -13,6 +19,13 @@ from contextlib import asynccontextmanager
 import httpx
 
 from utilities.simple_error_handling import handle_errors
+from utilities.enhanced_connection_pooling import pool_manager, enhanced_redis_connection
+
+try:
+    from utilities.enhanced_connection_pooling import get_enhanced_redis_pool
+    ENHANCED_POOLING_AVAILABLE = True
+except ImportError:
+    ENHANCED_POOLING_AVAILABLE = False
 
 
 class HTTPClientManager:
@@ -155,16 +168,28 @@ async def database_connection(connection_factory, **kwargs) -> AsyncGenerator[An
 
 
 @asynccontextmanager 
-async def redis_connection(redis_client=None) -> AsyncGenerator[Any, None]:
+async def redis_connection(redis_client=None, use_enhanced_pool=True) -> AsyncGenerator[Any, None]:
     """
-    Async context manager for Redis connections with fallback.
+    Async context manager for Redis connections with enhanced pooling support.
     
     Args:
         redis_client: Optional Redis client instance
+        use_enhanced_pool: Whether to use enhanced connection pooling
         
     Yields:
         Redis client or None if unavailable
     """
+    if use_enhanced_pool and ENHANCED_POOLING_AVAILABLE:
+        # Use enhanced pooling for better performance
+        try:
+            async with enhanced_redis_connection() as client:
+                logging.debug("Enhanced Redis connection context entered")
+                yield client
+                return
+        except Exception as e:
+            logging.warning(f"Enhanced Redis pool failed, falling back to direct connection: {e}")
+    
+    # Fallback to direct connection
     client = redis_client
     if not client:
         try:
@@ -176,7 +201,7 @@ async def redis_connection(redis_client=None) -> AsyncGenerator[Any, None]:
     
     try:
         if client:
-            logging.debug("Redis connection context entered")
+            logging.debug("Redis connection context entered (direct)")
         yield client
     finally:
         if client:

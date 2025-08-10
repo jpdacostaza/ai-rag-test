@@ -14,7 +14,7 @@ from enum import Enum
 import httpx
 import os
 
-from core.logging_config import get_logger
+from core.unified_logging import get_logger
 
 logger = get_logger(__name__)
 
@@ -42,7 +42,7 @@ except ImportError:
             pass
 
 
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 
 class AlertSeverity(Enum):

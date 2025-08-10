@@ -11,7 +11,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Request, HTTPException, Depends, Body
 
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 from services.user_identity import resolve_user_id
 from services.auth_validator import AuthValidator
 from services.chat_service import ChatService

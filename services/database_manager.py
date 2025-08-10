@@ -8,7 +8,7 @@ import os
 import time
 import json
 import asyncio
-from core.logging_config import get_logger
+from core.unified_logging import get_logger
 import logging
 import functools
 from datetime import datetime
@@ -21,7 +21,7 @@ from numpy.typing import NDArray
 import numpy as np
 
 from core.error_handler import RedisConnectionHandler
-from core.logging_config import get_logger, log_service_status
+from core.unified_logging import get_logger, log_service_status
 from utilities.validation import DatabaseConfig, ChatMessage, validate_query_params
 from utilities.cache_manager import CacheManager
 from utilities.ai_tools import chunk_text
@@ -32,6 +32,13 @@ from utilities.connection_factory import (
     RedisConfig,
     ChromaConfig
 )
+from core.metrics import (
+    METRICS_ENABLED,
+    chroma_operation_errors_total,  # still used for store/query error paths
+)
+from utilities.enhanced_connection_pooling import pool_manager, get_enhanced_redis_pool
+from services.db_components.redis_ops import execute_redis_operation as redis_execute
+from services.db_components.chroma_ops import query_collection as chroma_query_collection
 
 # Use feature registry for error patterns
 from utilities.feature_registry import register_import_attempt
@@ -295,7 +302,9 @@ class DatabaseManager:
         self._service_start_times = {}
         self._service_downtime_alerts = {}
 
-        # Don't initialize during construction - wait for proper event loop
+        # Enhanced connection pooling
+        self._enhanced_redis_pool = None
+        self._use_enhanced_pooling = os.getenv("USE_ENHANCED_POOLING", "true").lower() == "true"
         log_service_status("database_manager", "info", "Database manager created on module import")
 
     async def _initialize_all(self):
@@ -327,9 +336,23 @@ class DatabaseManager:
             )
 
     async def _initialize_redis(self):
-        """Initialize Redis client using ConnectionFactory."""
-        log_service_status("database_manager", "info", "Initializing Redis connection via ConnectionFactory...")
+        """Initialize Redis client using ConnectionFactory or enhanced pooling."""
+        log_service_status("database_manager", "info", "Initializing Redis connection...")
         
+        # Try enhanced pooling first if enabled
+        if self._use_enhanced_pooling:
+            try:
+                self._enhanced_redis_pool = await get_enhanced_redis_pool(
+                    pool_name="database_manager",
+                    max_size=int(os.getenv("REDIS_MAX_CONNECTIONS", "50")),
+                    min_size=int(os.getenv("REDIS_MIN_CONNECTIONS", "5"))
+                )
+                log_service_status("redis", "info", "Enhanced Redis pooling initialized successfully")
+                return
+            except Exception as e:
+                log_service_status("redis", "warning", f"Enhanced pooling failed, falling back to ConnectionFactory: {e}")
+        
+        # Fallback to ConnectionFactory
         try:
             # Use ConnectionFactory for Redis connection
             self.redis_client = await self.connection_factory.create_redis_connection(connection_name="database_manager")
@@ -376,179 +399,29 @@ class DatabaseManager:
             log_service_status("embeddings", "info", "Embeddings are disabled via environment variable.")
             self.embedding_model = None
             return
-
+        # Delegate to dedicated component for embedding initialization
         try:
-            from config.config_unified import EMBEDDING_MODEL, EMBEDDING_PROVIDER, SENTENCE_TRANSFORMERS_HOME, AUTO_PULL_MODELS
-
+            from config.config_unified import EMBEDDING_MODEL, EMBEDDING_PROVIDER
+            from services.db_components.embeddings_init import initialize_embedding
             model_name = EMBEDDING_MODEL
-            provider = EMBEDDING_PROVIDER.lower()
-
+            provider = EMBEDDING_PROVIDER
             log_service_status(
-                "embeddings", "info", f"Initializing embedding model '{model_name}' with provider '{provider}'..."
+                "embeddings",
+                "info",
+                f"Initializing embedding model '{model_name}' via embeddings_init component (provider={provider})"
             )
-
-            if provider == "huggingface":
-                await self._initialize_huggingface_model(model_name)
-            elif provider == "ollama":
-                await self._initialize_ollama_model(model_name)
-            else:
+            self.embedding_model = await initialize_embedding(model_name, provider)
+            if self.embedding_model is None:
                 log_service_status(
                     "embeddings",
-                    "error",
-                    f"Unknown embedding provider '{provider}'. Supported: 'huggingface', 'ollama'")
-                self.embedding_model = None
-
-        except Exception as e:
-            log_service_status(
-                "embeddings", "error", f"Embedding model initialization failed: {str(e)}. Service will be unavailable."
-            )
-            self.embedding_model = None
-
-    async def _initialize_huggingface_model(self, model_name: str):
-        """Initialize a HuggingFace SentenceTransformers model."""
-        try:
-            from config.config_unified import SENTENCE_TRANSFORMERS_HOME, AUTO_PULL_MODELS
-            import os
-
-            # Set the cache directory for models
-            os.environ["SENTENCE_TRANSFORMERS_HOME"] = SENTENCE_TRANSFORMERS_HOME
-
-            # Set the cache directory for models
-            os.environ["SENTENCE_TRANSFORMERS_HOME"] = SENTENCE_TRANSFORMERS_HOME
-            os.makedirs(SENTENCE_TRANSFORMERS_HOME, exist_ok=True)
-
-            # SentenceTransformers handles downloading automatically if model doesn't exist
-            log_service_status("embeddings", "info", f" Loading/downloading model '{model_name}'...")
-
-            def load_or_download_model():
-                """TODO: Add proper docstring for load_or_download_model."""
-                from sentence_transformers import SentenceTransformer
-
-                try:
-                    # This will download the model if it doesn't exist, or load from cache if it does
-                    model = SentenceTransformer(model_name, cache_folder=SENTENCE_TRANSFORMERS_HOME)
-                    return model
-                except Exception as e:
-                    log_service_status("embeddings", "error", f"Failed to load/download model '{model_name}': {e}")
-                    return None
-
-            # Load or download the model in a thread to avoid blocking the event loop
-            model = await asyncio.to_thread(load_or_download_model)
-
-            if model is not None:
-                self.embedding_model = model
-                log_service_status("embeddings", "info", f"[OK] Successfully loaded model '{model_name}'")
-                log_service_status(
-                    "embeddings", "info", f"[CHART] Model dimensions: {model.get_sentence_embedding_dimension()}"
+                    "warning",
+                    f"Embedding model '{model_name}' unavailable after initialization attempt (provider={provider})"
                 )
-            else:
-                log_service_status("embeddings", "error", f"Failed to load model '{model_name}'")
-                self.embedding_model = None
-
-        except ImportError:
-            log_service_status(
-                "embeddings",
-                "error",
-                "sentence-transformers library not available. Install with: pip install sentence-transformers")
-            self.embedding_model = None
-        except Exception as e:
-            log_service_status("embeddings", "error", f"Error initializing HuggingFace model '{model_name}': {str(e)}")
+        except Exception as e:  # pragma: no cover
+            log_service_status("embeddings", "error", f"Embedding init component failure: {e}")
             self.embedding_model = None
 
-    async def _initialize_ollama_model(self, model_name: str):
-        """Initialize an Ollama embedding model."""
-        try:
-            from config.config_unified import OLLAMA_BASE_URL, AUTO_PULL_MODELS
-            import httpx
-
-            # Test if Ollama is available and has the model
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                # Check if Ollama is running
-                try:
-                    response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-                    if response.status_code == 200:
-                        models = response.json().get("models", [])
-                        model_names = [model.get("name", "").split(":")[0] for model in models]
-
-                        if model_name in model_names:
-                            log_service_status(
-                                "embeddings", "info", f"[OK] Embedding model '{model_name}' found in Ollama"
-                            )
-                            self.embedding_model = model_name  # Store model name for Ollama usage
-                            return
-                        else:
-                            log_service_status(
-                                "embeddings", "info", f"Model '{model_name}' not found. Available models: {model_names}"
-                            )
-                            log_service_status("embeddings", "info", f" Automatically pulling model '{model_name}'...")
-
-                            # Attempt to pull the model automatically
-                            await self._pull_embedding_model(client, model_name)
-                            return
-                    else:
-                        log_service_status("embeddings", "warning", f"Ollama returned status {response.status_code}")
-
-                except Exception as e:
-                    log_service_status("embeddings", "warning", f"Cannot connect to Ollama at {OLLAMA_BASE_URL}: {e}")
-                    log_service_status(
-                        "embeddings", "info", " To fix: Ensure Ollama is running with 'docker-compose up -d ollama'"
-                    )
-
-            # Fallback: mark as unavailable but don't fail startup
-            log_service_status(
-                "embeddings", "error", "Ollama embedding model initialization failed. Service will be unavailable."
-            )
-            self.embedding_model = None
-
-        except Exception as e:
-            log_service_status(
-                "embeddings",
-                "error",
-                f"Ollama embedding model initialization failed: {str(e)}. Service will be unavailable.")
-            self.embedding_model = None
-
-    async def _pull_embedding_model(self, client: Any, model_name: str) -> None:
-        """Pull the embedding model from Ollama."""
-        try:
-            from config.config_unified import OLLAMA_BASE_URL
-
-            # Start the pull request
-            pull_response = await client.post(
-                f"{OLLAMA_BASE_URL}/api/pull",
-                json={"name": model_name},
-                timeout=300.0,  # 5 minutes timeout for model pulling
-            )
-
-            if pull_response.status_code == 200:
-                log_service_status("embeddings", "info", f"[OK] Successfully pulled model '{model_name}'")
-                self.embedding_model = model_name
-
-                # Verify the model is now available
-                verify_response = await client.get(f"{OLLAMA_BASE_URL}/api/tags")
-                if verify_response.status_code == 200:
-                    models = verify_response.json().get("models", [])
-                    model_names = [model.get("name", "").split(":")[0] for model in models]
-                    if model_name in model_names:
-                        log_service_status("embeddings", "info", f"[OK] Model '{model_name}' verified and ready")
-                    else:
-                        log_service_status(
-                            "embeddings", "warning", f"Model '{model_name}' pull succeeded but not found in model list"
-                        )
-            else:
-                log_service_status(
-                    "embeddings", "error", f"Failed to pull model '{model_name}': HTTP {pull_response.status_code}"
-                )
-                log_service_status(
-                    "embeddings", "info", f" Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
-                )
-                self.embedding_model = None
-
-        except Exception as e:
-            log_service_status("embeddings", "error", f"Error pulling model '{model_name}': {str(e)}")
-            log_service_status(
-                "embeddings", "info", f" Manual fix: Run 'docker exec backend-ollama ollama pull {model_name}'"
-            )
-            self.embedding_model = None
+    # Legacy embedding initialization helper methods removed; logic moved to services/db_components/embeddings_init.py
 
     def _initialize_chroma_collection(self):
         """Set up and access the chromadb collection."""
@@ -606,7 +479,17 @@ class DatabaseManager:
         return get_redis("database_manager")
 
     async def is_redis_available(self):
-        """Check if Redis is available."""
+        """Check if Redis is available (enhanced pooling or legacy)."""
+        # Check enhanced pooling first
+        if self._enhanced_redis_pool:
+            try:
+                async with self._enhanced_redis_pool.get_connection() as redis_client:
+                    await redis_client.ping()
+                    return True
+            except Exception:
+                return False
+        
+        # Fallback to legacy client check
         client = await self.get_redis_client()
         return client is not None
 
@@ -625,16 +508,30 @@ class DatabaseManager:
         return self.embedding_model is not None
 
     async def get_health_status(self):
-        """Get health status of all database components."""
+        """Get health status of all database components with enhanced metrics."""
         redis_available = await self.is_redis_available()
         chroma_available = await self.is_chromadb_available()
         embeddings_available = self.is_embeddings_available()
 
+        # Enhanced Redis status with pool metrics
+        redis_status = {
+            "status": "healthy" if redis_available else "unhealthy",
+            "details": "Connected and responsive" if redis_available else "Not available",
+        }
+        
+        # Add pool statistics if using enhanced pooling
+        if self._enhanced_redis_pool:
+            try:
+                pool_stats = self._enhanced_redis_pool.get_stats()
+                redis_status["pool_stats"] = pool_stats
+                redis_status["pooling"] = "enhanced"
+            except Exception as e:
+                redis_status["pool_error"] = str(e)
+        else:
+            redis_status["pooling"] = "legacy"
+
         return {
-            "redis": {
-                "status": "healthy" if redis_available else "unhealthy",
-                "details": "Connected and responsive" if redis_available else "Not available",
-            },
+            "redis": redis_status,
             "chromadb": {
                 "status": "healthy" if chroma_available else "degraded",
                 "details": "Connected and responsive" if chroma_available else "Not available",
@@ -650,30 +547,49 @@ class DatabaseManager:
         }
 
     async def execute_redis_operation(self, operation: Any, operation_name: str) -> Any:
-        """Execute a Redis operation with proper error handling."""
-        if not self.redis_client:
-            log_service_status("redis", "error", f"Redis not available for operation: {operation_name}")
-            return None
-
-        try:
-            async with self._redis_lock:
-                result = await operation(self.redis_client)
-                return result
-        except redis.RedisError as e:
-            log_service_status("redis", "error", f"Redis operation '{operation_name}' failed: {str(e)}")
+        """Execute Redis operation using enhanced pooling or fallback to legacy method."""
+        if self._enhanced_redis_pool:
+            # Use enhanced connection pooling
             try:
-                await self._initialize_redis()
-                if self.redis_client:
-                    async with self._redis_lock:
-                        result = await operation(self.redis_client)
-                        return result
-            except redis.RedisError as e2:
-                log_service_status("redis", "error", f"Retry failed for '{operation_name}': {str(e2)}")
-            return None
+                async with self._enhanced_redis_pool.get_connection() as redis_client:
+                    result = await operation(redis_client)
+                    return result
+            except Exception as e:
+                log_service_status("redis", "error", f"Enhanced pool operation '{operation_name}' failed: {e}")
+                # Only fall back if it's a connection-related issue, not a Redis operation error
+                if "connection" in str(e).lower() or "pool" in str(e).lower():
+                    log_service_status("redis", "warning", f"Falling back to legacy method for '{operation_name}'")
+                else:
+                    # Re-raise non-connection errors to avoid duplicate execution
+                    raise
+        
+        # Fallback to legacy method (only for connection issues or when enhanced pooling not available)
+        async def reinit():
+            await self._initialize_redis()
+        return await redis_execute(self.redis_client, self._redis_lock, operation, operation_name, reinit)
 
     async def _handle_memory_pressure(self):
-        """Handle high memory pressure situations."""
+        """Enhanced memory pressure handling with connection pool optimization."""
         try:
+            # If using enhanced pooling, let the pool manager handle it
+            if self._enhanced_redis_pool:
+                # Get current memory usage
+                import psutil
+                memory = psutil.virtual_memory()
+                
+                if memory.percent > 90.0:
+                    log_service_status("database_manager", "warning", 
+                                     f"Critical memory pressure: {memory.percent:.1f}% - triggering emergency cleanup")
+                    
+                    # Trigger pool cleanup
+                    await self._enhanced_redis_pool._cleanup_stale_connections()
+                    
+                    # Clear local caches
+                    self.cache_manager.clear()
+                    
+                    return
+            
+            # Legacy memory pressure handling
             # Clear Redis cache if available
             if self.redis_client:
                 await self.redis_client.flushdb()
@@ -685,8 +601,15 @@ class DatabaseManager:
             log_service_status("database_manager", "error", f"Error handling memory pressure: {str(e)}")
 
     async def cleanup(self):
-        """Clean up database connections."""
+        """Clean up database connections including enhanced pools."""
         try:
+            # Cleanup enhanced Redis pool first
+            if self._enhanced_redis_pool:
+                await self._enhanced_redis_pool.cleanup()
+                self._enhanced_redis_pool = None
+                log_service_status("database_manager", "info", "Enhanced Redis pool cleaned up")
+
+            # Legacy Redis cleanup
             if self.redis_client:
                 await self._redis_lock.acquire()
                 try:
@@ -718,46 +641,16 @@ class DatabaseManager:
             raise
 
     async def get_embedding(self, text: str) -> Optional[List[float]]:
-        """Get embedding for text using the configured provider (HuggingFace or Ollama)."""
-        if not self.embedding_model:
-            log_service_status("embeddings", "error", "Embedding model not available")
-            return None
-
+        """Get embedding using embedding provider abstraction."""
         try:
-            from config.config_unified import EMBEDDING_PROVIDER
-
-            provider = EMBEDDING_PROVIDER.lower()
-
-            if provider == "huggingface":
-                # Use SentenceTransformers model directly
-                if hasattr(self.embedding_model, "encode"):
-                    # Add the query prefix for e5 models
-                    if "e5-" in str(self.embedding_model).lower():
-                        prefixed_text = f"query: {text}"
-                    else:
-                        prefixed_text = text
-
-                    # Run embedding generation in a thread to avoid blocking
-                    embedding = await asyncio.to_thread(
-                        self.embedding_model.encode, [prefixed_text], normalize_embeddings=True
-                    )
-                    return embedding[0].tolist() if len(embedding) > 0 else None
-                else:
-                    log_service_status("embeddings", "error", "HuggingFace model does not have encode method")
-                    return None
-
-            elif provider == "ollama":
-                # Use Ollama via LLM service
-                from services.llm_service import llm_service
-
-                embedding = await llm_service.get_embeddings(text, self.embedding_model)
-                return embedding
-            else:
-                log_service_status("embeddings", "error", f"Unknown provider '{provider}'")
-                return None
-
-        except Exception as e:
-            log_service_status("embeddings", "error", f"Error generating embedding: {str(e)}")
+            from services.embedding_provider import get_embedding_provider
+            provider = get_embedding_provider()
+            embedding = await provider.embed_text(text)
+            if embedding is None:
+                log_service_status("EMBEDDINGS", "warning", "Embedding provider returned None")
+            return embedding
+        except Exception as e:  # pragma: no cover
+            log_service_status("EMBEDDINGS", "error", f"Embedding retrieval failed: {e}")
             return None
 
     async def get_chat_history(self, chat_id: str, limit: int = 100) -> List[Dict[str, Any]]:
@@ -849,60 +742,35 @@ class DatabaseManager:
             return False
 
     async def query_chroma(self, query_text: str, n_results: int = 5) -> Optional[Dict[str, Any]]:
-        """Query the chromadb collection."""
+        """Query Chroma using extracted chroma_ops helper with metrics."""
         if not self.chroma_collection or not self.embedding_model:
             log_service_status("chromadb", "error", "chromadb collection or embedding model not available")
             return None
-
-        try:
-            start_time = time.time()
-
-            # Get embedding for query
-            query_embedding = await self.get_embedding(query_text)
-            if query_embedding is None:
-                return None
-
-            # Query collection
-            results = self.chroma_collection.query(
-                query_embeddings=[query_embedding], n_results=n_results, include=["documents", "metadatas", "distances"]
-            )
-
-            query_time = time.time() - start_time
-
-            if not results or not isinstance(results, dict):
-                log_service_status(
-                    "memory", "warning", f"Memory miss - no results found for query: '{query_text[:50]}...'"
-                )
-                return None
-
-            num_results = len(results.get("documents", [[]])[0])
-            if num_results == 0:
-                log_service_status(
-                    "memory",
-                    "info",
-                    f"Memory miss - no matches for query: '{query_text[:50]}...' (query_time: {query_time:.3f}s)")
-            else:
-                log_service_status(
-                    "memory",
-                    "info",
-                    f"Memory hit - found {num_results} matches for query: '{query_text[:50]}...' (query_time: {query_time:.3f}s)")
-
-            return {
-                "matches": (
-                    [
-                        {"document": doc, "metadata": meta, "distance": dist}
-                        for doc, meta, dist in zip(
-                            results.get("documents", [[]])[0],
-                            results.get("metadatas", [[{}]])[0],
-                            results.get("distances", [[0.0]])[0])
-                    ]
-                    if results.get("documents")
-                    else []
-                )
-            }
-        except Exception as e:
-            log_service_status("chromadb", "error", f"Error querying chromadb: {str(e)}")
+        results = await chroma_query_collection(self.chroma_collection, self.get_embedding, query_text, n_results)
+        if not results or not isinstance(results, dict):
+            log_service_status("memory", "warning", f"Memory miss - no results found for query: '{query_text[:50]}...'")
             return None
+        try:
+            num_results = len(results.get("documents", [[]])[0])
+        except Exception:
+            num_results = 0
+        if num_results == 0:
+            log_service_status("memory", "info", f"Memory miss - no matches for query: '{query_text[:50]}...'")
+        else:
+            log_service_status("memory", "info", f"Memory hit - found {num_results} matches for query: '{query_text[:50]}...'")
+        return {
+            "matches": (
+                [
+                    {"document": doc, "metadata": meta, "distance": dist}
+                    for doc, meta, dist in zip(
+                        results.get("documents", [[]])[0],
+                        results.get("metadatas", [[{}]])[0],
+                        results.get("distances", [[0.0]])[0])
+                ]
+                if results.get("documents")
+                else []
+            )
+        }
 
     def get_cache(self) -> CacheManager[Any]:
         """Get the cache manager instance."""

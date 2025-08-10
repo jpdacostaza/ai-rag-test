@@ -24,7 +24,7 @@ from typing import Optional, Dict, Any, Callable
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
-from core.logging_config import get_logger, get_correlation_id
+from core.unified_logging import get_logger, get_correlation_id
 
 # Optional psutil import for performance monitoring
 try:

@@ -25,7 +25,7 @@ from typing import Optional
 
 from services.database_manager import db_manager, get_embedding_sync, index_document_chunks
 from utilities.simple_error_handling import handle_service_errors
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 
 class FeedbackType(Enum):

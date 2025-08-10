@@ -27,7 +27,7 @@ from __future__ import annotations
 import hashlib
 import re
 from typing import Any, Dict, List, Optional
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 try:
     from services.auth_validator import AuthValidator

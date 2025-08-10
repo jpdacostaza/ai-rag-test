@@ -13,19 +13,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # Import feature registry for better dependency tracking  
 from utilities.feature_registry import feature_registry, register_import_attempt
 
-# Register logging service availability
-LOGGING_SERVICE_AVAILABLE = register_import_attempt(
-    "logging_service",
-    lambda: __import__("core.logging_config", fromlist=["log_service_status"]),
-    "Service status logging for cache operations"
-)
-
-if LOGGING_SERVICE_AVAILABLE:
-    from core.logging_config import log_service_status
-else:
-    def log_service_status(service: str, status: str, details: str = "") -> None:
-        """Fallback logging function when service logging unavailable."""
-        pass
+# Unified logging is now mandatory; import directly (fallback removed)
+from core.unified_logging import log_service_status
 
 # Register alert manager availability
 ALERT_MANAGER_AVAILABLE = register_import_attempt(

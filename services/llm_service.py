@@ -24,7 +24,7 @@ from config.config_unified import (
     CONNECTION_POOL_SIZE,
     MAX_KEEPALIVE_CONNECTIONS)
 from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
-from core.logging_config import get_logger, log_function_call, log_performance, log_service_status
+from core.unified_logging import get_logger, log_function_call, log_performance, log_service_status
 
 
 class LLMService:

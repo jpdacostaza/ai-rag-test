@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from core.logging_config import get_logger, log_service_status
+from core.unified_logging import get_logger, log_service_status
 
 logger = get_logger(__name__)
 import wikipedia
@@ -456,39 +456,32 @@ def calculate(expression: str) -> str:
 
 
 def web_search(query: str, num_results: int = 5) -> str:
+    """Lightweight synchronous web search (DuckDuckGo Instant Answer API).
+
+    NOTE:
+        Advanced, structured async search is provided by utilities.enhanced_web_search.
+        This function remains synchronous so ToolService can call it from non-async
+        contexts without event loop conflicts.
     """
-    Perform a web search and return results.
-
-    Args:
-        query: Search query
-        num_results: Number of results to return
-
-    Returns:
-        Search results or error message"""
     try:
-
-        # Use DuckDuckGo Instant Answer API as a simple search
         encoded_query = urllib.parse.quote_plus(query)
         url = f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1&skip_disambig=1"
-
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
-                Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            )
         }
-
         with httpx.Client(timeout=10) as client:
-            response = client.get(url, headers=headers)
-            data = response.json()
-
+            resp = client.get(url, headers=headers)
+            data = resp.json()
         if data.get("AbstractText"):
-            return "Search result for '{query}': {data['AbstractText']}"
-        elif data.get("Definition"):
-            return "Definition for '{query}': {data['Definition']}"
-        else:
-            return "No detailed results found for '{query}'. Try a more specific search."
-
-    except Exception:
-        return "Web search unavailable: {str(e)}"
+            return f"Search result for '{query}': {data['AbstractText']}"
+        if data.get("Definition"):
+            return f"Definition for '{query}': {data['Definition']}"
+        return f"No detailed results found for '{query}'. Try a more specific search."
+    except Exception as e:
+        return f"Web search unavailable: {e}"
 
 
 def get_news(category: str = "general", country: str = "us") -> str:

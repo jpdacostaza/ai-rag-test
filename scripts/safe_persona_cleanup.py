@@ -11,19 +11,19 @@ import os
 from pathlib import Path
 
 def test_persona_loading():
-    """Test if persona_unified_small.json loads correctly."""
+    """Test if unified_prompt.json loads correctly."""
     
     print(" TESTING PERSONA LOADING")
     print("=" * 40)
     
-    unified_persona_path = "config/persona_unified_small.json"
+    unified_persona_path = "config/unified_prompt.json"
     
     try:
         with open(unified_persona_path, 'r', encoding='utf-8') as f:
             persona_data = json.load(f)
             system_prompt = persona_data.get("system_prompt", "")
             
-            print(f"[OK] persona_unified_small.json loads successfully")
+            print(f"[OK] unified_prompt.json loads successfully")
             print(f"[CHART] System prompt length: {len(system_prompt)} characters")
             print(f" Anti-fabrication check:")
             
@@ -42,14 +42,14 @@ def test_persona_loading():
             all_passed = all(passed for _, passed in safety_checks)
             
             if all_passed:
-                print(f"\n RESULT: persona_unified_small.json is SAFE and READY")
+                print(f"\n RESULT: unified_prompt.json is SAFE and READY")
                 return True
             else:
                 print(f"\n[WARN] RESULT: Some safety checks failed")
                 return False
                 
     except Exception as e:
-        print(f"[FAIL] ERROR: Could not load persona_unified_small.json: {e}")
+        print(f"[FAIL] ERROR: Could not load unified_prompt.json: {e}")
         return False
 
 def check_removal_safety():
@@ -67,7 +67,7 @@ def check_removal_safety():
     
     # Files to keep
     keep_files = [
-        ("persona_unified_small.json", "PRIMARY - Orange Pi optimized"),
+        ("unified_prompt.json", "PRIMARY - 7B model optimized"),
         ("persona_new_user.json", "FALLBACK - safe new user handling")
     ]
     
@@ -107,7 +107,7 @@ def generate_removal_commands():
     print(f"\n# 4. VERIFY FINAL STATE:")
     print(f"ls config/persona*.json")
     print(f"# Should show only:")
-    print(f"# - persona_unified_small.json (3.4KB - PRIMARY)")
+    print(f"# - unified_prompt.json (1.5KB - PRIMARY)")
     print(f"# - persona_new_user.json (7.9KB - FALLBACK)")
     
     print(f"\n FINAL RESULT:")
@@ -130,9 +130,9 @@ if __name__ == "__main__":
     
     print(f"\n RECOMMENDATION:")
     if persona_ok:
-        print(f"[OK] persona_unified_small.json is working correctly")
+        print(f"[OK] unified_prompt.json is working correctly")
         print(f"[OK] Safe to remove old persona files after testing")
         print(f" Optimized for Orange Pi with <7B models")
     else:
-        print(f"[WARN] Fix persona_unified_small.json issues first")
+        print(f"[WARN] Fix unified_prompt.json issues first")
         print(f"[SYNC] Keep old files as fallbacks until fixed")

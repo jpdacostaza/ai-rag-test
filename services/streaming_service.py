@@ -6,7 +6,7 @@ import time
 import logging
 from typing import Dict
 from datetime import datetime
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 # Global dict to track streaming sessions with enhanced management
 STREAM_SESSION_STOP: Dict[str, bool] = {}

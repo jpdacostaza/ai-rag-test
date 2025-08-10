@@ -22,13 +22,14 @@ from pathlib import Path
 from typing import Optional
 import httpx
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
-)
-logger = logging.getLogger(__name__)
+# Configure logging (avoid duplicate handlers)
+try:
+    from core.unified_logging import setup_logging, get_logger
+    setup_logging()
+    logger = get_logger(__name__)
+except ImportError:
+    # Minimal fallback for standalone usage - no basicConfig to avoid conflicts
+    logger = logging.getLogger(__name__)
 
 class SystemMonitor:
     def __init__(self):

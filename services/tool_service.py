@@ -18,7 +18,7 @@ from utilities.ai_tools import (
     get_news,
     web_search)
 from core.error_handler import ToolErrorHandler, safe_execute
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 
 class ToolService:

@@ -15,6 +15,7 @@ Key principles:
 import asyncio
 import functools
 import logging
+from core.unified_logging import get_logger
 from typing import Any, Callable, Optional, TypeVar
 
 from fastapi import HTTPException
@@ -22,7 +23,7 @@ from fastapi import HTTPException
 # Type variable for decorated functions
 F = TypeVar('F', bound=Callable[..., Any])
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def handle_errors(operation: str, default_value: Any = None, raise_http: bool = False):

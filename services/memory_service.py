@@ -39,7 +39,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from core.logging_config import get_logger
+from core.unified_logging import get_logger
 from enum import Enum
 from typing import List, Dict, Any, Optional, Union, Protocol
 import time
@@ -298,7 +298,7 @@ class DatabaseMemoryProvider:
     provider_type = "database"
     
     def __init__(self):
-        from core.logging_config import get_logger
+        from core.unified_logging import get_logger
         self.logger = get_logger(__name__)
         self.db_manager = None
     
@@ -792,7 +792,31 @@ class MemoryService:
             threshold=threshold
         )
         
-        return await self.provider.get_memories(memory_query)
+        # Metrics instrumentation (lazy import to avoid cycles)
+        start_time = time.time()
+        memories: List[MemoryEntry] = []
+        provider_label = getattr(self.provider, 'provider_type', 'unknown')
+        try:
+            memories = await self.provider.get_memories(memory_query)
+            return memories
+        finally:
+            try:
+                from core.metrics import (
+                    METRICS_ENABLED,
+                    memory_retrieval_latency_seconds,
+                    memory_hits_total,
+                    memory_misses_total,
+                )
+                if METRICS_ENABLED:
+                    latency = time.time() - start_time
+                    memory_retrieval_latency_seconds.labels(provider_label).observe(latency)
+                    if memories:
+                        memory_hits_total.labels(provider_label).inc()
+                    else:
+                        memory_misses_total.labels(provider_label).inc()
+            except Exception:
+                # Metrics are non-critical; swallow errors
+                pass
     
     @handle_memory_errors(operation_name="track_conversation")
     async def track_conversation(self, user_id: str, user_message: str, 
@@ -860,9 +884,33 @@ class MemoryService:
         if not memories:
             return ""
         
+        # Lazy import to avoid circular dependency
+        try:
+            from core.security import InputSanitizer
+            sanitize = InputSanitizer.sanitize_text
+        except Exception:  # pragma: no cover
+            def sanitize(x: str) -> str:
+                return x.replace('\n', ' ').strip()
+
         formatted_memories = []
         for memory in memories:
-            formatted_memories.append(f"- {memory.content}")
+            raw = sanitize(memory.content)
+            # Additional hardening: remove any (now escaped) script blocks and obvious JS function calls like alert()
+            # We operate on the escaped text (e.g. &lt;script&gt;) produced by sanitizer; strip those segments entirely.
+            try:
+                import re
+                cleaned = re.sub(r"&lt;script&gt;.*?&lt;/script&gt;", "", raw, flags=re.IGNORECASE | re.DOTALL)
+                cleaned = re.sub(r"\balert\s*\([^)]*\)", "", cleaned, flags=re.IGNORECASE)
+                # Remove lone occurrences of the word 'script' (escaped tag names) if any remain
+                cleaned = re.sub(r"\bscript\b", "", cleaned, flags=re.IGNORECASE)
+            except Exception:  # pragma: no cover - fallback if re import somehow fails
+                cleaned = raw
+            # Collapse excessive whitespace created by removals
+            cleaned = " ".join(cleaned.split())
+            if not cleaned:
+                continue  # skip empty remnants
+            safe_content = cleaned[:500]  # truncate overly long memory lines
+            formatted_memories.append(f"- {safe_content}")
         
         return f"Previous conversations and context:\n" + "\n".join(formatted_memories)
     
@@ -934,15 +982,34 @@ _memory_service_instance: Optional[MemoryService] = None
 
 
 def create_memory_service(provider_type: MemoryProviderType = MemoryProviderType.PIPELINE) -> MemoryService:
-    """
-    Create memory service with specified provider.
-    
+    """Create memory service with specified provider.
+
+    Provider precedence/selection logic (documented for transparency):
+    1. Explicit argument (internal callers/tests may pass)
+    2. Environment variable MEMORY_PROVIDER (api|database|pipeline|local, case-insensitive)
+       - Invalid values fall back to pipeline
+    3. Default: PIPELINE (optimized pipes/valves architecture)
+
+    Environment variable allows container runtime override without code change.
+
     Args:
-        provider_type: Type of memory provider to use (defaults to PIPELINE for pipes/valves architecture)
-        
+        provider_type: Preferred provider passed by caller (rarely used externally)
     Returns:
         MemoryService: Configured memory service
     """
+    # Environment override
+    try:
+        env_provider = os.getenv("MEMORY_PROVIDER", "").strip().lower()
+        if env_provider:
+            mapping = {
+                "api": MemoryProviderType.API,
+                "database": MemoryProviderType.DATABASE,
+                "pipeline": MemoryProviderType.PIPELINE,
+                "local": MemoryProviderType.LOCAL,
+            }
+            provider_type = mapping.get(env_provider, provider_type)
+    except Exception:
+        pass
     if provider_type == MemoryProviderType.API:
         provider = APIMemoryProvider()
     elif provider_type == MemoryProviderType.DATABASE:
@@ -973,6 +1040,12 @@ def get_memory_service() -> MemoryService:
     
     if _memory_service_instance is None:
         _memory_service_instance = create_memory_service()
+        try:  # Emit active provider metric once
+            from core.metrics import METRICS_ENABLED, memory_provider_active
+            if METRICS_ENABLED:
+                memory_provider_active.labels(_memory_service_instance.provider_type).inc()
+        except Exception:
+            pass
     
     return _memory_service_instance
 
@@ -981,6 +1054,28 @@ def set_memory_service(service: MemoryService) -> None:
     """Set the global memory service instance."""
     global _memory_service_instance
     _memory_service_instance = service
+
+
+async def record_memory_provider_health() -> None:
+    """Perform a lightweight health check and increment success/failure metric.
+
+    Intended for readiness checks or periodic tasks.
+    """
+    try:
+        service = get_memory_service()
+        provider = service.provider_type
+        ok = False
+        if hasattr(service.provider, 'health_check'):
+            try:
+                ok = await service.provider.health_check()
+            except Exception:
+                ok = False
+        from core.metrics import METRICS_ENABLED, memory_provider_health
+        if METRICS_ENABLED:
+            memory_provider_health.labels(provider, 'success' if ok else 'failure').inc()
+    except Exception:
+        # Swallow all errors; metrics non-critical
+        pass
 
 
 # Backward compatibility functions

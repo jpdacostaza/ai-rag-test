@@ -20,14 +20,17 @@ services:
     image: alpine:latest
     container_name: backend-storage-init
     restart: "no"
-    command: >-
-      sh -c "echo '🏗️ Initializing storage directories...' && \
-      mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache && \
-      chown -R 1000:1000 /storage && \
-      chmod -R 755 /storage && \
-      chmod -R 777 /storage/.cache /storage/models && \
-      echo '✅ Storage initialization complete!' && \
-      ls -la /storage"
+    command:
+      - sh
+      - -c
+      - |
+        echo 'Initializing storage directories...' && \
+        mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache && \
+        chown -R 1000:1000 /storage && \
+        chmod -R 755 /storage && \
+        chmod -R 777 /storage/.cache /storage/models && \
+        echo 'Storage initialization complete!' && \
+        ls -la /storage
     volumes:
       - ./storage:/storage
     networks:
@@ -428,6 +431,9 @@ services:
       - CORS_ORIGINS=*
       - CACHE_PROVIDER=redis
       - TRACING_ENABLED=false
+          - OLLAMA_HEALTHCHECK_DISABLED=true
+          - HEALTHCHECK_INTERVAL=30
+          - OLLAMA_HEALTHCHECK_INTERVAL=120
       # Service discovery
       - MEMORY_API_HOST=memory-api
       - MEMORY_API_PORT=5001

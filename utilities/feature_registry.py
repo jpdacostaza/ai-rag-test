@@ -17,11 +17,12 @@ Usage:
 """
 
 import logging
+from core.unified_logging import get_logger
 from typing import Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class FeatureStatus(Enum):
     AVAILABLE = "available"
@@ -41,7 +42,7 @@ class FeatureRegistry:
     
     def __init__(self):
         self._features: Dict[str, FeatureInfo] = {}
-        self._logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self._logger = get_logger(f"{__name__}.{self.__class__.__name__}")
     
     def register_feature(self, name: str, available: bool, 
                         error: Optional[str] = None, 

@@ -7,6 +7,7 @@ Implements comprehensive security patterns for microservices architecture.
 import asyncio
 import time
 import logging
+from core.unified_logging import get_logger
 import hashlib
 import hmac
 import secrets
@@ -40,7 +41,7 @@ def simple_jwt_decode(token: str, secret: str, algorithm: str = "HS256") -> Dict
             "iat": time.time()
         }
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 @dataclass
 class SecurityConfig:

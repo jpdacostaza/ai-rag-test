@@ -17,35 +17,11 @@ def analyze_persona_files():
     print("=" * 60)
     
     persona_files = {
-        "persona_unified_small.json": {
-            "purpose": "Orange Pi <7B models, anti-fabrication",
+        "unified_prompt.json": {
+            "purpose": "7B models optimized, web search + memory",
             "size": 0,
-            "recommendation": "KEEP - Primary for Orange Pi",
+            "recommendation": "PRIMARY - Single unified configuration",
             "priority": 1
-        },
-        "persona_small_model.json": {
-            "purpose": "Small models, recently fixed anti-fabrication", 
-            "size": 0,
-            "recommendation": "CONSIDER REMOVING - Redundant with unified",
-            "priority": 3
-        },
-        "persona_new_user.json": {
-            "purpose": "New user introduction, anti-fabrication",
-            "size": 0, 
-            "recommendation": "KEEP - Good for new user handling",
-            "priority": 2
-        },
-        "persona_enhanced.json": {
-            "purpose": "Large models, complex features, fabrication risk",
-            "size": 0,
-            "recommendation": "REMOVE - Not needed for Orange Pi <7B",
-            "priority": 5
-        },
-        "persona.json": {
-            "purpose": "Legacy general purpose, fabrication risk", 
-            "size": 0,
-            "recommendation": "REMOVE - Superseded by unified small",
-            "priority": 4
         }
     }
     

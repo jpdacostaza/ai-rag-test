@@ -4,7 +4,7 @@ Health check endpoints.
 
 import time
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
@@ -12,12 +12,13 @@ from fastapi.responses import JSONResponse
 from config.config_unified import get_app_start_time
 from services.database_manager import get_database_health
 from services.dependencies import get_redis_service, get_vector_service, get_cache_service
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 from models.models import HealthResponse, DetailedHealthResponse
 from utilities.watchdog import get_watchdog, get_health_status
 from services.storage_manager import StorageManager
 from utilities.simple_error_handling import handle_api_errors, handle_errors
 from utilities.feature_registry import feature_registry
+from utilities.circuit_breaker import get_llm_breaker
 
 health_router = APIRouter()
 
@@ -101,12 +102,17 @@ async def health_check(
     elif healthy < total:
         overall_status = "degraded"
 
+    # Circuit breaker state
+    breaker = get_llm_breaker()
+    breaker_info = {"state": breaker.state}
+
     response = {
         "status": overall_status,
         "summary": summary,
         "databases": health_status,
         "startup": app_state,
-        "timestamp": datetime.now().isoformat(),
+        "breaker": breaker_info,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
         "uptime_seconds": time.time() - get_app_start_time()
     }
 
@@ -150,11 +156,13 @@ async def detailed_health_check():
     elif degraded_count > 0:
         overall = "degraded"
 
+    breaker = get_llm_breaker()
     return {
         "status": "ok",
         "timestamp": datetime.now().isoformat(),
         "overall_status": overall,
         "services": services,
+        "breaker": {"state": breaker.state},
         "summary": {
             "total_services": len(services),
             "healthy_services": healthy_count,
@@ -365,13 +373,36 @@ async def readiness_check(request: Request = None):
     startup_complete = False
     if request and hasattr(request, 'app') and request.app:
         startup_complete = getattr(request.app.state, 'startup_complete', False)
-    
-    if startup_complete:
-        return {"ready": True, "status": "ready"}
+    # Memory provider quick health
+    memory_ok = True
+    provider_type = None
+    try:
+        from services.memory_service import get_memory_service, record_memory_provider_health
+        service = get_memory_service()
+        provider_type = service.provider_type
+        if hasattr(service.provider, 'health_check'):
+            memory_ok = await service.provider.health_check()
+        # Record metric asynchronously (best effort)
+        try:
+            await record_memory_provider_health()
+        except Exception:
+            pass
+    except Exception:
+        memory_ok = False
+    ready = startup_complete and memory_ok
+    if ready:
+        return {"ready": True, "status": "ready", "memory_provider": provider_type}
     else:
         return JSONResponse(
             status_code=503,
-            content={"ready": False, "status": "not_ready", "message": "Service startup not complete"}
+            content={
+                "ready": False,
+                "status": "not_ready",
+                "startup_complete": startup_complete,
+                "memory_provider": provider_type,
+                "memory_ok": memory_ok,
+                "message": "Service not ready (startup or memory provider)"
+            }
         )
 
 

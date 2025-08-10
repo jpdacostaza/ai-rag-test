@@ -143,7 +143,12 @@ def log_cpu_verification_results(results):
 
 if __name__ == "__main__":
     # Enable logging for testing
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    try:
+        from core.unified_logging import setup_logging
+        setup_logging()
+    except ImportError:
+        # No fallback basicConfig to avoid duplicate handlers
+        pass
 
     # Enforce CPU-only mode
     enforce_cpu_only_mode()

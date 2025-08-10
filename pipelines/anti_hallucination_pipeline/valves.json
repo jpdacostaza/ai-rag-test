@@ -1,1 +1,1 @@
-{}
+{"pipelines": ["*"], "priority": 0, "confidence_threshold": 0.7, "consistency_threshold": 0.8, "enable_real_time_filtering": true, "enable_memory_validation": true, "enable_response_scoring": true, "enable_context_grounding": true, "max_validation_time_ms": 500, "fallback_on_timeout": true, "log_detections": true, "safety_message_mode": "replace", "show_confidence_scores": false, "enable_statistics": true, "max_response_length": 10000}

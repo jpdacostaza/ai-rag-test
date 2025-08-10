@@ -10,7 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from pydantic import BaseModel
 
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 from services.database_manager import db_manager
 from utilities.error_patterns import handle_api_errors
 from services.auth_validator import AuthValidator
@@ -31,6 +31,13 @@ class MemoryQueryRequest(BaseModel):
     """Request model for querying memory."""
     user_id: str
     query: str
+    limit: Optional[int] = 5
+    min_score: Optional[float] = 0.0
+
+class MemoryBulkQueryRequest(BaseModel):
+    """Request model for bulk querying multiple queries for a single user."""
+    user_id: str
+    queries: List[str]
     limit: Optional[int] = 5
     min_score: Optional[float] = 0.0
 
@@ -169,6 +176,53 @@ async def query_memory(request: MemoryQueryRequest):
         raise
     except Exception as e:
         log_service_status("MEMORY", "error", f"Error querying memory: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+
+@memory_router.post("/bulk_query", response_model=Dict[str, Any])
+@handle_api_errors("bulk_query_memory")
+async def bulk_query_memory(request: MemoryBulkQueryRequest):
+    """Perform multiple memory queries for a user concurrently.
+
+    Returns mapping query -> list[memories]. Errors for individual queries captured per key.
+    """
+    try:
+        auth_validator = AuthValidator()
+        validated_user = auth_validator.extract_and_validate_user({"id": request.user_id})
+        if not validated_user or not validated_user.user_id:
+            raise HTTPException(status_code=400, detail="Invalid user_id")
+        if not db_manager:
+            raise HTTPException(status_code=503, detail="Database manager not available")
+        await db_manager.ensure_initialized()
+        # Launch queries concurrently
+        import asyncio
+        async def run_single(q: str):
+            try:
+                results = await db_manager.query_chroma(q, request.limit)
+                user_memories = []
+                if results and results.get("matches"):
+                    for match in results["matches"]:
+                        metadata = match.get("metadata", {})
+                        if metadata.get("user_id") == validated_user.user_id:
+                            distance = match.get("distance", 1.0)
+                            similarity_score = max(0.0, 1.0 - distance)
+                            if similarity_score >= request.min_score:
+                                user_memories.append({
+                                    "content": match.get("document", ""),
+                                    "metadata": metadata,
+                                    "similarity_score": similarity_score,
+                                    "distance": distance
+                                })
+                return {"success": True, "memories": user_memories, "total_count": len(user_memories)}
+            except Exception as e:
+                return {"success": False, "error": str(e), "memories": [], "total_count": 0}
+        tasks = [run_single(q) for q in request.queries]
+        results = await asyncio.gather(*tasks)
+        response_map = {q: r for q, r in zip(request.queries, results)}
+        return {"success": True, "results": response_map, "query_count": len(request.queries)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_service_status("MEMORY", "error", f"Bulk query error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
 @memory_router.get("/user/{user_id}", response_model=MemoryListResponse)

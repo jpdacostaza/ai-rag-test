@@ -20,14 +20,14 @@ import logging
 import traceback
 import uuid
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, AsyncGenerator, Callable, Dict, Optional, Type, TypeVar, Union
 
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status
 
 
 class ErrorSeverity(Enum):
@@ -346,8 +346,8 @@ async def error_context(
         "service_name": service_name,
         "operation_name": operation_name,
         "request_id": str(uuid.uuid4()),
-        "start_time": datetime.utcnow(),
-        **context_data
+        "start_time": datetime.now(timezone.utc),
+        **context_data,
     }
     
     try:
@@ -355,19 +355,19 @@ async def error_context(
             config.service_type.value.upper(),
             "info",
             f"[SYNC] Starting {operation_name}")
-        
+
         yield context
-        
+
         # Log successful completion
-        duration = (datetime.utcnow() - context["start_time"]).total_seconds()
+        duration = (datetime.now(timezone.utc) - context["start_time"]).total_seconds()
         log_service_status(
             config.service_type.value.upper(),
             "info",
             f"[OK] {operation_name} completed successfully in {duration:.2f}s"
         )
-        
+
     except Exception as e:
-        duration = (datetime.utcnow() - context["start_time"]).total_seconds()
+        duration = (datetime.now(timezone.utc) - context["start_time"]).total_seconds()
         context.update({
             "error": str(e),
             "error_type": type(e).__name__,
@@ -429,8 +429,8 @@ def sync_error_context(
         "service_name": service_name,
         "operation_name": operation_name,
         "request_id": str(uuid.uuid4()),
-        "start_time": datetime.utcnow(),
-        **context_data
+        "start_time": datetime.now(timezone.utc),
+        **context_data,
     }
     
     try:
@@ -438,19 +438,19 @@ def sync_error_context(
             config.service_type.value.upper(),
             "info",
             f"[SYNC] Starting {operation_name}")
-        
+
         yield context
-        
+
         # Log successful completion
-        duration = (datetime.utcnow() - context["start_time"]).total_seconds()
+        duration = (datetime.now(timezone.utc) - context["start_time"]).total_seconds()
         log_service_status(
             config.service_type.value.upper(),
             "info",
             f"[OK] {operation_name} completed successfully in {duration:.2f}s"
         )
-        
+
     except Exception as e:
-        duration = (datetime.utcnow() - context["start_time"]).total_seconds()
+        duration = (datetime.now(timezone.utc) - context["start_time"]).total_seconds()
         context.update({
             "error": str(e),
             "error_type": type(e).__name__,
@@ -561,7 +561,7 @@ def create_api_error_response(
         error_message=str(error),
         error_code=error_code,
         request_id=request_id or str(uuid.uuid4()),
-        timestamp=datetime.utcnow(),
+    timestamp=datetime.now(timezone.utc),
         suggestion=suggestion
     )
 

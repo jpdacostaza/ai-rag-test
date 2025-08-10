@@ -41,8 +41,15 @@ except ImportError:
     from enhanced_anti_hallucination import EnhancedAntiHallucination, HallucinationResult
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+try:
+    from core.unified_logging import setup_logging, get_logger
+    setup_logging()
+    logger = get_logger(__name__)
+except ImportError:
+    # Fallback for standalone usage
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
 
 @dataclass
 class PipelineHallucinationConfig:

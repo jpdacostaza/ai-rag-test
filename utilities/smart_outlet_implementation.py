@@ -1,17 +1,19 @@
-"""
-Smart Anti-Hallucination Web Search Pipeline
-============================================
-
-This pipeline implements the CORRECT anti-hallucination pattern:
-1. Let the model respond first
-2. Analyze the response for uncertainty or hallucination risk
-3. Only trigger web search if the model shows limitations
-4. Provide corrected/verified information
-
-This is much smarter than preemptively searching on every query.
+"""(Legacy) Smart Anti-Hallucination Web Search Pipeline
+NOTE: Refactored to async compatibility & structured web search results.
+If unused you may remove this file to reduce noise.
 """
 
-def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+from typing import Dict, Any, Optional
+import time
+try:
+    from utilities.enhanced_web_search import search_web
+    from utilities.smart_web_search_trigger import should_trigger_web_search_smart, analyze_response_quality
+except Exception:  # pragma: no cover - optional import
+    search_web = None  # type: ignore
+    should_trigger_web_search_smart = None  # type: ignore
+    analyze_response_quality = None  # type: ignore
+
+async def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     Outlet filter - processes model responses and adds web search if needed.
     This runs AFTER the model generates a response.
@@ -21,8 +23,8 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
     try:
         self.log("[FIRE] OUTLET CALLED - Analyzing model response for potential web search needs")
         
-        # Early return if web search is disabled
-        if not web_search_available:
+        # Early return if search module unavailable
+        if not search_web:
             return body
             
         # Extract messages to get user query and model response
@@ -48,8 +50,9 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
         self.log(f"[SEARCH] Analyzing: Query='{user_query[:50]}...' Response='{model_response[:50]}...'")
         
         # Use smart trigger logic
-        from utilities.smart_web_search_trigger import should_trigger_web_search_smart, analyze_response_quality
-        
+        if not should_trigger_web_search_smart:
+            return body
+
         should_search, trigger_reason = should_trigger_web_search_smart(user_query, model_response)
         
         if should_search:
@@ -57,9 +60,14 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
             
             try:
                 # Perform web search
-                search_results = await search_web(user_query, max_results=3)
-                
-                if search_results and len(search_results.strip()) > 50:
+                if not search_web:
+                    return body
+                result = await search_web(user_query, max_results=3)
+                if isinstance(result, dict):
+                    raw_text = result.get("summary", "")
+                else:
+                    raw_text = str(result)
+                if raw_text and len(raw_text.strip()) > 50:
                     # Analyze response quality to determine how to integrate search results
                     quality_analysis = analyze_response_quality(model_response)
                     
@@ -67,7 +75,7 @@ def outlet(self, body: Dict[str, Any], __user__: Optional[Dict[str, Any]] = None
                         # Model was uncertain - replace with web search results
                         enhanced_response = f"""Based on current web search results:
 
-{search_results}
+{raw_text}
 
 Let me provide you with the most up-to-date information about your query."""
                         
@@ -76,7 +84,7 @@ Let me provide you with the most up-to-date information about your query."""
                         enhanced_response = f"""{model_response}
 
 **Current Information Update:**
-{search_results}
+{raw_text}
 
 *The above information has been verified with current web sources to ensure accuracy.*"""
                     
@@ -97,7 +105,7 @@ Let me provide you with the most up-to-date information about your query."""
                             if user_id:
                                 web_search_memory = {
                                     "user_id": user_id,
-                                    "content": f"Web search verification for '{user_query}':\n\n{search_results}",
+                                    "content": f"Web search verification for '{user_query}':\n\n{raw_text}",
                                     "metadata": {
                                         "type": "web_search_verification",
                                         "original_query": user_query,
@@ -107,7 +115,8 @@ Let me provide you with the most up-to-date information about your query."""
                                     }
                                 }
                                 
-                                await self.api_client.store_memory(web_search_memory)
+                                if hasattr(self.api_client, 'store_memory'):
+                                    await self.api_client.store_memory(web_search_memory)
                                 self.log(f" Stored web search verification to memory")
                         except Exception as storage_error:
                             self.log(f"[WARN] Failed to store web search results: {storage_error}", "WARNING")

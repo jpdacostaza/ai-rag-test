@@ -14,7 +14,7 @@ import redis
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from core.logging_config import log_service_status
+from core.unified_logging import log_service_status, get_correlation_id
 from utilities.connection_factory import DatabaseConnectionFactory
 from utilities.error_patterns import handle_service_errors, handle_database_errors, ErrorHandlerConfig
 
@@ -30,8 +30,9 @@ def log_error(error: Exception, context: str = "", user_id: str = "", request_id
         "user_id": user_id,
         "request_id": request_id,
         "traceback": traceback.format_exc(),
+    "correlation_id": get_correlation_id(),
     }
-    logging.error("[ERROR] {context}: {error}", extra=error_details)
+    logging.error(f"[ERROR] {context}: {error}", extra=error_details)
 
 
 def get_user_friendly_message(error: Exception, context: str = "") -> str:
@@ -237,7 +238,9 @@ class RedisConnectionHandler:
                     log_service_status("ERROR_HANDLER", "error", f"Redis operation failed after {self.max_retries} attempts via DatabaseConnectionFactory: {e}")
                     raise e
                 log_service_status("ERROR_HANDLER", "warning", f"Redis operation attempt {attempt + 1} failed, retrying: {e}")
-                time.sleep(2 ** attempt)
+                # Non-blocking backoff (previously time.sleep)
+                import asyncio
+                await asyncio.sleep(2 ** attempt)
         return None
 
     @handle_database_errors(

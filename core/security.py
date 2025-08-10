@@ -21,8 +21,9 @@ from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging (guard against duplicate handlers if unified logging already initialized)
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Note: bleach and markupsafe should be added to requirements.txt
@@ -289,6 +290,9 @@ class SecurityValidator:
     @classmethod
     def detect_injection_attempt(cls, content: str) -> bool:
         """Detect potential injection attempts."""
+        # Skip overly large payloads to avoid regex performance issues
+        if not content or len(content) > 32768:
+            return False
         injection_patterns = [
             r'(\bUNION\b.*\bSELECT\b)',  # SQL injection
             r'(\bDROP\b.*\bTABLE\b)',  # SQL injection
@@ -339,59 +343,45 @@ def is_safe_content(content: str) -> bool:
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to responses."""
+    """Add common security headers to every response."""
 
-    async def dispatch(self, request: Request, call_next):
+    async def dispatch(self, request: Request, call_next):  # type: ignore[override]
         response = await call_next(request)
-
-        # Security headers
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        response.headers["Content-Security-Policy"] = "default-src 'self'"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-
+        headers = response.headers
+        # Core MIME sniffing + framing protections
+        headers["X-Content-Type-Options"] = "nosniff"
+        headers["X-Frame-Options"] = "DENY"
+        # Transport security (1 year, include subdomains)
+        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Content Security Policy with optional nonce support (env: CSP_NONCE_ENABLED=true)
+        # Build dynamic connect-src list (allow self + configured service endpoints)
+        connect_hosts = {"'self'"}
+        for var in ("OLLAMA_BASE_URL", "CHROMA_HOST", "REDIS_HOST"):
+            val = os.getenv(var)
+            if val:
+                # Extract scheme+host
+                host = val.replace("http://", "").replace("https://", "").split('/')[0]
+                if host:
+                    connect_hosts.add(host)
+        csp_base = "default-src 'self'; object-src 'none'; base-uri 'self'; connect-src " + ' '.join(sorted(connect_hosts))
+        if os.getenv("CSP_NONCE_ENABLED", "false").lower() == "true":
+            # Generate a simple random nonce per request
+            import secrets
+            nonce = secrets.token_urlsafe(16)
+            # Attach nonce to request state for downstream template usage if needed
+            if hasattr(request, 'state'):
+                request.state.csp_nonce = nonce
+            csp = csp_base + f"; script-src 'self' 'nonce-{nonce}'"
+        else:
+            csp = csp_base + "; script-src 'self'"
+        headers["Content-Security-Policy"] = csp
+        # Lock down powerful features we don't use yet
+        headers["Permissions-Policy"] = "geolocation=(), microphone=()"
+        # Limit referrer leakage
+        headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         return response
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Simple rate limiting middleware."""
-
-    def __init__(self, app, calls: int = 100, period: int = 60):
-        """TODO: Add proper docstring for __init__."""
-        super().__init__(app)
-        self.calls = calls
-        self.period = period
-        self.clients: Dict[str, Dict[str, Any]] = {}
-
-    async def dispatch(self, request: Request, call_next):
-        client_ip = request.client.host if request.client else "unknown"
-        current_time = time.time()
-
-        if client_ip not in self.clients:
-            self.clients[client_ip] = {"calls": 0, "reset_time": current_time + self.period}
-
-        client_data = self.clients[client_ip]
-
-        if current_time > client_data["reset_time"]:
-            client_data["calls"] = 0
-            client_data["reset_time"] = current_time + self.period
-
-        if client_data["calls"] >= self.calls:
-            return JSONResponse(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                content={"error": "Rate limit exceeded", "retry_after": int(client_data["reset_time"] - current_time)})
-
-        client_data["calls"] += 1
-        response = await call_next(request)
-
-        # Add rate limit headers
-        response.headers["X-RateLimit-Limit"] = str(self.calls)
-        response.headers["X-RateLimit-Remaining"] = str(self.calls - client_data["calls"])
-        response.headers["X-RateLimit-Reset"] = str(int(client_data["reset_time"]))
-
-        return response
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -434,10 +424,7 @@ def configure_security(app: FastAPI):
     # Security headers
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # Rate limiting (configurable)
-    rate_limit_calls = int(os.getenv("RATE_LIMIT_CALLS", "100"))
-    rate_limit_period = int(os.getenv("RATE_LIMIT_PERIOD", "60"))
-    app.add_middleware(RateLimitMiddleware, calls=rate_limit_calls, period=rate_limit_period)
+    # Rate limiting now managed centrally in main.py using middleware.rate_limit_middleware.RateLimitMiddleware
 
     # Request logging
     if os.getenv("LOG_REQUESTS", "true").lower() == "true":
@@ -446,77 +433,37 @@ def configure_security(app: FastAPI):
     logger.info("Security middleware configured successfully")
 
 
-def validate_environment():
-    """Validate required environment variables with fallback to config defaults."""
-    logger.info("Validating environment configuration...")
-    
-    # Import unified config for defaults
+## NOTE: Legacy side-effectful validate_environment removed in favor of pure variant below.
+def validate_environment() -> dict:
+    """Collect environment + config values without side effects.
+
+    Returns a dict of resolved settings; never raises (logs only).
+    """
+    info: dict = {"status": "ok"}
     try:
         from config.config_unified import Config
         config = Config.get_instance()
-        
-        # Get values with fallbacks
-        REDIS_HOST = os.getenv("REDIS_HOST") or config.database.redis_host
-        CHROMA_HOST = os.getenv("CHROMA_HOST") or config.database.chroma_host
-        DEFAULT_MODEL = os.getenv("DEFAULT_MODEL") or config.model.default_model
-        OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL") or config.model.ollama_base_url
-        
-    except ImportError:
-        logger.warning("Unified config not available, using environment variables only")
-        # Fallback values if config is not available
-        REDIS_HOST = os.getenv("REDIS_HOST", "redis")
-        CHROMA_HOST = os.getenv("CHROMA_HOST", "chroma")
-        DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "qwen3:4b")
-        OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        info.update({
+            "redis_host": os.getenv("REDIS_HOST") or config.database.redis_host,
+            "chroma_host": os.getenv("CHROMA_HOST") or config.database.chroma_host,
+            "default_model": os.getenv("DEFAULT_MODEL") or config.model.default_model,
+            "ollama_base_url": os.getenv("OLLAMA_BASE_URL") or config.model.ollama_base_url,
+        })
+    except Exception as e:  # pragma: no cover
+        info["status"] = "error"
+        info["error"] = str(e)
+    return info
 
-    # Validate critical configurations
-    configurations = {
-        "REDIS_HOST": REDIS_HOST,
-        "CHROMA_HOST": CHROMA_HOST, 
-        "DEFAULT_MODEL": DEFAULT_MODEL,
-        "OLLAMA_BASE_URL": OLLAMA_BASE_URL
-    }
-
-    missing_configs = []
-    invalid_configs = []
-    
-    for config_name, config_value in configurations.items():
-        if not config_value:
-            missing_configs.append(config_name)
-        elif config_name == "OLLAMA_BASE_URL" and not _validate_url_format(config_value):
-            invalid_configs.append(f"{config_name}: {config_value}")
-
-    # Check for issues
-    if missing_configs:
-        raise ValueError(f"Missing required configurations: {', '.join(missing_configs)}")
-    
-    if invalid_configs:
-        raise ValueError(f"Invalid configuration formats: {', '.join(invalid_configs)}")
-
-    # Validate optional but important settings
-    warnings = []
-    
-    # Check security settings
-    if not os.getenv("SECRET_KEY"):
-        warnings.append("SECRET_KEY not set - using default (insecure in production)")
-    
-    if os.getenv("ENVIRONMENT") == "production":
-        if os.getenv("ALLOWED_ORIGINS") == "*":
-            warnings.append("ALLOWED_ORIGINS set to '*' in production (security risk)")
-        
-        if not os.getenv("TRUSTED_HOSTS"):
-            warnings.append("TRUSTED_HOSTS not configured for production")
-
-    # Log warnings
-    for warning in warnings:
-        logger.warning(f"Configuration warning: {warning}")
-
-    # Log successful configuration
-    logger.info("[OK] Environment validation passed")
-    logger.info(f"Redis: {REDIS_HOST}")
-    logger.info(f"ChromaDB: {CHROMA_HOST}")
-    logger.info(f"Model: {DEFAULT_MODEL}")
-    logger.info(f"Ollama URL: {OLLAMA_BASE_URL}")
+def perform_environment_validation():  # retained for backward compatibility
+    result = validate_environment()
+    if result.get("status") == "ok":
+        logger.info(
+            "Environment validated: Redis=%s Chroma=%s Model=%s Ollama=%s",
+            result.get("redis_host"), result.get("chroma_host"), result.get("default_model"), result.get("ollama_base_url")
+        )
+    else:
+        logger.warning("Environment validation encountered issue: %s", result.get("error"))
+    return result
 
 def _validate_url_format(url: str) -> bool:
     """Validate URL format for configuration."""

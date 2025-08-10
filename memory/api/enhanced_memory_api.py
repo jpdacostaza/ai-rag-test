@@ -32,7 +32,7 @@ from config.config_unified import Config
 # Import services
 from services.memory_service import MemoryService, get_memory_service
 from services.database_manager import db_manager
-from core.logging_config import get_logger, log_service_status
+from core.unified_logging import get_logger, log_service_status
 from utilities.error_patterns import handle_api_errors, StandardizedErrorResponse
 
 logger = get_logger(__name__)

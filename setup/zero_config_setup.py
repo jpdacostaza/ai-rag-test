@@ -148,7 +148,7 @@ class ZeroConfigSetup:
         }
         
         # Write updated persona file
-        persona_file = self.backend_dir / "config" / "persona_zero_config_latest.json"
+        persona_file = self.backend_dir / "config" / "unified_prompt.json"
         with open(persona_file, 'w', encoding='utf-8') as f:
             json.dump(latest_persona, f, indent=2, ensure_ascii=False)
             

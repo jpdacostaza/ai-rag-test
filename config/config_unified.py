@@ -275,20 +275,16 @@ class PersonaConfig:
         if env_prompt:
             return env_prompt
         
-        # Try loading from persona files - Orange Pi optimized (only keep essential ones)
-        persona_files = [
-            "config/persona_unified_small.json",    # Primary: Orange Pi <7B models, anti-fabrication
-            "config/persona_new_user.json"          # Fallback: new user handling
-        ]
+        # Use single unified prompt file optimized for 7B models
+        persona_file = "config/unified_prompt.json"
         
-        for persona_file in persona_files:
-            try:
-                if Path(persona_file).exists():
-                    with open(persona_file, "r", encoding="utf-8") as f:
-                        persona_data = json.load(f)
-                        return persona_data.get("system_prompt", self.default_system_prompt)
-            except Exception:
-                continue
+        try:
+            if Path(persona_file).exists():
+                with open(persona_file, "r", encoding="utf-8") as f:
+                    persona_data = json.load(f)
+                    return persona_data.get("system_prompt", self.default_system_prompt)
+        except Exception:
+            pass
         
         return self.default_system_prompt
 

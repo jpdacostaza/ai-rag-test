@@ -25,6 +25,7 @@ Usage:
 import re
 import uuid
 import logging
+from core.unified_logging import get_logger
 from typing import Dict, Any, Optional, Tuple, List, Union, Set
 from dataclasses import dataclass, field
 from enum import Enum
@@ -39,7 +40,7 @@ from utilities.error_patterns import (
 )
 
 # Configure logging
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class UserIDType(Enum):
@@ -123,7 +124,7 @@ class AuthValidator:
     def __init__(self, config: Optional[AuthConfig] = None):
         """Initialize the auth validator with configuration."""
         self.config = config or AuthConfig()
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger = get_logger(f"{__name__}.{self.__class__.__name__}")
         
         # Compile regex patterns for performance
         self._uuid_pattern = re.compile(

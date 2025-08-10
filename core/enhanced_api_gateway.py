@@ -12,36 +12,39 @@ Implements comprehensive API Gateway patterns with:
 
 import asyncio
 import aiohttp
-from aiohttp import web, ClientSession, ClientTimeout, ClientConnectorError
+from aiohttp import web, ClientSession, ClientTimeout
 import json
 import time
 import logging
 import hashlib
 import statistics
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional, Tuple, Set
+from datetime import datetime
+from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict, deque
 import traceback
-import weakref
 import os
-import ssl
 import uuid
-from urllib.parse import urlparse, parse_qs
 
 # Import our security middleware
 from middleware.security_middleware import SecurityMiddleware, SecurityConfig
+try:
+    from core.unified_logging import set_correlation_id, get_correlation_id
+except Exception:  # pragma: no cover
+    def set_correlation_id(_cid: str):
+        return None
+    def get_correlation_id():
+        return None
 
-# Configure logging for containerized environment (console only)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
-    handlers=[
-        logging.StreamHandler(),  # Console output only - Docker will handle log collection
-    ]
-)
-
-logger = logging.getLogger(__name__)
+# Use unified logging - import but don't setup here (main.py will handle setup)
+try:
+    from core.unified_logging import get_logger
+    logger = get_logger(__name__)
+except Exception:  # pragma: no cover - fallback path
+    import logging
+    if not logging.getLogger().handlers:
+        logging.basicConfig(level=logging.INFO, format='%(asctime)s | %(name)s | %(levelname)s | %(message)s')
+    logger = logging.getLogger(__name__)
 
 @dataclass
 class ServiceInstance:
@@ -255,10 +258,9 @@ class EnhancedAPIGateway:
             self.load_config(config_file)
         else:
             self._setup_default_services()
-        
-        # Start background tasks
-        asyncio.create_task(self._health_check_task())
-        asyncio.create_task(self._metrics_aggregation_task())
+
+        # Will hold background task handles after initialize()
+        self._background_tasks: List[asyncio.Task] = []
     
     def _setup_default_services(self):
         """Setup default service configurations"""
@@ -362,29 +364,39 @@ class EnhancedAPIGateway:
         }
     
     async def initialize(self):
-        """Initialize the gateway"""
+        """Initialize the gateway and start background tasks."""
         # Create HTTP session with optimized settings
         connector = aiohttp.TCPConnector(
-            limit=100,  # Total connection limit
-            limit_per_host=30,  # Per-host connection limit
-            ttl_dns_cache=300,  # DNS cache TTL
+            limit=100,
+            limit_per_host=30,
+            ttl_dns_cache=300,
             use_dns_cache=True,
-            keepalive_timeout=60
+            keepalive_timeout=60,
         )
-        
         self.session = ClientSession(
             connector=connector,
             timeout=ClientTimeout(total=60),
-            headers={'User-Agent': 'Enhanced-API-Gateway/1.0'}
+            headers={"User-Agent": "Enhanced-API-Gateway/1.0"},
         )
-        
-        # Initial health check
+        # Initial health check then background tasks
         await self._check_all_services_health()
-        
-        logger.info("Enhanced API Gateway initialized successfully")
+        self._background_tasks.append(
+            asyncio.create_task(self._health_check_task(), name="gateway-health")
+        )
+        self._background_tasks.append(
+            asyncio.create_task(self._metrics_aggregation_task(), name="gateway-metrics")
+        )
+        logger.info("Enhanced API Gateway initialized successfully (tasks started)")
     
     async def shutdown(self):
-        """Clean shutdown"""
+        """Clean shutdown with task cancellation"""
+        for t in getattr(self, '_background_tasks', []):
+            t.cancel()
+        for t in getattr(self, '_background_tasks', []):
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
         if self.session:
             await self.session.close()
         logger.info("Enhanced API Gateway shutdown complete")
@@ -454,6 +466,14 @@ class EnhancedAPIGateway:
         """Main request handler with comprehensive processing"""
         start_time = time.time()
         request_id = str(uuid.uuid4())
+        # Correlation ID: prefer incoming header, else generated
+        incoming_cid = request.headers.get('x-correlation-id') or request.headers.get('x-request-id')
+        correlation_id = incoming_cid or request_id
+        set_correlation_id(correlation_id)
+        try:
+            request['correlation_id'] = correlation_id  # store for downstream (aiohttp request is mapping-like)
+        except Exception:
+            pass
         
         try:
             # Apply security middleware
@@ -461,7 +481,12 @@ class EnhancedAPIGateway:
             if isinstance(security_result, web.Response):
                 return security_result
             
-            return await self._process_request(request)
+            response = await self._process_request(request)
+            # Attach correlation header if not already present
+            if isinstance(response, web.Response):
+                if 'X-Correlation-ID' not in response.headers:
+                    response.headers['X-Correlation-ID'] = correlation_id
+            return response
             
         except Exception as e:
             duration = (time.time() - start_time) * 1000
@@ -471,6 +496,7 @@ class EnhancedAPIGateway:
                 {
                     "error": "Internal gateway error",
                     "request_id": request_id,
+                    "correlation_id": correlation_id,
                     "timestamp": datetime.now().isoformat()
                 },
                 status=500
@@ -495,11 +521,11 @@ class EnhancedAPIGateway:
             if not self._check_circuit_breaker(route_config.service_name):
                 return web.json_response({"error": "Service temporarily unavailable"}, status=503)
         
-        # Check cache first
-        if route_config.cache_ttl and request.method == 'GET':
-            cache_key = self._generate_cache_key(request)
+        # Check cache (skip if Authorization header present for user-specific data)
+        if route_config.cache_ttl and request.method == 'GET' and 'authorization' not in {k.lower(): v for k,v in request.headers.items()}:
+            cache_key = self._generate_cache_key(request, route_config)
             cached_response = self.response_cache.get(cache_key, route_config.cache_ttl)
-            if cached_response:
+            if cached_response is not None:
                 return web.json_response(cached_response, headers={'X-Cache': 'HIT'})
         
         # Select service instance
@@ -520,9 +546,10 @@ class EnhancedAPIGateway:
             # Transform response
             transformed_response = await self._transform_response(response, route_config)
             
-            # Cache response if configured
-            if route_config.cache_ttl and request.method == 'GET' and response.status == 200:
-                cache_key = self._generate_cache_key(request)
+            # Cache response if configured (anonymous only)
+            if (route_config.cache_ttl and request.method == 'GET' and response.status == 200 and
+                'authorization' not in {k.lower(): v for k,v in request.headers.items()}):
+                cache_key = self._generate_cache_key(request, route_config)
                 self.response_cache.set(cache_key, transformed_response)
             
             # Record success
@@ -564,17 +591,21 @@ class EnhancedAPIGateway:
         return None
     
     async def _transform_request(self, request, route_config: RouteConfig) -> Dict[str, Any]:
-        """Transform request according to route configuration"""
-        # Get request body
+        """Transform request according to route configuration.
+
+        Reads body once and caches size to avoid double read in metrics.
+        """
         body = None
         if request.can_read_body:
             try:
-                body = await request.json()
-            except:
+                raw = await request.read()
+                request._cached_body_size = len(raw)
                 try:
-                    body = await request.text()
-                except:
-                    pass
+                    body = json.loads(raw.decode() or 'null') if raw else None
+                except Exception:
+                    body = raw.decode(errors='ignore') if raw else None
+            except Exception:
+                body = None
         
         # Build transformed request
         transformed = {
@@ -645,15 +676,11 @@ class EnhancedAPIGateway:
         
         return response_data
     
-    def _generate_cache_key(self, request) -> str:
-        """Generate cache key for request"""
-        key_parts = [request.method, request.path]
-        
-        # Include query parameters
+    def _generate_cache_key(self, request, route_config: RouteConfig) -> str:
+        """Generate anonymized cache key (excludes auth headers)."""
+        key_parts = [request.method, route_config.path_pattern, request.path]
         if request.query:
-            sorted_query = sorted(request.query.items())
-            key_parts.append(str(sorted_query))
-        
+            key_parts.append(str(sorted(request.query.items())))
         return hashlib.md5('|'.join(key_parts).encode()).hexdigest()
     
     def _check_circuit_breaker(self, service_name: str) -> bool:
@@ -707,7 +734,23 @@ class EnhancedAPIGateway:
             logger.warning(f"Circuit breaker for {service_name} opened ({breaker['failure_count']} failures)")
     
     async def _record_metrics(self, request, status_code: int, duration_ms: float, service_name: str):
-        """Record request metrics"""
+        """Record request metrics without re-reading body."""
+        req_size = getattr(request, '_cached_body_size', 0)
+        # Prometheus instrumentation (best-effort; not fatal)
+        try:  # pragma: no cover - side-effect metric collection
+            from core.metrics import gateway_requests_total, gateway_request_latency_seconds, METRICS_ENABLED
+            if METRICS_ENABLED:
+                gateway_requests_total.labels(
+                    service=service_name,
+                    method=request.method,
+                    status=str(status_code)
+                ).inc()
+                gateway_request_latency_seconds.labels(
+                    service=service_name,
+                    method=request.method
+                ).observe(duration_ms / 1000.0)
+        except Exception:
+            pass
         metrics = RequestMetrics(
             timestamp=time.time(),
             service=service_name,
@@ -715,8 +758,8 @@ class EnhancedAPIGateway:
             method=request.method,
             status_code=status_code,
             response_time_ms=duration_ms,
-            request_size=len(await request.read()) if hasattr(request, 'read') else 0,
-            response_size=0,  # Would need to track actual response size
+            request_size=req_size,
+            response_size=0,
             client_ip=request.remote or 'unknown'
         )
         
@@ -746,13 +789,55 @@ class EnhancedAPIGateway:
     
     async def _health_check_task(self):
         """Background health check task"""
+        # Allow environment-based tuning / disabling for specific services
+        base_interval = int(os.getenv("HEALTHCHECK_INTERVAL", "30"))
+        ollama_disabled = os.getenv("OLLAMA_HEALTHCHECK_DISABLED", "false").lower() == "true"
+        ollama_interval = int(os.getenv("OLLAMA_HEALTHCHECK_INTERVAL", str(base_interval)))
+
+        # Track per-service next check times for simple interval differentiation
+        next_check: Dict[str, float] = {}
+
         while True:
+            loop_start = time.time()
             try:
-                await self._check_all_services_health()
-                await asyncio.sleep(30)  # Check every 30 seconds
+                # Build subset of services to check this iteration
+                services_to_check = {}
+                for service_name, svc in self.services.items():
+                    # Skip Ollama entirely if disabled
+                    if service_name == 'ollama' and ollama_disabled:
+                        continue
+
+                    interval = ollama_interval if service_name == 'ollama' else base_interval
+                    due_at = next_check.get(service_name, 0)
+                    if loop_start >= due_at:
+                        services_to_check[service_name] = interval
+
+                # Temporarily shrink self.services to only those due, run health, then restore
+                if services_to_check:
+                    original_services = self.services
+                    try:
+                        # Create a shallow filtered view
+                        self.services = {k: original_services[k] for k in services_to_check.keys()}
+                        await self._check_all_services_health()
+                    finally:
+                        # Restore full map
+                        self.services = original_services
+                    # Update next check times
+                    for name, interval in services_to_check.items():
+                        next_check[name] = loop_start + interval
+
+                # Compute dynamic sleep: time until next scheduled check (min of remaining) capped
+                if next_check:
+                    sleep_for = min(max(due - time.time(), 0.5) for due in next_check.values())
+                    # Bound sleep to at most the base interval
+                    sleep_for = min(sleep_for, base_interval)
+                else:
+                    sleep_for = base_interval
+                await asyncio.sleep(sleep_for)
             except Exception as e:
                 logger.error(f"Health check task error: {str(e)}")
-                await asyncio.sleep(60)  # Wait longer on error
+                # On error back off slightly
+                await asyncio.sleep(min(base_interval * 2, 60))
     
     async def _metrics_aggregation_task(self):
         """Background metrics aggregation task"""
@@ -764,14 +849,13 @@ class EnhancedAPIGateway:
                 if self.request_metrics:
                     response_times = [m.response_time_ms for m in self.request_metrics]
                     self.performance_metrics["avg_response_time"] = statistics.mean(response_times)
-                    
-                    if len(response_times) >= 20:  # Need enough data for percentiles
-                        sorted_times = sorted(response_times)
-                        p95_index = int(len(sorted_times) * 0.95)
-                        p99_index = int(len(sorted_times) * 0.99)
-                        
-                        self.performance_metrics["p95_response_time"] = sorted_times[p95_index]
-                        self.performance_metrics["p99_response_time"] = sorted_times[p99_index]
+                    if len(response_times) >= 20:
+                        st = sorted(response_times)
+                        import math
+                        p95_index = min(len(st)-1, max(0, math.ceil(len(st)*0.95)-1))
+                        p99_index = min(len(st)-1, max(0, math.ceil(len(st)*0.99)-1))
+                        self.performance_metrics["p95_response_time"] = st[p95_index]
+                        self.performance_metrics["p99_response_time"] = st[p99_index]
                 
                 logger.debug("Metrics aggregation completed")
                 

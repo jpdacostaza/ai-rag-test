@@ -26,12 +26,13 @@ from typing import Dict, List, Optional
 import logging
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger(__name__)
+try:
+    from core.unified_logging import setup_logging, get_logger
+    setup_logging()
+    logger = get_logger(__name__)
+except ImportError:
+    # Minimal fallback for standalone usage - no basicConfig to avoid conflicts
+    logger = logging.getLogger(__name__)
 
 class ServiceConfig:
     def __init__(self, name: str, url: str, health_endpoint: str, port: int, 

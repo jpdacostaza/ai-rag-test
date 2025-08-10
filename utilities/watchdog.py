@@ -27,6 +27,7 @@ from chromadb.config import Settings
 
 from services.database_manager import db_manager
 from utilities.connection_factory import DatabaseConnectionFactory
+from utilities.simple_error_handling import handle_errors, handle_database_errors
 
 
 class HealthStatus(Enum):
@@ -175,55 +176,72 @@ class RedisMonitor(SubsystemMonitor):
         super().__init__("Redis", config)
         self.connection_factory = DatabaseConnectionFactory()
 
-    async def check_health(self) -> ServiceHealth:
+    def _create_unhealthy_response(self, start_time: float, error_message: str) -> ServiceHealth:
+        """Create an unhealthy service health response."""
+        self._record_failure()
+        response_time = (time.time() - start_time) * 1000
+        return ServiceHealth(
+            service=self.name,
+            status=HealthStatus.UNHEALTHY,
+            last_check=datetime.now(),
+            response_time_ms=response_time,
+            error_message=error_message
+        )
+
+    @handle_database_errors(operation="redis_health_check", default_value=None)
+    async def _perform_health_check(self) -> Optional[ServiceHealth]:
         start_time = time.time()
+        
+        # Use ConnectionFactory for Redis client
+        client = await self.connection_factory.create_redis_connection(connection_name="watchdog_redis_monitor")
+        
+        if not client:
+            raise Exception("Failed to create Redis connection via ConnectionFactory")
 
-        try:
-            # Use ConnectionFactory for Redis client
-            client = await self.connection_factory.create_redis_connection(connection_name="watchdog_redis_monitor")
-            
-            if not client:
-                raise Exception("Failed to create Redis connection via ConnectionFactory")
+        # Test basic operations asynchronously
+        await client.ping()
+        await client.set("watchdog:health_check", "ok", ex=60)
+        result = await client.get("watchdog:health_check")
+        
+        # ConnectionFactory manages connection cleanup
+        
+        response_time = (time.time() - start_time) * 1000
 
-            # Test basic operations asynchronously
-            await client.ping()
-            await client.set("watchdog:health_check", "ok", ex=60)
-            result = await client.get("watchdog:health_check")
-            
-            # ConnectionFactory manages connection cleanup
-            
-            response_time = (time.time() - start_time) * 1000
+        if result == "ok":
+            self._record_success()
 
-            if result == "ok":
-                self._record_success()
-
-                # Get Redis config from environment (same as ConnectionFactory uses)
-                metadata = {
-                    "host": os.getenv("REDIS_HOST", "redis"),
-                    "port": int(os.getenv("REDIS_PORT", "6379")),
-                    "connection_status": "connected",
-                    "managed_by": "DatabaseConnectionFactory",
-                }
-
-                return ServiceHealth(
-                    service=self.name,
-                    status=HealthStatus.HEALTHY,
-                    last_check=datetime.now(),
-                    response_time_ms=response_time,
-                    metadata=metadata)
-            else:
-                raise Exception("Health check key mismatch")
-
-        except Exception as e:
-            self._record_failure()
-            response_time = (time.time() - start_time) * 1000
+            # Get Redis config from environment (same as ConnectionFactory uses)
+            metadata = {
+                "host": os.getenv("REDIS_HOST", "redis"),
+                "port": int(os.getenv("REDIS_PORT", "6379")),
+                "connection_status": "connected",
+                "managed_by": "DatabaseConnectionFactory",
+            }
 
             return ServiceHealth(
                 service=self.name,
-                status=HealthStatus.UNHEALTHY,
+                status=HealthStatus.HEALTHY,
                 last_check=datetime.now(),
                 response_time_ms=response_time,
-                error_message=str(e))
+                metadata=metadata)
+        else:
+            raise Exception("Health check key mismatch")
+
+    async def check_health(self) -> ServiceHealth:
+        """Public health check method with proper fallback handling."""
+        start_time = time.time()
+        
+        try:
+            result = await self._perform_health_check()
+            if result is not None:
+                return result
+            # Fall through to create unhealthy response if decorator returned None
+        except Exception as e:
+            # Handle any exceptions not caught by decorator
+            pass
+        
+        # Create unhealthy response as fallback
+        return self._create_unhealthy_response(start_time, "Health check failed")
 
 
 class ChromaDBMonitor(SubsystemMonitor):
@@ -477,10 +495,19 @@ class SystemWatchdog:
 
         # Setup logging
         if self.config.enable_logging:
-            logging.basicConfig(
-                level=getattr(logging, self.config.log_level),
-                format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-            self.logger = logging.getLogger("SystemWatchdog")
+            try:
+                from core.unified_logging import setup_logging, get_logger
+                setup_logging(level=self.config.log_level)
+                self.logger = get_logger("SystemWatchdog")
+            except ImportError:
+                # Minimal fallback - no basicConfig to avoid duplicate handlers
+                self.logger = logging.getLogger("SystemWatchdog")
+                if not self.logger.handlers:
+                    handler = logging.StreamHandler()
+                    handler.setFormatter(logging.Formatter(
+                        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+                    self.logger.addHandler(handler)
+                    self.logger.setLevel(getattr(logging, self.config.log_level))
         else:
             self.logger = logging.getLogger("SystemWatchdog")
 

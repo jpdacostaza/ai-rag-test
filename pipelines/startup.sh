@@ -58,10 +58,6 @@ if ! check_package "langchain-text-splitters" ">=0.0.1,<0.1.0"; then
     missing_packages+=("langchain-text-splitters>=0.0.1,<0.1.0")
 fi
 
-if ! check_package "duckduckgo-search" ">=2.10.4"; then
-    missing_packages+=("duckduckgo-search>=2.10.4")
-fi
-
 if ! check_package "ddgs" ">=6.3.0"; then
     missing_packages+=("ddgs>=6.3.0")
 fi
@@ -96,15 +92,6 @@ try:
     print(f'✅ [PIPELINES STARTUP] LangChain: {langchain.__version__}')
 except Exception as e:
     print(f'❌ [PIPELINES STARTUP] LangChain: {e}')
-" 2>/dev/null
-
-# Test DuckDuckGo Search (silent)
-python3 -c "
-try:
-    from duckduckgo_search import DDGS
-    print('✅ [PIPELINES STARTUP] DuckDuckGo Search (legacy): Available')
-except Exception as e:
-    print(f'⚠️  [PIPELINES STARTUP] DuckDuckGo Search (legacy): {e}')
 " 2>/dev/null
 
 python3 -c "

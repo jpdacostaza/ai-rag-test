@@ -15,9 +15,9 @@ from models.models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service
 from services.user_profiles import user_profile_manager
-from utilities.enhanced_web_search import should_trigger_web_search, search_web
+from utilities.enhanced_web_search import should_trigger_web_search, search_web, format_search_results
 from utilities.simple_error_handling import handle_errors
-from core.logging_config import get_logger
+from core.unified_logging import get_logger
 
 # Enhanced web search format function for compatibility
 def format_web_results_for_chat(results):
@@ -26,7 +26,9 @@ def format_web_results_for_chat(results):
         return "\n".join([result.get("snippet", result.get("title", "")) for result in results["results"][:3]])
     return str(results)[:500]
 
-logger = logging.getLogger(__name__)
+from core.unified_logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ChatContext:
@@ -233,20 +235,19 @@ class ChatService:
     async def _enhance_with_web_search(self, context: ChatContext, response: str) -> str:
         """Enhance response with web search if appropriate."""
         try:
-            if should_trigger_web_search(context.message, response):
-                logger.info(f"[WEB_SEARCH] Triggering web search for user {context.user_id}")
-                search_results = await search_web(context.message, max_results=3)
-                
-                if search_results.get("results"):
-                    web_info = format_web_results_for_chat(search_results)
-                    
-                    # Enhance response based on uncertainty indicators
+            should_search, trigger_reason = should_trigger_web_search(context.message, response)
+            if should_search:
+                logger.info(f"[WEB_SEARCH] Triggering web search for user {context.user_id} | Reason: {trigger_reason}")
+                result_dict = await search_web(context.message, max_results=3)
+                web_info = format_search_results(result_dict, limit=3)
+                result_count = len(result_dict.get("results", []))
+
+                if web_info.strip():
                     if any(phrase in response.lower() for phrase in ["i don't know", "i'm not sure", "i don't have"]):
                         response = web_info
                     else:
                         response = f"{response}\n\n{web_info}"
-                    
-                    logger.info(f"[WEB_SEARCH] Enhanced response with {len(search_results['results'])} web results")
+                    logger.info(f"[WEB_SEARCH] Enhanced response with {result_count} results (cached={result_dict.get('cached')})")
                 
         except Exception as e:
             logger.error(f"[WEB_SEARCH] Failed for user {context.user_id}: {e}")
