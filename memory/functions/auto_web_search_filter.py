@@ -33,12 +33,14 @@ class Filter:
     class Valves(BaseModel):
         priority: int = Field(default=2, description="Priority for auto web search filter (higher runs earlier)")
         enable_auto_search: bool = Field(default=True, description="Enable automatic fallback web search")
-        max_results: int = Field(default=5, ge=1, le=10, description="Results to inject (1-10)")
+        max_results: int = Field(default=6, ge=1, le=10, description="Results to inject (Orange Pi optimized: 1-10)")
         trigger_keywords: List[str] = Field(
             default=[
                 "current", "today", "latest", "news", "headline", "weather", "temperature",
                 "date", "time", "update", "trending", "market", "stock", "price", "search the web",
-                "web search", "lookup", "recent", "what is happening", "check online"
+                "web search", "lookup", "recent", "what is happening", "check online",
+                "warning", "warnings", "alert", "alerts", "advisory", "advisories", "check if",
+                "are there", "any warnings", "specific warnings", "weather warning"
             ],
             description="Keywords that trigger auto web search"
         )
@@ -49,7 +51,7 @@ class Filter:
             ],
             description="Keywords that force web search regardless of cooldown"
         )
-        cooldown_seconds: int = Field(default=30, description="Minimum seconds before re-searching same hash")
+        cooldown_seconds: int = Field(default=10, description="Minimum seconds before re-searching (Orange Pi optimized)")
         min_chars: int = Field(default=12, description="Minimum user message length to consider")
         use_real_action: bool = Field(default=True, description="Try to call real Action first before fallback")
 
@@ -76,8 +78,12 @@ class Filter:
         if len(content) < self.valves.min_chars:
             return body
 
-        # Avoid duplicate injection
-        if any("WEB_SEARCH_RESULTS" in m.get("content", "") for m in messages):
+        # Avoid duplicate injection - check for actual search result patterns
+        if any("Enhanced Web Search Results" in m.get("content", "") or 
+               "WEB_SEARCH_RESULTS" in m.get("content", "") or
+               "*** Enhanced Web Search Results" in m.get("content", "") or
+               "*** CRITICAL: REAL WEB SEARCH RESULTS" in m.get("content", "") or
+               "*** MANDATORY WEB SEARCH RESULTS" in m.get("content", "") for m in messages):
             return body
 
         # Check triggers
@@ -100,37 +106,48 @@ class Filter:
         # Perform search
         try:
             query = self._build_query(content)
+            print(f"{PRINT_PREFIX} DEBUG: Built query='{query}' from content='{content[:50]}...'")
             results_text = await self._get_search_results(query)
+            print(f"{PRINT_PREFIX} DEBUG: Retrieved results length: {len(results_text)} chars")
+            print(f"{PRINT_PREFIX} DEBUG: Results preview: {results_text[:200]}...")
             
             # Inject ULTRA prominent system message that model CANNOT ignore
             messages.append({
                 "role": "system",
-                "content": f"""🔍🔍🔍 MANDATORY WEB SEARCH RESULTS 🔍🔍🔍
+                "content": f"""!!! CRITICAL: REAL WEB SEARCH RESULTS PROVIDED !!!
 
-QUERY: "{query}"
-CURRENT DATE/TIME: 2025-08-10 19:48:00
+QUERY EXECUTED: "{query}"
+TIMESTAMP: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
 
 {results_text}
 
-🚨 ABSOLUTE REQUIREMENTS 🚨
-1. You HAVE performed a web search and received the results above
-2. You MUST acknowledge these real search results in your response
-3. You MUST base your answer on the actual URLs and information provided
-4. You MUST NOT say "I cannot search the web" or generate fake search responses
-5. You MUST start your response with "Based on my web search results..."
+!!! MANDATORY RESPONSE PROTOCOL !!!
+1. You HAVE just received REAL web search results above
+2. You MUST use these ACTUAL results to answer the question
+3. You MUST NOT generate fictional or generic responses  
+4. You MUST start with "Based on my web search results..."
+5. You MUST reference specific information from the URLs and content shown above
+6. You MUST include the timestamp from the search results
 
-FAILURE TO FOLLOW THESE INSTRUCTIONS IS STRICTLY PROHIBITED."""
+[X] PROHIBITED: Saying "I cannot search" or providing generic answers
+[X] PROHIBITED: Ignoring the search results provided above
+[*] REQUIRED: Using the actual web data to provide current, accurate information
+
+FAILURE TO USE THESE SEARCH RESULTS IS A CRITICAL ERROR."""
             })
             
-            # Also modify the user message to be more explicit
+            # ENHANCED: Also modify the user message to be more explicit about web search expectation
             last_message = messages[-2]  # Get the user message (before our system message)
             if last_message.get("role") == "user":
                 original_content = last_message["content"]
-                last_message["content"] = f"""You have web search capabilities enabled. {original_content}
+                last_message["content"] = f"""!!! WEB SEARCH REQUEST: {original_content}
 
-IMPORTANT: Real web search results have been provided to you in the system message above. Use them to answer this question."""
+!!! IMPORTANT: I have web search capabilities and REAL search results have been provided above. You MUST start your response with "Based on my web search results..." and use the actual web data to answer this question with current information."""
             
             print(f"{PRINT_PREFIX} Injected ENHANCED search results for query='{query}'")
+            print(f"{PRINT_PREFIX} DEBUG: Injected system message length: {len(messages[-1]['content'])} chars")
+            print(f"{PRINT_PREFIX} DEBUG: Modified user message: {last_message['content'][:100]}...")
+            print(f"{PRINT_PREFIX} DEBUG: Total messages now: {len(messages)}")
             
         except Exception as e:
             print(f"{PRINT_PREFIX} Error during auto web search: {e}")
@@ -206,7 +223,7 @@ IMPORTANT: Real web search results have been provided to you in the system messa
         return "\n".join(lines)
 
     def _build_query(self, content: str) -> str:
-        # Extract meaningful query from user message
+        # Extract meaningful query from user message - ENHANCED
         cleaned = re.sub(r"\b(please|can you|could you|search|find|look up|web search for|check|get)\b", "", content, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         
@@ -219,6 +236,35 @@ IMPORTANT: Real web search results have been provided to you in the system messa
         cleaned = re.sub(r"\b(the|a|an|what|when|where|how|why)\b", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s+", " ", cleaned).strip()
         
-        return cleaned or content
+        # ENHANCED: Add context keywords for better content retrieval
+        final_query = cleaned or content
+        
+        # For news queries, add specific terms that encourage detailed content
+        if any(word in final_query.lower() for word in ['news', 'latest', 'today', 'recent', 'current']):
+            if 'news' not in final_query.lower():
+                final_query += ' news'
+        
+        # For weather warnings, add official source terms
+        if any(word in final_query.lower() for word in ['warning', 'warnings', 'alert', 'alerts', 'advisory', 'advisories']):
+            if 'netherlands' in final_query.lower() or 'dutch' in final_query.lower():
+                final_query += ' KNMI site:knmi.nl'
+            elif not any(official in final_query.lower() for official in ['knmi', 'official', 'site:']):
+                final_query += ' official weather warning'
+        
+        # For weather warnings specifically in Netherlands, add official source terms  
+        if any(word in final_query.lower() for word in ['weather warning', 'warning', 'alert']) and 'netherlands' in final_query.lower():
+            final_query += ' KNMI site:knmi.nl'
+        
+        # For weather queries in Netherlands, prioritize official sources
+        if any(word in final_query.lower() for word in ['weather', 'forecast']) and 'netherlands' in final_query.lower():
+            if 'knmi' not in final_query.lower():
+                final_query += ' KNMI official'
+        
+        # For technical queries, add terms that encourage detailed explanations
+        if any(word in final_query.lower() for word in ['what is', 'how to', 'explain', 'definition']):
+            if 'explanation' not in final_query.lower() and 'guide' not in final_query.lower():
+                final_query += ' explanation'
+        
+        return final_query
 
 print(f"{PRINT_PREFIX} Enhanced Filter class defined: Auto Web Search Fallback v2.0")

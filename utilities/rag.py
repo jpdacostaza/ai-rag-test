@@ -44,7 +44,7 @@ MEMORY_SERVICE_AVAILABLE = register_import_attempt(
 
 
 # RAG configuration constants
-# ARM64-optimized settings for Orange Pi 5 Plus and similar devices
+# CPU-optimized settings for efficient processing
 import os
 
 # Check if running on ARM64 with optimization flag

@@ -18,15 +18,6 @@ docker-compose up -d
 ./tests/memory/memory_system_status.ps1
 ```
 
-### 🍊 Orange Pi 5 Plus Optimized
-This project includes **zero-configuration optimizations** for Orange Pi 5 Plus ARM64 platforms:
-- ✅ **CPU Affinity**: Ollama dedicated to cores 1-7, system on core 0
-- ✅ **Memory Management**: 6GB allocation with swap disabled for consistent performance  
-- ✅ **ARM64 Tuning**: Optimized threading, memory limits, and request handling
-- ✅ **Thermal Aware**: Extended timeouts and resource management for ARM SoCs
-
-**📖 Full optimization guide**: [Orange Pi 5 Plus Setup](docs/ORANGE_PI_5_PLUS_OPTIMIZATION.md)
-
 ## 📋 System Overview - RAG Dual-Database Architecture
 
 ### Core Components
@@ -66,7 +57,7 @@ backend/
 │   │   │   └── main.py                  # Memory API main entry
 │   │   └── functions/
 │   │       ├── memory_filter_function.py # OpenWebUI memory function
-│   │       └── enhanced_memory_function.py # Enhanced memory function
+│   │       └── enhanced_memory_function_filter_v5_1_final.py # Enhanced memory function
 │   └── docker-compose.yml          # Service orchestration
 │
 ├── 📚 docs/                        # Documentation

@@ -116,17 +116,14 @@ class UnifiedMemoryInstaller:
     
     def _load_function_code(self) -> tuple:
         """Load function code from available sources - prioritizing mounted volumes for zero-config updates."""
-        # Try multiple possible paths for the function file (prioritize mounted volumes)
+        # Try multiple possible paths for the function file (prioritizing mounted volumes)
         function_paths = [
+            "/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py",  # PRIMARY: Final version
             "/app/memory/functions/enhanced_memory_function_filter.py",  # CURRENT: Working version in mounted volume
             "/app/memory/functions/enhanced_memory_filter_fixed.py",  # PRIMARY: Working version in mounted volume
-            "/app/memory/functions/memory_function.py",  # Alternative: Original version
-            "/app/memory/functions/enhanced_memory_function.py",  # Alternative name in mounted volume
+            "./memory/functions/enhanced_memory_function_filter_v5_1_final.py",  # Relative final version
             "./memory/functions/enhanced_memory_function_filter.py",  # Relative mounted path (current version)
             "./memory/functions/enhanced_memory_filter_fixed.py",  # Relative mounted path (working version)
-            "./memory/functions/memory_function.py",  # Relative mounted path
-            "./memory/functions/enhanced_memory_function.py",  # Alternative relative path
-            "/app/memory_function.py",  # DEPRECATED: Static container copy (fallback only)
         ]
         
         for path in function_paths:
@@ -144,7 +141,7 @@ class UnifiedMemoryInstaller:
                 self.log(f"[ERROR] Reading {path}: {e}")
                 continue
         
-        self.log("[FAIL] Could not find memory_function.py at any expected location")
+        self.log("[FAIL] Could not find memory function file at any expected location")
         self.log(f"   Searched: {', '.join(function_paths)}")
         return None, None
     

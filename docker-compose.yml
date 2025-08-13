@@ -6,12 +6,12 @@
 # 🔴 Redis Cache:       http://localhost:6379    (Cache & messaging)
 # 🟣 ChromaDB:          http://localhost:8000    (Vector database) 
 # 🤖 Ollama:            http://localhost:11434   (AI model service)
-# 🚀 Backend API:       http://localhost:3000    (Main FastAPI app)
-# 🧠 Memory API:        http://localhost:5001    (RAG dual-database system)
-# 📊 Pipelines:         http://localhost:9099    (Data processing)
-# 🌐 OpenWebUI:         http://localhost:8080    (User interface)
-# ⚠️  API Gateway:      DISABLED                 (Will be fixed later)
-# 🔄 Watchtower:        Background service       (Container monitoring)
+# [*] Backend API:       http://localhost:3000    (Main FastAPI app)
+# Memory API:        http://localhost:5001    (RAG dual-database system)
+# Pipelines:         http://localhost:9099    (Data processing)
+# OpenWebUI:         http://localhost:8080    (User interface)
+# API Gateway:       DISABLED                 (Will be fixed later)
+# Watchtower:        Background service       (Container monitoring)
 # ===============================================================================
 
 services:
@@ -26,9 +26,10 @@ services:
       - |
         echo 'Initializing storage directories...' && \
         mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache && \
+        mkdir -p /storage/backend/.cache/huggingface/transformers /storage/backend/.cache/huggingface/hub /storage/backend/.cache/huggingface/sentence_transformers && \
         chown -R 1000:1000 /storage && \
         chmod -R 755 /storage && \
-        chmod -R 777 /storage/.cache /storage/models && \
+        chmod -R 777 /storage/.cache /storage/models /storage/backend/.cache && \
         echo 'Storage initialization complete!' && \
         ls -la /storage
     volumes:
@@ -146,7 +147,10 @@ services:
       - PYTHONPATH=/opt/backend
       - PYTHONUNBUFFERED=1
       - OLLAMA_BASE_URL=http://backend-ollama:11434
-      - HF_HOME=/opt/cache/huggingface                          # Fix transformers cache deprecation warning
+      - HF_HOME=/opt/backend/.cache/huggingface                 # Fixed cache location with proper permissions
+      - TRANSFORMERS_CACHE=/opt/backend/.cache/huggingface/transformers
+      - HF_HUB_CACHE=/opt/backend/.cache/huggingface/hub
+      - SENTENCE_TRANSFORMERS_HOME=/opt/backend/.cache/huggingface/sentence_transformers
       - CHROMA_COLLECTION=user_memory                           # Consistent collection name
       - LLM_TIMEOUT=600                                         # 10min timeout for qwen3:4b
       - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for qwen3
@@ -160,6 +164,13 @@ services:
       - LOG_REQUESTS=false
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
+      # Redis connection settings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      # ChromaDB connection settings  
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
       # Stream debug logging (disabled by default for performance)
       - ENABLE_STREAM_DEBUG=${ENABLE_STREAM_DEBUG:-false}
       # Model preloading (disabled by default to prevent startup errors)
@@ -167,6 +178,7 @@ services:
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
+      - ./storage/backend/.cache:/opt/backend/.cache            # HuggingFace cache for backend user
       - ./storage/models:/opt/cache/huggingface                # Model cache directory for HF_HOME
     depends_on:
       redis:

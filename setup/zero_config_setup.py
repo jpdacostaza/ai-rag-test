@@ -136,7 +136,7 @@ class ZeroConfigSetup:
                 },
                 
                 "optimization": {
-                    "target_models": ["small_llm", "3b_models", "orange_pi_compatible"],
+                    "target_models": ["small_llm", "3b_models", "efficient_models"],
                     "context_efficiency": "high", 
                     "token_usage": "minimal",
                     "response_speed": "fast"

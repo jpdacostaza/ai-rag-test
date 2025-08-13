@@ -13,7 +13,7 @@ import httpx
 from pathlib import Path
 
 OPENWEBUI_URL = "http://localhost:8080"
-MEMORY_FUNCTION_PATH = "memory_function.py"
+MEMORY_FUNCTION_PATH = "enhanced_memory_function_filter_v5_1_final.py"
 MAX_RETRIES = 30
 RETRY_DELAY = 10
 

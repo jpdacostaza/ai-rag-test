@@ -123,21 +123,53 @@ def _parse(html: str, max_results: int) -> List[Dict[str, Any]]:
         url, title_html = link.group(1), link.group(2)
         title = re.sub(r'<[^>]+>', '', title_html).strip()
         
-        # Try multiple patterns for snippets/descriptions
+        # Try multiple patterns for snippets/descriptions - ENHANCED
         snippet = ""
         snippet_patterns = [
             r'<a[^>]*class="[^\"]*result__snippet[^\"]*"[^>]*>(.*?)</a>',
             r'<span[^>]*class="[^\"]*snippet[^\"]*"[^>]*>(.*?)</span>',
             r'class="[^\"]*result__snippet[^\"]*"[^>]*>(.*?)<',
             r'<div[^>]*class="[^\"]*snippet[^\"]*"[^>]*>(.*?)</div>',
+            # ENHANCED: Additional patterns for better content extraction
+            r'<span[^>]*class="[^\"]*result__description[^\"]*"[^>]*>(.*?)</span>',
+            r'<div[^>]*class="[^\"]*result__desc[^\"]*"[^>]*>(.*?)</div>',
+            r'<p[^>]*class="[^\"]*desc[^\"]*"[^>]*>(.*?)</p>',
+            # Fallback: extract any substantial text between tags
+            r'</a>.*?<.*?>(.*?)</.*?>',
         ]
         
         for pattern in snippet_patterns:
             snippet_match = re.search(pattern, block, re.DOTALL)
             if snippet_match:
-                snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip()
-                if snippet and len(snippet) > 10:  # Only use substantial snippets
+                raw_snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip()
+                # Clean up common artifacts
+                raw_snippet = re.sub(r'\s+', ' ', raw_snippet)
+                raw_snippet = re.sub(r'^\W+|\W+$', '', raw_snippet)
+                if raw_snippet and len(raw_snippet) > 15:  # Only use substantial snippets
+                    snippet = raw_snippet
                     break
+        
+        # ENHANCED: If no snippet found, try to extract from general text content
+        if not snippet or len(snippet) < 20:
+            # Look for any meaningful text content in the result block
+            text_content = re.sub(r'<[^>]+>', ' ', block)
+            text_content = re.sub(r'\s+', ' ', text_content).strip()
+            
+            # Extract sentences that might be descriptions
+            sentences = re.findall(r'[A-Z][^.!?]*[.!?]', text_content)
+            if sentences:
+                # Take the first substantial sentence as snippet
+                for sentence in sentences:
+                    clean_sentence = sentence.strip()
+                    if len(clean_sentence) > 30 and 'http' not in clean_sentence.lower():
+                        snippet = clean_sentence[:200] + ('...' if len(clean_sentence) > 200 else '')
+                        break
+        
+        # ENHANCED: Final fallback - generate descriptive snippet from title and URL
+        if not snippet or len(snippet) < 10:
+            domain = re.search(r'https?://(?:www\.)?([^/]+)', url)
+            domain_name = domain.group(1) if domain else 'website'
+            snippet = f"Content from {domain_name} - check the full article for complete information."
         
         # Try to extract date information from the block
         date_info = ""
@@ -171,17 +203,23 @@ def _format(query: str, results: List[Dict[str, Any]], use_enhanced_format: bool
         return f"No results found for '{query}'."
     
     if use_enhanced_format:
-        out = [f"🔍 **Enhanced Web Search Results for '{query}'**", ""]
+        out = [f"*** Enhanced Web Search Results for '{query}' ***", ""]
         for r in results:
             relevance = r.get('relevance_score', 0)
-            out.append(f"**{r['rank']}. {r['title']}** ⭐ {relevance:.2f}")
-            out.append(f"🔗 **URL:** {r['url']}")
+            out.append(f"**{r['rank']}. {r['title']}** SCORE: {relevance:.2f}")
+            out.append(f"**URL:** {r['url']}")
             if r.get('date'):
-                out.append(f"📅 **Date:** {r['date']}")
+                out.append(f"**Date:** {r['date']}")
+            
+            # ENHANCED: Better content indication
             if r['snippet']:
-                out.append(f"📄 **Content:** {r['snippet']}")
+                snippet_len = len(r['snippet'])
+                if snippet_len > 50:
+                    out.append(f"**Content Preview:** {r['snippet']}")
+                else:
+                    out.append(f"**Summary:** {r['snippet']}")
             else:
-                out.append("📄 **Content:** (No preview available)")
+                out.append("**Content:** (Visit URL for full content)")
             out.append("---")
     else:
         # Original format for backward compatibility
@@ -194,14 +232,14 @@ def _format(query: str, results: List[Dict[str, Any]], use_enhanced_format: bool
             if r['snippet']:
                 out.append(f"Content: {r['snippet']}")
             else:
-                out.append("Content: (No preview available)")
+                out.append("Content: (Visit URL for full content)")
             out.append("---")
     
-    # Add metadata
-    out.append(f"🕒 **Search completed:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    out.append(f"📊 **Total results:** {len(results)}")
+    # Add metadata with enhanced guidance
+    out.append(f"**Search completed:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    out.append(f"**Total results:** {len(results)}")
     out.append("")
-    out.append("**IMPORTANT:** Use this information to answer the user's question. These are real, current web search results.")
+    out.append("**IMPORTANT:** These are real, current web search results. Use the titles, URLs, and available content previews to answer the user's question. For the most complete information, suggest visiting the URLs directly.")
     return "\n".join(out)
 
 class Action:

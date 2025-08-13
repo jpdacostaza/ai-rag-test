@@ -201,7 +201,7 @@ class SearchAnalytics:
         # Get top 3 popular queries
         popular = sorted(stats['popular_queries'].items(), key=lambda x: x[1], reverse=True)[:3]
         
-        summary = f"""📊 Search Performance Summary:
+        summary = f"""[*] Search Performance Summary:
 • Total searches: {stats['total_searches']}
 • Cache hit rate: {cache_rate:.1f}%
 • Average response time: {stats['avg_response_time']:.2f}s
