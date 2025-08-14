@@ -200,7 +200,8 @@ class APIMemoryProvider:
     
     def __init__(self, api_url: str = None, timeout: int = 30):
         import os
-        self.api_url = api_url or os.getenv('MEMORY_API_URL', 'http://localhost:5001')
+        # Prefer in-cluster Docker service name by default
+        self.api_url = api_url or os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
         self.timeout = timeout
         self._client = None
     
@@ -288,7 +289,7 @@ class APIMemoryProvider:
             client = await self._get_client()
             response = await client.get(f"{self.api_url}/health")
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
 

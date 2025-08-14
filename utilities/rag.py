@@ -104,7 +104,7 @@ class RAGProcessor:
             Exception: If PDF text extraction fails
         """
         if not PDF_PROCESSING_AVAILABLE:
-            raise Exception("PDF processing not available - PyPDF2 not installed")
+            raise ImportError("PDF processing not available - PyPDF2 not installed")
         
         import io
         try:
@@ -126,7 +126,7 @@ class RAGProcessor:
                 continue
         
         if not text.strip():
-            raise Exception("No text could be extracted from PDF")
+            raise ValueError("No text could be extracted from PDF")
             
         return text.strip()
 
@@ -162,7 +162,7 @@ class RAGProcessor:
             try:
                 return file_content.decode("latin-1")
             except Exception as e:
-                raise Exception(f"Failed to decode text file: {str(e)}")
+                raise ValueError(f"Failed to decode text file: {str(e)}")
 
     @handle_api_errors(
         operation_name="process_document")

@@ -260,7 +260,7 @@ class SecurityMiddleware:
                 if body and self._detect_injection(body):
                     await self._log_security_incident(request, f"Injection attempt in body: {body[:200]}...")
                     return "Invalid request body"
-            except:
+            except Exception:
                 pass  # Body reading failed, not necessarily an error
         
         return None

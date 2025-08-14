@@ -106,7 +106,7 @@ async def get_memory_usage() -> Dict[str, Any]:
                 memory_mb = memory_info.ru_maxrss / 1024 / 1024
             elif sys.platform == "win32":  # Windows
                 memory_mb = memory_info.ru_maxrss / 1024
-        except:
+        except Exception:
             memory_mb = 0
 
         return {

@@ -175,10 +175,10 @@ async def upload_document_json(upload: DocumentUploadJSON):
 
     # Create a mock UploadFile object
     class MockUploadFile:
-        """TODO: Add proper docstring for MockUploadFile class."""
+        """Mock UploadFile object for JSON-based document uploads."""
 
         def __init__(self, content: bytes, filename: str):
-            """TODO: Add proper docstring for __init__."""
+            """Initialize MockUploadFile with content and filename."""
             self.file = io.BytesIO(content)
             self.filename = filename
             self.content_type = "text/plain"

@@ -11,7 +11,7 @@ import traceback
 from typing import Optional, Set
 
 from config.config_unified import DEFAULT_MODEL, log_system_info, log_environment_variables
-from utilities.cpu_enforcer import verify_cpu_only_setup, log_cpu_verification_results
+# CPU-only verification functionality removed - handled via environment variables
 from services.database_manager import db_manager, get_database_health
 from core.unified_logging import log_service_status
 
@@ -231,13 +231,8 @@ async def startup_event(app) -> None:
 
 async def _verify_cpu_mode():
     """Verify CPU-only mode with timeout protection"""
-    cpu_results = verify_cpu_only_setup()
-    log_cpu_verification_results(cpu_results)
-    
-    if cpu_results["status"] == "cpu_only_verified":
-        safe_log_service_status("STARTUP", "ready", "CPU-only mode verified successfully")
-    else:
-        safe_log_service_status("STARTUP", "warning", "CPU-only mode verification has warnings")
+    # CPU verification removed - now handled via environment variables and package config
+    safe_log_service_status("STARTUP", "ready", "CPU-only mode configured via environment variables")
 
 async def _initialize_storage_and_logging():
     """Initialize storage and environment logging."""
@@ -296,41 +291,41 @@ async def _initialize_models_and_cache():
     trace_id = str(uuid.uuid4())[:8]
     safe_log_service_status("MODEL", "info", f"[TRACE:{trace_id}] Model initialization starting...")
     
-    default_model = DEFAULT_MODEL
-    ollama_url = OLLAMA_BASE_URL
-    
-    # Add unique execution timestamp to trace duplicates
-    import time
-    exec_time = f"{time.time():.6f}"
-    safe_log_service_status("MODEL", "info", f"Verifying model {default_model}... [EXEC:{exec_time}]")
+    # Use new model preloader for eager loading
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{ollama_url}/api/tags")
-            if resp.status_code != 200:
-                safe_log_service_status("MODEL", "warning", f"Ollama unreachable (status {resp.status_code})")
-            else:
-                names = [m.get('name') for m in resp.json().get('models', [])]
-                if default_model in names:
-                    safe_log_service_status("MODEL", "ready", f"Model {default_model} available [EXEC:{exec_time}]")
-                    if os.getenv("ENABLE_MODEL_PRELOAD", "false").lower() == "true":
-                        try:
-                            preload = await client.post(
-                                f"{ollama_url}/api/generate",
-                                json={"model": default_model, "prompt": "warmup", "stream": False},
-                                timeout=25.0
-                            )
-                            if preload.status_code == 200:
-                                safe_log_service_status("MODEL", "ready", f"Model {default_model} preloaded")
-                            else:
-                                safe_log_service_status("MODEL", "warning", f"Preload failed: {preload.status_code}")
-                        except Exception as perr:
-                            safe_log_service_status("MODEL", "warning", f"Preload error: {perr}")
-                    else:
-                        safe_log_service_status("MODEL", "info", f"Model preloading disabled or not requested [EXEC:{exec_time}]")
-                else:
-                    safe_log_service_status("MODEL", "warning", f"Model {default_model} not present; lazy load on demand")
+        from services.model_preloader import initialize_models_for_openwebui
+        
+        safe_log_service_status("MODEL", "info", "Initializing models with eager loading for OpenWebUI")
+        success = await initialize_models_for_openwebui()
+        
+        if success:
+            safe_log_service_status("MODEL", "ready", "All essential models loaded and ready for OpenWebUI")
+        else:
+            safe_log_service_status("MODEL", "warning", "Some models failed to load - OpenWebUI may have limited functionality")
+            
     except Exception as e:
-        safe_log_service_status("MODEL", "warning", f"Model verification error: {e}")
+        safe_log_service_status("MODEL", "warning", f"Model preloader error: {e}")
+        
+        # Fallback to old verification logic
+        default_model = DEFAULT_MODEL
+        ollama_url = OLLAMA_BASE_URL
+        
+        import time
+        exec_time = f"{time.time():.6f}"
+        safe_log_service_status("MODEL", "info", f"Fallback: Verifying model {default_model}... [EXEC:{exec_time}]")
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(f"{ollama_url}/api/tags")
+                if resp.status_code != 200:
+                    safe_log_service_status("MODEL", "warning", f"Ollama unreachable (status {resp.status_code})")
+                else:
+                    names = [m.get('name') for m in resp.json().get('models', [])]
+                    if default_model in names:
+                        safe_log_service_status("MODEL", "ready", f"Model {default_model} available [EXEC:{exec_time}]")
+                    else:
+                        safe_log_service_status("MODEL", "warning", f"Model {default_model} not present; lazy load on demand")
+        except Exception as fallback_e:
+            safe_log_service_status("MODEL", "warning", f"Model verification error: {fallback_e}")
     
     safe_log_service_status("MODEL", "info", f"[TRACE:{trace_id}] Model initialization completed")
     

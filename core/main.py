@@ -15,11 +15,8 @@ from fastapi.responses import StreamingResponse, JSONResponse, PlainTextResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import asyncio
 
-# CRITICAL: Import and enforce CPU-only mode BEFORE any ML libraries
-from utilities.cpu_enforcer import enforce_cpu_only_mode
-
-# Enforce CPU-only mode immediately
-enforce_cpu_only_mode()
+# CRITICAL: CPU-only mode enforcement
+# Note: CPU-only enforcement moved to environment variables and package configuration
 
 # Import modules
 from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT

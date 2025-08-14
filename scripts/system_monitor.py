@@ -274,8 +274,9 @@ class SystemMonitor:
         possible_paths = [
             Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Correct location
             Path("./memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Relative correct path
-            Path("/app/memory_function.py"),  # Legacy location
-            Path("./memory_function.py"),  # Legacy relative
+            # Memory function paths (current structure)
+            Path("memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
+            Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
         ]
         
         for path in possible_paths:

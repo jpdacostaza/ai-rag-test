@@ -79,11 +79,8 @@ async def list_models():
     """
     OpenAI-compatible endpoint for model listing. Dynamically fetches available models from Ollama with caching.
     """
-    # Check if cache is still valid
-    current_time = time.time()
-    if current_time - _model_cache["last_updated"] > _model_cache["ttl"]:
-        # Cache expired, refresh
-        await refresh_model_cache()
+    # Always check ollama for latest models (reduced cache dependency)
+    await refresh_model_cache(force=True)
 
     # Temporary workaround: ensure Mistral model is included if it exists in Ollama
     models_data = _model_cache["data"].copy()

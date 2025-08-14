@@ -47,7 +47,9 @@ try:
     setup_logging()
     logger = get_logger(__name__)
 except ImportError:
-    # Minimal fallback for standalone usage - no basicConfig to avoid conflicts
+    # Fallback for standalone usage
+    import logging
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     logger = logging.getLogger(__name__)
 
 class StartupVerifier:
@@ -97,7 +99,7 @@ class StartupVerifier:
                     if response.status_code == 200:
                         logger.info("[OK] OpenWebUI is ready")
                         break
-            except:
+            except Exception:
                 pass
             await asyncio.sleep(5)
         
@@ -110,7 +112,7 @@ class StartupVerifier:
                     if response.status_code in [200, 404]:
                         logger.info("[OK] Ollama is ready")
                         break
-            except:
+            except Exception:
                 pass
             await asyncio.sleep(5)
         
@@ -246,8 +248,9 @@ class StartupVerifier:
         possible_paths = [
             Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Correct location
             Path("./memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Relative correct path
-            Path("/app/memory_function.py"),  # Legacy location
-            Path("./memory_function.py"),  # Legacy relative
+            # Memory function paths (current structure)
+            Path("memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
+            Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
         ]
         
         for path in possible_paths:

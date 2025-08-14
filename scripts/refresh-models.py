@@ -43,7 +43,7 @@ class ModelRefreshService:
     """Service to refresh and synchronize models across services."""
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """Initialize the Model Refresh Service."""
         pass
 
     async def get_ollama_models(self) -> List[Dict]:

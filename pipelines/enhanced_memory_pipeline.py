@@ -5,7 +5,6 @@ Designed for optimal performance while maintaining model intelligence.
 """
 
 import asyncio
-import aiohttp
 import json
 from typing import Optional
 from pydantic import BaseModel, Field
@@ -56,39 +55,40 @@ class Pipeline:
         if self.valves.DEBUG_LOGGING or level == "ERROR":
             print(f"[{level}] Enhanced Memory Pipeline: {message}")
 
-    async def fetch_relevant_memories(self, query: str) -> list:
-        """Fetch relevant memories from the memory API"""
+    async def fetch_memories(self, query: str) -> list:
+        """Fetch relevant memories using zero-conf approach"""
         if not self.valves.MEMORY_ENABLED:
             return []
             
         try:
             self.log(f"Fetching memories for query: {query[:100]}...")
             
-            async with aiohttp.ClientSession() as session:
-                # Search for relevant memories using the correct API endpoint
-                search_url = f"{self.valves.MEMORY_API_URL}/api/memory/retrieve"
-                search_data = {
-                    "user_id": "global_user",  # Use a global user for pipeline memories
-                    "query": query,
-                    "limit": self.valves.MAX_MEMORY_RESULTS
-                }
+            # Use zero-conf memory integration
+            try:
+                # Try to import memory service from our backend
+                import sys
+                import os
+                sys.path.append('/app/backend/data')
                 
-                async with session.post(
-                    search_url, 
-                    json=search_data,
-                    headers={"Content-Type": "application/json"}
-                ) as response:
-                    if response.status == 200:
-                        results = await response.json()
-                        memories = results.get("memories", [])
-                        self.log(f"Retrieved {len(memories)} relevant memories")
-                        return memories
-                    else:
-                        self.log(f"Memory search failed with status {response.status}", "ERROR")
-                        return []
-                        
+                from services.memory_service import MemoryService
+                
+                memory_service = MemoryService()
+                results = await memory_service.retrieve_memories(
+                    user_id="global_user",  # Use a global user for pipeline memories
+                    query=query,
+                    limit=self.valves.MAX_MEMORY_RESULTS
+                )
+                
+                memories = results.get("memories", [])
+                self.log(f"Retrieved {len(memories)} relevant memories")
+                return memories
+                
+            except ImportError:
+                self.log("Memory service not available, using fallback", "WARNING")
+                return []
+                
         except Exception as e:
-            self.log(f"Error fetching memories: {e}", "ERROR")
+            self.log(f"Memory fetch failed: {e}", "ERROR")
             return []
 
     def extract_query_from_messages(self, messages: list) -> str:

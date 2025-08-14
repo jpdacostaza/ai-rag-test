@@ -25,13 +25,13 @@ import wikipedia
 from bs4 import BeautifulSoup
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from RestrictedPython import compile_restricted
+import ast
 
 
 def get_current_time(timezone: Optional[str] = None) -> str:
     """TODO: Add proper docstring for get_current_time."""
     try:
         if timezone:
-
             now = datetime.now(ZoneInfo(timezone))
         else:
             now = datetime.now()
@@ -68,9 +68,34 @@ def get_weather_weatherapi(city: str = "London") -> str:
         return f"WeatherAPI.com lookup failed: {e}"
 
 
-# --- Tool: Weather (Open-Meteo or WeatherAPI.com) ---
-def get_weather(city: str = "London") -> str:
-    """TODO: Add proper docstring for get_weather."""
+# --- Tool: Weather (Multi-provider: KNMI, WeatherAPI.com, Open-Meteo) ---
+async def get_weather(city: str = "London") -> str:
+    """
+    Get weather information using multiple providers in priority order:
+    1. Universal Weather Tool (for all locations, uses KNMI for Netherlands)
+    2. WeatherAPI.com (if API key available)
+    3. Open-Meteo (fallback)
+    
+    Args:
+        city: City name to get weather for
+        
+    Returns:
+        Formatted weather information string
+    """
+    
+    # First try the universal weather tool (handles both Netherlands and international)
+    try:
+        logger.info(f"[WeatherTool] Using universal weather tool for: {city}")
+        from tools.weather_tool import Action
+        weather_action = Action()
+        result = await weather_action.run(city, include_forecast=False)
+        if result and not result.startswith("Error") and not result.startswith("Unable") and not result.startswith("❌"):
+            return result
+        logger.warning(f"[WeatherTool] Universal weather tool failed for {city}, falling back to other providers")
+    except Exception as e:
+        logger.error(f"[WeatherTool] Universal weather tool error for {city}: {e}")
+    
+    # Try WeatherAPI.com if API key is available
     api_key = os.getenv("WEATHERAPI_KEY", "")
     logger.debug(f"[WeatherTool] WEATHERAPI_KEY set: {bool(api_key)}")
     if api_key:
@@ -79,6 +104,7 @@ def get_weather(city: str = "London") -> str:
         if result and not result.startswith("WeatherAPI.com API key not set"):
             return result
 
+    # Fallback to Open-Meteo
     try:
         logger.info(f"[WeatherTool] Falling back to Open-Meteo for city: {city}")
         with httpx.Client(timeout=10) as client:
@@ -289,18 +315,16 @@ def get_time_from_timeanddate(location: str) -> str:
             for pattern in time_patterns:
                 matches = re.findall(pattern, page_text, re.IGNORECASE)
                 if matches:
-                    return "Current time in {location}: {matches[0]} (via timeanddate.com)"
+                    return f"Current time in {location}: {matches[0]} (via timeanddate.com)"
 
-            return "Could not extract time for {location} from timeanddate.com"
+            return f"Could not extract time for {location} from timeanddate.com"
 
-    except httpx.RequestError:
-        logger.error("[TIMEANDDATE] Network error for {location}: {e}")
-        return "Network error getting time for {location}: {e}"
-    except Exception:
-        logger.error("[TIMEANDDATE] Error getting time for {location}: {e}")
-        return "Error getting time for {location}: {e}"
-
-
+    except httpx.RequestError as e:
+        logger.error(f"[TIMEANDDATE] Network error for {location}: {e}")
+        return f"Network error getting time for {location}: {e}"
+    except Exception as e:
+        logger.error(f"[TIMEANDDATE] Error getting time for {location}: {e}")
+        return f"Error getting time for {location}: {e}"
 # --- Tool: Wikipedia Search ---
 def wikipedia_search(query: str, sentences: int = 3) -> str:
     """
@@ -340,7 +364,6 @@ def wikipedia_search(query: str, sentences: int = 3) -> str:
         return f"Error searching Wikipedia for '{query}': {e}"
 
 
-# --- Tool: Python Code Execution (Safe) ---
 def run_python_code(code: str) -> str:
     """
     Execute Python code safely using RestrictedPython.
@@ -352,12 +375,8 @@ def run_python_code(code: str) -> str:
         Execution result or error message
     """
     try:
-
-        try:
-
-            use_restricted = True
-        except ImportError:
-            use_restricted = False
+        # If RestrictedPython is importable above, use it; else fallback handled by except ImportError below
+        use_restricted = True
 
         if use_restricted:
             # Compile the code with restrictions
@@ -392,8 +411,8 @@ def run_python_code(code: str) -> str:
                 "enumerate": enumerate,
                 "zip": zip,
                 "sum": sum,
-                "min": max,
-                "max": min,
+                "min": min,
+                "max": max,
                 "abs": abs,
                 "round": round,
                 "sorted": sorted,
@@ -412,7 +431,7 @@ def run_python_code(code: str) -> str:
         stderr_result = stderr_capture.getvalue()
 
         if stderr_result:
-            return "Error: {stderr_result}"
+            return f"Error: {stderr_result}"
         elif stdout_result:
             return stdout_result.strip()
         else:
@@ -420,11 +439,9 @@ def run_python_code(code: str) -> str:
 
     except ImportError:
         return "RestrictedPython not available - code execution disabled for security"
-    except Exception:
-        logger.error("[PYTHON_EXEC] Error executing code: {e}")
-        return "Error executing Python code: {e}"
-
-
+    except Exception as e:
+        logger.error(f"[PYTHON_EXEC] Error executing code: {e}")
+        return f"Error executing Python code: {e}"
 def calculate(expression: str) -> str:
     """
     Safely evaluate mathematical expressions.
@@ -436,23 +453,80 @@ def calculate(expression: str) -> str:
         Result of the calculation or error message
     """
     try:
-        # Remove any potentially dangerous characters
-        expression = expression.replace(" ", "")
+        # Replace ^ with ** for exponentiation and strip whitespace
+        expr = expression.replace("^", "**").strip()
 
-        # Only allow numbers, operators, parentheses, and decimal points
-        allowed_chars = set("0123456789+-*/().^%")
-        if not all(c in allowed_chars for c in expression):
-            return "Error: Invalid characters in expression"
+        # Parse expression into AST and only allow safe nodes
+        tree = ast.parse(expr, mode="eval")
 
-        # Replace ^ with ** for Python exponentiation
-        expression = expression.replace("^", "**")
+        allowed_nodes = (
+            ast.Expression, ast.BinOp, ast.UnaryOp, ast.Num, ast.Constant,
+            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow,
+            ast.USub, ast.UAdd, ast.FloorDiv, ast.LShift, ast.RShift,
+            ast.BitOr, ast.BitAnd, ast.BitXor, ast.MatMult,  # optionally allow bitwise
+            ast.Call, ast.Name, ast.Load, ast.Tuple
+        )
 
-        # Safe evaluation
-        result = eval(expression, {"__builtins__": {}}, {})
+        allowed_names = {"pi": math.pi, "e": math.e}
+
+        for node in ast.walk(tree):
+            if not isinstance(node, allowed_nodes):
+                return "Error: Invalid expression"
+            if isinstance(node, ast.Call):
+                return "Error: Function calls are not allowed"
+            if isinstance(node, ast.Name) and node.id not in allowed_names:
+                return "Error: Unknown identifier"
+
+        def _eval(n):
+            if isinstance(n, ast.Expression):
+                return _eval(n.body)
+            if isinstance(n, ast.Constant):
+                if isinstance(n.value, (int, float)):
+                    return n.value
+                raise ValueError("Invalid constant")
+            if isinstance(n, ast.Num):
+                return n.n
+            if isinstance(n, ast.BinOp):
+                left, right = _eval(n.left), _eval(n.right)
+                if isinstance(n.op, ast.Add):
+                    return left + right
+                if isinstance(n.op, ast.Sub):
+                    return left - right
+                if isinstance(n.op, ast.Mult):
+                    return left * right
+                if isinstance(n.op, ast.Div):
+                    return left / right
+                if isinstance(n.op, ast.FloorDiv):
+                    return left // right
+                if isinstance(n.op, ast.Mod):
+                    return left % right
+                if isinstance(n.op, ast.Pow):
+                    return left ** right
+                if isinstance(n.op, ast.BitAnd):
+                    return int(left) & int(right)
+                if isinstance(n.op, ast.BitOr):
+                    return int(left) | int(right)
+                if isinstance(n.op, ast.BitXor):
+                    return int(left) ^ int(right)
+                raise ValueError("Unsupported operator")
+            if isinstance(n, ast.UnaryOp):
+                operand = _eval(n.operand)
+                if isinstance(n.op, ast.UAdd):
+                    return +operand
+                if isinstance(n.op, ast.USub):
+                    return -operand
+                raise ValueError("Unsupported unary operator")
+            if isinstance(n, ast.Name):
+                return allowed_names[n.id]
+            if isinstance(n, ast.Tuple):
+                return tuple(_eval(elt) for elt in n.elts)
+            raise ValueError("Unsupported expression")
+
+        result = _eval(tree)
         return str(result)
 
-    except Exception:
-        return "Calculation error: {str(e)}"
+    except Exception as e:
+        return f"Calculation error: {str(e)}"
 
 
 def web_search(query: str, num_results: int = 5) -> str:
@@ -499,11 +573,11 @@ def get_news(category: str = "general", country: str = "us") -> str:
         # For demo purposes, return a placeholder
         # In production, you would integrate with a news API like NewsAPI
         return (
-            "News lookup is currently unavailable. Would you like me to search the web for '{category}' news instead?"
+            f"News lookup is currently unavailable. Would you like me to search the web for '{category}' news instead?"
         )
 
-    except Exception:
-        return "News service error: {str(e)}"
+    except Exception as e:
+        return f"News service error: {str(e)}"
 
 
 def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0) -> str:
@@ -534,6 +608,13 @@ def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0)
         return f"Exchange rate lookup failed: {str(e)}"
 
 
+# Removed KNMI-specific functions - now using universal weather tool
+
+
+
+# Removed KNMI-specific functions - now using universal weather tool
+
+
 def get_system_info() -> str:
     """
     Get system information.
@@ -542,7 +623,6 @@ def get_system_info() -> str:
         System information or error message
     """
     try:
-
         info = {
             "OS": platform.system(),
             "OS Version": platform.release(),
@@ -550,11 +630,11 @@ def get_system_info() -> str:
             "Python Version": platform.python_version(),
             "Hostname": platform.node(),
         }
-
-        return "System Information: " + ", ".join(["{k}: {v}" for k, v in info.items()])
-
-    except Exception:
-        return "System info unavailable: {str(e)}"
+        
+        return "System Information: " + ", ".join([f"{k}: {v}" for k, v in info.items()])
+    
+    except Exception as e:
+        return f"System info unavailable: {str(e)}"
 
 
 def get_timezone_for_location(location: str) -> str:
@@ -572,5 +652,5 @@ def get_timezone_for_location(location: str) -> str:
         # For now, return a placeholder that calls the time function
         return get_time_from_timeanddate(location)
 
-    except Exception:
-        return "Timezone lookup failed: {str(e)}"
+    except Exception as e:
+        return f"Timezone lookup failed: {str(e)}"

@@ -9,7 +9,6 @@ from typing import Tuple, Optional, List, Dict, Any
 from utilities.ai_tools import (
     convert_units,
     get_current_time,
-    get_weather,
     get_time_from_timeanddate,
     wikipedia_search,
     run_python_code,
@@ -17,6 +16,7 @@ from utilities.ai_tools import (
     get_exchange_rate,
     get_news,
     web_search)
+from tools.weather_tool import Tools as WeatherTools
 from core.error_handler import ToolErrorHandler, safe_execute
 from core.unified_logging import log_service_status
 
@@ -137,15 +137,20 @@ class ToolService:
         debug_info.append(system_msg)
 
         match = re.search(r"weather in ([a-zA-Z ]+)", message, re.IGNORECASE)
-        city = match.group(1).strip() if match else "London"
+        location = match.group(1).strip() if match else "Netherlands"
+
+        # Use the new weather tool
+        weather_tool = WeatherTools()
+        
+        async def get_weather_wrapper():
+            return await weather_tool.get_weather(location=location, include_forecast=True)
 
         user_response = safe_execute(
-            get_weather,
-            city,
+            get_weather_wrapper,
             fallback_value=ToolErrorHandler.handle_tool_error(
-                Exception("Weather lookup failed"), "weather", user_id, city, request_id
+                Exception("Weather lookup failed"), "weather", user_id, location, request_id
             ),
-            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, city, request_id))
+            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, location, request_id))
 
         return True, user_response, "weather", debug_info
 

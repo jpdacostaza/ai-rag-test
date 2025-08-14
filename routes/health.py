@@ -106,10 +106,27 @@ async def health_check(
     breaker = get_llm_breaker()
     breaker_info = {"state": breaker.state}
 
+    # Model status
+    model_info = {}
+    try:
+        from services.model_preloader import get_model_status
+        model_status = await get_model_status()
+        model_info = {
+            "required_models": model_status.get("required_models", []),
+            "available_models": model_status.get("available_models", []),
+            "missing_models": model_status.get("missing_models", []),
+            "loaded_count": model_status.get("loaded_count", 0),
+            "total_required": model_status.get("total_required", 0),
+            "status": "ready" if not model_status.get("missing_models") else "partial"
+        }
+    except Exception as e:
+        model_info = {"status": "error", "error": str(e)}
+
     response = {
         "status": overall_status,
         "summary": summary,
         "databases": health_status,
+        "models": model_info,
         "startup": app_state,
         "breaker": breaker_info,
         "timestamp": datetime.now(timezone.utc).isoformat(),

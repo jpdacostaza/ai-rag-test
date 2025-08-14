@@ -46,7 +46,7 @@ class UnifiedMemoryInstaller:
                 if response.status_code == 200:
                     self.log(f"[OK] Found working OpenWebUI at: {url}")
                     return url
-            except:
+            except Exception:
                 continue
         
         # Fallback to first URL if none work

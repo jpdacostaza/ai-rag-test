@@ -81,10 +81,6 @@ def validate_openwebui_user_id(user_id: str) -> bool:
     return auth_validator.is_valid_user_id(user_id)
 
 
-def extract_authenticated_user_id(messages: list) -> Optional[str]:  # Deprecated
-    return None
-
-
 @chat_router.post("/chat/completions_legacy")
 @handle_api_errors("chat_endpoint")
 async def chat_endpoint(

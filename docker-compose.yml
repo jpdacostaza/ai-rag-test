@@ -97,9 +97,9 @@ services:
     # SIMPLIFIED CONFIGURATION FOR CROSS-PLATFORM COMPATIBILITY
     mem_limit: 4g                   # Reduced memory limit for better compatibility
     volumes:
-      - ./storage/ollama:/home/ollama/.ollama
+      - ./storage/ollama:/home/ubuntu/.ollama
     environment:
-      - OLLAMA_HOME=/home/ollama/.ollama
+      - OLLAMA_HOME=/home/ubuntu/.ollama
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
       - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger qwen3:4b model
@@ -173,8 +173,10 @@ services:
       - CHROMA_PORT=8000
       # Stream debug logging (disabled by default for performance)
       - ENABLE_STREAM_DEBUG=${ENABLE_STREAM_DEBUG:-false}
-      # Model preloading (disabled by default to prevent startup errors)
-      - ENABLE_MODEL_PRELOAD=${ENABLE_MODEL_PRELOAD:-false}
+      # Model preloading (enabled to ensure models available for OpenWebUI)
+      - ENABLE_MODEL_PRELOAD=${ENABLE_MODEL_PRELOAD:-true}
+      - ENABLE_EAGER_MODEL_LOADING=true
+      - PRELOAD_MODELS=qwen3:4b,nomic-embed-text:latest
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
@@ -313,7 +315,7 @@ services:
       # Route through our main backend API using the working v1 endpoint
       - OPENAI_API_BASE_URLS=http://backend:3000/v1;http://pipelines:9099
       - OPENAI_API_KEYS=backend-api-key;0p3n-w3bu!
-      # OLLAMA_BASE_URL disabled - forcing all requests through backend API
+      # OLLAMA_BASE_URL disabled - forcing all requests through backend API for proper function integration
       # - OLLAMA_BASE_URL=http://backend-ollama:11434
       - ENABLE_FUNCTIONS=true
       - ENABLE_TOOLS=true

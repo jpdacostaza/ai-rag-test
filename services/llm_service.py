@@ -252,7 +252,7 @@ class LLMService:
                                 
         except httpx.RequestError as e:
             log_service_status("OLLAMA", "failed", f"Connection to Ollama at {self.ollama_url} failed: {e}")
-            raise Exception(f"Cannot connect to Ollama service at {self.ollama_url}") from e
+            raise ConnectionError(f"Cannot connect to Ollama service at {self.ollama_url}") from e
         except httpx.HTTPStatusError as e:
             log_service_status(
                 "OLLAMA",

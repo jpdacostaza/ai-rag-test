@@ -196,7 +196,7 @@ class RedisMonitor(SubsystemMonitor):
         client = await self.connection_factory.create_redis_connection(connection_name="watchdog_redis_monitor")
         
         if not client:
-            raise Exception("Failed to create Redis connection via ConnectionFactory")
+            raise ConnectionError("Failed to create Redis connection via ConnectionFactory")
 
         # Test basic operations asynchronously
         await client.ping()
@@ -225,7 +225,7 @@ class RedisMonitor(SubsystemMonitor):
                 response_time_ms=response_time,
                 metadata=metadata)
         else:
-            raise Exception("Health check key mismatch")
+            raise ValueError("Health check key mismatch")
 
     async def check_health(self) -> ServiceHealth:
         """Public health check method with proper fallback handling."""
@@ -265,7 +265,7 @@ class ChromaDBMonitor(SubsystemMonitor):
             client = await self.connection_factory.create_chroma_connection(connection_name="watchdog_chroma_monitor")
             
             if not client:
-                raise Exception("Failed to create ChromaDB connection via ConnectionFactory")
+                raise ConnectionError("Failed to create ChromaDB connection via ConnectionFactory")
 
             # Test basic operations
             collection_name = "watchdog_health_check"
@@ -324,7 +324,7 @@ class ChromaDBMonitor(SubsystemMonitor):
                     response_time_ms=response_time,
                     metadata=metadata)
             else:
-                raise Exception("Query returned no results")
+                raise RuntimeError("Query returned no results")
 
         except Exception as e:
             self._record_failure()
@@ -391,7 +391,7 @@ class OllamaMonitor(SubsystemMonitor):
                         "status_code": response.status_code,
                     })
             else:
-                raise Exception(f"HTTP {response.status_code}: {response.text}")
+                raise ConnectionError(f"HTTP {response.status_code}: {response.text}")
 
         except Exception as e:
             self._record_failure()
@@ -426,11 +426,11 @@ class EmbeddingMonitor(SubsystemMonitor):
 
             # Check if database manager is available
             if db_manager is None:
-                raise Exception("Database manager not available")
+                raise RuntimeError("Database manager not available")
 
             # Check if embedding model is loaded
             if not db_manager.is_embeddings_available():
-                raise Exception("Embedding model not available")
+                raise RuntimeError("Embedding model not available")
 
             # Test embedding generation with a simple text using proper database manager method
             test_text = "health check test"
@@ -438,12 +438,12 @@ class EmbeddingMonitor(SubsystemMonitor):
 
             # Verify embedding was generated successfully
             if test_embedding is None:
-                raise Exception("Failed to generate test embedding")
+                raise RuntimeError("Failed to generate test embedding")
 
             # Check embedding dimensions (should be > 0)
             embedding_dim = len(test_embedding) if test_embedding is not None else 0
             if embedding_dim == 0:
-                raise Exception("Generated embedding has invalid dimensions")
+                raise ValueError("Generated embedding has invalid dimensions")
 
             self._record_success()
             response_time = (time.time() - start_time) * 1000

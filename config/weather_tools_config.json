@@ -1,0 +1,35 @@
+{
+  "version": "2.0.0",
+  "updated": "2025-08-14T13:30:00.000Z",
+  "system_instructions": "CRITICAL: For ANY weather-related query, I MUST use the available weather tools (get_weather) instead of web search. The universal weather tool automatically handles both Netherlands (via KNMI website search) and international locations (via web search).",
+  "tools": [
+    {
+      "name": "get_weather",
+      "type": "function",
+      "description": "Get current weather information for any location worldwide. Automatically uses KNMI website search for Netherlands locations and web search for international locations.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "location": {
+            "type": "string",
+            "description": "The city or location to get weather for",
+            "default": "Netherlands"
+          }
+        },
+        "required": ["location"]
+      }
+    }
+  ],
+  "routing": {
+    "weather_queries": {
+      "trigger_keywords": ["weather", "temperature", "rain", "forecast", "climate", "storm", "wind", "hot", "cold", "warm", "sunny", "cloudy"],
+      "action": "use_weather_tool_not_web_search",
+      "priority": "highest"
+    },
+    "netherlands_locations": {
+      "keywords": ["netherlands", "holland", "amsterdam", "rotterdam", "the hague", "utrecht", "eindhoven", "tilburg", "groningen", "almere", "breda", "nijmegen"],
+      "action": "use_weather_tool_knmi_search",
+      "priority": "mandatory"
+    }
+  }
+}

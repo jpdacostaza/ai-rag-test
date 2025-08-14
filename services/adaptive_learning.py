@@ -412,7 +412,7 @@ class AdaptiveLearningSystem:
                 return doc_id
             else:
                 log_service_status("LEARNING", "error", f"Failed to add document to memory for user {user_id}")
-                raise Exception("Failed to index document")
+                raise RuntimeError("Failed to index document")
 
         except Exception as e:
             log_service_status("LEARNING", "error", f"Error adding document to memory for user {user_id}: {e}")

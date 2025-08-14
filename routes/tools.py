@@ -1,9 +1,11 @@
 """
 Tools router for exposing tool functionality to OpenWebUI.
 Provides endpoints for web search and other tools.
+Note: KNMI API endpoints removed - weather tool now uses web search directly.
 """
 
 import json
+from datetime import datetime
 from fastapi import APIRouter, HTTPException, Body
 from typing import Dict, Any
 
@@ -14,9 +16,9 @@ tools_router = APIRouter(prefix="/tools", tags=["tools"])
 
 # Import web search tool
 try:
-    from tools.web_search import Tools as WebSearchTools
+    from utilities.enhanced_web_search import search_web
     WEB_SEARCH_AVAILABLE = True
-    web_search_tools = WebSearchTools()
+    log_service_status("TOOLS", "info", "Zero-conf web search available")
 except ImportError as e:
     WEB_SEARCH_AVAILABLE = False
     log_service_status("TOOLS", "warning", f"Web search tool not available: {e}")
@@ -33,6 +35,14 @@ async def list_tools():
             "description": "Search the web for current information",
             "enabled": True
         })
+    
+    # Note: Weather tool now uses web search directly via OpenWebUI actions
+    tools.append({
+        "name": "netherlands_weather",
+        "description": "Netherlands weather via web search (handled by weather tool)",
+        "enabled": True,
+        "type": "action"
+    })
     
     return {"tools": tools}
 
@@ -69,16 +79,19 @@ async def web_search_endpoint(request: Dict[str, Any] = Body(...)):
     try:
         log_service_status("TOOLS", "info", f"Web search requested: '{query}' (max_results={max_results})")
         
-        # Call the web search tool
-        results = await web_search_tools.search_web(query, max_results)
+        # Call the zero-conf web search
+        search_results = await search_web(query, max_results=max_results)
         
         log_service_status("TOOLS", "ready", f"Web search completed for query: '{query}'")
         
         return {
             "success": True,
             "query": query,
-            "results": results,
-            "max_results": max_results
+            "results": search_results.get("results", []),
+            "summary": search_results.get("summary", ""),
+            "strategies_attempted": search_results.get("strategies_attempted", []),
+            "max_results": max_results,
+            "timestamp": datetime.now().isoformat()
         }
         
     except Exception as e:
@@ -87,9 +100,3 @@ async def web_search_endpoint(request: Dict[str, Any] = Body(...)):
             status_code=500,
             detail=f"Web search failed: {str(e)}"
         )
-
-
-@tools_router.post("/search")  # Alternative endpoint name
-async def search_endpoint(request: Dict[str, Any] = Body(...)):
-    """Alternative endpoint for web search."""
-    return await web_search_endpoint(request)

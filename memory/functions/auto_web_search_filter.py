@@ -1,7 +1,7 @@
 """
 Auto Web Search Filter
 Automatically performs a web search and injects results into the conversation context
-when the model fails to call the web_search Action.
+when the model fails to call web search functionality.
 
 Purpose:
 Fallback path for small / non-tool-calling local models (e.g. qwen2.5:3b) so that
@@ -10,11 +10,11 @@ queries requiring current information still get fresh data.
 Strategy:
 - Runs in inlet stage.
 - If last user message contains trigger phrases and no prior injected results,
-  first tries to call the real Action, then falls back to direct search if needed.
+  uses zero-configuration web search with ddgs library.
 - Appends synthetic system message with results before model reply.
 
 Enhanced Features:
-- Prefers calling real Action to maintain single code path
+- Zero-configuration deployment (ddgs only)
 - Forced invocation for explicit web search requests
 - Improved query extraction and result formatting
 """
@@ -36,11 +36,11 @@ class Filter:
         max_results: int = Field(default=6, ge=1, le=10, description="Results to inject (Orange Pi optimized: 1-10)")
         trigger_keywords: List[str] = Field(
             default=[
-                "current", "today", "latest", "news", "headline", "weather", "temperature",
+                "current", "today", "latest", "news", "headline",
                 "date", "time", "update", "trending", "market", "stock", "price", "search the web",
                 "web search", "lookup", "recent", "what is happening", "check online",
                 "warning", "warnings", "alert", "alerts", "advisory", "advisories", "check if",
-                "are there", "any warnings", "specific warnings", "weather warning"
+                "are there", "any warnings", "specific warnings"
             ],
             description="Keywords that trigger auto web search"
         )
@@ -63,6 +63,8 @@ class Filter:
         self._recent_hashes: Dict[str, datetime] = {}
 
     async def inlet(self, body: dict, __user__=None) -> dict:
+        print(f"{PRINT_PREFIX} INLET CALLED - body keys: {list(body.keys())}")
+        
         if not self.valves.enable_auto_search:
             return body
 
@@ -90,6 +92,25 @@ class Filter:
         lowered = content.lower()
         is_forced = any(kw in lowered for kw in self.valves.force_keywords)
         is_triggered = is_forced or any(kw in lowered for kw in self.valves.trigger_keywords)
+        
+        # Debug what triggered
+        if is_triggered:
+            matching_trigger_keywords = [kw for kw in self.valves.trigger_keywords if kw in lowered]
+            matching_force_keywords = [kw for kw in self.valves.force_keywords if kw in lowered]
+            print(f"{PRINT_PREFIX} DEBUG: TRIGGERED! Content='{content[:100]}'")
+            print(f"{PRINT_PREFIX} DEBUG: Matching trigger keywords: {matching_trigger_keywords}")
+            print(f"{PRINT_PREFIX} DEBUG: Matching force keywords: {matching_force_keywords}")
+        
+        # Skip weather queries - already handled by dedicated weather tool filter (priority 1)
+        # Weather tool filter provides KNMI data and runs before this filter
+        weather_keywords = ["weather", "temperature", "forecast", "climate", "hot", "cold", "warm", "cool", 
+                           "rain", "raining", "sunny", "cloudy", "wind", "windy", "storm", "snow", "snowing"]
+        
+        # Debug weather detection
+        weather_matches = [weather_kw for weather_kw in weather_keywords if weather_kw in lowered]
+        if weather_matches:
+            print(f"{PRINT_PREFIX} SKIPPING: Weather query detected (keywords: {weather_matches}) - handled by weather tool filter")
+            return body
         
         if not is_triggered:
             return body
@@ -129,9 +150,9 @@ TIMESTAMP: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC
 5. You MUST reference specific information from the URLs and content shown above
 6. You MUST include the timestamp from the search results
 
-[X] PROHIBITED: Saying "I cannot search" or providing generic answers
-[X] PROHIBITED: Ignoring the search results provided above
-[*] REQUIRED: Using the actual web data to provide current, accurate information
+PROHIBITED: Saying "I cannot search" or providing generic answers
+PROHIBITED: Ignoring the search results provided above
+REQUIRED: Using the actual web data to provide current, accurate information
 
 FAILURE TO USE THESE SEARCH RESULTS IS A CRITICAL ERROR."""
             })
@@ -160,67 +181,54 @@ FAILURE TO USE THESE SEARCH RESULTS IS A CRITICAL ERROR."""
     async def _get_search_results(self, query: str) -> str:
         if self.valves.use_real_action:
             try:
-                # Try to call the real Action with absolute file import
-                import importlib.util
+                # Try to call the zero-conf web search
+                import sys
+                sys.path.append('/app/backend/data')
+                from utilities.enhanced_web_search import search_web
                 
-                spec = importlib.util.spec_from_file_location(
-                    "web_search_tool", 
-                    "/app/backend/data/tools/web_search_tool.py"
-                )
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
+                result_dict = await search_web(query, max_results=self.valves.max_results)
                 
-                action = module.Action()
-                result = await action.run(query=query, max_results=self.valves.max_results)
-                print(f"{PRINT_PREFIX} Called real Action successfully")
-                return result
+                if result_dict and result_dict.get("results"):
+                    formatted_results = []
+                    for item in result_dict["results"]:
+                        title = item.get('title', 'No title')
+                        snippet = item.get('snippet', 'No description')
+                        link = item.get('link', 'No link')
+                        formatted_results.append(f"**{title}**\n{snippet}\nSource: {link}")
+                    
+                    result = "\n\n".join(formatted_results)
+                    print(f"{PRINT_PREFIX} Called zero-conf web search successfully")
+                    return result
+                    
             except Exception as e:
-                print(f"{PRINT_PREFIX} Real Action failed: {e}, falling back to direct search")
+                print(f"{PRINT_PREFIX} Zero-conf web search failed: {e}, using fallback")
         
-        # Fallback to direct search
-        return await self._direct_search(query)
+        # Fallback to zero-conf search
+        return await self._zero_conf_search(query)
 
-    async def _direct_search(self, query: str) -> str:
-        import aiohttp
-        
-        search_url = "https://html.duckduckgo.com/html/"
-        params = {"q": query}
-        timeout = aiohttp.ClientTimeout(total=15)
-        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AutoWebSearchFilter/2.0"}
-        
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(search_url, params=params, headers=headers) as resp:
-                if resp.status != 200:
-                    raise RuntimeError(f"DuckDuckGo status {resp.status}")
-                html = await resp.text()
-        
-        # Parse results
-        blocks = re.findall(r'<div[^>]*class="[^"]*result[^"]*"[^>]*>(.*?)</div>', html, re.DOTALL)
-        results = []
-        for i, block in enumerate(blocks[:self.valves.max_results]):
-            link = re.search(r'<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.*?)</a>', block, re.DOTALL)
-            if not link:
-                continue
-            url, title_html = link.group(1), link.group(2)
-            title = re.sub(r'<[^>]+>', '', title_html).strip()
-            snippet_match = re.search(r'<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</a>', block, re.DOTALL)
-            snippet = re.sub(r'<[^>]+>', '', snippet_match.group(1)).strip() if snippet_match else ''
-            if title and url:
-                results.append({"title": title, "url": url, "snippet": snippet, "rank": i + 1})
-        
-        # Format results
-        if not results:
-            return f"No web results found for '{query}'."
-        
-        lines = [f"Web Search Results for '{query}' (direct fallback):"]
-        for r in results:
-            lines.append(f"{r['rank']}. {r['title']}")
-            lines.append(f"URL: {r['url']}")
-            if r['snippet']:
-                lines.append(f"Summary: {r['snippet']}")
-            lines.append("")
-        lines.append(f"Search completed at {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}")
-        return "\n".join(lines)
+    async def _zero_conf_search(self, query: str) -> str:
+        """Zero-configuration search using only ddgs library"""
+        try:
+            from utilities.enhanced_web_search import search_web
+            
+            print(f"{PRINT_PREFIX} Using zero-conf fallback search")
+            result_dict = await search_web(query, max_results=self.valves.max_results)
+            
+            if result_dict and result_dict.get("results"):
+                formatted_results = []
+                for i, item in enumerate(result_dict["results"]):
+                    title = item.get('title', 'No title')
+                    snippet = item.get('snippet', 'No description')
+                    link = item.get('link', 'No link')
+                    formatted_results.append(f"**{i+1}. {title}**\n{snippet}\nSource: {link}")
+                
+                return "\n\n".join(formatted_results)
+            else:
+                return "No search results found."
+                
+        except Exception as e:
+            print(f"{PRINT_PREFIX} Zero-conf fallback failed: {e}")
+            return f"Search temporarily unavailable: {str(e)}"
 
     def _build_query(self, content: str) -> str:
         # Extract meaningful query from user message - ENHANCED
@@ -247,18 +255,18 @@ FAILURE TO USE THESE SEARCH RESULTS IS A CRITICAL ERROR."""
         # For weather warnings, add official source terms
         if any(word in final_query.lower() for word in ['warning', 'warnings', 'alert', 'alerts', 'advisory', 'advisories']):
             if 'netherlands' in final_query.lower() or 'dutch' in final_query.lower():
-                final_query += ' KNMI site:knmi.nl'
-            elif not any(official in final_query.lower() for official in ['knmi', 'official', 'site:']):
+                final_query += ' site:knmi.nl'
+            elif not any(official in final_query.lower() for official in ['official', 'site:']):
                 final_query += ' official weather warning'
         
         # For weather warnings specifically in Netherlands, add official source terms  
         if any(word in final_query.lower() for word in ['weather warning', 'warning', 'alert']) and 'netherlands' in final_query.lower():
-            final_query += ' KNMI site:knmi.nl'
+            final_query += ' site:knmi.nl'
         
         # For weather queries in Netherlands, prioritize official sources
         if any(word in final_query.lower() for word in ['weather', 'forecast']) and 'netherlands' in final_query.lower():
             if 'knmi' not in final_query.lower():
-                final_query += ' KNMI official'
+                final_query += ' official meteorological'
         
         # For technical queries, add terms that encourage detailed explanations
         if any(word in final_query.lower() for word in ['what is', 'how to', 'explain', 'definition']):
@@ -267,4 +275,4 @@ FAILURE TO USE THESE SEARCH RESULTS IS A CRITICAL ERROR."""
         
         return final_query
 
-print(f"{PRINT_PREFIX} Enhanced Filter class defined: Auto Web Search Fallback v2.0")
+print(f"{PRINT_PREFIX} Enhanced Filter class defined: Auto Web Search Fallback v2.1 (Weather conflicts removed)")
