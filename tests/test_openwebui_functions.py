@@ -21,7 +21,7 @@ def test_openwebui_functions():
             "http://localhost:8080/api/chat/completions",
             headers={"Content-Type": "application/json"},
             json={
-                "model": "qwen2.5:3b",
+                "model": "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M",
                 "messages": [
                     {"role": "user", "content": "Can you search the web for current AI news? I want to test if your web search function is working."}
                 ],
@@ -71,3 +71,4 @@ def test_openwebui_functions():
 
 if __name__ == "__main__":
     test_openwebui_functions()
+

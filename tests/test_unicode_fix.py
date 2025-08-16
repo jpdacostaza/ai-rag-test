@@ -33,8 +33,8 @@ def main():
     
     # Files that should be clean of Unicode characters
     test_files = [
-        "memory/functions/auto_web_search_filter.py",
-        "memory/functions/enhanced_memory_function_filter_v5_1_final.py", 
+        "functions/filters/auto_web_search_filter.py",
+        "functions/filters/enhanced_memory_function_filter_v5_1_final.py", 
         "test_filter_activation.py"
     ]
     

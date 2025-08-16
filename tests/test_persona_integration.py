@@ -20,7 +20,7 @@ def test_persona_integration():
             "http://localhost:3000/v1/chat/completions",
             headers={"Content-Type": "application/json"},
             json={
-                "model": "qwen2.5:3b",
+                "model": "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M",
                 "messages": [
                     {"role": "user", "content": "Hi! Can you describe your capabilities? Specifically tell me about your memory and web search features."}
                 ],
@@ -105,7 +105,7 @@ def test_persona_integration():
             "http://localhost:3000/v1/chat/completions",
             headers={"Content-Type": "application/json"},
             json={
-                "model": "qwen2.5:3b",
+                "model": "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M",
                 "messages": [
                     {"role": "user", "content": "Hello! My name is J.P. and I work at Swift Technologies. I'm testing your memory capabilities. Can you search for recent AI news and remember my details?"}
                 ],
@@ -136,3 +136,4 @@ def test_persona_integration():
 
 if __name__ == "__main__":
     test_persona_integration()
+

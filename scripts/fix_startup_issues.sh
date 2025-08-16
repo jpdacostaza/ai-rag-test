@@ -65,7 +65,7 @@ fi
 # 5. Download the default model proactively (if Ollama is running)
 echo "🤖 Ensuring default model is available..."
 if docker ps --filter "name=backend-ollama" --filter "status=running" -q | grep -q .; then
-    docker exec backend-ollama ollama pull qwen3:4b || echo "⚠️ Model download failed - will lazy load"
+    docker exec backend-ollama ollama pull hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M || echo "⚠️ Model download failed - will lazy load"
 else
     echo "⚠️ Ollama not running - model will be downloaded on first use"
 fi

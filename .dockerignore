@@ -13,6 +13,7 @@ venv/
 .venv/
 
 # Storage and cache directories (exclude most but allow essential pipeline files)
+storage_backup_*/
 storage/backend/
 storage/chroma/
 storage/models/
@@ -65,7 +66,9 @@ README.md
 scripts/*.ps1
 scripts/*.sh
 !scripts/startup.sh
-# Note: startup.sh is needed for the container
+!scripts/entrypoint_function_db_importer.sh
+!scripts/api_startup_hook.sh
+# Note: startup.sh, entrypoint scripts, and installer hooks are needed for containers
 
 # Temporary files
 *.tmp

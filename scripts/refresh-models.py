@@ -158,7 +158,7 @@ class ModelRefreshService:
         # Verify default model
         default_model_verified = False
         if ollama_models:
-            default_model = "qwen2.5:3b"
+            default_model = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"
             for model in ollama_models:
                 if model.get("name") == default_model:
                     default_model_verified = await self.verify_model(default_model)

@@ -198,6 +198,7 @@ async def health_check():
 async def store_memory(request: MemoryStoreRequest):
     """Store memory explicitly with graceful degradation"""
     try:
+        logger.info(f"Memory store request received: user_id={request.user_id}, content_length={len(request.content)}")
         memory_id = f"mem_{request.user_id}_{int(time.time())}"
         timestamp = datetime.now().isoformat()
         
@@ -220,7 +221,7 @@ async def store_memory(request: MemoryStoreRequest):
                 await redis_client.expire(redis_key, 86400)  # 24 hours
                 storage_results.append("redis")
             except Exception as e:
-                print(f"Redis storage failed: {e}")
+                logger.error(f"Redis storage failed: {e}")
 
         # Store in ChromaDB if available
         if chroma_collection:
@@ -239,7 +240,7 @@ async def store_memory(request: MemoryStoreRequest):
                 )
                 storage_results.append("chromadb")
             except Exception as e:
-                print(f"ChromaDB storage failed: {e}")
+                logger.error(f"ChromaDB storage failed: {e}")
         
         if not storage_results:
             raise HTTPException(
@@ -254,6 +255,7 @@ async def store_memory(request: MemoryStoreRequest):
         })
         
     except Exception as e:
+        logger.error(f"Memory storage error: {e}")
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
@@ -263,6 +265,8 @@ async def store_memory(request: MemoryStoreRequest):
 async def store_memory_regular(request: MemoryStoreRequest):
     """Store memory with normal importance and filtering"""
     try:
+        logger.info(f"Regular memory store request: user_id={request.user_id}, content_length={len(request.content)}, source={request.source}")
+        
         # Apply filtering logic for normal storage
         content_length = len(request.content)
         
@@ -307,35 +311,43 @@ async def store_memory_regular(request: MemoryStoreRequest):
         full_metadata["memory_id"] = memory_id
         
         # Store in Redis for quick access
-        redis_key = f"memory:{user_id}:{memory_id}"
-        redis_data = {
-            "content": request.content,
-            "context": context,
-            "importance": importance,
-            "source": source,
-            "timestamp": timestamp,
-            "user_id": user_id
-        }
-        
-        # Add custom metadata fields to Redis
-        if request.metadata:
-            for key, value in request.metadata.items():
-                if key not in ["content"]:  # Don't duplicate content
-                    redis_data[key] = str(value)
-        
-        await redis_client.hset(redis_key, mapping=redis_data)
-        await redis_client.expire(redis_key, 86400)  # 24 hours
+        if redis_client:
+            try:
+                redis_key = f"memory:{user_id}:{memory_id}"
+                redis_data = {
+                    "content": request.content,
+                    "context": context,
+                    "importance": importance,
+                    "source": source,
+                    "timestamp": timestamp,
+                    "user_id": user_id
+                }
+                
+                # Add custom metadata fields to Redis
+                if request.metadata:
+                    for key, value in request.metadata.items():
+                        if key not in ["content"]:  # Don't duplicate content
+                            redis_data[key] = str(value)
+                
+                await redis_client.hset(redis_key, mapping=redis_data)
+                await redis_client.expire(redis_key, 86400)  # 24 hours
+            except Exception as e:
+                logger.error(f"Redis storage failed: {e}")
         
         # Ensure user_id stored in metadata for retrieval filtering
         if 'user_id' not in full_metadata:
             full_metadata['user_id'] = user_id
 
         # Store in ChromaDB for semantic search with full metadata
-        chroma_collection.add(
-            documents=[request.content],
-            metadatas=[full_metadata],
-            ids=[memory_id]
-        )
+        if chroma_collection:
+            try:
+                chroma_collection.add(
+                    documents=[request.content],
+                    metadatas=[full_metadata],
+                    ids=[memory_id]
+                )
+            except Exception as e:
+                logger.error(f"ChromaDB storage failed: {e}")
         
         return JSONResponse({
             "memory_id": memory_id,
@@ -345,6 +357,7 @@ async def store_memory_regular(request: MemoryStoreRequest):
         })
         
     except Exception as e:
+        logger.error(f"Regular memory storage error: {e}")
         raise HTTPException(status_code=500, detail=f"Storage failed: {str(e)}")
 
 # Memory retrieval endpoint

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys, os
-sys.path.append('/app/backend/memory/functions')
+sys.path.append('/app/backend/functions/filters')
 from auto_web_search_filter import AutoWebSearchFilter
 import asyncio
 

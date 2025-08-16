@@ -78,7 +78,7 @@ async def pull_model(model_name: str) -> bool:
     Pull a model from Ollama registry if it's not available locally.
     
     Args:
-        model_name (str): The name of the model to pull (e.g., "qwen3:4b")
+        model_name (str): The name of the model to pull (e.g., "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M")
         
     Returns:
         bool: True if model is successfully pulled or already available, False otherwise.
@@ -199,7 +199,7 @@ async def pull_model_endpoint(model_name: str):
 @router.post("/models/ensure-default")
 async def ensure_default_model():
     """Ensure the default model is available, pulling it if necessary."""
-    default_model = os.getenv("DEFAULT_MODEL", "qwen3:4b")
+    default_model = os.getenv("DEFAULT_MODEL", "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M")
     try:
         is_available = await ensure_model_available(default_model, auto_pull=True)
         if is_available:

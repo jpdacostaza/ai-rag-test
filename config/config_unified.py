@@ -54,7 +54,7 @@ class EmbeddingProvider(Enum):
 class ModelConfig:
     """Model and LLM configuration."""
     # Primary model settings
-    default_model: str = "qwen3:4b"  # Upgraded to Qwen3 4B parameter model
+    default_model: str = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"  # Upgraded to Qwen3 4B parameter model
     provider: ModelProvider = ModelProvider.OLLAMA
     
     # Ollama settings

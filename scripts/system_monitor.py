@@ -36,7 +36,7 @@ class SystemMonitor:
         self.openwebui_url = os.getenv("OPENWEBUI_URL", "http://openwebui:8080")
         self.ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         self.db_path = "/tmp/openwebui/webui.db"
-        self.default_model = "qwen3:4b"
+        self.default_model = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"
         self.check_interval = int(os.getenv("CHECK_INTERVAL", "300"))  # 5 minutes default
         
     async def run_continuous_monitoring(self):
@@ -272,11 +272,11 @@ class SystemMonitor:
     async def read_function_code(self) -> Optional[str]:
         """Read the memory function code"""
         possible_paths = [
-            Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Correct location
-            Path("./memory/functions/enhanced_memory_function_filter_v5_1_final.py"),  # Relative correct path
+            Path("/app/functions/filters/enhanced_memory_function_filter_v5_1_final.py"),  # Correct location
+            Path("./functions/filters/enhanced_memory_function_filter_v5_1_final.py"),  # Relative correct path
             # Memory function paths (current structure)
-            Path("memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
-            Path("/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"),
+            Path("functions/filters/enhanced_memory_function_filter_v5_1_final.py"),
+            Path("/app/functions/filters/enhanced_memory_function_filter_v5_1_final.py"),
         ]
         
         for path in possible_paths:

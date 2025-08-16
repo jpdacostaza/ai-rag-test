@@ -16,7 +16,7 @@ from utilities.ai_tools import (
     get_exchange_rate,
     get_news,
     web_search)
-from tools.weather_tool import Tools as WeatherTools
+from functions.tools.weather_tool import Tools as WeatherTools
 from core.error_handler import ToolErrorHandler, safe_execute
 from core.unified_logging import log_service_status
 
@@ -142,15 +142,19 @@ class ToolService:
         # Use the new weather tool
         weather_tool = WeatherTools()
         
-        async def get_weather_wrapper():
-            return await weather_tool.get_weather(location=location, include_forecast=True)
-
-        user_response = safe_execute(
-            get_weather_wrapper,
-            fallback_value=ToolErrorHandler.handle_tool_error(
-                Exception("Weather lookup failed"), "weather", user_id, location, request_id
-            ),
-            error_handler=lambda e: ToolErrorHandler.handle_tool_error(e, "weather", user_id, location, request_id))
+        try:
+            import asyncio
+            # Run async function in sync context
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                user_response = loop.run_until_complete(
+                    weather_tool.get_weather(location=location, include_forecast=True)
+                )
+            finally:
+                loop.close()
+        except Exception as e:
+            user_response = ToolErrorHandler.handle_tool_error(e, "weather", user_id, location, request_id)
 
         return True, user_response, "weather", debug_info
 
@@ -359,7 +363,29 @@ class ToolService:
                 country = country.strip()
                 country = re.sub(r"\?$", "", country).strip()
                 if country:
-                    return country
+                    # Map common abbreviations to full country names
+                    country_mappings = {
+                        "it": "italy",
+                        "uk": "united-kingdom", 
+                        "us": "usa",
+                        "usa": "usa",
+                        "nl": "netherlands",
+                        "de": "germany",
+                        "fr": "france",
+                        "es": "spain",
+                        "jp": "japan",
+                        "cn": "china",
+                        "in": "india",
+                        "br": "brazil",
+                        "ca": "canada",
+                        "au": "australia"
+                    }
+                    
+                    country_lower = country.lower()
+                    if country_lower in country_mappings:
+                        return country_mappings[country_lower]
+                    else:
+                        return country
 
         return "netherlands"  # default
 

@@ -1,8 +1,10 @@
 """Chat endpoints and logic (refactored).
 
 Provides legacy /chat/completions_legacy endpoint and memory storage helper.
+Enhanced with autonomous reasoning and decision-making capabilities.
 """
 
+import json
 import logging
 import time
 import uuid
@@ -22,6 +24,17 @@ from services.database_manager import (
 )
 from utilities.simple_error_handling import handle_api_errors, handle_errors
 from models.models import ChatRequest
+
+# Enhanced autonomous routing capabilities
+try:
+    from services.simplified_chat_router import route_chat_with_autonomy
+    AUTONOMOUS_ROUTING_AVAILABLE = True
+except ImportError:
+    try:
+        from services.enhanced_chat_router import route_chat_with_autonomy
+        AUTONOMOUS_ROUTING_AVAILABLE = True
+    except ImportError:
+        AUTONOMOUS_ROUTING_AVAILABLE = False
 
 # Memory service (optional)
 try:
@@ -103,6 +116,71 @@ async def chat_endpoint(
     if not chat.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty")
 
+    # Enhanced autonomous routing
+    if AUTONOMOUS_ROUTING_AVAILABLE:
+        try:
+            # Extract user ID from request body and headers
+            user_id = resolve_user_id(request, body, body.get("messages", []))
+            
+            # Extract conversation history from request if available
+            conversation_history = body.get('conversation_history', [])
+            session_context = {
+                'request_id': request_id,
+                'timestamp': start_time,
+                'user_agent': request.headers.get('user-agent', ''),
+                'endpoint': 'chat_legacy'
+            }
+            
+            # Route through autonomous decision-making system
+            autonomous_result = await route_chat_with_autonomy(
+                user_message=chat.message,
+                user_id=user_id or "anonymous",
+                conversation_history=conversation_history,
+                session_context=session_context
+            )
+            
+            if autonomous_result.get("status") == "success":
+                # Use autonomous response
+                response_text = autonomous_result.get("response", "")
+                strategy_used = autonomous_result.get("strategy_used", "unknown")
+                
+                log_service_status("CHAT", "info", 
+                                 f"Autonomous routing successful: {strategy_used}")
+                
+                # Create response in expected format
+                response = {
+                    "response": response_text,
+                    "metadata": {
+                        "strategy_used": strategy_used,
+                        "autonomous_details": autonomous_result.get("autonomous_details"),
+                        "execution_metadata": autonomous_result.get("execution_metadata"),
+                        "components_used": autonomous_result.get("components_used")
+                    }
+                }
+                
+                # Store conversation memory with autonomous metadata
+                debug_info = [f"Autonomous routing: {strategy_used}"]
+                await store_conversation_memory(
+                    user_id or "anonymous", chat.message, response_text, debug_info
+                )
+                
+                duration = (time.time() - start_time) * 1000
+                log_service_status(
+                    "api", "info",
+                    f"[REQUEST] Info - [{request_id}] POST /chat - Autonomous completion in {duration:.2f}ms"
+                )
+                
+                return response
+            else:
+                # Log autonomous routing failure
+                log_service_status("CHAT", "warning", 
+                                 "Autonomous routing failed, falling back to standard processing")
+        
+        except Exception as e:
+            log_service_status("CHAT", "error", f"Autonomous routing error: {e}")
+            # Continue with standard processing as fallback
+
+    # Standard chat processing (fallback or when autonomous routing unavailable)
     response = await chat_service.process_chat(chat)
 
     duration = (time.time() - start_time) * 1000
@@ -115,6 +193,84 @@ async def chat_endpoint(
     return response
 
 
+@chat_router.post("/chat/autonomous")
+@handle_api_errors("autonomous_chat_endpoint")
+async def autonomous_chat_endpoint(
+    request: Request,
+    chat: ChatRequest = Body(...),
+):
+    """Dedicated autonomous chat endpoint for complex reasoning tasks."""
+    request_id = getattr(request.state, "request_id", str(uuid.uuid4()))
+    start_time = time.time()
+    
+    log_service_status("AUTONOMOUS_CHAT", "info", 
+                     f"[REQUEST] Autonomous chat request {request_id}")
+
+    if not chat.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if not AUTONOMOUS_ROUTING_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Autonomous reasoning not available")
+
+    try:
+        # Simple user ID extraction - use default if not available
+        user_id = "anonymous"  # Simplified for now
+        
+        # Extract conversation history and context
+        conversation_history = getattr(chat, 'conversation_history', [])
+        session_context = {
+            'request_id': request_id,
+            'timestamp': start_time,
+            'user_agent': request.headers.get('user-agent', ''),
+            'endpoint': 'autonomous_chat',
+            'force_autonomous': True  # Force autonomous processing
+        }
+        
+        # Route through autonomous decision-making system
+        autonomous_result = await route_chat_with_autonomy(
+            user_message=chat.message,
+            user_id=user_id,
+            conversation_history=conversation_history,
+            session_context=session_context
+        )
+        
+        if autonomous_result.get("status") == "success":
+            response_text = autonomous_result.get("response", "")
+            strategy_used = autonomous_result.get("strategy_used", "unknown")
+            
+            # Store conversation memory
+            debug_info = [f"Autonomous endpoint: {strategy_used}"]
+            await store_conversation_memory(
+                user_id, chat.message, response_text, debug_info
+            )
+            
+            duration = (time.time() - start_time) * 1000
+            log_service_status(
+                "AUTONOMOUS_CHAT", "info",
+                f"[REQUEST] Autonomous chat completed in {duration:.2f}ms"
+            )
+            
+            return {
+                "response": response_text,
+                "autonomous_metadata": {
+                    "strategy_used": strategy_used,
+                    "request_id": request_id,
+                    "processing_time_ms": duration,
+                    "autonomous_details": autonomous_result.get("autonomous_details"),
+                    "execution_metadata": autonomous_result.get("execution_metadata"),
+                    "components_used": autonomous_result.get("components_used")
+                }
+            }
+        else:
+            error_msg = autonomous_result.get("error", "Autonomous processing failed")
+            raise HTTPException(status_code=500, detail=error_msg)
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_service_status("AUTONOMOUS_CHAT", "error", f"Autonomous chat error: {e}")
+        raise HTTPException(status_code=500, detail=f"Autonomous processing failed: {str(e)}")
+
 async def store_conversation_memory(
     user_id: str,
     user_message: str,
@@ -125,15 +281,15 @@ async def store_conversation_memory(
         memory_service = get_memory_service()
         if memory_service and MEMORY_SERVICE_AVAILABLE:
             memory_content = f"User: {user_message}\nAssistant: {assistant_response}"
-            success = await memory_service.store_conversation_memory(
+            success = await memory_service.store_memory(
                 user_id=user_id,
                 content=memory_content,
-                metadata={
+                context=json.dumps({
                     "type": "chat_conversation",
                     "timestamp": time.time(),
                     "user_message": user_message,
                     "assistant_response": assistant_response,
-                },
+                })
             )
             if success:
                 debug_info.append("Stored via unified memory service")

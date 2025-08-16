@@ -140,7 +140,7 @@ class PostCleanupVerification:
         issues = []
         
         critical_files = {
-            'memory/functions/enhanced_memory_function_filter_v5_1_final.py': 'Main memory function',
+            'functions/filters/enhanced_memory_function_filter_v5_1_final.py': 'Main memory function',
             'core/main.py': 'Main application entry point',
             'docker-compose.yml': 'Docker orchestration',
             'requirements.txt': 'Python dependencies',

@@ -8,7 +8,7 @@ This package contains various tools for the AI RAG backend system.
 # Import main tools for package-level access
 try:
     from utilities.enhanced_web_search import search_web as web_search
-    from .weather_tool import Tools as WeatherTools
+    from functions.tools.weather_tool import Tools as WeatherTools
     
     __all__ = ['web_search', 'WeatherTools']
     

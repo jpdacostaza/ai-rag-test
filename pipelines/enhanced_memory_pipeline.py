@@ -155,7 +155,7 @@ class Pipeline:
             
             # Fetch relevant memories if enabled
             if self.valves.MEMORY_ENABLED and self.valves.INTELLIGENT_CONTEXT:
-                memories = await self.fetch_relevant_memories(query)
+                memories = await self.fetch_memories(query)
                 
                 if memories:
                     # Format memories into context

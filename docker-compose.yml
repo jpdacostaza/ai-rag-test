@@ -102,7 +102,7 @@ services:
       - OLLAMA_HOME=/home/ubuntu/.ollama
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger qwen3:4b model
+      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger Qwen3-4B models
       - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
       # CPU optimization - UNRESTRICTED PARALLEL PROCESSING
       # Advanced performance optimizations - PERFORMANCE FOCUSED
@@ -110,7 +110,7 @@ services:
       - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Keep f16 cache
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}              # Shorter keep-alive to free resources
       # Timeout settings - EXTENDED FOR QWEN3:4B
-      - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-600}   # 10-minute timeout for qwen3
+      - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-600}   # 10-minute timeout for Qwen3-4B
       - OLLAMA_LOAD_TIMEOUT=${OLLAMA_LOAD_TIMEOUT:-900}         # 15-minute model load timeout
     depends_on:
       redis:
@@ -152,10 +152,10 @@ services:
       - HF_HUB_CACHE=/opt/backend/.cache/huggingface/hub
       - SENTENCE_TRANSFORMERS_HOME=/opt/backend/.cache/huggingface/sentence_transformers
       - CHROMA_COLLECTION=user_memory                           # Consistent collection name
-      - LLM_TIMEOUT=600                                         # 10min timeout for qwen3:4b
-      - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for qwen3
-      - HTTPX_TIMEOUT=600                                       # HTTPX client timeout for qwen3
-      - REQUEST_TIMEOUT=600                                     # General request timeout for qwen3
+      - LLM_TIMEOUT=600                                         # 10min timeout for Qwen3-4B
+      - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for Qwen3-4B
+      - HTTPX_TIMEOUT=600                                       # HTTPX client timeout for Qwen3-4B
+      - REQUEST_TIMEOUT=600                                     # General request timeout for Qwen3-4B
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-128}       # Maximum batch size
       # Performance optimizations
       - WORKERS=4                                               # 4 worker processes
@@ -176,7 +176,7 @@ services:
       # Model preloading (enabled to ensure models available for OpenWebUI)
       - ENABLE_MODEL_PRELOAD=${ENABLE_MODEL_PRELOAD:-true}
       - ENABLE_EAGER_MODEL_LOADING=true
-      - PRELOAD_MODELS=qwen3:4b,nomic-embed-text:latest
+      - PRELOAD_MODELS=hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M,nomic-embed-text:latest
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
@@ -331,12 +331,15 @@ services:
       - MEMORY_DEBUG=true
       # - MEMORY_RETRIEVAL_THRESHOLD=-0.5  # Controlled by OpenWebUI Function
       - ENABLE_COMMUNITY_SHARING=false
+      # Function auto-installation
+      - AUTO_INSTALL_FUNCTIONS=${AUTO_INSTALL_FUNCTIONS:-true}
+      - FUNCTION_AUTO_ENABLE=${FUNCTION_AUTO_ENABLE:-true}
       # Authentication configuration - CRITICAL for user identification
       - WEBUI_AUTH=true
       - ENABLE_SIGNUP=true
       - DEFAULT_USER_ROLE=user
-      - DEFAULT_MODEL=qwen3:4b
-      - DEFAULT_MODELS=qwen3:4b
+      - DEFAULT_MODEL=hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
+      - DEFAULT_MODELS=hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M
       # DISABLED: Trusted header auth only works with reverse proxy
       # - WEBUI_AUTH_TRUSTED_EMAIL_HEADER=X-User-Email
       # - WEBUI_AUTH_TRUSTED_NAME_HEADER=X-User-Name
@@ -368,9 +371,9 @@ services:
       - CORS_ALLOW_ORIGIN=http://localhost:8080,http://127.0.0.1:8080,http://localhost:3000
     volumes:
       - ./storage/openwebui:/app/backend/data
-      - ./memory/functions:/app/backend/data/functions:rw
-      - ./tools:/app/backend/data/tools:rw
+      - ./functions:/app/backend/data/functions:rw
       - ./storage/pipelines:/app/backend/data/pipelines:rw
+      - ./utilities:/app/utilities:ro
     depends_on:
       - backend
       - memory-api
@@ -384,36 +387,25 @@ services:
     networks:
       - backend-net
 
-  # 8. Memory Installer - Installation and setup service (EIGHTH - setup services)
-  memory_installer:
+  # 8. API-Based Function Auto-Installer - Zero-configuration function installation
+  api-function-installer:
     build:
       context: .
-      dockerfile: Dockerfile.unified-installer
-    container_name: backend-memory-installer
-    restart: "no"
+      dockerfile: Dockerfile.api-function-installer
+    container_name: backend-api-function-installer
+    restart: "no"  # Runs once to set up persistent API-based hooks
     environment:
       - ENV=production
-      - REDIS_URL=redis://redis:6379
-      - CHROMA_URL=http://chroma:8000
       - PYTHONPATH=/app
+      - OPENWEBUI_API_URL=http://openwebui:8080
+      - ADMIN_EMAIL=admin@theroot.za.net
+      - FUNCTION_AUTO_INSTALL=true
     volumes:
       - .:/app
-      - ./storage/installer:/app/data
-      - ./memory/functions:/app/backend/data/functions:rw
+      - ./functions/filters:/app/backend/data/functions/filters:ro
+      - ./functions/tools:/app/backend/data/functions/tools:ro
       - ./storage/openwebui:/app/backend/data:rw
     depends_on:
-      redis:
-        condition: service_healthy
-      chroma:
-        condition: service_started
-      ollama:
-        condition: service_healthy
-      backend:
-        condition: service_healthy
-      memory-api:
-        condition: service_healthy
-      pipelines:
-        condition: service_healthy
       openwebui:
         condition: service_healthy
     networks:

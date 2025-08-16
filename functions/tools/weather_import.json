@@ -1,0 +1,15 @@
+{
+  "version": "1.0.0",
+  "type": "function",
+  "id": "weather_tool",
+  "name": "Universal Weather Tool",
+  "meta": {
+    "title": "Universal Weather Tool",
+    "author": "Weather Integration Team",
+    "version": "3.0.0",
+    "license": "MIT",
+    "requirements": ["duckduckgo_search"],
+    "description": "Universal weather information tool using web search. Provides weather data for Netherlands (via KNMI website search) and international locations (via general web search)."
+  },
+  "content": ""
+}

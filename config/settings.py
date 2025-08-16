@@ -51,7 +51,7 @@ class LLMSettings(BaseSettings):
     # Ollama settings
     use_ollama: bool = Field(default=True, description="Use Ollama as primary LLM")
     ollama_url: str = Field(default="http://localhost:11434", description="Ollama base URL")
-    ollama_model: str = Field(default="qwen3:4b", description="Default Ollama model")
+    ollama_model: str = Field(default="hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M", description="Default Ollama model")
     ollama_timeout: int = Field(default=300, description="Ollama request timeout")
     
     # OpenAI settings (fallback)

@@ -78,13 +78,14 @@
     },
     
     "optimization": {
-      "target_models": ["small_llm", "3b_models", "orange_pi_compatible"],
+      "target_models": ["small_llm", "3b_models", "4b_models", "qwen3", "orange_pi_compatible"],
       "context_efficiency": "high", 
       "token_usage": "minimal",
-      "response_speed": "fast"
+      "response_speed": "fast",
+      "qwen3_optimized": true
     }
   },
   
-  "updated": "2025-08-14T08:40:00.000Z",
-  "version": "3.1.0_weather_tools_integrated"
+  "updated": "2025-08-16T19:40:00.000Z",
+  "version": "3.1.1_qwen3_optimized"
 }

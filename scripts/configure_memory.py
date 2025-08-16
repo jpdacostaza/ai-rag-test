@@ -35,7 +35,7 @@ def print_configuration_guide():
     print("   - Wait for all services to be healthy")
     
     print("\n3.  Test with ANY Model:")
-    print("   - Open a new chat with qwen3:4b")
+    print("   - Open a new chat with Qwen3-4B")
     print("   - Say: 'Hello, my name is J.P. and I work at Swift'")
     print("   - Then ask: 'What do you remember about me?'")
     print("   - The model should remember your name and job")

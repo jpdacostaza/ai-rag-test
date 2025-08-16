@@ -86,10 +86,10 @@ async def get_weather(city: str = "London") -> str:
     # First try the universal weather tool (handles both Netherlands and international)
     try:
         logger.info(f"[WeatherTool] Using universal weather tool for: {city}")
-        from tools.weather_tool import Action
+        from functions.tools.weather_tool import Action
         weather_action = Action()
         result = await weather_action.run(city, include_forecast=False)
-        if result and not result.startswith("Error") and not result.startswith("Unable") and not result.startswith("❌"):
+        if result and not result.startswith("Error") and not result.startswith("Unable") and not result.startswith("***ERROR"):
             return result
         logger.warning(f"[WeatherTool] Universal weather tool failed for {city}, falling back to other providers")
     except Exception as e:

@@ -49,8 +49,8 @@ except ImportError:
 OLLAMA_API = "http://ollama:11434"
 OPENWEBUI_API = "http://openwebui:8080"
 OPENWEBUI_DB_PATH = "/ap./storage/openwebui/webui.db"
-MEMORY_FUNCTION_PATH = "/app/memory/functions/enhanced_memory_function_filter_v5_1_final.py"
-DEFAULT_MODEL = "qwen3:4b"
+MEMORY_FUNCTION_PATH = "/app/functions/filters/enhanced_memory_function_filter_v5_1_final.py"
+DEFAULT_MODEL = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"
 FALLBACK_MODELS = ["phi3:mini", "gemma2:2b"]
 MAX_RETRIES = 20
 RETRY_DELAY = 15

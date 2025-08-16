@@ -96,10 +96,6 @@ class Filter:
         """Extract identity facts from a text segment"""
         facts = []
         
-    def _extract_facts_from_text(self, text: str) -> List[Dict[str, Any]]:
-        """Extract identity facts from a text segment"""
-        facts = []
-        
         # More comprehensive name patterns - only for declarative statements
         name_patterns = [
             r"(?:my name is|i am|i'm|call me|name's)\s+([A-Z][A-Za-z\.]*(?:\s+[A-Z][A-Za-z\.]*)*)",
@@ -203,6 +199,10 @@ class Filter:
             memory_data = {
                 "user_id": user_id,
                 "content": content,
+                "context": metadata.get("context", ""),
+                "importance": metadata.get("importance", 0.5),
+                "forced": False,
+                "source": "openwebui_enhanced_filter_v5.1",
                 "metadata": {
                     **metadata,
                     "timestamp": datetime.now().isoformat(),
@@ -359,7 +359,7 @@ class Filter:
         
         if memories:
             # Create memory context for the AI
-            memory_context = "Previous memories about this user:\n"
+            memory_context = "\n\n**IMPORTANT MEMORY CONTEXT - ACKNOWLEDGE AND USE THIS INFORMATION:**\n"
             
             for i, memory in enumerate(memories):
                 content = memory.get("content", "")
@@ -368,17 +368,34 @@ class Filter:
                 importance = metadata.get("importance", 0.5)
                 similarity = memory.get("similarity_score", 0)
                 
-                memory_context += f"{i+1}. [{memory_type.upper()}] {content} (relevance: {similarity:.2f}, importance: {importance})\n"
+                memory_context += f"• [{memory_type.upper()}] {content} (relevance: {similarity:.2f})\n"
             
-            # Add memory context as a system message
-            memory_message = {
-                "role": "system",
-                "content": memory_context
-            }
+            memory_context += "\n**CRITICAL: You MUST acknowledge this information about the user and use it naturally in your response. When users ask 'what do you know about me', reference this information directly.**\n"
             
-            # Insert memory context before the last user message
-            body["messages"].insert(-1, memory_message)
-            self._log(f"Added memory context with {len(memories)} memories")
+            # Find and enhance the system message instead of adding a separate one
+            system_message_found = False
+            for message in body["messages"]:
+                if message.get("role") == "system":
+                    # Enhance existing system message with memory context
+                    message["content"] = message["content"] + memory_context
+                    system_message_found = True
+                    self._log(f"Enhanced existing system message with {len(memories)} memories")
+                    break
+            
+            # If no system message exists, create one with memory context
+            if not system_message_found:
+                enhanced_system_prompt = f"""You are a helpful AI assistant with memory capabilities.
+
+{memory_context}
+
+Please assist the user with their request while naturally incorporating any relevant information you know about them."""
+                
+                memory_message = {
+                    "role": "system", 
+                    "content": enhanced_system_prompt
+                }
+                body["messages"].insert(0, memory_message)
+                self._log(f"Created new system message with {len(memories)} memories")
         else:
             self._log("No relevant memories found")
         
