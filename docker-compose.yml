@@ -236,7 +236,10 @@ services:
       - MEDIUM_TERM_TTL=43200
       - LONG_TERM_TTL=86400
     volumes:
-      - .:/app
+      - ./memory:/app/memory
+      - ./config:/app/config
+      - ./core:/app/core
+      - ./utilities:/app/utilities
       - ./storage/openwebui:/ap./storage/openwebui
     depends_on:
       redis:
@@ -401,7 +404,7 @@ services:
       - ADMIN_EMAIL=admin@theroot.za.net
       - FUNCTION_AUTO_INSTALL=true
     volumes:
-      - .:/app
+      - ./scripts:/app/scripts:ro
       - ./functions/filters:/app/backend/data/functions/filters:ro
       - ./functions/tools:/app/backend/data/functions/tools:ro
       - ./storage/openwebui:/app/backend/data:rw
@@ -452,7 +455,7 @@ services:
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
     volumes:
-      - .:/app
+      - ./core:/app/core
       - ./storage/gateway:/app/data
       - ./config:/app/config
     depends_on:
