@@ -142,13 +142,19 @@ class MemoryAPIClient:
             content = memory_data.get("content", "")
             metadata = memory_data.get("metadata", {})
             
-            import uuid
+            # Build proper metadata for API
+            api_metadata = {
+                **metadata,
+                "timestamp": str(int(time.time())),
+                "source": "enhanced_memory_pipeline"
+            }
+            
             payload = {
                 "user_id": user_id,
                 "content": content,
-                "metadata": metadata,
-                "timestamp": str(int(time.time())),
-                "source": "enhanced_memory_pipeline"
+                "metadata": api_metadata,
+                "importance": memory_data.get("importance", 0.5),
+                "memory_type": memory_data.get("memory_type", "conversation")
             }
             
             if self.debug:

@@ -217,17 +217,27 @@ class APIMemoryProvider:
         """Store memory via API."""
         client = await self._get_client()
         
+        # Build metadata dictionary for the API
+        metadata = {
+            "user_id": entry.metadata.user_id,
+            "timestamp": entry.metadata.timestamp,
+            "source": entry.metadata.source,
+            "memory_type": entry.metadata.memory_type,
+            "context": entry.metadata.context,
+            "conversation_id": entry.metadata.conversation_id,
+            "explicit": entry.metadata.explicit
+        }
+        
         payload = {
             "user_id": entry.metadata.user_id,
             "content": entry.content,
-            "context": entry.metadata.context,
+            "metadata": metadata,
             "importance": entry.metadata.importance,
-            "forced": entry.metadata.explicit,
-            "source": entry.metadata.source
+            "memory_type": entry.metadata.memory_type
         }
         
-        # Use the correct endpoint based on whether this is an explicit memory command
-        endpoint = "/api/memory/store_explicit" if entry.metadata.explicit else "/api/memory/store"
+        # Use the standard endpoint (removed explicit endpoint since API doesn't support it)
+        endpoint = "/api/memory/store"
         response = await client.post(f"{self.api_url}{endpoint}", json=payload)
         return response.status_code == 200
     
@@ -240,7 +250,7 @@ class APIMemoryProvider:
             "user_id": query.user_id,
             "query": query.query,
             "limit": query.limit,
-            "threshold": query.threshold
+            "min_score": query.threshold  # API expects min_score, not threshold
         }
         
         response = await client.post(f"{self.api_url}/api/memory/retrieve", json=payload)
@@ -500,13 +510,24 @@ class PipelineMemoryProvider:
             memory_api_url = os.getenv('MEMORY_API_URL', 'http://memory-api:5001')
             
             client = await self._get_http_client()
+            
+            # Build proper metadata for API
+            api_metadata = {
+                "user_id": entry.metadata.user_id,
+                "timestamp": entry.metadata.timestamp,
+                "source": entry.metadata.source,
+                "memory_type": entry.metadata.memory_type,
+                "context": entry.metadata.context,
+                "conversation_id": entry.metadata.conversation_id,
+                "explicit": entry.metadata.explicit
+            }
+            
             memory_data = {
                 "user_id": entry.metadata.user_id,
                 "content": entry.content,
-                "context": entry.metadata.context or {},
+                "metadata": api_metadata,
                 "importance": entry.metadata.importance,
-                "source": entry.metadata.source,
-                "timestamp": datetime.now().isoformat()
+                "memory_type": entry.metadata.memory_type
             }
             
             response = await client.post(

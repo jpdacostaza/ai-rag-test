@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 OPENWEBUI_URL = "http://openwebui:8080"
 ADMIN_EMAIL = "admin@theroot.za.net"
 JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiY2E5ZGZkLTAxYTgtNDMwMi1iODU5LTlkNjFkMDU4ZTA2MCJ9.B11QggyALNEN9Amf2MYAinwYi6ciBfCTrwJxFb5xR9M"
-API_KEY = "sk-a057569602cb47658b73546be8474296"
+API_KEY = "sk-4df63e09e05c4baa942b4fac4223ee12"
 
 FUNCTION_DIRS = [
     "/app/backend/data/functions/filters",
@@ -81,17 +81,17 @@ def wait_for_openwebui():
                 # Test basic health endpoint
                 response = client.get(f"{OPENWEBUI_URL}/health")
                 if response.status_code == 200:
-                    log("✅ OpenWebUI health endpoint is ready!")
+                    log("[SUCCESS] OpenWebUI health endpoint is ready!")
                     
-                    # Test API access with admin token
+                    # Test API access with admin API key
                     headers = {
-                        "Authorization": f"Bearer {JWT_TOKEN}",
+                        "Authorization": f"Bearer {API_KEY}",
                         "Content-Type": "application/json"
                     }
                     
                     api_response = client.get(f"{OPENWEBUI_URL}/api/v1/functions/", headers=headers)
                     if api_response.status_code == 200:
-                        log("✅ OpenWebUI API access confirmed with admin auth!")
+                        log("[SUCCESS] OpenWebUI API access confirmed with admin auth!")
                         return True
                     else:
                         log(f"API not ready yet: {api_response.status_code}", "DEBUG")
@@ -110,7 +110,7 @@ def get_existing_functions() -> Dict[str, Dict]:
         log("Fetching existing functions from API...")
         
         headers = {
-            "Authorization": f"Bearer {JWT_TOKEN}",
+            "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -208,7 +208,7 @@ def create_function_via_api(func_data: Dict) -> bool:
         log(f"Creating function: {func_data['filename']}")
         
         headers = {
-            "Authorization": f"Bearer {JWT_TOKEN}",
+            "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -231,14 +231,14 @@ def create_function_via_api(func_data: Dict) -> bool:
             )
             
             if response.status_code in [200, 201]:
-                log(f"✅ Successfully created: {func_data['filename']}")
+                log(f"[SUCCESS] Successfully created: {func_data['filename']}")
                 return True
             else:
-                log(f"❌ Failed to create {func_data['filename']}: {response.status_code} - {response.text}", "ERROR")
+                log(f"[ERROR] Failed to create {func_data['filename']}: {response.status_code} - {response.text}", "ERROR")
                 return False
                 
     except Exception as e:
-        log(f"❌ Error creating {func_data['filename']}: {e}", "ERROR")
+        log(f"[ERROR] Error creating {func_data['filename']}: {e}", "ERROR")
         return False
 
 def update_function_via_api(func_data: Dict, existing_func_id: str) -> bool:
@@ -247,7 +247,7 @@ def update_function_via_api(func_data: Dict, existing_func_id: str) -> bool:
         log(f"Updating function: {func_data['filename']}")
         
         headers = {
-            "Authorization": f"Bearer {JWT_TOKEN}",
+            "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -270,21 +270,21 @@ def update_function_via_api(func_data: Dict, existing_func_id: str) -> bool:
             )
             
             if response.status_code in [200, 201]:
-                log(f"✅ Successfully updated: {func_data['filename']}")
+                log(f"[SUCCESS] Successfully updated: {func_data['filename']}")
                 return True
             else:
-                log(f"❌ Failed to update {func_data['filename']}: {response.status_code} - {response.text}", "ERROR")
+                log(f"[ERROR] Failed to update {func_data['filename']}: {response.status_code} - {response.text}", "ERROR")
                 return False
                 
     except Exception as e:
-        log(f"❌ Error updating {func_data['filename']}: {e}", "ERROR")
+        log(f"[ERROR] Error updating {func_data['filename']}: {e}", "ERROR")
         return False
 
 def toggle_function_active(func_id: str) -> bool:
     """Toggle function active status using the toggle endpoint."""
     try:
         headers = {
-            "Authorization": f"Bearer {JWT_TOKEN}",
+            "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -298,14 +298,43 @@ def toggle_function_active(func_id: str) -> bool:
             if response.status_code in [200, 201]:
                 response_data = response.json()
                 is_active = response_data.get("is_active", False)
-                log(f"✅ Toggled function {func_id}: is_active={is_active}")
+                log(f"[SUCCESS] Toggled function {func_id}: is_active={is_active}")
                 return True
             else:
-                log(f"❌ Failed to toggle {func_id}: {response.status_code} - {response.text}", "ERROR")
+                log(f"[ERROR] Failed to toggle {func_id}: {response.status_code} - {response.text}", "ERROR")
                 return False
                 
     except Exception as e:
-        log(f"❌ Error toggling {func_id}: {e}", "ERROR")
+        log(f"[ERROR] Error toggling {func_id}: {e}", "ERROR")
+        return False
+
+
+def toggle_function_global(func_id: str) -> bool:
+    """Toggle function global status using the global toggle endpoint."""
+    try:
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
+            response = client.post(
+                f"{OPENWEBUI_URL}/api/v1/functions/id/{func_id}/toggle/global",
+                headers=headers,
+                json={}
+            )
+            
+            if response.status_code in [200, 201]:
+                response_data = response.json()
+                is_global = response_data.get("is_global", False)
+                log(f"[SUCCESS] Toggled function {func_id}: is_global={is_global}")
+                return True
+            else:
+                log(f"[ERROR] Failed to toggle global {func_id}: {response.status_code} - {response.text}", "ERROR")
+                return False
+                
+    except Exception as e:
+        log(f"[ERROR] Error toggling global {func_id}: {e}", "ERROR")
         return False
 
 def delete_function_via_api(func_id: str, func_name: str) -> bool:
@@ -314,7 +343,7 @@ def delete_function_via_api(func_id: str, func_name: str) -> bool:
         log(f"Deleting orphaned function: {func_name}")
         
         headers = {
-            "Authorization": f"Bearer {JWT_TOKEN}",
+            "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json"
         }
         
@@ -325,14 +354,14 @@ def delete_function_via_api(func_id: str, func_name: str) -> bool:
             )
             
             if response.status_code in [200, 204]:
-                log(f"✅ Successfully deleted: {func_name}")
+                log(f"[SUCCESS] Successfully deleted: {func_name}")
                 return True
             else:
-                log(f"❌ Failed to delete {func_name}: {response.status_code} - {response.text}", "ERROR")
+                log(f"[ERROR] Failed to delete {func_name}: {response.status_code} - {response.text}", "ERROR")
                 return False
                 
     except Exception as e:
-        log(f"❌ Error deleting {func_name}: {e}", "ERROR")
+        log(f"[ERROR] Error deleting {func_name}: {e}", "ERROR")
         return False
 
 def install_or_update_functions(functions: List[Dict], existing_functions: Dict[str, Dict], stored_fingerprints: Dict[str, str], force_update: bool = False) -> tuple:
@@ -354,7 +383,7 @@ def install_or_update_functions(functions: List[Dict], existing_functions: Dict[
         needs_update = current_fingerprint != stored_fingerprint or force_update
         
         if existing_func and not needs_update:
-            log(f"✓ {func_data['filename']} - up to date", "DEBUG")
+            log(f"[SKIP] {func_data['filename']} - up to date", "DEBUG")
             success_count += 1
             continue
         
@@ -366,6 +395,8 @@ def install_or_update_functions(functions: List[Dict], existing_functions: Dict[
                 if not current_active:
                     log(f"Enabling function: {func_data['filename']}")
                     toggle_function_active(existing_func['id'])
+                    log(f"Setting global: {func_data['filename']}")
+                    toggle_function_global(existing_func['id'])
                 success_count += 1
                 updated_count += 1
             else:
@@ -375,6 +406,8 @@ def install_or_update_functions(functions: List[Dict], existing_functions: Dict[
                 # After successful creation, enable the function
                 log(f"Enabling function: {func_data['filename']}")
                 toggle_function_active(func_data["name"])
+                log(f"Setting global: {func_data['filename']}")
+                toggle_function_global(func_data["name"])
                 success_count += 1
                 created_count += 1
             else:
@@ -402,15 +435,15 @@ def cleanup_orphaned_functions(current_functions: List[Dict], existing_functions
 
 def main(force_update: bool = False):
     """Main API-based installation function."""
-    log("🚀 Starting API-Based Function Auto-Installer")
+    log("[STARTUP] Starting API-Based Function Auto-Installer")
     log("=" * 65)
     log(f"Admin: {ADMIN_EMAIL}")
     log(f"API: {OPENWEBUI_URL}")
-    log(f"🔄 Force update mode: {force_update}")
+    log(f"[CONFIG] Force update mode: {force_update}")
     
     # Wait for OpenWebUI API to be ready
     if not wait_for_openwebui():
-        log("❌ OpenWebUI API not ready, exiting", "ERROR")
+        log("[ERROR] OpenWebUI API not ready, exiting", "ERROR")
         return False
     
     # Get existing functions
@@ -420,14 +453,14 @@ def main(force_update: bool = False):
     stored_fingerprints = load_fingerprints()
     if force_update:
         # Clear stored fingerprints to force all functions to be treated as changed
-        log("🔄 Clearing stored fingerprints for force update")
+        log("[INFO] Clearing stored fingerprints for force update")
         stored_fingerprints = {}
     
     # Discover all functions
     functions = discover_functions_with_fingerprints()
     
     if not functions:
-        log("⚠️ No functions found to install")
+        log("[WARNING] No functions found to install")
         return True
     
     # Install/update functions
@@ -444,21 +477,21 @@ def main(force_update: bool = False):
     
     # Summary
     log("=" * 65)
-    log("🎯 API-Based Installation Summary:")
-    log(f"   • Functions processed: {len(functions)}")
-    log(f"   • Successfully processed: {success_count}")
-    log(f"   • Failed: {failed_count}")
-    log(f"   • Created: {created_count}")
-    log(f"   • Updated: {updated_count}")
-    log(f"   • Removed (orphaned): {removed_count}")
+    log("[SUMMARY] API-Based Installation Summary:")
+    log(f"   - Functions processed: {len(functions)}")
+    log(f"   - Successfully processed: {success_count}")
+    log(f"   - Failed: {failed_count}")
+    log(f"   - Created: {created_count}")
+    log(f"   - Updated: {updated_count}")
+    log(f"   - Removed (orphaned): {removed_count}")
     
     if failed_count == 0:
-        log("🎉 API-based installation completed successfully!")
-        log("📋 Functions are now available in OpenWebUI")
-        log("🔄 No manual intervention required")
+        log("[COMPLETE] API-based installation completed successfully!")
+        log("[INFO] Functions are now available in OpenWebUI")
+        log("[INFO] No manual intervention required")
         return True
     else:
-        log(f"⚠️ {failed_count} functions failed - but system is resilient", "WARN")
+        log(f"[WARNING] {failed_count} functions failed - but system is resilient", "WARN")
         return success_count > 0  # Partial success is OK
 
 if __name__ == "__main__":

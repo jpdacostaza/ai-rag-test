@@ -19,7 +19,7 @@ import asyncio
 # Note: CPU-only enforcement moved to environment variables and package configuration
 
 # Import modules
-from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, DEFAULT_SYSTEM_PROMPT
+from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL
 from handlers import create_exception_handlers
 
 # Initialize unified logging EARLY, before importing other modules
@@ -421,12 +421,11 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                         enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{original_content}"
                     stream_messages.append(enhanced_system_message)
                 else:
-                    # Add default persona system message with memory context
-                    system_content = DEFAULT_SYSTEM_PROMPT
+                    # No system prompts/personas - just use memory context if available
                     if memory_context:
                         memory_injections_total.inc()
-                        system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{DEFAULT_SYSTEM_PROMPT}"
-                    stream_messages.append({"role": "system", "content": system_content})
+                        system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>"
+                        stream_messages.append({"role": "system", "content": system_content})
 
                 # Add historical chat messages (maintain conversation context)
                 if history:
@@ -652,12 +651,11 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                     enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{original_content}"
                 llm_messages.append(enhanced_system_message)
             else:
-                # Add default persona system message with memory context
-                system_content = DEFAULT_SYSTEM_PROMPT
+                # No system prompts/personas - just use memory context if available
                 if memory_context:
                     memory_injections_total.inc()
-                    system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{DEFAULT_SYSTEM_PROMPT}"
-                llm_messages.append({"role": "system", "content": system_content})
+                    system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>"
+                    llm_messages.append({"role": "system", "content": system_content})
 
             # Add historical chat messages (maintain conversation context)
             if history:

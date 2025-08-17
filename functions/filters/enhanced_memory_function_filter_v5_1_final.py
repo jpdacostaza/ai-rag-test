@@ -196,18 +196,22 @@ class Filter:
         try:
             # Resolve user id
             user_id = self._resolve_user_id(body or {}, user)
+            
+            # Build proper metadata for API
+            api_metadata = {
+                **metadata,
+                "timestamp": datetime.now().isoformat(),
+                "source": "openwebui_enhanced_filter_v5.1",
+                "context": metadata.get("context", ""),
+                "explicit": False
+            }
+            
             memory_data = {
                 "user_id": user_id,
                 "content": content,
-                "context": metadata.get("context", ""),
+                "metadata": api_metadata,
                 "importance": metadata.get("importance", 0.5),
-                "forced": False,
-                "source": "openwebui_enhanced_filter_v5.1",
-                "metadata": {
-                    **metadata,
-                    "timestamp": datetime.now().isoformat(),
-                    "source": "openwebui_enhanced_filter_v5.1"
-                }
+                "memory_type": metadata.get("type", "conversation")
             }
             
             self._log(f"Attempting to store: user_id={user_id}, content='{content[:40]}...', type={metadata.get('type')}")

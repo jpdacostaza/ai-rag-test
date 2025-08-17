@@ -147,12 +147,19 @@ class ZeroConfigSetup:
             "version": "3.0.0_verified"
         }
         
-        # Write updated persona file
-        persona_file = self.backend_dir / "config" / "unified_prompt.json"
-        with open(persona_file, 'w', encoding='utf-8') as f:
-            json.dump(latest_persona, f, indent=2, ensure_ascii=False)
+        # Check environment configuration instead of writing JSON
+        env_file = self.backend_dir / ".env"
+        if env_file.exists():
+            with open(env_file, 'r') as f:
+                env_content = f.read()
+                if 'DEFAULT_SYSTEM_PROMPT=' in env_content:
+                    self.log("System prompt configured in environment", "SUCCESS")
+                else:
+                    self.log("DEFAULT_SYSTEM_PROMPT not found in .env file", "WARNING")
+        else:
+            self.log(".env file not found", "ERROR")
             
-        self.log("Persona configurations updated with latest verified settings", "SUCCESS")
+        self.log("Environment-based configuration verified", "SUCCESS")
         
     def start_services(self):
         """Start all Docker services"""

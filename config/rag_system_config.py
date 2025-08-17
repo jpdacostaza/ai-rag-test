@@ -132,11 +132,8 @@ class RAGAPIConfig:
 class RAGPersonaConfig:
     """RAG-enhanced persona configuration"""
     
-    # Persona Files
-    # Persona configuration paths - Orange Pi optimized (removed redundant files)
-    persona_unified_small_path: str = "config/persona_unified_small.json"  # Primary for Orange Pi <7B models
-    persona_new_user_path: str = "config/persona_new_user.json"            # Fallback for new users
-    persona_fallback_path: str = "config/persona.json"
+    # Persona Files - Simplified to use unified prompt only
+    unified_prompt_path: str = "config/unified_prompt.json"  # Single unified persona for all scenarios
     
     # Memory Integration
     memory_acknowledgment_required: bool = True
@@ -379,7 +376,7 @@ def validate_configuration() -> bool:
         assert rag_config.api.api_version, "API version not configured"
         
         # Check persona configuration
-        assert rag_config.persona.persona_enhanced_path, "Persona enhanced path not configured"
+        assert rag_config.persona.unified_prompt_path, "Unified prompt path not configured"
         
         return True
         

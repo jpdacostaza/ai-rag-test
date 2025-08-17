@@ -188,16 +188,10 @@ class ChatService:
             context.history = []
     
     async def _build_llm_context(self, context: ChatContext) -> tuple[str, List[Dict]]:
-        """Build system prompt and messages for LLM."""
-        from config.config_unified import DEFAULT_SYSTEM_PROMPT
+        """Build messages for LLM - no system prompts."""
+        # No system prompts/personas - using raw model
         
-        system_prompt = DEFAULT_SYSTEM_PROMPT
-        
-        # Add user profile information
-        user_context = user_profile_manager.build_context_for_llm(context.user_id)
-        if user_context:
-            system_prompt += f" User Profile Information: {user_context}"
-            logger.info(f"[PROFILE] Added user context for {context.user_id}")
+        # Don't build system prompts anymore - raw model usage only
         
         # Build conversation context
         full_context = ""
@@ -222,15 +216,15 @@ class ChatService:
             if conversation_context:
                 full_context += f"Previous conversation:\n{conversation_context}\n"
         
-        # Build messages
-        messages = [{"role": "system", "content": system_prompt}]
+        # Build messages - no system prompts
+        messages = []
         
         if full_context:
             messages.append({"role": "system", "content": full_context})
         
         messages.append({"role": "user", "content": context.message})
         
-        return system_prompt, messages
+        return "", messages  # Return empty system prompt
     
     async def _enhance_with_web_search(self, context: ChatContext, response: str) -> str:
         """Enhance response with web search if appropriate."""

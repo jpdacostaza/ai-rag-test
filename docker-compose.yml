@@ -15,7 +15,7 @@
 # ===============================================================================
 
 services:
-  # 0. Storage Initializer - Sets up directories with proper permissions (ZERO - init layer)
+  # 0. Storage Initializer - Sets up directories and script permissions (ZERO - init layer)
   storage-init:
     image: alpine:latest
     container_name: backend-storage-init
@@ -24,16 +24,26 @@ services:
       - sh
       - -c
       - |
-        echo 'Initializing storage directories...' && \
+        echo '🔧 Starting comprehensive initialization...' && \
+        echo '📁 Creating storage directories...' && \
         mkdir -p /storage/redis /storage/chroma /storage/ollama /storage/openwebui /storage/pipelines /storage/models /storage/gateway /storage/installer /storage/.cache && \
         mkdir -p /storage/backend/.cache/huggingface/transformers /storage/backend/.cache/huggingface/hub /storage/backend/.cache/huggingface/sentence_transformers && \
         chown -R 1000:1000 /storage && \
         chmod -R 755 /storage && \
         chmod -R 777 /storage/.cache /storage/models /storage/backend/.cache && \
-        echo 'Storage initialization complete!' && \
-        ls -la /storage
+        echo '✅ Storage directories initialized' && \
+        echo '🔐 Fixing script permissions...' && \
+        find /scripts -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true && \
+        find /scripts -name "*.py" -type f -exec chmod +x {} \; 2>/dev/null || true && \
+        echo '📋 Script permissions summary:' && \
+        ls -la /scripts/*.sh 2>/dev/null || echo 'No .sh files found in /scripts' && \
+        echo '✅ Script permissions fixed' && \
+        echo '📊 Storage summary:' && \
+        ls -la /storage && \
+        echo '🎯 Comprehensive initialization complete!'
     volumes:
       - ./storage:/storage
+      - ./scripts:/scripts
     networks:
       - backend-net
 
@@ -95,23 +105,33 @@ services:
     restart: always
     user: "1000:1000"
     # SIMPLIFIED CONFIGURATION FOR CROSS-PLATFORM COMPATIBILITY
-    mem_limit: 4g                   # Reduced memory limit for better compatibility
+    mem_limit: 16g                  # Increased for 3+ models (Orange Pi 5 Plus 32GB)
     volumes:
       - ./storage/ollama:/home/ubuntu/.ollama
     environment:
       - OLLAMA_HOME=/home/ubuntu/.ollama
       - OLLAMA_ORIGINS="*"
       - OLLAMA_HOST=0.0.0.0:11434
-      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-6144}                # 6GB for larger Qwen3-4B models
-      - OLLAMA_NUMA=${OLLAMA_NUMA:-false}                       # Disable NUMA for single-socket
-      # CPU optimization - UNRESTRICTED PARALLEL PROCESSING
-      # Advanced performance optimizations - PERFORMANCE FOCUSED
-      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-false} # Disable for CPU stability
-      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-f16}       # Keep f16 cache
-      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}              # Shorter keep-alive to free resources
-      # Timeout settings - EXTENDED FOR QWEN3:4B
-      - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-600}   # 10-minute timeout for Qwen3-4B
-      - OLLAMA_LOAD_TIMEOUT=${OLLAMA_LOAD_TIMEOUT:-900}         # 15-minute model load timeout
+      - OLLAMA_MAX_VRAM=${OLLAMA_MAX_VRAM:-14336}               # 14GB for 3+ models (Orange Pi 5 Plus)
+      - OLLAMA_NUMA=${OLLAMA_NUMA:-true}                        # Disable NUMA for single-socket
+      # Memory mapping configuration - OPTIMIZED FOR 32GB
+      - OLLAMA_MMAP=${OLLAMA_MMAP:-true}                        # Enable memory mapping for efficiency
+      - OLLAMA_MLOCK=${OLLAMA_MLOCK:-false}                      # Disable memory locking to allow swapping
+      - OLLAMA_USE_HUGEPAGES=1                                  # Enable huge pages for memory efficiency
+      # CPU optimization - RK3588 TUNED
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-2}           # Reduced to 2 for better single-request performance
+      - OLLAMA_NUM_THREAD=${OLLAMA_NUM_THREAD:-4}               # Use all 8 cores
+      - OLLAMA_AFFINITY=4-7                                     # Pin to Cortex-A76 big cores     
+      # Advanced performance optimizations - MULTI-MODEL FOCUSED
+      - OLLAMA_FLASH_ATTENTION=${OLLAMA_FLASH_ATTENTION:-1}     # Enable Flash Attention (MAJOR performance boost)
+      - OLLAMA_KV_CACHE_TYPE=${OLLAMA_KV_CACHE_TYPE:-q8_0}      # q8_0 cache for better memory efficiency
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-2048}    # Reduced context for better performance
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-15m}             # Longer keep-alive for multi-model usage
+      # Timeout settings - EXTENDED FOR ARM64 + MULTI-MODEL
+      - OLLAMA_REQUEST_TIMEOUT=${OLLAMA_REQUEST_TIMEOUT:-900}   # 15-minute timeout
+      - OLLAMA_LOAD_TIMEOUT=${OLLAMA_LOAD_TIMEOUT:-1200}        # 20-minute model load timeout
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-5} # Allow 5 models for 32GB RAM
+      - OLLAMA_MAX_QUEUE=${OLLAMA_MAX_QUEUE:-1024}              # Larger queue for multi-model processing
     depends_on:
       redis:
         condition: service_healthy
@@ -160,7 +180,7 @@ services:
       # Performance optimizations
       - WORKERS=4                                               # 4 worker processes
       - MAX_CONCURRENT_REQUESTS=16                              # High concurrency
-      - MEMORY_LIMIT=8G                                         # Generous memory limit
+      - MEMORY_LIMIT=10G                                         # Generous memory limit
       - LOG_REQUESTS=false
       - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
@@ -176,7 +196,7 @@ services:
       # Model preloading (enabled to ensure models available for OpenWebUI)
       - ENABLE_MODEL_PRELOAD=${ENABLE_MODEL_PRELOAD:-true}
       - ENABLE_EAGER_MODEL_LOADING=true
-      - PRELOAD_MODELS=hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M,nomic-embed-text:latest
+      - PRELOAD_MODELS=hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M,hf.co/lmstudio-community/Qwen3-4B-Thinking-2507-GGUF:Q4_K_M,nomic-embed-text:latest
     volumes:
       - .:/opt/backend
       - ./storage/.cache:/root/.cache
@@ -240,7 +260,7 @@ services:
       - ./config:/app/config
       - ./core:/app/core
       - ./utilities:/app/utilities
-      - ./storage/openwebui:/ap./storage/openwebui
+      - ./storage/openwebui:/app/storage/openwebui
     depends_on:
       redis:
         condition: service_healthy
@@ -274,12 +294,15 @@ services:
     ports:
       - "9099:9099"
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       - ENV=production
       - PIPELINES_DIR=/app/pipelines
       - USER_AGENT=OpenWebUI-Pipeline/1.0
       - CHROMA_COLLECTION=user_memory
     volumes:
+      - ./.env:/app/.env:ro
       - ./pipelines:/app/pipelines
       - ./storage/pipelines:/app/data
       - ./config:/app/config
@@ -327,6 +350,17 @@ services:
       - ENABLE_PIPELINE_FILTER=true
       - AUTO_PIPELINE_FILTER=true
       - DEFAULT_PIPELINE_ENABLED=true
+      # Disable resource-intensive features for better performance
+      - ENABLE_FOLLOW_UP_GENERATION=false
+      - ENABLE_AUTOCOMPLETE_GENERATION=false
+      - ENABLE_EVALUATION_ARENA_MODELS=false
+      - ENABLE_TAGS_GENERATION=false
+      # Additional performance and security optimizations
+      - ENABLE_MESSAGE_RATING=false
+      - ENABLE_REALTIME_CHAT_SAVE=false
+      - MODELS_CACHE_TTL=300
+      - CHAT_RESPONSE_STREAM_DELTA_CHUNK_SIZE=5
+      - THREAD_POOL_SIZE=8
       # Memory system integration
       - MEMORY_API_URL=http://memory-api:5001
       - MEMORY_AUTO_STORE=true
@@ -396,21 +430,31 @@ services:
       context: .
       dockerfile: Dockerfile.api-function-installer
     container_name: backend-api-function-installer
-    restart: "no"  # Runs once to set up persistent API-based hooks
+    restart: "no"  # Don't restart after successful completion
     environment:
       - ENV=production
       - PYTHONPATH=/app
       - OPENWEBUI_API_URL=http://openwebui:8080
-      - ADMIN_EMAIL=admin@theroot.za.net
+      - ADMIN_EMAIL=admin@localhost.local
       - FUNCTION_AUTO_INSTALL=true
+      - AUTO_DISCOVERY_ENABLED=true
     volumes:
-      - ./scripts:/app/scripts:ro
+      - ./scripts:/app/scripts:rw  # Changed to rw for auto-discovery updates
       - ./functions/filters:/app/backend/data/functions/filters:ro
       - ./functions/tools:/app/backend/data/functions/tools:ro
       - ./storage/openwebui:/app/backend/data:rw
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       openwebui:
         condition: service_healthy
+    command: ["/app/scripts/api_installer_entrypoint.sh"]
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "api_installer_entrypoint.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
     networks:
       - backend-net
 

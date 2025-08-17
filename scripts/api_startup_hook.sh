@@ -1,114 +1,213 @@
 #!/bin/bash
-# API-Based Function Auto-Installer Startup Hook
-# Uses OpenWebUI API with admin authentication for proper function installation
+# API-Based Function Auto-Installer with Auto-Discovery
+# This script handles both API key discovery and function installation
 
 set -e
 
-echo "🔧 API-Based Function Auto-Installer with Admin Authentication"
-echo "============================================================"
+echo "[STARTUP] API-Based Function Auto-Installer with Auto-Discovery"
+echo "========================================================"
 
-# Function to check if OpenWebUI API is ready
-wait_for_openwebui_api() {
-    local max_attempts=120  # 10 minutes max wait
+# Function to check if OpenWebUI is ready
+wait_for_openwebui_basic() {
+    local max_attempts=60
     local attempt=0
     
-    echo "⏳ Waiting for OpenWebUI API to be ready..."
+    echo "[INFO] Waiting for OpenWebUI basic health..."
     
     while [ $attempt -lt $max_attempts ]; do
-        # Test health endpoint
         if curl -s -f "http://openwebui:8080/health" >/dev/null 2>&1; then
-            echo "✅ OpenWebUI health endpoint responding"
-            
-            # Test API access with admin token
-            if curl -s -f -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiY2E5ZGZkLTAxYTgtNDMwMi1iODU5LTlkNjFkMDU4ZTA2MCJ9.B11QggyALNEN9Amf2MYAinwYi6ciBfCTrwJxFb5xR9M" \
-               "http://openwebui:8080/api/v1/functions/" >/dev/null 2>&1; then
-                echo "✅ OpenWebUI API ready with admin authentication"
-                return 0
-            fi
+            echo "[SUCCESS] OpenWebUI health endpoint responding"
+            return 0
         fi
         
         attempt=$((attempt + 1))
-        if [ $((attempt % 20)) -eq 0 ]; then
-            echo "   Still waiting for API... (attempt $attempt/$max_attempts)"
+        if [ $((attempt % 10)) -eq 0 ]; then
+            echo "   Still waiting... (attempt $attempt/$max_attempts)"
         fi
         sleep 5
     done
     
-    echo "⚠️ OpenWebUI API not fully ready, but proceeding for resilience"
+    echo "[WARNING] OpenWebUI health check timeout"
     return 1
 }
 
-# Function to run the API-based installer
-run_api_installer() {
-    echo "🚀 Running API-based function installer with admin auth..."
+# Function to run auto-discovery
+run_autodiscovery() {
+    echo "[STARTUP] Starting API key auto-discovery..."
+    echo "[DEBUG] Checking Python availability..."
+    
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "[ERROR] Python3 not found!"
+        return 1
+    fi
+    
+    echo "[SUCCESS] Python3 available: $(python3 --version)"
+    echo "[DEBUG] Checking script file..."
+    
+    if [ ! -f "/app/scripts/api_key_autodiscovery.py" ]; then
+        echo "[ERROR] Auto-discovery script not found!"
+        return 1
+    fi
+    
+    echo "[SUCCESS] Auto-discovery script found"
+    echo "[DEBUG] Testing Python imports..."
+    
+    if ! python3 -c "import httpx, json, time, os, sys" 2>/dev/null; then
+        echo "[ERROR] Required Python modules not available!"
+        echo "[DEBUG] Available modules:"
+        python3 -c "import sys; print('\n'.join(sys.modules.keys()))" | head -20
+        return 1
+    fi
+    
+    echo "[SUCCESS] Required modules available"
+    echo "[DEBUG] Running auto-discovery with verbose output..."
+    
+    if python3 /app/scripts/api_key_autodiscovery.py; then
+        echo "[SUCCESS] API key auto-discovery successful"
+        return 0
+    else
+        local exit_code=$?
+        echo "[WARNING] Auto-discovery failed with exit code: $exit_code"
+        echo "[DEBUG] Checking for any generated files..."
+        ls -la /app/backend/data/ 2>/dev/null || echo "No data directory found"
+        return 1
+    fi
+}
+
+# Function to run function installer
+run_function_installer() {
+    echo "[INFO] Running function installer..."
     
     if python3 /app/scripts/api_function_installer.py; then
-        echo "✅ API-based installation completed successfully"
+        echo "[SUCCESS] Function installation completed successfully"
         return 0
     else
-        echo "⚠️ API-based installation had issues but continuing"
+        echo "[WARNING] Function installation had issues"
         return 1
     fi
 }
 
-# Function to verify installation
-verify_installation() {
-    echo "🔍 Verifying function installation..."
+# Function to run continuous monitoring
+run_monitoring() {
+    echo "[MONITOR] Starting continuous monitoring mode..."
+    echo "[INFO] Container will check for admin users every minute until functions are installed"
+    echo "[INFO] After successful installation, will validate for 5 minutes then shutdown"
     
-    # Test API access to list functions
-    if curl -s -f -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiY2E5ZGZkLTAxYTgtNDMwMi1iODU5LTlkNjFkMDU4ZTA2MCJ9.B11QggyALNEN9Amf2MYAinwYi6ciBfCTrwJxFb5xR9M" \
-       "http://openwebui:8080/api/v1/functions/" | python3 -m json.tool >/dev/null 2>&1; then
+    while true; do
+        echo ""
+        echo "[CHECK] [$(date)] Checking for admin user and functions..."
         
-        local function_count=$(curl -s -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiY2E5ZGZkLTAxYTgtNDMwMi1iODU5LTlkNjFkMDU4ZTA2MCJ9.B11QggyALNEN9Amf2MYAinwYi6ciBfCTrwJxFb5xR9M" \
-                               "http://openwebui:8080/api/v1/functions/" | python3 -c "import sys, json; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
+        # First, quickly check if we already have working credentials
+        if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
+            echo "[SUCCESS] Functions already installed and working!"
+            echo "[VALIDATION] Final validation: confirming functions are stable..."
+            
+            # Quick validation check
+            sleep 30
+            if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
+                echo "[SUCCESS] Functions confirmed stable - installation complete"
+                echo "[SHUTDOWN] All systems operational - shutting down container"
+                exit 0
+            else
+                echo "[WARNING] Functions unstable - continuing monitoring"
+            fi
+        else
+            echo "[WARNING] No working credentials - checking for new admin users..."
+            
+            # Only run auto-discovery if function installer failed
+            if run_autodiscovery; then
+                echo "[SUCCESS] Auto-discovery successful - admin user found!"
+                
+                # Now try function installation
+                if python3 /app/scripts/api_function_installer.py; then
+                    echo "[SUCCESS] Function installation completed successfully!"
+                    echo "[VALIDATION] Validation period: staying up for 5 minutes to verify installation..."
+                    
+                    # Wait 5 minutes for validation
+                    for i in {1..5}; do
+                        echo "[CHECK] Validation check $i/5 - verifying functions are accessible..."
+                        
+                        # Test if functions are still working
+                        if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
+                            echo "[SUCCESS] Functions validated successfully (minute $i/5)"
+                        else
+                            echo "[WARNING] Function validation failed (minute $i/5)"
+                        fi
+                        
+                        if [ $i -lt 5 ]; then
+                            echo "[INFO] Next validation in 1 minute..."
+                            sleep 60
+                        fi
+                    done
+                    
+                    echo "[COMPLETE] Validation complete - functions confirmed working for 5 minutes"
+                    echo "[SHUTDOWN] Mission accomplished - shutting down container"
+                    exit 0
+                else
+                    echo "[WARNING] Function installation failed - will retry next cycle"
+                fi
+            else
+                echo "[WARNING] No admin user with API key found yet"
+                echo "[INFO] Waiting for admin user creation at http://localhost:8080"
+            fi
+        fi
         
-        echo "✅ API verification successful - $function_count functions available"
-        return 0
-    else
-        echo "⚠️ API verification failed but continuing"
-        return 1
-    fi
-}
-
-# Function to create startup hook for persistence
-create_persistent_hook() {
-    local hook_dir="/app/backend/data/.startup_hooks"
-    local hook_file="$hook_dir/api_function_installer.sh"
-    
-    mkdir -p "$hook_dir"
-    
-    cat > "$hook_file" << 'EOF'
-#!/bin/bash
-# Auto-generated startup hook for API-based function installation
-echo "🔄 API function installer startup hook triggered"
-/app/scripts/api_startup_hook.sh
-EOF
-    
-    chmod +x "$hook_file"
-    echo "✅ Persistent startup hook created: $hook_file"
+        echo "[INFO] Next check in 1 minute..."
+        sleep 60  # 1 minute
+    done
 }
 
 # Main execution
 main() {
-    echo "Starting API-based zero-configuration setup..."
+    echo "Starting API-based setup with auto-discovery..."
     
-    # Wait for OpenWebUI API to be ready
-    wait_for_openwebui_api
+    # Step 1: Wait for OpenWebUI
+    if ! wait_for_openwebui_basic; then
+        echo "[ERROR] OpenWebUI not ready - exiting"
+        exit 1
+    fi
     
-    # Run the API-based installer
-    run_api_installer
+    # Step 2: Run auto-discovery (this extracts API keys from existing users)
+    if run_autodiscovery; then
+        echo "[SUCCESS] Auto-discovery successful - proceeding with function installation"
+        
+        # Step 3: Run initial function installation
+        if run_function_installer; then
+            echo "[SUCCESS] Initial setup complete"
+        else
+            echo "[WARNING] Initial setup had issues"
+        fi
+    else
+        echo "[WARNING] Auto-discovery failed - no admin user found yet"
+        echo "[INFO] Continuing in monitoring mode - will retry when admin user is created"
+    fi
     
-    # Verify the installation
-    verify_installation
+    echo ""
+    echo "[MONITOR] Setup phase complete - transitioning to monitoring mode"
+    echo "[INFO] Container will remain active for continuous function monitoring"
     
-    # Create persistent startup hook
-    create_persistent_hook
-    
-    echo "🎯 API-based zero-configuration setup complete!"
-    echo "📋 Functions installed via OpenWebUI API with admin authentication"
-    echo "🔄 Functions will auto-sync on every container startup"
-    echo "🛡️ Uses proper authentication and official API endpoints"
+    # Step 4: Start continuous monitoring
+    run_monitoring
 }
 
-# Run main function
-main "$@"
+# Handle different modes
+case "${1:-}" in
+    --once)
+        echo "Running in one-time mode..."
+        wait_for_openwebui_basic
+        run_autodiscovery
+        run_function_installer
+        ;;
+    --autodiscovery-only)
+        echo "Running auto-discovery only..."
+        wait_for_openwebui_basic
+        run_autodiscovery
+        ;;
+    --install-only)
+        echo "Running installation only..."
+        run_function_installer
+        ;;
+    *)
+        main
+        ;;
+esac

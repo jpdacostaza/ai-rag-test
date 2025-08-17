@@ -114,17 +114,10 @@ class MemoryConfig:
     enable_cross_session: bool = True
     persistent_user_memory: bool = True
     
-    # System prompt
-    system_prompt: str = (
-        "You are an AI assistant with access to conversation memory and context. "
-        "When relevant information from memory is available, acknowledge and use it naturally in your responses. "
-        "If you have stored information about the user (name, workplace, preferences, etc.), reference it appropriately. "
-        "Always validate that you're incorporating memory context when it's relevant to the conversation."
-    )
+    # System prompt removed - no prompt/persona functionality needed
     
     # Pipeline settings
     max_context_length: int = 4000
-    persona_optimization: bool = True
     model_size_threshold: int = 4000000000  # 4B parameters
     
     def __post_init__(self):
@@ -142,8 +135,6 @@ class MemoryConfig:
         
         self.enable_cross_session = os.getenv("ENABLE_CROSS_SESSION_MEMORY", str(self.enable_cross_session)).lower() == "true"
         self.persistent_user_memory = os.getenv("PERSISTENT_USER_MEMORY", str(self.persistent_user_memory)).lower() == "true"
-        
-        self.system_prompt = os.getenv("MEMORY_SYSTEM_PROMPT", self.system_prompt)
 
 @dataclass
 class DatabaseConfig:
@@ -248,45 +239,7 @@ class SecurityConfig:
         if cors_origins_env:
             self.cors_origins = [origin.strip() for origin in cors_origins_env.split(",")]
 
-@dataclass
-class PersonaConfig:
-    """Persona and system prompt configuration."""
-    # Persona settings
-    use_small_model_persona: bool = True
-    small_model_context_limit: int = 2048
-    persona_optimization_mode: str = "auto"
-    
-    # System prompts
-    default_system_prompt: str = "You are a helpful AI assistant."
-    
-    def __post_init__(self):
-        # Load from environment
-        self.use_small_model_persona = os.getenv("USE_SMALL_MODEL_PERSONA", str(self.use_small_model_persona)).lower() == "true"
-        self.small_model_context_limit = int(os.getenv("SMALL_MODEL_CONTEXT_LIMIT", str(self.small_model_context_limit)))
-        self.persona_optimization_mode = os.getenv("PERSONA_OPTIMIZATION_MODE", self.persona_optimization_mode)
-        
-        # Load system prompt from file or environment
-        self.default_system_prompt = self._load_system_prompt()
-    
-    def _load_system_prompt(self) -> str:
-        """Load system prompt from config file or environment."""
-        # Try environment first
-        env_prompt = os.getenv("DEFAULT_SYSTEM_PROMPT")
-        if env_prompt:
-            return env_prompt
-        
-        # Use single unified prompt file optimized for 7B models
-        persona_file = "config/unified_prompt.json"
-        
-        try:
-            if Path(persona_file).exists():
-                with open(persona_file, "r", encoding="utf-8") as f:
-                    persona_data = json.load(f)
-                    return persona_data.get("system_prompt", self.default_system_prompt)
-        except Exception:
-            pass
-        
-        return self.default_system_prompt
+# PersonaConfig removed - no prompt/persona functionality needed
 
 @dataclass
 class LoggingConfig:
@@ -348,7 +301,6 @@ class Config:
         self.database = DatabaseConfig()
         self.service = ServiceConfig()
         self.security = SecurityConfig()
-        self.persona = PersonaConfig()
         self.logging = LoggingConfig()
         
         # Create aliases for backward compatibility
@@ -405,7 +357,6 @@ class Config:
             "database": self.database.__dict__,
             "service": self.service.__dict__,
             "security": {k: v for k, v in self.security.__dict__.items() if "secret" not in k.lower()},
-            "persona": self.persona.__dict__,
             "environment": self.environment,
             "debug": self.debug
         }
@@ -427,7 +378,7 @@ def get_config() -> Dict[str, Any]:
         },
         'memory_settings': {
             'max_context_length': config.memory.max_context_length,
-            'persona_optimization': config.memory.persona_optimization,
+            # 'persona_optimization': config.memory.persona_optimization,  # Removed
             'model_size_threshold': config.memory.model_size_threshold
         }
     }
@@ -451,7 +402,6 @@ _config = Config.get_instance()
 DEFAULT_MODEL = _config.model.default_model
 OLLAMA_BASE_URL = _config.model.ollama_base_url
 USE_OLLAMA = _config.model.use_ollama
-DEFAULT_SYSTEM_PROMPT = _config.persona.default_system_prompt
 
 # OpenAI settings
 OPENAI_API_BASE_URL = _config.model.openai_api_base_url
@@ -469,7 +419,6 @@ MEMORY_MAX_DOCUMENTS = _config.memory.max_documents
 MEMORY_HYBRID_SEARCH = _config.memory.hybrid_search
 ENABLE_CROSS_SESSION_MEMORY = _config.memory.enable_cross_session
 PERSISTENT_USER_MEMORY = _config.memory.persistent_user_memory
-MEMORY_SYSTEM_PROMPT = _config.memory.system_prompt
 
 # Timeout settings
 LLM_TIMEOUT = _config.model.llm_timeout
@@ -498,10 +447,7 @@ AUTO_PULL_MODELS = _config.model.auto_pull_models
 # Model caching
 MODEL_CACHE_TTL = _config.model.model_cache_ttl
 
-# Persona settings
-USE_SMALL_MODEL_PERSONA = _config.persona.use_small_model_persona
-SMALL_MODEL_CONTEXT_LIMIT = _config.persona.small_model_context_limit
-PERSONA_OPTIMIZATION_MODE = _config.persona.persona_optimization_mode
+# Persona settings removed - no prompt/persona functionality needed
 
 # Memory API settings
 MEMORY_API_URL = _config.memory.api_url

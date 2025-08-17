@@ -1,14 +1,16 @@
-# Dockerfile for API-Based Function Auto-Installer with Admin Authentication
+# Dockerfile for API-Based Function Auto-Installer with Auto-Discovery
 FROM python:3.11-slim
 
 # Install required packages
 RUN apt-get update && apt-get install -y \
     curl \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/* \
     && pip install httpx
 
-# Copy the API-based installer and hook scripts
+# Copy all necessary scripts
 COPY scripts/api_function_installer.py /app/scripts/api_function_installer.py
+COPY scripts/api_key_autodiscovery.py /app/scripts/api_key_autodiscovery.py
 COPY scripts/api_startup_hook.sh /app/scripts/api_startup_hook.sh
 
 # Make scripts executable
@@ -17,5 +19,5 @@ RUN chmod +x /app/scripts/api_startup_hook.sh
 # Set working directory
 WORKDIR /app
 
-# Run the API-based setup
+# Use the updated startup hook with auto-discovery
 ENTRYPOINT ["/app/scripts/api_startup_hook.sh"]
