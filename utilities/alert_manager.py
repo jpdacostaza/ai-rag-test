@@ -28,17 +28,41 @@ except ImportError:
 
     # Fallback classes for when email is not available
     class MimeText:
-        """TODO: Add proper docstring for MimeText class."""
+        """
+        Fallback class for MimeText when email module is not available.
+        
+        This is a placeholder class used when the email.mime.text module
+        cannot be imported, ensuring the application continues to function
+        without email capabilities.
+        """
 
         def __init__(self, *args, **kwargs):
-            """TODO: Add proper docstring for __init__."""
+            """
+            Initialize the fallback MimeText class.
+            
+            Args:
+                *args: Variable length argument list (ignored)
+                **kwargs: Arbitrary keyword arguments (ignored)
+            """
             pass
 
     class MimeMultipart:
-        """TODO: Add proper docstring for MimeMultipart class."""
+        """
+        Fallback class for MimeMultipart when email module is not available.
+        
+        This is a placeholder class used when the email.mime.multipart module
+        cannot be imported, ensuring the application continues to function
+        without email capabilities.
+        """
 
         def __init__(self, *args, **kwargs):
-            """TODO: Add proper docstring for __init__."""
+            """
+            Initialize the fallback MimeMultipart class.
+            
+            Args:
+                *args: Variable length argument list (ignored)
+                **kwargs: Arbitrary keyword arguments (ignored)
+            """
             pass
 
 
@@ -76,7 +100,18 @@ class Alert:
         component: str,
         metrics: Optional[Dict] = None,
         suggested_actions: Optional[List[str]] = None):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize a new Alert instance.
+        
+        Args:
+            alert_id (str): Unique identifier for this alert
+            title (str): Short descriptive title for the alert
+            message (str): Detailed alert message
+            severity (AlertSeverity): Severity level of the alert
+            component (str): System component that triggered the alert
+            metrics (Optional[Dict]): Additional metrics data related to the alert
+            suggested_actions (Optional[List[str]]): List of recommended actions to resolve the alert
+        """
         self.alert_id = alert_id
         self.title = title
         self.message = message
@@ -110,7 +145,13 @@ class AlertManager:
     """
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize the AlertManager with default configuration.
+        
+        Sets up notification channels, alert thresholds, suppression rules,
+        and escalation policies. Configures various alert delivery methods
+        including email, Slack, webhooks, and logging.
+        """
         self.alerts: Dict[str, Alert] = {}
         self.alert_history: List[Alert] = []
         self.notification_channels: Dict[AlertChannel, Dict] = {}
@@ -122,7 +163,12 @@ class AlertManager:
         self._setup_notification_channels()
 
     def _setup_default_thresholds(self):
-        """Setup default alert thresholds"""
+        """
+        Setup default alert thresholds for various system metrics.
+        
+        Configures thresholds for memory pressure, cache hit rates, response times,
+        error rates, and service downtime with medium, high, and critical severity levels.
+        """
         self.alert_thresholds = {
             "memory_pressure": {"medium": 75.0, "high": 85.0, "critical": 95.0},
             "cache_hit_rate": {
@@ -140,7 +186,13 @@ class AlertManager:
         }
 
     def _setup_notification_channels(self):
-        """Setup notification channels from environment variables"""
+        """
+        Setup notification channels from environment variables.
+        
+        Configures email (SMTP), Slack webhooks, generic webhooks, console output,
+        and logging channels based on environment variable settings. Each channel
+        can be enabled/disabled and customized through environment variables.
+        """
         self.notification_channels = {
             AlertChannel.LOG: {"enabled": True},
             AlertChannel.CONSOLE: {"enabled": True},
@@ -175,7 +227,22 @@ class AlertManager:
         metrics: Optional[Dict] = None,
         suggested_actions: Optional[List[str]] = None,
         channels: Optional[List[AlertChannel]] = None) -> Alert:
-        """Trigger a new alert"""
+        """
+        Trigger a new alert and send notifications through configured channels.
+        
+        Args:
+            alert_id (str): Unique identifier for the alert
+            title (str): Short descriptive title
+            message (str): Detailed alert message
+            severity (AlertSeverity): Alert severity level
+            component (str): System component that triggered the alert
+            metrics (Optional[Dict]): Additional metrics data
+            suggested_actions (Optional[List[str]]): Recommended actions to resolve the alert
+            channels (Optional[List[AlertChannel]]): Specific channels to use (auto-selected if None)
+            
+        Returns:
+            Alert: The created or existing alert instance
+        """
 
         # Check if alert already exists and is not resolved
         if alert_id in self.alerts and not self.alerts[alert_id].resolved:
@@ -211,7 +278,16 @@ class AlertManager:
         return alert
 
     async def resolve_alert(self, alert_id: str, resolution_message: str = "") -> bool:
-        """Resolve an existing alert"""
+        """
+        Resolve an existing alert and send resolution notification.
+        
+        Args:
+            alert_id (str): Unique identifier of the alert to resolve
+            resolution_message (str, optional): Additional resolution details
+            
+        Returns:
+            bool: True if alert was resolved successfully, False if alert not found
+        """
         if alert_id not in self.alerts:
             return False
 
@@ -237,7 +313,15 @@ class AlertManager:
         return True
 
     def _get_channels_for_severity(self, severity: AlertSeverity) -> List[AlertChannel]:
-        """Get appropriate notification channels based on severity"""
+        """
+        Get appropriate notification channels based on alert severity.
+        
+        Args:
+            severity (AlertSeverity): The severity level of the alert
+            
+        Returns:
+            List[AlertChannel]: List of channels to use for notifications based on severity
+        """
         channels = [AlertChannel.LOG, AlertChannel.CONSOLE]
 
         if severity in [AlertSeverity.HIGH, AlertSeverity.CRITICAL]:
@@ -255,7 +339,13 @@ class AlertManager:
         return channels
 
     async def _send_notifications(self, alert: Alert, channels: List[AlertChannel]):
-        """Send notifications through specified channels"""
+        """
+        Send notifications through specified channels.
+        
+        Args:
+            alert (Alert): The alert to send notifications for
+            channels (List[AlertChannel]): List of channels to send notifications through
+        """
         for channel in channels:
             try:
                 if channel == AlertChannel.LOG:
@@ -429,16 +519,35 @@ This alert was generated by the LLM Backend monitoring system.
             log_service_status("alert_manager", "error", f"Failed to send webhook alert: {str(e)}")
 
     def get_active_alerts(self) -> List[Alert]:
-        """Get all active (unresolved) alerts"""
+        """
+        Get all active (unresolved) alerts.
+        
+        Returns:
+            List[Alert]: List of all currently active alerts
+        """
         return [alert for alert in self.alerts.values() if not alert.resolved]
 
     def get_alert_history(self, hours: int = 24) -> List[Alert]:
-        """Get alert history for specified hours"""
+        """
+        Get alert history for specified time period.
+        
+        Args:
+            hours (int, optional): Number of hours back to retrieve history. Defaults to 24.
+            
+        Returns:
+            List[Alert]: List of alerts from the specified time period
+        """
         cutoff = datetime.now() - timedelta(hours=hours)
         return [alert for alert in self.alert_history if alert.timestamp >= cutoff]
 
     def get_alert_stats(self) -> Dict:
-        """Get alert statistics"""
+        """
+        Get comprehensive alert statistics and metrics.
+        
+        Returns:
+            Dict: Dictionary containing alert statistics including total counts,
+                 severity breakdown, resolution times, and top alerting components
+        """
         active_alerts = self.get_active_alerts()
         recent_alerts = self.get_alert_history(24)
 
@@ -513,7 +622,15 @@ _alert_manager = None
 
 
 def get_alert_manager() -> AlertManager:
-    """Get or create global alert manager instance"""
+    """
+    Get or create global alert manager instance.
+    
+    Implements singleton pattern to ensure only one alert manager
+    instance exists throughout the application lifecycle.
+    
+    Returns:
+        AlertManager: The global alert manager instance
+    """
     global _alert_manager
     if _alert_manager is None:
         _alert_manager = AlertManager()
@@ -522,7 +639,13 @@ def get_alert_manager() -> AlertManager:
 
 # Convenience functions for common alerts
 async def alert_memory_pressure(percentage: float, component: str = "system"):
-    """Trigger memory pressure alert"""
+    """
+    Trigger memory pressure alert based on usage percentage.
+    
+    Args:
+        percentage (float): Memory usage percentage (0-100)
+        component (str, optional): Component name experiencing memory pressure. Defaults to "system".
+    """
     alert_manager = get_alert_manager()
 
     if percentage >= 95:
@@ -546,7 +669,13 @@ async def alert_memory_pressure(percentage: float, component: str = "system"):
 
 
 async def alert_cache_performance(hit_rate: float, component: str = "cache"):
-    """Trigger cache performance alert"""
+    """
+    Trigger cache performance alert based on hit rate.
+    
+    Args:
+        hit_rate (float): Cache hit rate percentage (0-100)
+        component (str, optional): Cache component name. Defaults to "cache".
+    """
     alert_manager = get_alert_manager()
 
     if hit_rate < 10:
@@ -570,7 +699,13 @@ async def alert_cache_performance(hit_rate: float, component: str = "cache"):
 
 
 async def alert_service_down(service_name: str, duration_seconds: float):
-    """Trigger service downtime alert"""
+    """
+    Trigger service downtime alert.
+    
+    Args:
+        service_name (str): Name of the service that is down
+        duration_seconds (float): How long the service has been down in seconds
+    """
     alert_manager = get_alert_manager()
 
     if duration_seconds >= 900:  # 15 minutes

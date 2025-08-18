@@ -100,17 +100,8 @@ run_monitoring() {
         # First, quickly check if we already have working credentials
         if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
             echo "[SUCCESS] Functions already installed and working!"
-            echo "[VALIDATION] Final validation: confirming functions are stable..."
-            
-            # Quick validation check
-            sleep 30
-            if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
-                echo "[SUCCESS] Functions confirmed stable - installation complete"
-                echo "[SHUTDOWN] All systems operational - shutting down container"
-                exit 0
-            else
-                echo "[WARNING] Functions unstable - continuing monitoring"
-            fi
+            echo "[SHUTDOWN] All systems operational - exiting immediately"
+            exit 0
         else
             echo "[WARNING] No working credentials - checking for new admin users..."
             
@@ -121,27 +112,7 @@ run_monitoring() {
                 # Now try function installation
                 if python3 /app/scripts/api_function_installer.py; then
                     echo "[SUCCESS] Function installation completed successfully!"
-                    echo "[VALIDATION] Validation period: staying up for 5 minutes to verify installation..."
-                    
-                    # Wait 5 minutes for validation
-                    for i in {1..5}; do
-                        echo "[CHECK] Validation check $i/5 - verifying functions are accessible..."
-                        
-                        # Test if functions are still working
-                        if python3 /app/scripts/api_function_installer.py >/dev/null 2>&1; then
-                            echo "[SUCCESS] Functions validated successfully (minute $i/5)"
-                        else
-                            echo "[WARNING] Function validation failed (minute $i/5)"
-                        fi
-                        
-                        if [ $i -lt 5 ]; then
-                            echo "[INFO] Next validation in 1 minute..."
-                            sleep 60
-                        fi
-                    done
-                    
-                    echo "[COMPLETE] Validation complete - functions confirmed working for 5 minutes"
-                    echo "[SHUTDOWN] Mission accomplished - shutting down container"
+                    echo "[SHUTDOWN] Mission accomplished - exiting immediately"
                     exit 0
                 else
                     echo "[WARNING] Function installation failed - will retry next cycle"

@@ -72,7 +72,12 @@ class ConversationAnalyzer:
     """Analyzes conversations to extract learning patterns."""
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize the ConversationAnalyzer with predefined sentiment keywords.
+        
+        Sets up positive and negative keyword dictionaries for sentiment analysis
+        and initializes topic extraction patterns.
+        """
         self.sentiment_keywords = {
             "positive": [
                 "good",
@@ -280,7 +285,12 @@ class AdaptiveLearningSystem:
     """Main adaptive learning system that coordinates all learning components."""
 
     def __init__(self):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize the AdaptiveLearningSystem with all necessary components.
+        
+        Sets up the conversation analyzer, user pattern tracking, global patterns,
+        learning metrics storage, and knowledge expansion queue for continuous learning.
+        """
         self.analyzer = ConversationAnalyzer()
         self.user_patterns: Dict[str, Dict] = defaultdict(dict)
         self.global_patterns: Dict[str, Any] = {}

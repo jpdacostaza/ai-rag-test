@@ -294,15 +294,12 @@ services:
     ports:
       - "9099:9099"
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - ENV=production
       - PIPELINES_DIR=/app/pipelines
       - USER_AGENT=OpenWebUI-Pipeline/1.0
       - CHROMA_COLLECTION=user_memory
     volumes:
-      - ./.env:/app/.env:ro
       - ./pipelines:/app/pipelines
       - ./storage/pipelines:/app/data
       - ./config:/app/config
@@ -339,10 +336,12 @@ services:
     restart: always
     environment:
       # Route through our main backend API using the working v1 endpoint
-      - OPENAI_API_BASE_URLS=http://backend:3000/v1;http://pipelines:9099
-      - OPENAI_API_KEYS=backend-api-key;0p3n-w3bu!
-      # OLLAMA_BASE_URL disabled - forcing all requests through backend API for proper function integration
+      - OPENAI_API_BASE_URLS=http://backend:3000/v1
+      - OPENAI_API_KEYS=backend-api-key
+      # COMPLETELY DISABLE OLLAMA - force all requests through backend
       # - OLLAMA_BASE_URL=http://backend-ollama:11434
+      - OLLAMA_BASE_URL=""
+      - ENABLE_OLLAMA_API=false
       - ENABLE_FUNCTIONS=true
       - ENABLE_TOOLS=true
       - GLOBAL_TOOLS=true
@@ -396,6 +395,21 @@ services:
       - ENABLE_WEB_SEARCH=false
       - WEB_SEARCH_ENABLED=false
       - ENABLE_RAG_WEB_SEARCH=false
+      # Disable OpenWebUI system prompt injection - use backend prompts only
+      - DEFAULT_SYSTEM_PROMPT=""
+      - ENABLE_DEFAULT_SYSTEM_PROMPT=false
+      - USE_SYSTEM_PROMPT=false
+      - ENABLE_PERSONA_FEATURES=false
+      - PERSONA_OPTIMIZATION_MODE=none
+      # Force all prompts through backend
+      - PROMPT_WRAPPER_ENABLED=false
+      - INJECT_PERSONA_PROMPT=false
+      # Additional prompt override settings
+      - SYSTEM_PROMPT=""
+      - DEFAULT_MODELS_SYSTEM_PROMPT=""
+      - MODEL_SYSTEM_PROMPT_TEMPLATE=""
+      - ENABLE_MODEL_SYSTEM_PROMPT=false
+      - DISABLE_CHAT_SYSTEM_PROMPT=true
       # Suppress ChromaDB telemetry error
       - CHROMA_TELEMETRY_ENABLED=false
       - ANONYMIZED_TELEMETRY=false

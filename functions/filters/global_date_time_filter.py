@@ -75,7 +75,8 @@ class Filter:
             try:
                 timezone_name = current_datetime.astimezone().tzname()
                 timezone_info = f" ({timezone_name})"
-            except:
+            except (OSError, ValueError, AttributeError) as e:
+                # Handle timezone-related errors gracefully
                 timezone_info = ""
         
         # Create date/time context message

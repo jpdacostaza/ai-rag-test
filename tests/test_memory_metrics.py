@@ -55,7 +55,7 @@ async def test_memory_metrics_hit_and_miss():
     svc_miss = MemoryService(DummyProvider([]))
     await svc_miss.get_memories("user1", "query")
 
-    meta = MemoryMetadata(user_id="user1", timestamp="now", source="test")
+    meta = MemoryMetadata(user_id="user1", timestamp="now", source="test", importance=0.5, context="")
     entry = MemoryEntry(content="test", metadata=meta)
     svc_hit = MemoryService(DummyProvider([entry]))
     await svc_hit.get_memories("user1", "query")

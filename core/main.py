@@ -20,6 +20,7 @@ import asyncio
 
 # Import modules
 from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL
+from core.prompt_manager import prompt_manager
 from handlers import create_exception_handlers
 
 # Initialize unified logging EARLY, before importing other modules
@@ -66,11 +67,13 @@ uvicorn_main.setLevel(logging.CRITICAL)
 uvicorn_main.propagate = False
 
 # Import memory system
-# TODO: Enhanced Memory System is available via pipeline integration, not direct import
-# The memory functionality is now provided through OpenWebUI pipeline filters
-# Legacy fallback through database_manager is still available
-MEMORY_AVAILABLE = False  # Using pipeline-based memory instead
-log_service_status("MEMORY", "info", "Using Enhanced Memory Pipeline (not direct import)")
+# Enhanced Memory System is integrated via OpenWebUI pipeline filters
+# The memory functionality is provided through:
+# 1. Enhanced Memory Pipeline (pipelines/enhanced_memory_pipeline.py)
+# 2. Memory Service consolidation (services/memory_service.py)  
+# 3. Legacy fallback through database_manager for compatibility
+MEMORY_AVAILABLE = False  # Using pipeline-based memory instead of direct import
+log_service_status("MEMORY", "info", "Using Enhanced Memory Pipeline (pipeline-based integration)")
 
 # Import existing routers
 from services.model_manager import router as model_manager_router, initialize_model_cache
@@ -413,19 +416,33 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 # Add system message first (if any) with memory context injection + delimiters
                 system_messages = [m for m in messages if m.get("role") == "system"]
                 if system_messages:
-                    # Inject memory context into existing system message
+                    # Replace OpenWebUI system message with our unified prompt
                     enhanced_system_message = system_messages[0].copy()
                     original_content = enhanced_system_message.get("content", "")
+                    log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - replacing with unified prompt")
+                    log_service_status("PROMPT", "info", f"Original OpenWebUI prompt preview: {original_content[:100]}...")
+                    
+                    # Always use our unified prompt instead of OpenWebUI's prompt
+                    system_content = prompt_manager.get_unified_prompt()
+                    log_service_status("PROMPT", "info", f"Injecting unified prompt for streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                    log_service_status("PROMPT", "info", f"Our unified prompt preview: {system_content[:100]}...")
+                    
                     if memory_context:
                         memory_injections_total.inc()
-                        enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{original_content}"
+                        enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
+                        log_service_status("PROMPT", "info", f"Enhanced unified prompt with memory: total {len(enhanced_system_message['content'])} chars")
+                    else:
+                        enhanced_system_message["content"] = system_content
                     stream_messages.append(enhanced_system_message)
                 else:
-                    # No system prompts/personas - just use memory context if available
+                    # Add unified prompt system message with memory context
+                    system_content = prompt_manager.get_unified_prompt()
+                    log_service_status("PROMPT", "info", f"Injecting unified prompt for streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
                     if memory_context:
                         memory_injections_total.inc()
-                        system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>"
-                        stream_messages.append({"role": "system", "content": system_content})
+                        system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
+                        log_service_status("PROMPT", "info", f"Enhanced with memory context: total {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                    stream_messages.append({"role": "system", "content": system_content})
 
                 # Add historical chat messages (maintain conversation context)
                 if history:
@@ -442,6 +459,10 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 # Add current conversation messages (excluding system messages already added)
                 current_messages = [m for m in messages if m.get("role") != "system"]
                 stream_messages.extend(current_messages)
+
+                # Log final context composition
+                total_context_size = sum(len(msg.get("content", "")) for msg in stream_messages)
+                log_service_status("PROMPT", "info", f"Final streaming context: {len(stream_messages)} messages, {total_context_size} chars (~{total_context_size//4} tokens)")
 
                 token_count = 0
                 full_response = ""  # Collect the full response for storage
@@ -643,19 +664,31 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             # Add system message first (if any) with memory context injection + delimiters
             system_messages = [m for m in messages if m.get("role") == "system"]
             if system_messages:
-                # Inject memory context into existing system message
+                # Replace OpenWebUI system message with our unified prompt
                 enhanced_system_message = system_messages[0].copy()
                 original_content = enhanced_system_message.get("content", "")
+                log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - replacing with unified prompt")
+                
+                # Always use our unified prompt instead of OpenWebUI's prompt
+                system_content = prompt_manager.get_unified_prompt()
+                log_service_status("PROMPT", "info", f"Injecting unified prompt for non-streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                
                 if memory_context:
                     memory_injections_total.inc()
-                    enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{original_content}"
+                    enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
+                    log_service_status("PROMPT", "info", f"Enhanced unified prompt with memory: total {len(enhanced_system_message['content'])} chars")
+                else:
+                    enhanced_system_message["content"] = system_content
                 llm_messages.append(enhanced_system_message)
             else:
-                # No system prompts/personas - just use memory context if available
+                # Add unified prompt system message with memory context
+                system_content = prompt_manager.get_unified_prompt()
+                log_service_status("PROMPT", "info", f"Injecting unified prompt for non-streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
                 if memory_context:
                     memory_injections_total.inc()
-                    system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>"
-                    llm_messages.append({"role": "system", "content": system_content})
+                    system_content = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
+                    log_service_status("PROMPT", "info", f"Enhanced with memory context: total {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                llm_messages.append({"role": "system", "content": system_content})
 
             # Add historical chat messages (maintain conversation context)
             if history:
@@ -672,6 +705,10 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             # Add current conversation messages (excluding system messages already added)
             current_messages = [m for m in messages if m.get("role") != "system"]
             llm_messages.extend(current_messages)
+
+            # Log final context composition
+            total_context_size = sum(len(msg.get("content", "")) for msg in llm_messages)
+            log_service_status("PROMPT", "info", f"Final non-streaming context: {len(llm_messages)} messages, {total_context_size} chars (~{total_context_size//4} tokens)")
 
             # Circuit breaker protected LLM call
             breaker = get_llm_breaker()

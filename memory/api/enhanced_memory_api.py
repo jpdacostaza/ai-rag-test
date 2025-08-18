@@ -16,6 +16,7 @@ This file bridges the gap between the documented architecture and implementation
 """
 
 import asyncio
+import json  # Add json import
 import os
 import time
 from datetime import datetime
@@ -113,7 +114,7 @@ async def store_memory(request: MemoryStoreRequest):
         success = await memory_service.store_memory(
             user_id=request.user_id,
             content=request.content,
-            context=request.metadata or {},
+            context=json.dumps(request.metadata) if request.metadata else "",  # Convert dict to JSON string
             importance=request.importance
         )
         

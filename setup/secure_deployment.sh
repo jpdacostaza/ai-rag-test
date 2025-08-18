@@ -69,7 +69,7 @@ CHROMA_PERSIST_DIRECTORY=./storage/chroma
 
 # Ollama Configuration
 OLLAMA_BASE_URL=http://ollama:11434
-OLLAMA_MODEL=llama3.2:3b
+OLLAMA_MODEL=llama3.2:4b
 
 # Service Configuration
 BACKEND_HOST=0.0.0.0

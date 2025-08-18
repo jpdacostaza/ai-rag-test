@@ -27,7 +27,9 @@ from typing import Any, AsyncGenerator, Callable, Dict, Optional, Type, TypeVar,
 from fastapi import HTTPException
 from pydantic import BaseModel
 
-from core.unified_logging import log_service_status
+from core.unified_logging import log_service_status, get_logger
+
+logger = get_logger(__name__)
 
 
 class ErrorSeverity(Enum):
@@ -197,7 +199,7 @@ def handle_service_errors(
                     
                     # Log traceback for debugging if configured
                     if config.log_traceback:
-                        logging.error(f"[{config.service_type.value.upper()}] Traceback for {context['operation_name']}: {traceback.format_exc()}")
+                        logger.error(f"[{config.service_type.value.upper()}] Traceback for {context['operation_name']}: {traceback.format_exc()}")
                     
                     # If we have more retries, wait and continue
                     if attempt < config.max_retries:
@@ -264,7 +266,7 @@ def handle_service_errors(
                     
                     # Log traceback for debugging if configured
                     if config.log_traceback:
-                        logging.error(f"[{config.service_type.value.upper()}] Traceback for {context['operation_name']}: {traceback.format_exc()}")
+                        logger.error(f"[{config.service_type.value.upper()}] Traceback for {context['operation_name']}: {traceback.format_exc()}")
                     
                     # If we have more retries, wait and continue
                     if attempt < config.max_retries:
@@ -381,7 +383,7 @@ async def error_context(
         )
         
         if config.log_traceback:
-            logging.error(f"[{config.service_type.value.upper()}] Traceback for {operation_name}: {traceback.format_exc()}")
+            logger.error(f"[{config.service_type.value.upper()}] Traceback for {operation_name}: {traceback.format_exc()}")
         
         # Handle error according to configuration (context manager - no return values)
         if config.action == ErrorAction.RAISE or (config.severity == ErrorSeverity.CRITICAL and config.raise_on_critical):
@@ -464,7 +466,7 @@ def sync_error_context(
         )
         
         if config.log_traceback:
-            logging.error(f"[{config.service_type.value.upper()}] Traceback for {operation_name}: {traceback.format_exc()}")
+            logger.error(f"[{config.service_type.value.upper()}] Traceback for {operation_name}: {traceback.format_exc()}")
         
         # Handle error according to configuration (sync context manager - no return values)
         if config.action == ErrorAction.RAISE or (config.severity == ErrorSeverity.CRITICAL and config.raise_on_critical):

@@ -119,7 +119,7 @@ class MemoryEntry:
             source=metadata_dict.get("source", "unknown"),
             importance=metadata_dict.get("importance", 0.5),
             memory_type=metadata_dict.get("memory_type", "conversation"),
-            context=metadata_dict.get("context"),
+            context=metadata_dict.get("context", ""),  # Default to empty string, not None
             conversation_id=metadata_dict.get("conversation_id"),
             explicit=metadata_dict.get("explicit", False)
         )
@@ -385,7 +385,11 @@ class DatabaseMemoryProvider:
                     user_id=query.user_id,
                     timestamp=result.get("metadata", {}).get("timestamp", datetime.now().isoformat()),
                     source=result.get("metadata", {}).get("source", "database"),
-                    importance=result.get("metadata", {}).get("importance", 0.5)
+                    importance=result.get("metadata", {}).get("importance", 0.5),
+                    memory_type=result.get("metadata", {}).get("memory_type", "conversation"),
+                    context=result.get("metadata", {}).get("context", ""),
+                    conversation_id=result.get("metadata", {}).get("conversation_id"),
+                    explicit=result.get("metadata", {}).get("explicit", False)
                 )
                 
                 memories.append(MemoryEntry(
@@ -584,15 +588,24 @@ class PipelineMemoryProvider:
                 # Convert to MemoryEntry objects
                 memories = []
                 for mem_data in memories_data.get("memories", []):
+                    # Extract metadata properly with correct types
+                    metadata_dict = mem_data.get("metadata", {})
+                    
                     metadata = MemoryMetadata(
-                        user_id=mem_data.get("user_id"),
-                        context=mem_data.get("context", {}),
-                        importance=mem_data.get("importance", 1.0),
-                        source=mem_data.get("source", "pipeline")
+                        user_id=metadata_dict.get("user_id", mem_data.get("user_id", query.user_id)),
+                        timestamp=metadata_dict.get("timestamp", ""),
+                        source=metadata_dict.get("source", "pipeline"),
+                        importance=metadata_dict.get("importance", 1.0),
+                        memory_type=metadata_dict.get("memory_type", "conversation"),
+                        context=metadata_dict.get("context", ""),
+                        conversation_id=metadata_dict.get("conversation_id"),
+                        explicit=metadata_dict.get("explicit", False)
                     )
                     memory = MemoryEntry(
                         content=mem_data.get("content", ""),
-                        metadata=metadata
+                        metadata=metadata,
+                        similarity_score=mem_data.get("similarity_score"),
+                        distance=mem_data.get("distance")
                     )
                     memories.append(memory)
                 
@@ -863,7 +876,10 @@ class MemoryService:
             timestamp=datetime.now().isoformat(),
             source="conversation_tracking",
             memory_type="conversation",
-            conversation_id=conversation_id
+            conversation_id=conversation_id,
+            context="",  # Add missing context field
+            importance=0.5,  # Add missing importance field
+            explicit=False  # Add missing explicit field
         )
         
         entry = MemoryEntry(content=content, metadata=metadata)

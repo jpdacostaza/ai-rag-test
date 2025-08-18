@@ -12,11 +12,15 @@ Addresses Issue #5: Performance optimizations including:
 - Performance metrics collection
 """
 
-import logging
 import asyncio
 from typing import Optional, AsyncGenerator, Any
 from contextlib import asynccontextmanager
 import httpx
+
+# Unified logging
+from core.unified_logging import get_logger
+
+logger = get_logger(__name__)
 
 from utilities.simple_error_handling import handle_errors
 from utilities.enhanced_connection_pooling import pool_manager, enhanced_redis_connection
@@ -57,11 +61,11 @@ class HTTPClientManager:
                 follow_redirects=True
             )
             
-            logging.debug(f"HTTP client created with timeout={self.timeout}s, max_connections={self.max_connections}")
+            logger.debug(f"HTTP client created with timeout={self.timeout}s, max_connections={self.max_connections}")
             return self._client
             
         except Exception as e:
-            logging.error(f"Failed to create HTTP client: {e}")
+            logger.error(f"Failed to create HTTP client: {e}")
             raise
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -69,9 +73,9 @@ class HTTPClientManager:
         if self._client:
             try:
                 await self._client.aclose()
-                logging.debug("HTTP client closed successfully")
+                logger.debug("HTTP client closed successfully")
             except Exception as e:
-                logging.error(f"Error closing HTTP client: {e}")
+                logger.error(f"Error closing HTTP client: {e}")
             finally:
                 self._client = None
 
@@ -101,11 +105,11 @@ class DatabaseConnectionManager:
             else:
                 self._connection = self.connection_factory(**self.connection_params)
                 
-            logging.debug("Database connection established")
+            logger.debug("Database connection established")
             return self._connection
             
         except Exception as e:
-            logging.error(f"Failed to create database connection: {e}")
+            logger.error(f"Failed to create database connection: {e}")
             raise
     
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -120,9 +124,9 @@ class DatabaseConnectionManager:
                     else:
                         self._connection.close()
                         
-                logging.debug("Database connection closed successfully")
+                logger.debug("Database connection closed successfully")
             except Exception as e:
-                logging.error(f"Error closing database connection: {e}")
+                logger.error(f"Error closing database connection: {e}")
             finally:
                 self._connection = None
 
@@ -183,11 +187,11 @@ async def redis_connection(redis_client=None, use_enhanced_pool=True) -> AsyncGe
         # Use enhanced pooling for better performance
         try:
             async with enhanced_redis_connection() as client:
-                logging.debug("Enhanced Redis connection context entered")
+                logger.debug("Enhanced Redis connection context entered")
                 yield client
                 return
         except Exception as e:
-            logging.warning(f"Enhanced Redis pool failed, falling back to direct connection: {e}")
+            logger.warning(f"Enhanced Redis pool failed, falling back to direct connection: {e}")
     
     # Fallback to direct connection
     client = redis_client
@@ -196,16 +200,16 @@ async def redis_connection(redis_client=None, use_enhanced_pool=True) -> AsyncGe
             from services.database_manager import db_manager
             client = db_manager.redis_client if db_manager else None
         except Exception as e:
-            logging.warning(f"Could not get Redis client: {e}")
+            logger.warning(f"Could not get Redis client: {e}")
             client = None
     
     try:
         if client:
-            logging.debug("Redis connection context entered (direct)")
+            logger.debug("Redis connection context entered (direct)")
         yield client
     finally:
         if client:
-            logging.debug("Redis connection context exited")
+            logger.debug("Redis connection context exited")
 
 
 @asynccontextmanager
@@ -225,16 +229,16 @@ async def vector_connection(vector_client=None) -> AsyncGenerator[Any, None]:
             from services.database_manager import db_manager
             client = db_manager.chroma_client if db_manager else None
         except Exception as e:
-            logging.warning(f"Could not get vector client: {e}")
+            logger.warning(f"Could not get vector client: {e}")
             client = None
     
     try:
         if client:
-            logging.debug("Vector database connection context entered")
+            logger.debug("Vector database connection context entered")
         yield client
     finally:
         if client:
-            logging.debug("Vector database connection context exited")
+            logger.debug("Vector database connection context exited")
 
 
 # Utility functions for common patterns

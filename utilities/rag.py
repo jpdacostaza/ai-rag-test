@@ -18,12 +18,15 @@ def _import_pdf_lib():
     try:
         return __import__("pypdf")
     except ImportError:
-        return __import__("PyPDF2")  # fallback (deprecated)
+        try:
+            return __import__("pdfplumber")  # modern alternative
+        except ImportError:
+            raise ImportError("No PDF processing library available. Please install pypdf or pdfplumber.")
 
 PDF_PROCESSING_AVAILABLE = register_import_attempt(
     "pdf_processing",
     _import_pdf_lib,
-    "PDF document processing for RAG ingestion (pypdf preferred)"
+    "PDF document processing for RAG ingestion (pypdf or pdfplumber)"
 )
 
 from services.database_manager import db_manager

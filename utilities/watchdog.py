@@ -486,7 +486,13 @@ class SystemWatchdog:
     """Main watchdog service that orchestrates monitoring of all subsystems."""
 
     def __init__(self, config: Optional[WatchdogConfig] = None):
-        """TODO: Add proper docstring for __init__."""
+        """
+        Initialize the SystemWatchdog with configuration and monitoring subsystems.
+        
+        Args:
+            config (Optional[WatchdogConfig]): Configuration for the watchdog system.
+                                             If None, default configuration will be used.
+        """
         self.config = config or WatchdogConfig()
         self.monitors: List[SubsystemMonitor] = []
         self.health_history: Dict[str, List[ServiceHealth]] = {}
@@ -500,7 +506,8 @@ class SystemWatchdog:
                 setup_logging(level=self.config.log_level)
                 self.logger = get_logger("SystemWatchdog")
             except ImportError:
-                # Minimal fallback - no basicConfig to avoid duplicate handlers
+                # Minimal fallback - use unified logging pattern with basic setup
+                import logging
                 self.logger = logging.getLogger("SystemWatchdog")
                 if not self.logger.handlers:
                     handler = logging.StreamHandler()
@@ -509,13 +516,19 @@ class SystemWatchdog:
                     self.logger.addHandler(handler)
                     self.logger.setLevel(getattr(logging, self.config.log_level))
         else:
+            import logging
             self.logger = logging.getLogger("SystemWatchdog")
 
         # Initialize monitors
         self._initialize_monitors()
 
     def _initialize_monitors(self):
-        """Initialize all subsystem monitors."""
+        """
+        Initialize all subsystem monitors.
+        
+        Creates instances of RedisMonitor, ChromaDBMonitor, EmbeddingMonitor,
+        and OllamaMonitor, and initializes the health history tracking for each service.
+        """
         self.monitors = [
             RedisMonitor(self.config),
             ChromaDBMonitor(self.config),
@@ -528,7 +541,15 @@ class SystemWatchdog:
             self.health_history[monitor.name] = []
 
     async def check_all_systems(self) -> Dict[str, ServiceHealth]:
-        """Check health of all monitored systems."""
+        """
+        Check health of all monitored systems concurrently.
+        
+        Runs health checks for all registered monitors in parallel and collects
+        the results. Handles exceptions gracefully and maintains health history.
+        
+        Returns:
+            Dict[str, ServiceHealth]: Dictionary mapping service names to their health status
+        """
         results = {}
 
         # Run all health checks concurrently
@@ -566,7 +587,16 @@ class SystemWatchdog:
         return results
 
     def get_system_status(self) -> Dict[str, Any]:
-        """Get overall system status and statistics."""
+        """
+        Get overall system status and statistics.
+        
+        Analyzes the latest health check results to provide an overall system status,
+        including which services are healthy, degraded, or unhealthy.
+        
+        Returns:
+            Dict[str, Any]: System status including overall health, service details,
+                          unhealthy/degraded service lists, and monitoring configuration
+        """
         if not self.health_history:
             return {"status": "no_data", "message": "No health checks performed yet"}
 
@@ -598,7 +628,17 @@ class SystemWatchdog:
         }
 
     def get_service_history(self, service_name: str, hours: int = 24) -> List[ServiceHealth]:
-        """Get health history for a specific service."""
+        """
+        Get health history for a specific service within a time window.
+        
+        Args:
+            service_name (str): Name of the service to get history for
+            hours (int, optional): Number of hours back to retrieve history. Defaults to 24.
+            
+        Returns:
+            List[ServiceHealth]: List of health check results for the specified service
+                               within the time window
+        """
         if service_name not in self.health_history:
             return []
 
@@ -606,7 +646,16 @@ class SystemWatchdog:
         return [health for health in self.health_history[service_name] if health.last_check >= cutoff_time]
 
     def _get_adaptive_check_interval(self) -> int:
-        """Get adaptive check interval based on current system health."""
+        """
+        Get adaptive check interval based on current system health.
+        
+        Uses longer intervals when all services are healthy to reduce system overhead,
+        and normal intervals when issues are detected for faster response.
+        
+        Returns:
+            int: Check interval in seconds (stable_mode_interval if all healthy,
+                 normal check_interval otherwise)
+        """
         # If all services are healthy, use longer intervals to reduce overhead
         if not self.health_history:
             return self.config.check_interval
@@ -626,7 +675,13 @@ class SystemWatchdog:
             return self.config.check_interval
 
     async def start_monitoring(self):
-        """Start the watchdog monitoring loop with adaptive frequency."""
+        """
+        Start the watchdog monitoring loop with adaptive frequency.
+        
+        Continuously monitors all registered services with adaptive check intervals.
+        Uses longer intervals when all services are healthy to reduce overhead.
+        Includes startup delay to allow services to initialize properly.
+        """
         self.running = True
 
         # Initial startup delay to let services initialize
@@ -665,7 +720,14 @@ class SystemWatchdog:
                 await asyncio.sleep(self.config.check_interval)  # Fallback to normal interval on error
 
     def _store_watchdog_metrics(self, check_duration: float, healthy_count: int, total_count: int):
-        """Store watchdog performance metrics."""
+        """
+        Store watchdog performance metrics for analysis.
+        
+        Args:
+            check_duration (float): Time taken for the health check cycle in seconds
+            healthy_count (int): Number of healthy services
+            total_count (int): Total number of monitored services
+        """
         metrics = {
             "timestamp": time.time(),
             "check_duration": check_duration,
@@ -685,7 +747,15 @@ class SystemWatchdog:
         self.watchdog_metrics = [m for m in self.watchdog_metrics if m["timestamp"] > cutoff_time]
 
     def start_background_monitoring(self):
-        """Start monitoring in a background thread."""
+        """
+        Start monitoring in a background thread.
+        
+        Creates a daemon thread that runs the async monitoring loop,
+        allowing the watchdog to operate independently of the main application thread.
+        
+        Returns:
+            threading.Thread: The monitoring thread that was started
+        """
 
         def run_monitoring():
             """
@@ -706,7 +776,15 @@ _watchdog_instance = None
 
 
 def get_watchdog() -> SystemWatchdog:
-    """Get or create the global watchdog instance."""
+    """
+    Get or create the global watchdog instance.
+    
+    Implements singleton pattern for the watchdog service to ensure
+    only one instance is monitoring the system at a time.
+    
+    Returns:
+        SystemWatchdog: The global watchdog instance
+    """
     global _watchdog_instance
     if _watchdog_instance is None:
         _watchdog_instance = SystemWatchdog()
@@ -714,26 +792,65 @@ def get_watchdog() -> SystemWatchdog:
 
 
 def start_watchdog_service():
-    """Start the watchdog service in the background."""
+    """
+    Start the watchdog service in the background.
+    
+    Convenience function to initialize and start the global watchdog
+    instance in a background thread.
+    
+    Returns:
+        threading.Thread: The monitoring thread that was started
+    """
     watchdog = get_watchdog()
     return watchdog.start_background_monitoring()
 
 
 # Health check endpoint helpers
 async def get_health_status():
-    """Get current health status for API endpoints."""
+    """
+    Get current health status for API endpoints.
+    
+    Convenience function for API endpoints to retrieve the current
+    health status of all monitored services.
+    
+    Returns:
+        Dict[str, ServiceHealth]: Current health status of all services
+    """
     watchdog = get_watchdog()
     return await watchdog.check_all_systems()
 
 
 def get_system_overview():
-    """Get system overview for API endpoints."""
+    """
+    Get system overview for API endpoints.
+    
+    Convenience function for API endpoints to retrieve a comprehensive
+    overview of system health and status.
+    
+    Returns:
+        Dict[str, Any]: System overview including overall status, service details,
+                       and monitoring configuration
+    """
     watchdog = get_watchdog()
     return watchdog.get_system_status()
 
 
 if __name__ == "__main__":
     # CLI mode for testing
+    
+    try:
+        from core.unified_logging import get_logger
+        cli_logger = get_logger("SystemWatchdog-CLI")
+    except ImportError:
+        # Fallback to standard logging if unified logging not available
+        import logging
+        cli_logger = logging.getLogger("SystemWatchdog-CLI")
+        cli_logger.setLevel(logging.INFO)
+        if not cli_logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            cli_logger.addHandler(handler)
 
     async def main():
         config = WatchdogConfig(check_interval=10, enable_logging=True, log_level="DEBUG")
@@ -744,22 +861,21 @@ if __name__ == "__main__":
             await watchdog.start_monitoring()
         else:
             # Single health check
-            print("Performing single health check...")
+            cli_logger.info("Performing single health check...")
             results = await watchdog.check_all_systems()
 
-            print("\n=== SYSTEM HEALTH REPORT ===")
+            cli_logger.info("=== SYSTEM HEALTH REPORT ===")
             for service_name, health in results.items():
                 status_emoji = "[OK]" if health.status == HealthStatus.HEALTHY else "[FAIL]"
-                print(f"{status_emoji} {service_name}: {health.status.value}")
-                print(f"   Response time: {health.response_time_ms:.2f}ms")
+                cli_logger.info(f"{status_emoji} {service_name}: {health.status.value}")
+                cli_logger.info(f"   Response time: {health.response_time_ms:.2f}ms")
                 if health.error_message:
-                    print(f"   Error: {health.error_message}")
+                    cli_logger.warning(f"   Error: {health.error_message}")
                 if health.metadata:
-                    print(f"   Metadata: {health.metadata}")
-                print()
+                    cli_logger.debug(f"   Metadata: {health.metadata}")
 
             # Overall status
             status = watchdog.get_system_status()
-            print(f"Overall Status: {status['overall_status']}")
+            cli_logger.info(f"Overall Status: {status['overall_status']}")
 
     asyncio.run(main())

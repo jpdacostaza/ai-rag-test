@@ -13,10 +13,14 @@ Addresses Code Duplication Issue #3A: Database Connection Patterns
 import asyncio
 import os
 import time
-import logging
 from typing import Optional, Dict, Any, Union, Protocol, cast, TYPE_CHECKING
 from dataclasses import dataclass
 from contextlib import asynccontextmanager
+
+# Unified logging
+from core.unified_logging import get_logger
+
+logger = get_logger(__name__)
 
 # Type checking imports
 if TYPE_CHECKING:
@@ -160,13 +164,13 @@ class DatabaseConnectionFactory:
         log_message = f"[{timestamp}] [CONNECTION_FACTORY] [{service.upper()}] {message}"
         
         if level == "info":
-            logging.info(log_message)
+            logger.info(log_message)
         elif level == "warning":
-            logging.warning(log_message)
+            logger.warning(log_message)
         elif level == "error":
-            logging.error(log_message)
+            logger.error(log_message)
         else:
-            logging.debug(log_message)
+            logger.debug(log_message)
 
     async def create_redis_connection(
         self,

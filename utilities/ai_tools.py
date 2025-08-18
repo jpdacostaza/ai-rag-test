@@ -29,7 +29,20 @@ import ast
 
 
 def get_current_time(timezone: Optional[str] = None) -> str:
-    """TODO: Add proper docstring for get_current_time."""
+    """
+    Get the current time in the specified timezone or local timezone.
+    
+    Args:
+        timezone: Optional timezone string (e.g., 'America/New_York', 'UTC')
+                 If None, uses local timezone.
+    
+    Returns:
+        Formatted time string in YYYY-MM-DD HH:MM:SS TZ format
+        
+    Example:
+        >>> get_current_time("UTC")
+        '2025-08-18 14:30:45 UTC'
+    """
     try:
         if timezone:
             now = datetime.now(ZoneInfo(timezone))
@@ -43,7 +56,23 @@ def get_current_time(timezone: Optional[str] = None) -> str:
 
 # --- Tool: Weather (Open-Meteo, no API key required) ---
 def get_weather_weatherapi(city: str = "London") -> str:
-    """TODO: Add proper docstring for get_weather_weatherapi."""
+    """
+    Get current weather information for a specified city using WeatherAPI.com.
+    
+    Args:
+        city: City name to get weather for (default: "London")
+    
+    Returns:
+        Weather information string or error message
+        
+    Note:
+        Requires WEATHERAPI_KEY environment variable to be set.
+        Falls back to Open-Meteo if API key is not available.
+        
+    Example:
+        >>> get_weather_weatherapi("New York")
+        'Current weather in New York: 22°C, Clear sky'
+    """
     api_key = os.getenv("WEATHERAPI_KEY", "")
     if not api_key:
         logger.warning("[WeatherAPI] API key not set.")
@@ -57,11 +86,25 @@ def get_weather_weatherapi(city: str = "London") -> str:
         logger.debug(f"[WeatherAPI] Response: {data}")
         if resp.status_code != 200 or "error" in data:
             return f"WeatherAPI.com error: {data.get('error', {}).get('message', 'Unknown error')}"
-        c = data["current"]
-        loc = data["location"]
+        
+        # Safely access the required keys
+        current_data = data.get("current")
+        location_data = data.get("location")
+        
+        if not current_data or not location_data:
+            return f"WeatherAPI.com error: Invalid response format - missing current or location data"
+        
+        # Safely access nested data with fallbacks
+        name = location_data.get('name', 'Unknown')
+        country = location_data.get('country', 'Unknown')
+        temp_c = current_data.get('temp_c', 'N/A')
+        condition_text = current_data.get('condition', {}).get('text', 'Unknown')
+        wind_kph = current_data.get('wind_kph', 'N/A')
+        humidity = current_data.get('humidity', 'N/A')
+        
         return (
-            f"Weather in {loc['name']}, {loc['country']}: {c['temp_c']}C, "
-            f"{c['condition']['text']}, wind {c['wind_kph']} kph, humidity {c['humidity']}%"
+            f"Weather in {name}, {country}: {temp_c}C, "
+            f"{condition_text}, wind {wind_kph} kph, humidity {humidity}%"
         )
     except Exception as e:
         logger.error(f"[WeatherAPI] Exception: {e}")
@@ -597,8 +640,13 @@ def get_exchange_rate(from_currency: str, to_currency: str, amount: float = 1.0)
             response = client.get(url)
             data = response.json()
 
-        if to_currency.upper() in data["rates"]:
-            rate = data["rates"][to_currency.upper()]
+        # Safely check for rates data
+        rates_data = data.get("rates")
+        if not rates_data:
+            return f"Exchange rate data not available for {from_currency.upper()}"
+            
+        if to_currency.upper() in rates_data:
+            rate = rates_data[to_currency.upper()]
             converted_amount = amount * rate
             return f"{amount} {from_currency.upper()} = {converted_amount:.2f} {to_currency.upper()} (Rate: {rate:.4f})"
         else:

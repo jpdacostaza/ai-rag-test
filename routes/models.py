@@ -16,8 +16,32 @@ from utilities.error_patterns import handle_api_errors, handle_service_errors, E
 
 models_router = APIRouter()
 
-# Model cache
-_model_cache: Dict = {"data": [], "last_updated": 0, "ttl": MODEL_CACHE_TTL}
+# Improved model cache with proper TTL handling
+class ModelCache:
+    def __init__(self, ttl: int):
+        self.data = []
+        self.last_updated = 0
+        self.ttl = ttl
+    
+    def is_expired(self) -> bool:
+        """Check if cache has expired."""
+        return (time.time() - self.last_updated) >= self.ttl
+    
+    def update(self, data: list):
+        """Update cache with new data."""
+        self.data = data
+        self.last_updated = time.time()
+    
+    def get(self) -> list:
+        """Get cached data if not expired, otherwise return empty list."""
+        return self.data if not self.is_expired() else []
+    
+    def clear(self):
+        """Clear the cache."""
+        self.data = []
+        self.last_updated = 0
+
+_model_cache = ModelCache(MODEL_CACHE_TTL)
 
 
 @handle_service_errors(
@@ -30,11 +54,11 @@ async def refresh_model_cache(force: bool = False):
     """Refresh the model cache from Ollama."""
     global _model_cache
 
-    current_time = time.time()
-    # Check if refresh is needed
-    if not force and (current_time - _model_cache["last_updated"]) < _model_cache["ttl"]:
+    # Check if refresh is needed using improved cache logic
+    if not force and not _model_cache.is_expired():
         log_service_status("MODELS", "info", "Model cache is still fresh, skipping refresh")
-        return [model["id"] for model in _model_cache["data"]] if _model_cache["data"] else []
+        cached_data = _model_cache.get()
+        return [model["id"] for model in cached_data] if cached_data else []
 
     ollama_url = OLLAMA_BASE_URL
 
@@ -61,15 +85,15 @@ async def refresh_model_cache(force: bool = False):
                 }
                 models.append(openai_model)
 
-            # Update cache
-            _model_cache["data"] = models
-            _model_cache["last_updated"] = current_time
+            # Update cache using improved cache logic
+            _model_cache.update(models)
 
             log_service_status("MODELS", "ready", f"Refreshed model cache with {len(models)} models")
             return [model["id"] for model in models]  # Return just the model names for compatibility
         else:
             log_service_status("MODELS", "warning", f"Failed to fetch models: HTTP {response.status_code}")
-            return [model["id"] for model in _model_cache["data"]]  # Return cached data on failure
+            cached_data = _model_cache.get()
+            return [model["id"] for model in cached_data]  # Return cached data on failure
 
 
 @models_router.get("/v1/models")
@@ -83,7 +107,7 @@ async def list_models():
     await refresh_model_cache(force=True)
 
     # Temporary workaround: ensure Mistral model is included if it exists in Ollama
-    models_data = _model_cache["data"].copy()
+    models_data = _model_cache.get().copy()
     mistral_exists = any(model["id"] == "mistral:7b-instruct-v0.3-q4_k_m" for model in models_data)
     logging.info(f"[MODELS DEBUG] Cache has {len(models_data)} models, Mistral exists: {mistral_exists}")
     logging.info(f"[MODELS DEBUG] Using OLLAMA_BASE_URL: {OLLAMA_BASE_URL}")

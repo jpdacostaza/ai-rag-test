@@ -121,7 +121,8 @@ def wait_for_openwebui_setup():
                             if len(users) > 0:
                                 log(f"[SUCCESS] OpenWebUI has {len(users)} existing users")
                                 return True
-                        except:
+                        except (ValueError, TypeError, KeyError) as e:
+                            log(f"[DEBUG] Failed to parse users response: {e}")
                             pass
                 except httpx.RequestError as e:
                     log(f"[DEBUG] API request failed: {e}")

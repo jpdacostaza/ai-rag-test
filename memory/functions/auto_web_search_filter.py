@@ -92,6 +92,19 @@ class Filter:
 
         # Check triggers
         lowered = content.lower()
+        
+        # EXCLUDE meta-questions about the assistant's own capabilities
+        capability_questions = [
+            "do you have", "can you", "are you able", "do you access", "can you access",
+            "your capabilities", "your ability", "what can you do", "internet access",
+            "real-time access", "real time access", "live access", "data access"
+        ]
+        
+        is_capability_question = any(cap_q in lowered for cap_q in capability_questions)
+        if is_capability_question:
+            print(f"{PRINT_PREFIX} SKIPPING: Capability question detected - '{content[:100]}'")
+            return body
+        
         is_forced = any(kw in lowered for kw in self.valves.force_keywords)
         is_triggered = is_forced or any(kw in lowered for kw in self.valves.trigger_keywords)
         

@@ -54,7 +54,14 @@ class EmbeddingProvider(Enum):
 class ModelConfig:
     """Model and LLM configuration."""
     # Primary model settings
-    default_model: str = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"  # Upgraded to Qwen3 4B parameter model
+    default_model: str = "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M"  # Primary Qwen3 4B Instruct model
+    
+    # Preferred 4B models in order of preference
+    preferred_4b_models: List[str] = field(default_factory=lambda: [
+        "hf.co/lmstudio-community/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M",  # Primary: Instruct optimized
+        "hf.co/lmstudio-community/Qwen3-4B-Thinking-2507-GGUF:Q4_K_M",  # Alternative: Thinking optimized
+    ])
+    
     provider: ModelProvider = ModelProvider.OLLAMA
     
     # Ollama settings
@@ -93,6 +100,14 @@ class ModelConfig:
         
         self.model_cache_ttl = int(os.getenv("MODEL_CACHE_TTL", str(self.model_cache_ttl)))
         self.auto_pull_models = os.getenv("AUTO_PULL_MODELS", str(self.auto_pull_models)).lower() == "true"
+    
+    def get_preferred_4b_models(self) -> List[str]:
+        """Get the list of preferred 4B models in order of preference."""
+        return self.preferred_4b_models.copy()
+    
+    def get_fallback_model(self) -> str:
+        """Get the fallback model if default is unavailable."""
+        return self.preferred_4b_models[1] if len(self.preferred_4b_models) > 1 else self.default_model
 
 @dataclass
 class MemoryConfig:
@@ -114,10 +129,17 @@ class MemoryConfig:
     enable_cross_session: bool = True
     persistent_user_memory: bool = True
     
-    # System prompt removed - no prompt/persona functionality needed
+    # System prompt
+    system_prompt: str = (
+        "You are an AI assistant with access to conversation memory and context. "
+        "When relevant information from memory is available, acknowledge and use it naturally in your responses. "
+        "If you have stored information about the user (name, workplace, preferences, etc.), reference it appropriately. "
+        "Always validate that you're incorporating memory context when it's relevant to the conversation."
+    )
     
     # Pipeline settings
     max_context_length: int = 4000
+    persona_optimization: bool = True
     model_size_threshold: int = 4000000000  # 4B parameters
     
     def __post_init__(self):
@@ -135,6 +157,8 @@ class MemoryConfig:
         
         self.enable_cross_session = os.getenv("ENABLE_CROSS_SESSION_MEMORY", str(self.enable_cross_session)).lower() == "true"
         self.persistent_user_memory = os.getenv("PERSISTENT_USER_MEMORY", str(self.persistent_user_memory)).lower() == "true"
+        
+        self.system_prompt = os.getenv("MEMORY_SYSTEM_PROMPT", self.system_prompt)
 
 @dataclass
 class DatabaseConfig:
@@ -239,7 +263,50 @@ class SecurityConfig:
         if cors_origins_env:
             self.cors_origins = [origin.strip() for origin in cors_origins_env.split(",")]
 
-# PersonaConfig removed - no prompt/persona functionality needed
+@dataclass
+class PersonaConfig:
+    """Persona and system prompt configuration."""
+    # Model optimization settings
+    use_4b_model_optimization: bool = True
+    model_context_limit: int = 2048
+    optimization_mode: str = "4b_optimized"
+    
+    # System prompts - delegated to PromptManager
+    default_system_prompt: str = "You are a helpful AI assistant."
+    
+    def __post_init__(self):
+        # Load from environment
+        self.use_4b_model_optimization = os.getenv("USE_4B_MODEL_OPTIMIZATION", str(self.use_4b_model_optimization)).lower() == "true"
+        self.model_context_limit = int(os.getenv("MODEL_CONTEXT_LIMIT", str(self.model_context_limit)))
+        self.optimization_mode = os.getenv("OPTIMIZATION_MODE", self.optimization_mode)
+        
+        # Load system prompt from PromptManager for consistency
+        try:
+            from core.prompt_manager import prompt_manager
+            self.default_system_prompt = prompt_manager.get_default_prompt()
+        except ImportError:
+            # Fallback if PromptManager not available
+            self.default_system_prompt = self._load_system_prompt()
+    
+    def _load_system_prompt(self) -> str:
+        """Legacy fallback system prompt loading method."""
+        # Try environment first
+        env_prompt = os.getenv("DEFAULT_SYSTEM_PROMPT")
+        if env_prompt:
+            return env_prompt
+        
+        # Use single unified prompt file optimized for 7B models
+        persona_file = "config/unified_prompt.json"
+        
+        try:
+            if Path(persona_file).exists():
+                with open(persona_file, "r", encoding="utf-8") as f:
+                    persona_data = json.load(f)
+                    return persona_data.get("system_prompt", self.default_system_prompt)
+        except Exception:
+            pass
+        
+        return self.default_system_prompt
 
 @dataclass
 class LoggingConfig:
@@ -301,6 +368,7 @@ class Config:
         self.database = DatabaseConfig()
         self.service = ServiceConfig()
         self.security = SecurityConfig()
+        self.persona = PersonaConfig()
         self.logging = LoggingConfig()
         
         # Create aliases for backward compatibility
@@ -357,6 +425,7 @@ class Config:
             "database": self.database.__dict__,
             "service": self.service.__dict__,
             "security": {k: v for k, v in self.security.__dict__.items() if "secret" not in k.lower()},
+            "persona": self.persona.__dict__,
             "environment": self.environment,
             "debug": self.debug
         }
@@ -378,7 +447,7 @@ def get_config() -> Dict[str, Any]:
         },
         'memory_settings': {
             'max_context_length': config.memory.max_context_length,
-            # 'persona_optimization': config.memory.persona_optimization,  # Removed
+            'persona_optimization': config.memory.persona_optimization,
             'model_size_threshold': config.memory.model_size_threshold
         }
     }
@@ -400,8 +469,10 @@ _config = Config.get_instance()
 
 # Legacy compatibility exports
 DEFAULT_MODEL = _config.model.default_model
+PREFERRED_4B_MODELS = _config.model.preferred_4b_models
 OLLAMA_BASE_URL = _config.model.ollama_base_url
 USE_OLLAMA = _config.model.use_ollama
+DEFAULT_SYSTEM_PROMPT = _config.persona.default_system_prompt
 
 # OpenAI settings
 OPENAI_API_BASE_URL = _config.model.openai_api_base_url
@@ -419,6 +490,7 @@ MEMORY_MAX_DOCUMENTS = _config.memory.max_documents
 MEMORY_HYBRID_SEARCH = _config.memory.hybrid_search
 ENABLE_CROSS_SESSION_MEMORY = _config.memory.enable_cross_session
 PERSISTENT_USER_MEMORY = _config.memory.persistent_user_memory
+MEMORY_SYSTEM_PROMPT = _config.memory.system_prompt
 
 # Timeout settings
 LLM_TIMEOUT = _config.model.llm_timeout
@@ -447,7 +519,10 @@ AUTO_PULL_MODELS = _config.model.auto_pull_models
 # Model caching
 MODEL_CACHE_TTL = _config.model.model_cache_ttl
 
-# Persona settings removed - no prompt/persona functionality needed
+# Persona settings
+USE_4B_MODEL_OPTIMIZATION = _config.persona.use_4b_model_optimization
+MODEL_CONTEXT_LIMIT = _config.persona.model_context_limit
+OPTIMIZATION_MODE = _config.persona.optimization_mode
 
 # Memory API settings
 MEMORY_API_URL = _config.memory.api_url
@@ -457,3 +532,11 @@ MEMORY_API_BASE_URL = f"{_config.memory.api_url}:{_config.memory.api_port}"
 # Security settings
 API_KEY = _config.security.api_key
 JWT_SECRET = _config.security.jwt_secret
+
+# Default system prompt - provided by PromptManager for consistency
+try:
+    from core.prompt_manager import prompt_manager
+    DEFAULT_SYSTEM_PROMPT = prompt_manager.get_default_prompt()
+except ImportError:
+    # Fallback if PromptManager not available during initialization
+    DEFAULT_SYSTEM_PROMPT = _config.persona.default_system_prompt

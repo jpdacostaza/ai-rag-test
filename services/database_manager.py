@@ -657,7 +657,15 @@ class DatabaseManager:
         """Get chat history from Redis."""
 
         async def get_operation(redis_client: redis.Redis) -> List[Dict[str, Any]]:
-            """TODO: Add proper docstring for get_operation."""
+            """
+            Inner operation function to retrieve chat history from Redis.
+            
+            Args:
+                redis_client (redis.Redis): Redis client instance
+                
+            Returns:
+                List[Dict[str, Any]]: List of chat history entries
+            """
             chat_key = f"chat:{chat_id}"
             try:
                 # lrange returns a list of bytes or str
@@ -699,7 +707,15 @@ class DatabaseManager:
         """Store a chat entry in Redis."""
 
         async def store_operation(redis_client: redis.Redis) -> bool:
-            """TODO: Add proper docstring for store_operation."""
+            """
+            Inner operation function to store a chat entry in Redis.
+            
+            Args:
+                redis_client (redis.Redis): Redis client instance
+                
+            Returns:
+                bool: True if operation completed successfully
+            """
             chat_key = f"chat:{chat_id}"
             await redis_client.lpush(chat_key, json.dumps(chat_entry))
             log_service_status(

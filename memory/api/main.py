@@ -30,6 +30,36 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
 CHROMA_HOST = os.getenv("CHROMA_HOST", "chroma")
 CHROMA_PORT = int(os.getenv("CHROMA_PORT", "8000"))
 
+def sanitize_metadata_for_chroma(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Sanitize metadata for ChromaDB compatibility.
+    ChromaDB only accepts: str, int, float, bool values.
+    """
+    sanitized = {}
+    
+    for key, value in metadata.items():
+        if value is None:
+            sanitized[key] = ""
+        elif isinstance(value, (str, int, float, bool)):
+            sanitized[key] = value
+        elif isinstance(value, (list, tuple)):
+            # Convert lists/tuples to comma-separated strings
+            try:
+                sanitized[key] = ",".join(str(item) for item in value)
+            except:
+                sanitized[key] = str(value)
+        elif isinstance(value, dict):
+            # Convert dicts to JSON strings
+            try:
+                sanitized[key] = json.dumps(value)
+            except:
+                sanitized[key] = str(value)
+        else:
+            # Convert any other type to string
+            sanitized[key] = str(value)
+    
+    return sanitized
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager - no fallbacks, exact configuration only"""
@@ -226,21 +256,28 @@ async def store_memory(request: MemoryStoreRequest):
         # Store in ChromaDB if available
         if chroma_collection:
             try:
+                metadata_for_chroma = {
+                    "user_id": request.user_id,
+                    "context": request.context or "",
+                    "importance": request.importance,
+                    "source": request.source,
+                    "timestamp": timestamp,
+                    "memory_id": memory_id
+                }
+                
+                # Sanitize metadata for ChromaDB compatibility
+                sanitized_metadata = sanitize_metadata_for_chroma(metadata_for_chroma)
+                
                 chroma_collection.add(
                     documents=[request.content],
-                    metadatas=[{
-                        "user_id": request.user_id,
-                        "context": request.context or "",
-                        "importance": request.importance,
-                        "source": request.source,
-                        "timestamp": timestamp,
-                        "memory_id": memory_id
-                    }],
+                    metadatas=[sanitized_metadata],
                     ids=[memory_id]
                 )
                 storage_results.append("chromadb")
             except Exception as e:
                 logger.error(f"ChromaDB storage failed: {e}")
+                # Log the problematic metadata for debugging
+                logger.debug(f"Failed metadata: {metadata_for_chroma}")
         
         if not storage_results:
             raise HTTPException(
@@ -341,13 +378,18 @@ async def store_memory_regular(request: MemoryStoreRequest):
         # Store in ChromaDB for semantic search with full metadata
         if chroma_collection:
             try:
+                # Sanitize metadata for ChromaDB compatibility
+                sanitized_metadata = sanitize_metadata_for_chroma(full_metadata)
+                
                 chroma_collection.add(
                     documents=[request.content],
-                    metadatas=[full_metadata],
+                    metadatas=[sanitized_metadata],
                     ids=[memory_id]
                 )
             except Exception as e:
                 logger.error(f"ChromaDB storage failed: {e}")
+                # Log the problematic metadata for debugging
+                logger.debug(f"Failed metadata: {full_metadata}")
         
         return JSONResponse({
             "memory_id": memory_id,

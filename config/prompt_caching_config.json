@@ -1,0 +1,111 @@
+{
+  "prompt_caching": {
+    "version": "1.0.0",
+    "description": "Advanced prompt caching configuration based on industry best practices",
+    "settings": {
+      "enabled": true,
+      "providers": {
+        "anthropic": {
+          "enabled": true,
+          "api_key_env": "ANTHROPIC_API_KEY",
+          "default_model": "claude-3-5-sonnet-20241022",
+          "cache_control": {
+            "system_prompt_ttl": "1h",
+            "tool_definitions_ttl": "1h",
+            "conversation_ttl": "5m"
+          },
+          "beta_header": "prompt-caching-2024-07-31"
+        },
+        "openai": {
+          "enabled": true,
+          "api_key_env": "OPENAI_API_KEY",
+          "default_model": "gpt-4",
+          "cache_optimization": true
+        },
+        "ollama": {
+          "enabled": true,
+          "cache_responses": true,
+          "cache_system_prompts": true
+        }
+      },
+      "cache_strategy": {
+        "multi_tier": true,
+        "memory_cache_size": 1000,
+        "redis_cache": true,
+        "semantic_caching": true,
+        "semantic_threshold": 0.85
+      },
+      "cache_types": {
+        "system_prompt": {
+          "ttl_seconds": 3600,
+          "description": "System prompts - rarely change"
+        },
+        "user_context": {
+          "ttl_seconds": 300,
+          "description": "User context - changes frequently"
+        },
+        "conversation": {
+          "ttl_seconds": 1800,
+          "description": "Conversation context"
+        },
+        "tool_definitions": {
+          "ttl_seconds": 7200,
+          "description": "Tool definitions - change infrequently"
+        },
+        "weather": {
+          "ttl_seconds": 900,
+          "description": "Weather queries - moderate freshness"
+        },
+        "educational": {
+          "ttl_seconds": 3600,
+          "description": "Educational content - stable"
+        },
+        "time_sensitive": {
+          "ttl_seconds": 60,
+          "description": "Time-sensitive queries - short cache"
+        }
+      },
+      "optimization": {
+        "auto_cleanup": true,
+        "cleanup_interval_seconds": 300,
+        "max_cache_age_hours": 24,
+        "performance_monitoring": true,
+        "cost_tracking": true
+      },
+      "metrics": {
+        "track_hit_rates": true,
+        "track_cost_savings": true,
+        "track_token_usage": true,
+        "export_prometheus": true
+      }
+    },
+    "best_practices": {
+      "cache_structure_order": [
+        "tools",
+        "system",
+        "messages"
+      ],
+      "cache_breakpoints": {
+        "max_breakpoints": 4,
+        "automatic_prefix_checking": true,
+        "prefix_check_blocks": 20
+      },
+      "minimum_cacheable_tokens": {
+        "claude_opus": 1024,
+        "claude_sonnet": 1024,
+        "claude_haiku": 2048
+      },
+      "cost_optimization": {
+        "cache_write_multiplier": 1.25,
+        "cache_read_multiplier": 0.1,
+        "roi_threshold": 2.0
+      }
+    },
+    "implementation_notes": {
+      "anthropic_implementation": "Use cache_control markers with ephemeral type and TTL",
+      "openai_implementation": "Optimize prompt structure for automatic caching",
+      "semantic_caching": "Hash-based similarity matching for related queries",
+      "multi_tier_fallback": "Memory -> Redis -> Semantic -> LLM Provider"
+    }
+  }
+}

@@ -228,18 +228,28 @@ def test_smart_trigger():
         }
     ]
     
-    print(" Testing Smart Web Search Trigger Logic\n")
+    # Set up test logger
+    import logging
+    test_logger = logging.getLogger("SmartWebSearchTest")
+    test_logger.setLevel(logging.INFO)
+    if not test_logger.handlers:
+        handler = logging.StreamHandler()
+        formatter = logging.Formatter('%(name)s - %(levelname)s - %(message)s')
+        handler.setFormatter(formatter)
+        test_logger.addHandler(handler)
+    
+    test_logger.info("Testing Smart Web Search Trigger Logic")
     
     for i, test in enumerate(test_cases, 1):
         should_trigger, reason = should_trigger_web_search_smart(test["query"], test["response"])
         status = "[OK] PASS" if should_trigger == test["expected"] else "[FAIL] FAIL"
         
-        print(f"Test {i}: {status}")
-        print(f"Query: {test['query']}")
-        print(f"Response: {test['response'][:100]}...")
-        print(f"Expected: {test['expected']} | Got: {should_trigger}")
-        print(f"Reason: {reason}")
-        print(f"Expected Reason: {test['reason']}\n")
+        test_logger.info(f"Test {i}: {status}")
+        test_logger.info(f"Query: {test['query']}")
+        test_logger.info(f"Response: {test['response'][:100]}...")
+        test_logger.info(f"Expected: {test['expected']} | Got: {should_trigger}")
+        test_logger.info(f"Reason: {reason}")
+        test_logger.info(f"Expected Reason: {test['reason']}\n")
 
 
 if __name__ == "__main__":

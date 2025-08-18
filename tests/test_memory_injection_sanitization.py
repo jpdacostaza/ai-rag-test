@@ -12,7 +12,7 @@ class DummyProvider:
 @pytest.mark.asyncio
 async def test_memory_formatting_sanitizes_script():
     svc = MemoryService(DummyProvider())
-    mem = MemoryEntry(content="<script>alert('x')</script>Important note", metadata=MemoryMetadata(user_id="u", timestamp="t", source="s"))
+    mem = MemoryEntry(content="<script>alert('x')</script>Important note", metadata=MemoryMetadata(user_id="u", timestamp="t", source="s", importance=0.5, context=""))
     formatted = svc.format_memories_for_injection([mem])
     assert '<script>' not in formatted.lower()
     assert 'alert' not in formatted.lower() or 'script' not in formatted.lower()

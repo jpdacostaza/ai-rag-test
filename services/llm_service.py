@@ -1,5 +1,5 @@
 """
-LLM service for calling Ollama and OpenAI APIs.
+LLM service for calling Ollama and OpenAI APIs with advanced prompt caching.
 """
 
 import asyncio
@@ -25,49 +25,102 @@ from config.config_unified import (
     MAX_KEEPALIVE_CONNECTIONS)
 from utilities.error_patterns import handle_service_errors, handle_llm_errors, ErrorHandlerConfig
 from core.unified_logging import get_logger, log_function_call, log_performance, log_service_status
+from services.prompt_cache_service import prompt_cache_service
 
 
 class LLMService:
-    """Service for handling LLM API calls."""
+    """Service for handling LLM API calls with advanced prompt caching."""
 
     def __init__(self):
-        """Initializes the LLMService with configuration from config.py."""
+        """Initializes the LLMService with configuration and prompt caching."""
         self.default_model = DEFAULT_MODEL
         self.ollama_url = OLLAMA_BASE_URL
         self.use_ollama = USE_OLLAMA
         self.logger = get_logger(__name__)
         
+        # Initialize prompt caching
+        self.cache_service = prompt_cache_service
+        
         self.logger.info(
             f"LLM Service initialized - use_ollama: {self.use_ollama}, ollama_url: {self.ollama_url}, default_model: {self.default_model}"
         )
-        log_service_status("LLM", "info", f"LLM Service initialized - use_ollama: {self.use_ollama}, ollama_url: {self.ollama_url}")
+        log_service_status("LLM", "info", f"LLM Service initialized with prompt caching - use_ollama: {self.use_ollama}")
 
     async def call_llm(
         self,
         messages: List[Dict[str, Any]],
         model: Optional[str] = None,
         api_url: Optional[str] = None,
-        api_key: Optional[str] = None) -> str:
+        api_key: Optional[str] = None,
+        enable_caching: bool = True,
+        cache_type: str = "conversation") -> str:
         """
-        Calls an LLM API (Ollama or OpenAI) with the provided messages and returns the response.
+        Calls an LLM API with prompt caching support.
+        
+        Args:
+            messages: List of message dictionaries
+            model: Model name
+            api_url: API URL override
+            api_key: API key override  
+            enable_caching: Whether to use prompt caching
+            cache_type: Type of cache to use
         """
         model = model or self.default_model
 
+        # Generate cache key from messages for response caching
+        cache_key = self._generate_cache_key(messages, model)
+        
+        # Check cache first if enabled
+        if enable_caching:
+            cached_response = await self.cache_service.get_cached_prompt(
+                cache_key, model, cache_type
+            )
+            if cached_response:
+                log_service_status("LLM", "info", f"🚀 [OLLAMA] Cache hit for {model} ({cached_response.token_count} tokens saved)")
+                return cached_response.content
+
+        # Call LLM API
         if self.use_ollama:
-            return await self.call_ollama_llm(messages, model)
+            response = await self.call_ollama_llm(messages, model, enable_caching)
         else:
-            return await self.call_openai_llm(messages, model, api_url, api_key)
+            response = await self.call_openai_llm(messages, model, api_url, api_key, enable_caching)
+        
+        # Cache the response if enabled
+        if enable_caching and response:
+            await self.cache_service.cache_prompt(
+                cache_key, response, model, cache_type
+            )
+            log_service_status("LLM", "info", f"💾 [OLLAMA] Response cached for {model}")
+        
+        return response
+
+    def _generate_cache_key(self, messages: List[Dict[str, Any]], model: str) -> str:
+        """Generate cache key from messages and model."""
+        # Extract just the content for caching key
+        content_parts = []
+        for msg in messages:
+            if isinstance(msg.get('content'), str):
+                content_parts.append(f"{msg.get('role', '')}:{msg['content']}")
+        
+        combined_content = "|".join(content_parts)
+        return f"{model}:{combined_content}"
 
     @handle_llm_errors(
         operation_name="call_ollama_llm"
     )
-    async def call_ollama_llm(self, messages: List[Dict[str, Any]], model: Optional[str] = None) -> str:
+    async def call_ollama_llm(
+        self, 
+        messages: List[Dict[str, Any]], 
+        model: Optional[str] = None,
+        enable_caching: bool = True
+    ) -> str:
         """
-        Asynchronously calls the Ollama API using the chat endpoint.
+        Asynchronously calls the Ollama API using the chat endpoint with caching support.
         
         Args:
             messages: List of message dictionaries with 'role' and 'content' keys
             model: Optional model name, defaults to configured default model
+            enable_caching: Whether to enhance request with cache controls
             
         Returns:
             str: The response content from the LLM
@@ -77,9 +130,37 @@ class LLMService:
         """
         model = model or self.default_model
 
+        # Enhance messages with cache controls if enabled
+        if enable_caching:
+            # Extract system prompt if present for caching
+            system_prompt = None
+            enhanced_messages = []
+            
+            for msg in messages:
+                if msg.get('role') == 'system':
+                    system_prompt = msg.get('content', '')
+                else:
+                    enhanced_messages.append(msg)
+            
+            # Create enhanced request with cache controls
+            enhanced_request = self.cache_service.enhance_prompt_with_caching(
+                enhanced_messages, 
+                system_prompt=system_prompt
+            )
+            
+            # Use enhanced messages for Ollama (note: Ollama doesn't support cache_control directly,
+            # but we structure the request optimally for future compatibility)
+            if enhanced_request.get('system'):
+                ollama_messages = [{'role': 'system', 'content': enhanced_request['system'][0]['text']}]
+                ollama_messages.extend(enhanced_request['messages'])
+            else:
+                ollama_messages = enhanced_request['messages']
+        else:
+            ollama_messages = messages
+
         payload = {
             "model": model,
-            "messages": messages,
+            "messages": ollama_messages,
             "stream": False,
             "options": {"temperature": 0.7, "top_p": 0.9},
         }

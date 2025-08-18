@@ -6,7 +6,6 @@ Handles memory retrieval, formatting, and context injection.
 """
 
 import json
-import os
 import time
 from typing import List, Dict, Any, Optional
 
@@ -20,6 +19,15 @@ class MemoryProcessor:
     def log(self, message: str, level: str = "INFO"):
         """Log messages with consistent formatting."""
         print(f"[MEMORY PROCESSOR {level}] {message}")
+        # Also use standard logging for Docker visibility
+        import logging
+        logger = logging.getLogger(__name__)
+        if level == "ERROR":
+            logger.error(f"[MEMORY PROCESSOR] {message}")
+        elif level == "WARN":
+            logger.warning(f"[MEMORY PROCESSOR] {message}")
+        else:
+            logger.info(f"[MEMORY PROCESSOR] {message}")
     
     def extract_query_from_messages(self, messages: List[Dict[str, Any]]) -> str:
         """Extract the most recent user query for memory search, optimized for factual content."""
@@ -199,7 +207,7 @@ class MemoryProcessor:
         return original_message
     
     def detect_model_size(self, model_name: str = None, user_request_body: Dict = None) -> bool:
-        """Detect if we're using a small model - no longer affects persona selection."""
+        """Detect if we're using a 4B model that needs optimized prompts."""
         try:
             # Check direct model name parameter first
             if model_name:
@@ -208,45 +216,116 @@ class MemoryProcessor:
             elif user_request_body and isinstance(user_request_body, dict):
                 model_str = user_request_body.get("model", "").lower()
             else:
-                # Default to small model optimization for safety
+                # Default to 4B model optimization
                 return True
                 
-            # Large model indicators (7B and above) - use word boundaries for precision
+            # 4B model indicators - our target range
             import re
-            if re.search(r'\b([7-9]b|[1-9][0-9]+b|large|xl)\b', model_str):
-                return False
+            if re.search(r'\b(4b|4\.[0-9]+b|qwen|4_?b)\b', model_str):
+                return True
                 
-            # Small model indicators (3B and under including decimals)
-            if re.search(r'\b([1-3]b|3\.[0-9]+b|small|mini|lite|tiny)\b', model_str):
+            # Non-4B models - treat as unsupported but still optimize
+            if re.search(r'\b([1-3]b|[5-9]b|[1-9][0-9]+b|large|xl|small|mini|lite|tiny)\b', model_str):
+                # Log that we're using 4B optimization for non-4B models
                 return True
             
-            # Default to small model optimization for unknown models
+            # Default to 4B model optimization for unknown models
             return True
         except Exception:
             return True
     
     def create_system_message(self, memory_context: str, user_id: str, memory_quality_score: int, user_request_body: Dict = None) -> str:
-        """Create system message with only memory context - no personas/prompts."""
+        """Create an optimized system message based on memory context."""
         try:
-            # Return only memory context if available, otherwise empty
-            if memory_context and memory_context.strip():
-                # Just return the memory context without any persona/prompt wrapper
-                system_message = f"Previous conversation context:\n{memory_context}"
+            self.log(f"Creating system message for user: {user_id}", "INFO")
+            self.log(f"Memory quality score: {memory_quality_score}/10", "INFO")
+            self.log(f"Memory context length: {len(memory_context)} chars", "INFO")
+            
+            # Use the unified prompt manager for consistency
+            from core.prompt_manager import prompt_manager
+            base_prompt = prompt_manager.get_unified_prompt()
+            model_size = "unified"
+            
+            self.log(f"Retrieved base prompt: {len(base_prompt)} chars", "INFO")
+            
+            # If we have memory context, integrate it efficiently
+            if memory_context.strip():
+                self.log(f"Integrating memory context into system message", "INFO")
+                
+                # Enhanced memory integration with anti-fabrication
+                system_message = f"""{base_prompt}
+
+VERIFIED MEMORIES ABOUT THIS USER:
+{memory_context}
+
+CRITICAL INSTRUCTIONS:
+- These are REAL memories from previous conversations
+- Reference these specific details in your response
+- Say something like "I remember from our previous conversations that..." and mention specific details
+- Build on this existing knowledge naturally
+
+Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliability of the memory information."""
+                
+                total_length = len(system_message)
+                estimated_tokens = total_length // 4
+                context_usage_2k = (estimated_tokens / 2048) * 100
+                context_usage_4k = (estimated_tokens / 4096) * 100
+                
+                self.log(f"System message created successfully!", "INFO")
+                self.log(f"   Total length: {total_length} chars", "INFO")
+                self.log(f"   Estimated tokens: ~{estimated_tokens}", "INFO")
+                self.log(f"   Context usage (2K): {context_usage_2k:.1f}%", "INFO")
+                self.log(f"   Context usage (4K): {context_usage_4k:.1f}%", "INFO")
+                self.log(f"   Base prompt: {len(base_prompt)} chars", "INFO")
+                self.log(f"   Memory context: {len(memory_context)} chars", "INFO")
                 
                 if self.debug:
-                    self.log(f"[OK] Created system message with {len(memory_context)} chars of memory context only")
+                    self.log(f"📄 System message preview: {system_message[:200]}...", "INFO")
                     
                 return system_message
             else:
-                # No memories and no persona - return empty string
+                # No memories yet - use base unified prompt
+                self.log(f"📝 No memory context available, using base unified prompt", "INFO")
+                self.log(f"   Base prompt length: {len(base_prompt)} chars (~{len(base_prompt)//4} tokens)", "INFO")
+                
                 if self.debug:
-                    self.log(f"[OK] No memory context for user {user_id}, returning empty system message")
-                return ""
+                    self.log(f"📄 Base prompt preview: {base_prompt[:200]}...", "INFO")
+                    
+                return base_prompt
                 
         except Exception as e:
-            if self.debug:
-                self.log(f"Error creating system message: {e}", "ERROR")
-            # Fallback to empty string
-            return ""
+            self.log(f"❌ Error creating system message: {e}", "ERROR")
+            # Re-raise error instead of fallback
+            raise
+    
+    def get_unified_persona_prompt(self) -> str:
+        """Get the unified persona prompt - delegated to PromptManager."""
+        try:
+            from core.prompt_manager import prompt_manager
+            return prompt_manager.get_unified_prompt()
+        except ImportError:
+            raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
 
-    # End of MemoryProcessor class
+    def get_base_persona_prompt(self) -> str:
+        """Get the base persona prompt - delegated to PromptManager."""
+        try:
+            from core.prompt_manager import prompt_manager
+            return prompt_manager.get_base_prompt()
+        except ImportError:
+            raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
+
+    def get_new_user_persona_prompt(self) -> str:
+        """Get the new user persona prompt - delegated to PromptManager."""
+        try:
+            from core.prompt_manager import prompt_manager
+            return prompt_manager.get_new_user_prompt()
+        except ImportError:
+            raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
+
+    def get_small_model_persona(self) -> str:
+        """Get optimized prompt for 4B models - delegated to PromptManager."""
+        try:
+            from core.prompt_manager import prompt_manager
+            return prompt_manager.get_4b_model_prompt()
+        except ImportError:
+            raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")

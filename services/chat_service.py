@@ -1,9 +1,9 @@
 """
-Chat Service
-============
+Chat Service with Advanced Prompt Caching
+=========================================
 
-This service handles all chat-related business logic, extracted from the monolithic
-chat endpoint to follow single responsibility principle and improve testability.
+Enhanced chat service with sophisticated caching strategies and optimization.
+Integrates advanced prompt caching for improved performance and cost efficiency.
 """
 
 import logging
@@ -15,6 +15,7 @@ from models.models import ChatRequest, ChatResponse
 from services.llm_service import call_llm
 from services.tool_service import tool_service
 from services.user_profiles import user_profile_manager
+from services.prompt_cache_service import prompt_cache_service
 from utilities.enhanced_web_search import should_trigger_web_search, search_web, format_search_results
 from utilities.simple_error_handling import handle_errors
 from core.unified_logging import get_logger
@@ -32,7 +33,7 @@ logger = get_logger(__name__)
 
 
 class ChatContext:
-    """Context object for chat processing."""
+    """Enhanced context object for chat processing with caching support."""
     
     def __init__(self):
         self.user_id: str = ""
@@ -42,11 +43,15 @@ class ChatContext:
         self.history: List[Dict] = []
         self.is_time_query: bool = False
         self.cache_key: str = ""
+        # Caching-specific fields
+        self.enable_caching: bool = True
+        self.cache_type: str = "conversation"
+        self.system_prompt: Optional[str] = None
 
 
 class ChatService:
     """
-    Service for handling chat operations with proper separation of concerns.
+    Enhanced service for handling chat operations with advanced prompt caching.
     """
     
     def __init__(self, cache_service, memory_service, database_manager):
@@ -54,6 +59,10 @@ class ChatService:
         self.memory_service = memory_service
         self.database_manager = database_manager
         self.logger = get_logger(__name__)
+        
+        # Initialize prompt caching service
+        self.prompt_cache = prompt_cache_service
+        self.logger.info("[CHAT_SERVICE] Initialized with advanced prompt caching")
     
     @handle_errors("process_chat", default_value=ChatResponse(message="I'm having trouble processing your request right now."))
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
@@ -188,43 +197,13 @@ class ChatService:
             context.history = []
     
     async def _build_llm_context(self, context: ChatContext) -> tuple[str, List[Dict]]:
-        """Build messages for LLM - no system prompts."""
-        # No system prompts/personas - using raw model
+        """Build system prompt and messages for LLM."""
+        from core.prompt_manager import prompt_manager
         
-        # Don't build system prompts anymore - raw model usage only
+        # Use the unified prompt manager to build context
+        system_prompt, messages = prompt_manager.build_context_with_persona(context, "unified")
         
-        # Build conversation context
-        full_context = ""
-        
-        # Add memories
-        if context.memories:
-            memory_text = "\n".join([str(m) for m in context.memories])
-            full_context += f"Relevant memories:\n{memory_text}\n\n"
-        
-        # Add recent conversation history
-        if context.history:
-            conversation_context = ""
-            for entry in context.history[-5:]:  # Last 5 entries
-                if isinstance(entry, dict):
-                    user_msg = entry.get("message", "")
-                    assistant_msg = entry.get("response", "")
-                    if user_msg:
-                        conversation_context += f"User: {user_msg}\n"
-                    if assistant_msg:
-                        conversation_context += f"Assistant: {assistant_msg}\n"
-            
-            if conversation_context:
-                full_context += f"Previous conversation:\n{conversation_context}\n"
-        
-        # Build messages - no system prompts
-        messages = []
-        
-        if full_context:
-            messages.append({"role": "system", "content": full_context})
-        
-        messages.append({"role": "user", "content": context.message})
-        
-        return "", messages  # Return empty system prompt
+        return system_prompt, messages
     
     async def _enhance_with_web_search(self, context: ChatContext, response: str) -> str:
         """Enhance response with web search if appropriate."""
@@ -319,3 +298,93 @@ class ChatService:
             )
             or "time" in message.lower()
         )
+
+    # Enhanced Prompt Caching Methods
+    def _generate_enhanced_cache_key(self, user_id: str, message: str, cache_type: str) -> str:
+        """Generate enhanced cache key with type awareness."""
+        import hashlib
+        content = f"{cache_type}:{user_id}:{message}"
+        message_hash = hashlib.sha256(content.encode()).hexdigest()[:12]
+        return f"enhanced_chat:{cache_type}:{message_hash}"
+    
+    async def _check_enhanced_cache(self, context: ChatContext) -> Optional[ChatResponse]:
+        """Check cache with enhanced strategy including semantic similarity."""
+        if not context.enable_caching:
+            return None
+        
+        try:
+            # Check exact cache match
+            cached_entry = await self.prompt_cache.get_cached_prompt(
+                context.cache_key, "chat", context.cache_type
+            )
+            
+            if cached_entry:
+                self.logger.info(f"🚀 [CHAT] Enhanced cache HIT for user {context.user_id} ({cached_entry.token_count} tokens, type: {context.cache_type})")
+                return ChatResponse(
+                    message=cached_entry.content,
+                    request_id=context.request_id
+                )
+            
+            self.logger.info(f"❌ [CHAT] Enhanced cache MISS for user {context.user_id} (type: {context.cache_type})")
+            return None
+            
+        except Exception as e:
+            self.logger.warning(f"[CACHE] Enhanced cache check failed: {e}")
+            return None
+    
+    async def _cache_enhanced_response(self, context: ChatContext, response: str):
+        """Cache response with enhanced strategy."""
+        if not context.enable_caching or not response or not response.strip():
+            return
+        
+        try:
+            success = await self.prompt_cache.cache_prompt(
+                context.cache_key, 
+                response, 
+                "chat", 
+                context.cache_type
+            )
+            if success:
+                self.logger.info(f"💾 [CHAT] Enhanced response CACHED for user {context.user_id} (type: {context.cache_type})")
+            else:
+                self.logger.warning(f"⚠️ [CHAT] Enhanced cache storage FAILED for user {context.user_id} (type: {context.cache_type})")
+        except Exception as e:
+            self.logger.warning(f"[CACHE] Enhanced cache set failed: {e}")
+    
+    async def _get_cache_metrics(self) -> Dict[str, Any]:
+        """Get cache performance metrics."""
+        try:
+            return self.prompt_cache.get_cache_stats()
+        except Exception as e:
+            self.logger.warning(f"[CACHE] Failed to get cache metrics: {e}")
+            return {}
+    
+    async def optimize_conversation_caching(self, user_id: str) -> Dict[str, Any]:
+        """Optimize caching strategy for a specific user."""
+        try:
+            # Get user's cache performance
+            stats = await self._get_cache_metrics()
+            
+            optimization_report = {
+                "user_id": user_id,
+                "current_hit_rate": stats.get("hit_rate", 0),
+                "cache_size": stats.get("memory_cache_size", 0),
+                "recommendations": []
+            }
+            
+            # Generate recommendations
+            if stats.get("hit_rate", 0) < 30:
+                optimization_report["recommendations"].append(
+                    "Increase cache TTL for better hit rates"
+                )
+            
+            if stats.get("memory_cache_size", 0) > 800:
+                optimization_report["recommendations"].append(
+                    "Consider cache cleanup - near capacity"
+                )
+            
+            return optimization_report
+            
+        except Exception as e:
+            self.logger.error(f"[CACHE] Optimization analysis failed: {e}")
+            return {"error": str(e)}
