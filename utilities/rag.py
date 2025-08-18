@@ -233,7 +233,7 @@ class RAGProcessor:
 
         async def index_document():
             """Helper function to index document chunks using safe execution"""
-            return index_document_chunks(
+            return await index_document_chunks(
                 db_manager=db_manager,
                 user_id=user_id,
                 doc_id=document_id,
@@ -298,7 +298,7 @@ class RAGProcessor:
             
         logging.info(f"[RAG] semantic_search called with query='{query}', user_id='{user_id}', limit={limit}")
         
-        # Try unified memory service (with built-in fallback handling)
+        # Try unified memory service first
         if memory_service:
             logger.info("Using unified memory service for semantic search")
             try:
@@ -318,13 +318,66 @@ class RAGProcessor:
                     })
                 
                 logger.info(f"Found {len(results)} relevant documents using unified memory service")
-                return results
+                
+                # If memory service returns results, use them; otherwise try ChromaDB
+                if results:
+                    return results
+                else:
+                    logger.info("Memory service returned 0 results, trying ChromaDB fallback")
                 
             except Exception as e:
                 logger.error(f"Unified memory service failed: {e}")
+                # Continue to ChromaDB fallback
+        
+        # Fallback to direct ChromaDB search for uploaded documents
+        logger.info("Using direct ChromaDB search for uploaded documents")
+        try:
+            from services.embedding_provider import get_embedding_provider
+            
+            # Generate query embedding
+            provider = get_embedding_provider()
+            query_embedding = await provider.embed_text(query)
+            
+            if query_embedding is None:
+                logger.error("Failed to generate query embedding")
                 return []
-        else:
-            logger.warning("Memory service not available for semantic search")
+            
+            # Search ChromaDB directly
+            logger.info(f"Searching ChromaDB for user_id='{user_id}' with query='{query}'")
+            
+            # Debug: Check collection count
+            try:
+                collection_count = db_manager.chroma_collection.count()
+                logger.info(f"ChromaDB collection has {collection_count} total documents")
+            except Exception as e:
+                logger.error(f"Failed to get collection count: {e}")
+            
+            results = db_manager.chroma_collection.query(
+                query_embeddings=[query_embedding],
+                n_results=limit,
+                where={"user_id": user_id}
+            )
+            
+            logger.info(f"ChromaDB query returned: {len(results.get('documents', [[]]))} result sets")
+            
+            # Convert ChromaDB results to RAG format
+            rag_results = []
+            if results["documents"] and len(results["documents"]) > 0:
+                for i, document in enumerate(results["documents"][0]):
+                    metadata = results["metadatas"][0][i] if results["metadatas"] and results["metadatas"][0] else {}
+                    distance = results["distances"][0][i] if results["distances"] and results["distances"][0] else 1.0
+                    
+                    rag_results.append({
+                        "document": document,
+                        "metadata": metadata,
+                        "distance": distance
+                    })
+            
+            logger.info(f"Found {len(rag_results)} documents using direct ChromaDB search")
+            return rag_results
+            
+        except Exception as e:
+            logger.error(f"ChromaDB search failed: {e}")
             return []
 
     def _is_resume_document(self, filename: str, content: str) -> bool:
@@ -373,8 +426,10 @@ class RAGProcessor:
             content (str): The resume content
             filename (str): The filename
         """
-        # Import adaptive learning system
-        from adaptive_learning import adaptive_learning_system
+        # Import adaptive learning system (optional)
+        # Note: This feature is not available in current setup
+        logging.info(f"Resume {filename} detected but adaptive learning not configured")
+        return
         
         # Extract key sections from resume
         resume_summary = self._extract_resume_summary(content)

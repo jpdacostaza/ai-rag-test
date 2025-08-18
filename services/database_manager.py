@@ -1307,7 +1307,7 @@ async def index_document_chunks(user_id: str, doc_id: str, name: str, chunks: Li
 
 
 @handle_memory_errors("index_document_chunks")
-def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
+async def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=""):
     """Embed and index a list of pre-chunked text documents for a user in chromadb.
     
     Args:
@@ -1321,48 +1321,55 @@ def index_document_chunks(db_manager, user_id, doc_id, name, chunks, request_id=
     Returns:
         True if indexing was successful, False otherwise
     """
-    def _index_op():
-        """Index document chunks in ChromaDB.
+    # Check availability using async methods
+    if not await db_manager.is_chromadb_available():
+        logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
+        return False
+
+    if not db_manager.is_embeddings_available():
+        logging.warning("[EMBEDDINGS] Embedding model not available, skipping document indexing")
+        return False
+
+    try:
+        # Generate embeddings using the embedding provider for consistency
+        from services.embedding_provider import get_embedding_provider
+        provider = get_embedding_provider()
         
-        Embeds and stores document chunks in ChromaDB for the specified user,
-        with appropriate metadata for retrieval. Handles embedding generation
-        and ChromaDB storage operations with proper error handling.
+        embeddings = []
+        for chunk in chunks:
+            embedding = await provider.embed_text(chunk)
+            if embedding is None:
+                logging.error(f"Failed to generate embedding for chunk in doc_id={doc_id}")
+                raise ValueError("Embedding generation failed for one or more chunks")
+            embeddings.append(embedding)
         
-        Returns:
-            bool: True if indexing was successful, False otherwise
-        """
-        if not db_manager.is_chromadb_available():
-            logging.warning("[CHROMADB] chromadb not available, skipping document indexing")
-            return False
+        logging.info(f"Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
+    except Exception as e:
+        logging.error(f"Failed to generate embeddings for doc_id={doc_id}: {e}")
+        raise e
 
-        if not db_manager.is_embeddings_available():
-            logging.warning("[EMBEDDINGS] Embedding model not available, skipping document indexing")
-            return False
+    chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
+    metadatas = [
+        {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i} for i in range(len(chunks))
+    ]
 
-        try:
-            # Set show_progress_bar to False for cleaner logs
-            embeddings = db_manager.embedding_model.encode(chunks, show_progress_bar=False).tolist()
-            logging.info(f"Generated embeddings for {len(chunks)} chunks for doc_id={doc_id}")
-        except Exception as e:
-            logging.error(f"Failed to generate embeddings for doc_id={doc_id}: {e}")
-            raise e
-
-        chunk_ids = [f"chunk:{doc_id}:{i}" for i in range(len(chunks))]
-        metadatas = [
-            {"user_id": user_id, "doc_id": doc_id, "source": name, "chunk_index": i} for i in range(len(chunks))
-        ]
-
-        try:
-            db_manager.chroma_collection.add(
-                embeddings=embeddings, ids=chunk_ids, metadatas=metadatas, documents=chunks
-            )
-            logging.info(f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}")
-            return True
-        except Exception as e:
-            logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
-            raise e
-
-    return _index_op()
+    try:
+        logging.info(f"Attempting to add {len(chunks)} chunks to ChromaDB collection")
+        logging.info(f"Chunk IDs: {chunk_ids[:2]}..." if len(chunk_ids) > 2 else f"Chunk IDs: {chunk_ids}")
+        logging.info(f"First metadata: {metadatas[0] if metadatas else 'None'}")
+        
+        db_manager.chroma_collection.add(
+            embeddings=embeddings, ids=chunk_ids, metadatas=metadatas, documents=chunks
+        )
+        
+        # Verify the add worked by checking collection count
+        new_count = db_manager.chroma_collection.count()
+        logging.info(f"ChromaDB collection now has {new_count} total documents after add")
+        logging.info(f"Successfully indexed {len(chunks)} chunks for doc_id={doc_id}, user_id={user_id}")
+        return True
+    except Exception as e:
+        logging.error(f"Failed to store chunks in chromadb for doc_id={doc_id}: {e}")
+        raise e
 
 
 def index_user_document(db_manager, user_id, doc_id, name, text, chunk_size=1000, chunk_overlap=200, request_id=""):

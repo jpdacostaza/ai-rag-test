@@ -1,0 +1,57 @@
+John Doe
+Senior Software Engineer
+john.doe@email.com | (555) 123-4567 | LinkedIn: linkedin.com/in/johndoe
+
+PROFESSIONAL SUMMARY
+Experienced software engineer with 8+ years developing scalable web applications, 
+microservices, and AI-powered systems. Expertise in Python, FastAPI, React, and 
+cloud technologies. Proven track record of leading teams and delivering high-impact 
+solutions for enterprise clients.
+
+TECHNICAL SKILLS
+Programming Languages: Python, JavaScript, TypeScript, Go, SQL
+Web Frameworks: FastAPI, Django, React, Node.js, Express
+Cloud Platforms: AWS, Docker, Kubernetes, Redis, PostgreSQL
+AI/ML: LangChain, OpenAI API, Hugging Face, Vector Databases, RAG Systems
+DevOps: CI/CD, GitHub Actions, Terraform, Monitoring, Logging
+
+WORK EXPERIENCE
+
+Senior Software Engineer | TechCorp Inc. | 2020 - Present
+• Led development of AI-powered document processing system using Python and FastAPI
+• Implemented RAG (Retrieval-Augmented Generation) architecture with ChromaDB
+• Built microservices architecture serving 100K+ daily active users
+• Mentored junior developers and conducted code reviews
+• Achieved 99.9% uptime through robust error handling and monitoring
+
+Software Engineer | StartupXYZ | 2018 - 2020
+• Developed full-stack web applications using React and Django
+• Implemented real-time features using WebSockets and Redis
+• Optimized database queries reducing response times by 60%
+• Collaborated with product team on feature specification and user experience
+
+Junior Developer | WebDev Solutions | 2016 - 2018
+• Built responsive websites using modern JavaScript frameworks
+• Participated in agile development process and sprint planning
+• Learned industry best practices for code quality and testing
+
+EDUCATION
+Bachelor of Science in Computer Science
+University of Technology | 2012 - 2016
+Relevant Coursework: Data Structures, Algorithms, Database Systems, Software Engineering
+
+PROJECTS
+AI Document Processor (2024)
+• Developed intelligent document chunking and semantic search system
+• Integrated multiple LLM providers with streaming response capabilities
+• Implemented memory system for conversation context retention
+
+E-commerce Platform (2023)
+• Built scalable e-commerce platform handling 10K+ concurrent users
+• Implemented payment processing, inventory management, and order tracking
+• Used microservices architecture with Docker containerization
+
+CERTIFICATIONS
+• AWS Certified Solutions Architect - Associate (2023)
+• Certified Kubernetes Administrator (2022)
+• Python Institute Certified Associate (2021)

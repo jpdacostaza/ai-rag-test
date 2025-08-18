@@ -186,6 +186,10 @@ async def upload_document_json(upload: DocumentUploadJSON):
 
         async def read(self) -> bytes:
             return self.file.getvalue()
+        
+        async def seek(self, position: int) -> int:
+            """Seek to position in file."""
+            return self.file.seek(position)
 
     mock_file = MockUploadFile(content_bytes, "uploaded_document.txt")
 
