@@ -19,7 +19,7 @@ import asyncio
 # Note: CPU-only enforcement moved to environment variables and package configuration
 
 # Import modules
-from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL
+from config.config_unified import DEFAULT_MODEL, OLLAMA_BASE_URL, LLM_TIMEOUT
 from core.prompt_manager import prompt_manager
 from handlers import create_exception_handlers
 
@@ -242,7 +242,7 @@ class CorrelationIdMiddleware(BaseHTTPMiddleware):
 
 # Add correlation + timeout middleware (order: correlation first so others can read it)
 app.add_middleware(CorrelationIdMiddleware)
-app.add_middleware(TimeoutMiddleware, timeout=45)
+app.add_middleware(TimeoutMiddleware, timeout=LLM_TIMEOUT)
 
 # Include route modules
 app.include_router(health_router)

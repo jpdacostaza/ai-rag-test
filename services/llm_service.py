@@ -167,8 +167,8 @@ class LLMService:
 
         log_service_status("OLLAMA", "debug", f"Attempting connection to {self.ollama_url}/api/chat")
         
-        # Try with simpler timeout configuration for debugging
-        timeout = httpx.Timeout(timeout=60.0, connect=10.0)
+        # Use configured timeout values instead of hardcoded ones
+        timeout = httpx.Timeout(timeout=LLM_TIMEOUT, connect=CONNECTION_TIMEOUT)
         
         async with httpx.AsyncClient(timeout=timeout) as client:
             log_service_status("OLLAMA", "debug", f"HTTPX client created, sending POST request")
@@ -299,9 +299,8 @@ class LLMService:
         try:
             log_service_status("OLLAMA", "info", f"Starting Ollama stream for model {model}")
             
-            # ARM64-optimized timeout configuration for slower hardware
-            # Orange Pi 5 Plus and other ARM64 devices need longer timeouts
-            timeout = httpx.Timeout(timeout=180.0, connect=30.0, read=120.0, write=30.0)
+            # Use configured timeout values instead of hardcoded ones
+            timeout = httpx.Timeout(timeout=LLM_TIMEOUT, connect=CONNECTION_TIMEOUT, read=READ_TIMEOUT, write=WRITE_TIMEOUT)
             
             async with httpx.AsyncClient(timeout=timeout) as client:
                 log_service_status("OLLAMA", "debug", f"HTTPX client created for streaming, sending POST request")

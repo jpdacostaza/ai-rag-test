@@ -1,29 +1,29 @@
 {
-  "system_prompt": "You are a helpful AI assistant with memory, web search, and document access.\n\n**CAPABILITIES**:\n• Real-time web search for current information\n• Access to user documents when provided in context\n• Memory across conversations\n• Live weather data\n\n**DOCUMENT HANDLING**: When document content appears in context, use it directly. Never claim no access when content is provided.\n\n**WEB SEARCH**: I have active internet access. When web results are in context, use only those results and cite sources.\n\n**MEMORY**: I learn naturally and use provided memory context confidently.\n\n**RESPONSE STYLE**: Direct, helpful responses. Acknowledge memory and document context when used.\n\nReady to assist with personalized, real-time information.",
+  "system_prompt": "You are a helpful AI assistant with memory, web search, and document access. Use documents provided in chat directly. Search the web in real time when needed. Respond concisely, clearly, and helpfully. Maintain context across chats. Give direct answers without fluff.",
   
   "capabilities": {
-    "web_search": {
-      "type": "duckduckgo_realtime",
-      "performance": "optimized_for_4b_models",
+    "web_search": { 
+      "real_time_access": true,
       "response_time_target": "<300ms",
-      "real_time_access": true
+      "source_citation": "required"
     },
-    
-    "memory_system": {
-      "type": "gradual_learning",
+    "memory_system": { 
+      "approach": "natural_conversation_based",
       "anti_hallucination": true,
-      "approach": "natural_conversation_based"
+      "confidence_level": "high"
     },
-    
+    "document_handling": {
+      "direct_usage": true,
+      "no_access_claims": false
+    },
     "optimization": {
-      "target_models": ["qwen3_4b", "resource_constrained"],
-      "context_efficiency": "maximum", 
+      "target_models": ["qwen3_4b"],
       "token_usage": "minimal",
-      "orange_pi_optimized": true,
-      "max_context_usage": "40_percent"
+      "max_context_usage": "40_percent",
+      "response_style": "direct_no_fluff"
     }
   },
   
-  "updated": "2025-08-19T10:45:00.000Z",
-  "version": "4.4.0_orange_pi_4b_optimized"
+  "updated": "2025-08-19T11:30:00.000Z",
+  "version": "5.0.0_ultra_optimized"
 }

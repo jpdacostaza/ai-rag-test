@@ -60,7 +60,7 @@ services:
     mem_limit: 512m
     volumes:
       - ./storage/redis:/data
-    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-2048mb} --maxmemory-policy allkeys-lru --save 300 10 --tcp-keepalive 60 --timeout 0 --maxclients 10000
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-4096mb} --maxmemory-policy allkeys-lru --save 300 10 --tcp-keepalive 60 --timeout 0 --maxclients 10000 --lazyfree-lazy-eviction yes --lazyfree-lazy-expire yes --hz 100
     environment:
       - ARM64_OPTIMIZED=${ARM64_OPTIMIZED:-false}
     healthcheck:
@@ -166,23 +166,24 @@ services:
       - ENV=production
       - PYTHONPATH=/opt/backend
       - PYTHONUNBUFFERED=1
+      # Anthropic API for advanced prompt caching
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=http://backend-ollama:11434
       - HF_HOME=/opt/backend/.cache/huggingface                 # Fixed cache location with proper permissions
       - TRANSFORMERS_CACHE=/opt/backend/.cache/huggingface/transformers
       - HF_HUB_CACHE=/opt/backend/.cache/huggingface/hub
       - SENTENCE_TRANSFORMERS_HOME=/opt/backend/.cache/huggingface/sentence_transformers
       - CHROMA_COLLECTION=user_memory                           # Consistent collection name
-      - LLM_TIMEOUT=600                                         # 10min timeout for Qwen3-4B
-      - OLLAMA_REQUEST_TIMEOUT=600                              # HTTP client timeout for Qwen3-4B
-      - HTTPX_TIMEOUT=600                                       # HTTPX client timeout for Qwen3-4B
-      - REQUEST_TIMEOUT=600                                     # General request timeout for Qwen3-4B
+      - LLM_TIMEOUT=900                                         # 15min timeout for Qwen3-4B
+      - OLLAMA_REQUEST_TIMEOUT=900                              # HTTP client timeout for Qwen3-4B  
+      - HTTPX_TIMEOUT=900                                       # HTTPX client timeout for Qwen3-4B
+      - REQUEST_TIMEOUT=900                                     # General request timeout for Qwen3-4B
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-128}       # Maximum batch size
       # Performance optimizations
       - WORKERS=4                                               # 4 worker processes
       - MAX_CONCURRENT_REQUESTS=16                              # High concurrency
       - MEMORY_LIMIT=10G                                         # Generous memory limit
       - LOG_REQUESTS=false
-      - LLM_TIMEOUT=${LLM_TIMEOUT:-60}
       - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-16}
       # Redis connection settings
       - REDIS_HOST=redis
@@ -336,8 +337,8 @@ services:
     restart: always
     environment:
       # Route through our main backend API using the working v1 endpoint
-      - OPENAI_API_BASE_URLS=http://backend:3000/v1
-      - OPENAI_API_KEYS=backend-api-key
+      - OPENAI_API_BASE_URLS=http://backend:3000/v1;http://pipelines:9099
+      - OPENAI_API_KEYS=backend-api-key;0p3n-w3bu!
       # COMPLETELY DISABLE OLLAMA - force all requests through backend
       # - OLLAMA_BASE_URL=http://backend-ollama:11434
       - OLLAMA_BASE_URL=""
@@ -385,9 +386,6 @@ services:
       - WEBUI_SECRET_KEY=your-secret-key-for-headers
       # Disable direct Ollama access to force routing through backend
       - ENABLE_OLLAMA_API=false
-      # Automatically configure Pipelines connection
-      - PIPELINES_URLS=http://pipelines:9099
-      - PIPELINES_API_KEY=0p3n-w3bu!
       # Enable user context passing to pipelines - CRITICAL for authentication
       - ENABLE_PIPELINE_USER_CONTEXT=true
       - PIPELINE_USER_CONTEXT=true
