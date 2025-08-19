@@ -186,10 +186,14 @@ class Filter:
         return keyword_triggered or question_triggered
 
     async def _search_user_documents(self, user_id: str, query: str) -> Optional[List[Dict]]:
-        """Search user documents using OpenWebUI's ChromaClient"""
+        """Search user documents using the same method as working chat retrieval"""
         try:
-            # Use OpenWebUI's ChromaClient to avoid instance conflicts
-            from open_webui.retrieval.vector.dbs.chroma import ChromaClient
+            # Use the same database manager approach as retrieve_user_memory
+            from services.database_manager import db_manager
+            
+            if not db_manager or not db_manager.chroma_collection or not db_manager.embedding_model:
+                print(f"[RAG_INJECTION] Database manager not available")
+                return None
             
             # Use user-based collection name
             collection_name = f"user-{user_id}-documents"
@@ -198,59 +202,75 @@ class Filter:
             print(f"[RAG_INJECTION] Query: {query}")
             
             try:
-                # Use OpenWebUI's ChromaClient directly
-                chroma_client = ChromaClient()
-                print(f"[RAG_INJECTION] Created OpenWebUI ChromaClient")
-                
-                # Check if collection exists
-                if not chroma_client.has_collection(collection_name):
-                    print(f"[RAG_INJECTION] Collection {collection_name} does not exist")
+                # Generate embeddings using the same method as chat retrieval
+                query_embedding = await db_manager.get_embedding(query)
+                if not query_embedding:
+                    print(f"[RAG_INJECTION] Failed to generate query embedding")
                     return None
                 
-                # Generate embeddings for the query using sentence transformers
-                from sentence_transformers import SentenceTransformer
-                model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-                query_embeddings = model.encode([query])
+                print(f"[RAG_INJECTION] Generated embeddings with {len(query_embedding)} dimensions")
                 
-                # Convert to list of lists as required by ChromaClient.search
-                vectors = [query_embeddings[0].tolist()]
-                print(f"[RAG_INJECTION] Generated embeddings with {len(vectors[0])} dimensions")
-                
-                # Use the search method with proper parameters
-                results = chroma_client.search(
-                    collection_name=collection_name,
-                    vectors=vectors,
-                    limit=3
-                )
-                
-                print(f"[RAG_INJECTION] ChromaClient search results: {type(results)}")
-                
-                if results and hasattr(results, 'documents') and results.documents:
-                    documents = results.documents[0] if results.documents else []
-                    metadatas = results.metadatas[0] if hasattr(results, 'metadatas') and results.metadatas else []
-                    distances = results.distances[0] if hasattr(results, 'distances') and results.distances else []
+                # Check if we need to use user-specific collection
+                try:
+                    # Try to get user-specific collection
+                    import chromadb
+                    chroma_client = chromadb.HttpClient(
+                        host=db_manager.chroma_host,
+                        port=db_manager.chroma_port
+                    )
                     
-                    print(f"[RAG_INJECTION] Found {len(documents)} documents")
+                    # Get the user-specific collection
+                    user_collection = chroma_client.get_collection(name=collection_name)
+                    print(f"[RAG_INJECTION] Using user-specific collection: {collection_name}")
                     
-                    relevant_results = []
+                    # Use the same query method as chat retrieval
+                    results = user_collection.query(
+                        query_embeddings=[query_embedding],
+                        n_results=3,
+                        include=["documents", "metadatas", "distances"]
+                    )
                     
-                    for i, doc in enumerate(documents):
-                        metadata = metadatas[i] if i < len(metadatas) else {}
-                        distance = distances[i] if i < len(distances) else 1.0
-                        
-                        # Calculate similarity from distance (normalized cosine distance)
-                        # ChromaClient already converts cosine distance to 0-1 range in search method
-                        similarity = max(0.0, distance)  # distance is already similarity (0-1)
-                        
-                        print(f"[RAG_INJECTION] Document {i}: similarity={similarity:.3f}")
-                        
-                        if similarity >= self.valves.similarity_threshold:
-                            relevant_results.append({
-                                "content": doc,
-                                "metadata": metadata or {},
-                                "similarity": similarity
-                            })
-                            print(f"[RAG_INJECTION] Document {i} content preview: {doc[:200]}...")
+                except Exception as collection_error:
+                    print(f"[RAG_INJECTION] User collection error: {collection_error}")
+                    # Fallback to filtering in main collection
+                    print(f"[RAG_INJECTION] Falling back to main collection with user filter")
+                    results = db_manager.chroma_collection.query(
+                        query_embeddings=[query_embedding],
+                        n_results=3,
+                        where={"user_id": user_id},
+                        include=["documents", "metadatas", "distances"]
+                    )
+                
+                print(f"[RAG_INJECTION] ChromaDB query results: {type(results)}")
+                
+                if not results or not isinstance(results, dict):
+                    print(f"[RAG_INJECTION] No results returned")
+                    return None
+                
+                documents = results.get("documents", [[]])[0]
+                metadatas = results.get("metadatas", [[{}]])[0] 
+                distances = results.get("distances", [[1.0]])[0]
+                
+                print(f"[RAG_INJECTION] Found {len(documents)} documents")
+                
+                relevant_results = []
+                
+                for i, doc in enumerate(documents):
+                    metadata = metadatas[i] if i < len(metadatas) else {}
+                    distance = distances[i] if i < len(distances) else 1.0
+                    
+                    # Convert distance to similarity (lower distance = higher similarity)
+                    similarity = 1.0 - distance
+                    
+                    print(f"[RAG_INJECTION] Document {i}: similarity={similarity:.3f}")
+                    
+                    if similarity >= self.valves.similarity_threshold:
+                        relevant_results.append({
+                            "content": doc,
+                            "metadata": metadata or {},
+                            "similarity": similarity
+                        })
+                        print(f"[RAG_INJECTION] Document {i} content preview: {doc[:200]}...")
                     
                     print(f"[RAG_INJECTION] Found {len(relevant_results)} relevant results above threshold {self.valves.similarity_threshold}")
                     return relevant_results if relevant_results else None
