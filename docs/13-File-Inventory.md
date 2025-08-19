@@ -69,7 +69,14 @@ Docs (`docs/`)
 - AUTONOMOUS_INTEGRATION_GUIDE.md, TESTING_AND_METRICS_EXPLAINED.md, etc.
 
 Scripts (`scripts/`)
-- Setup, model management, pipeline install, memory configure, cleanup
+- **monitoring/** — Real-time monitoring and health check scripts
+  - realtime_monitor.py — Real-time duplicate detection monitor with database watching
+- **setup/** — Initial setup and configuration scripts  
+  - auto_deduplication_setup.py — Auto-deduplication integration setup and hooks
+  - copy_prompt_to_functions.py — Copy unified prompt for cross-container filter access
+- **maintenance/** — Maintenance and cleanup scripts
+  - activate_cleanup.py — Manual duplicate cleanup activation (destructive operations)
+- add-model.sh, api_function_installer.py — Legacy model management and function installation
 
 Memory/API (`memory/`)
 - Separate memory API and functions for advanced scenarios

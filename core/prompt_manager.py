@@ -23,10 +23,9 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PromptConfig:
     """Configuration for prompt management."""
-    use_4b_model_optimization: bool = True
-    model_context_limit: int = 4096
-    optimization_mode: str = "4b_optimized"
-    default_system_prompt: str = "You are a helpful AI assistant."
+    use_model_optimization: bool = True
+    model_context_limit: int = 2048
+    optimization_mode: str = "optimized"
 
 
 class PromptManager:
@@ -50,9 +49,9 @@ class PromptManager:
     
     def _load_environment_config(self):
         """Load configuration from environment variables."""
-        self.config.use_4b_model_optimization = os.getenv(
-            "USE_4B_MODEL_OPTIMIZATION", 
-            str(self.config.use_4b_model_optimization)
+        self.config.use_model_optimization = os.getenv(
+            "USE_MODEL_OPTIMIZATION", 
+            str(self.config.use_model_optimization)
         ).lower() == "true"
         
         self.config.model_context_limit = int(os.getenv(
@@ -79,37 +78,9 @@ class PromptManager:
     
     def get_default_prompt(self) -> str:
         """
-        Get the default system prompt with environment override support.
-        
-        This replaces the DEFAULT_SYSTEM_PROMPT functionality from config_unified.py
+        Get prompt from unified_prompt.json - no fallbacks, single source of truth.
         """
-        cache_key = "default_prompt"
-        if cache_key in self._prompt_cache:
-            return self._prompt_cache[cache_key]
-        
-        # Try environment first
-        env_prompt = os.getenv("DEFAULT_SYSTEM_PROMPT")
-        if env_prompt:
-            self.log(f"Using DEFAULT_SYSTEM_PROMPT from environment ({len(env_prompt)} chars)")
-            self._prompt_cache[cache_key] = env_prompt
-            return env_prompt
-        
-        # Use single unified prompt file optimized for 7B models
-        prompt_file = "config/unified_prompt.json"
-        
-        try:
-            if Path(prompt_file).exists():
-                with open(prompt_file, "r", encoding="utf-8") as f:
-                    prompt_data = json.load(f)
-                    prompt = prompt_data.get("system_prompt", self.config.default_system_prompt)
-                    self.log(f"Loaded default prompt from {prompt_file} ({len(prompt)} chars)")
-                    self._prompt_cache[cache_key] = prompt
-                    return prompt
-        except Exception as e:
-            self.log(f"Error loading default prompt from {prompt_file}: {e}", "ERROR")
-        
-        # No fallback - require configuration files
-        raise ValueError(f"Could not load default prompt from any source. Please ensure {prompt_file} exists.")
+        return self.get_unified_prompt()
     
     def get_unified_prompt(self) -> str:
         """
@@ -171,121 +142,31 @@ class PromptManager:
     
     def get_base_prompt(self) -> str:
         """
-        Get the enhanced prompt from the configuration file.
-        
-        This replaces get_base_persona_prompt() from processor.py
+        Get the base prompt - now always returns unified prompt for consistency.
         """
-        cache_key = "base_prompt"
-        if cache_key in self._prompt_cache:
-            return self._prompt_cache[cache_key]
-        
-        try:
-            # Primary: Try to load unified small prompt (Orange Pi optimized)
-            prompt_path = "/op./storage/openwebui/config/persona_unified_small.json"
-            try:
-                with open(prompt_path, 'r', encoding='utf-8') as f:
-                    prompt_data = json.load(f)
-                    enhanced_prompt = prompt_data.get("system_prompt", "")
-                    if enhanced_prompt:
-                        self.log(f"Loaded unified small prompt ({len(enhanced_prompt)} chars) from {prompt_path}")
-                        self._prompt_cache[cache_key] = enhanced_prompt
-                        return enhanced_prompt
-            except Exception as e:
-                self.log(f"Could not load unified small prompt: {e}, trying alternative paths", "WARN")
-            
-            # Try alternative prompt paths
-            alternative_paths = [
-                "config/persona_new_user.json",
-                "/op./storage/openwebui/config/persona_new_user.json",
-                "./config/persona_new_user.json"
-            ]
-            
-            for path in alternative_paths:
-                try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        prompt_data = json.load(f)
-                        enhanced_prompt = prompt_data.get("system_prompt", "")
-                        if enhanced_prompt:
-                            self.log(f"Loaded prompt from alternative path: {path}")
-                            self._prompt_cache[cache_key] = enhanced_prompt
-                            return enhanced_prompt
-                except Exception:
-                    continue
-            
-            # No fallback prompts - require configuration files
-            raise ValueError("Could not load base prompt from any configured path. Please ensure prompt configuration files exist.")
-            
-        except Exception as e:
-            self.log(f"Error loading prompt: {e}", "ERROR")
-            raise ValueError(f"Could not load base prompt: {e}")
+        # For consistency, always use unified prompt
+        return self.get_unified_prompt()
 
     def get_new_user_prompt(self) -> str:
         """
-        Get the new user prompt without aggressive memory instructions.
-        
-        This replaces get_new_user_persona_prompt() from processor.py
+        Get the new user prompt - now always uses unified prompt for consistency.
         """
-        cache_key = "new_user_prompt"
-        if cache_key in self._prompt_cache:
-            return self._prompt_cache[cache_key]
-        
-        try:
-            # Try to load new user prompt file first
-            prompt_path = "/op./storage/openwebui/config/persona_new_user.json"
-            try:
-                with open(prompt_path, 'r', encoding='utf-8') as f:
-                    prompt_data = json.load(f)
-                    new_user_prompt = prompt_data.get("system_prompt", "")
-                    if new_user_prompt:
-                        self.log(f"Loaded new user prompt ({len(new_user_prompt)} chars) from {prompt_path}")
-                        self._prompt_cache[cache_key] = new_user_prompt
-                        return new_user_prompt
-            except Exception as e:
-                self.log(f"Could not load new user prompt file: {e}", "WARN")
-            
-            # No fallback prompts - require configuration files  
-            raise ValueError("Could not load new user prompt from any configured path. Please ensure persona_new_user.json exists.")
-            
-        except Exception as e:
-            self.log(f"Error loading new user prompt: {e}", "ERROR")
-            raise ValueError(f"Could not load new user prompt: {e}")
+        # For consistency, always use unified prompt
+        return self.get_unified_prompt()
+
+    def get_model_prompt(self) -> str:
+        """
+        Get model optimized prompt - now always uses unified prompt for consistency.
+        """
+        # For consistency, always use unified prompt
+        return self.get_unified_prompt()
 
     def get_4b_model_prompt(self) -> str:
         """
-        Get optimized prompt for 4B language models.
-        
-        This replaces get_small_model_persona() from processor.py
+        Backward compatibility - Get optimized prompt for 4B language models.
         """
-        cache_key = "4b_model_prompt"
-        if cache_key in self._prompt_cache:
-            return self._prompt_cache[cache_key]
-        
-        try:
-            # Try to load 4B model optimized prompt
-            prompt_paths = [
-                "config/persona_4b_model.json",
-                "/op./storage/openwebui/config/persona_4b_model.json",
-                "./config/persona_4b_model.json"
-            ]
-            
-            for path in prompt_paths:
-                try:
-                    with open(path, 'r', encoding='utf-8') as f:
-                        prompt_data = json.load(f)
-                        model_prompt = prompt_data.get("system_prompt", "")
-                        if model_prompt:
-                            self.log(f"Loaded 4B model prompt from: {path}")
-                            self._prompt_cache[cache_key] = model_prompt
-                            return model_prompt
-                except Exception:
-                    continue
-            
-            # No fallback prompts - require configuration files
-            raise ValueError("Could not load 4B model prompt from any configured path. Please ensure persona_4b_model.json exists.")
-            
-        except Exception as e:
-            self.log(f"Error loading 4B model prompt: {e}", "ERROR")
-            raise ValueError(f"Could not load 4B model prompt: {e}")
+        # For consistency, always use unified prompt
+        return self.get_unified_prompt()
 
     def load_from_config(self, config_path: str) -> str:
         """
@@ -313,41 +194,24 @@ class PromptManager:
             self.log(f"Error loading prompt from {config_path}: {e}", "ERROR")
             return ""
 
-    def build_context_with_persona(self, context: 'ChatContext', persona_type: str = "unified") -> Tuple[str, List[Dict[str, Any]]]:
+    def build_context_with_prompt(self, context: 'ChatContext') -> Tuple[str, List[Dict[str, Any]]]:
         """
-        Build LLM context with appropriate prompt and user information.
+        Build LLM context with unified prompt and user information.
         
-        This replaces the _build_llm_context functionality from chat_service.py
+        Simplified version that always uses unified_prompt.json as single source of truth.
         
         Args:
             context: ChatContext object with user information
-            persona_type: Type of prompt to use ("unified", "base", "new_user", "4b_model", "default")
             
         Returns:
             Tuple of (system_prompt, messages_list)
         """
         try:
-            self.log(f"Building context with persona type: {persona_type}", "INFO")
+            self.log("Building context with unified prompt", "INFO")
             
-            # Select appropriate prompt based on type
-            if persona_type == "unified":
-                system_prompt = self.get_unified_prompt()
-                self.log("Using unified prompt for context building", "INFO")
-            elif persona_type == "base":
-                system_prompt = self.get_base_prompt()
-                self.log("Using base prompt for context building", "INFO")
-            elif persona_type == "new_user":
-                system_prompt = self.get_new_user_prompt()
-                self.log("Using new user prompt for context building", "INFO")
-            elif persona_type == "4b_model":
-                system_prompt = self.get_4b_model_prompt()
-                self.log("Using 4B model prompt for context building", "INFO")
-            elif persona_type == "default":
-                system_prompt = self.get_default_prompt()
-                self.log("Using default prompt for context building", "INFO")
-            else:
-                self.log(f"Unknown persona type '{persona_type}', using unified", "WARN")
-                system_prompt = self.get_unified_prompt()
+            # Always use unified prompt as single source of truth
+            system_prompt = self.get_unified_prompt()
+            self.log("Using unified prompt for context building", "INFO")
             
             self.log(f"Selected prompt length: {len(system_prompt)} chars (~{len(system_prompt)//4} tokens)", "INFO")
             
@@ -420,6 +284,12 @@ class PromptManager:
     def get_cache_status(self) -> Dict[str, int]:
         """Get information about cached prompts."""
         return {key: len(value) for key, value in self._prompt_cache.items()}
+    
+    # Backward compatibility methods for old persona system
+    def build_context_with_persona(self, context: 'ChatContext', persona_type: str = "unified") -> Tuple[str, List[Dict[str, Any]]]:
+        """Backward compatibility method - now always uses unified prompt."""
+        self.log(f"Legacy persona method called with type '{persona_type}' - using unified prompt", "WARN")
+        return self.build_context_with_prompt(context)
 
 
 # Global instance for easy access
@@ -447,13 +317,27 @@ def get_small_model_persona() -> str:
     return prompt_manager.get_4b_model_prompt()
 
 
+def get_model_persona() -> str:
+    """New function for model prompt."""
+    return prompt_manager.get_model_prompt()
+
 def get_4b_model_persona() -> str:
-    """New function for 4B model prompt."""
+    """Backward compatibility function for 4B model prompt."""
     return prompt_manager.get_4b_model_prompt()
 
 
-# Legacy constant for backwards compatibility
-DEFAULT_SYSTEM_PROMPT = prompt_manager.get_default_prompt()
+# Create singleton instance
+prompt_manager = PromptManager()
+
+# Legacy constant for backwards compatibility - lazy load to avoid circular imports
+def get_default_system_prompt():
+    """Get default system prompt with lazy loading."""
+    try:
+        return prompt_manager.get_default_prompt()
+    except Exception:
+        return "Using fallback prompt - check unified_prompt.json"
+
+DEFAULT_SYSTEM_PROMPT = get_default_system_prompt
 
 # Backwards compatibility for the old module name
 persona_manager = prompt_manager

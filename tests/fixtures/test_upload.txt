@@ -1,0 +1,21 @@
+Test Document for Duplicate Detection
+=====================================
+
+This is a test document to verify that the duplicate detection filter is working correctly.
+
+Key Information:
+- User: Test User
+- Purpose: Testing duplicate detection
+- Created: August 19, 2025
+- System: OpenWebUI Enhanced with Deduplication
+
+Content:
+This document contains sample content to test the duplicate detection system. When this file is uploaded multiple times, the system should detect it as a duplicate and warn the user about the potential duplicate upload.
+
+Features being tested:
+1. Real-time duplicate detection
+2. Similarity threshold comparison  
+3. User-friendly warning messages
+4. Integration with enhanced memory system
+
+End of test document.

@@ -298,34 +298,36 @@ Memory Quality Score: {memory_quality_score}/10 - Use this to gauge the reliabil
             # Re-raise error instead of fallback
             raise
     
-    def get_unified_persona_prompt(self) -> str:
-        """Get the unified persona prompt - delegated to PromptManager."""
+    def get_unified_prompt(self) -> str:
+        """Get the unified prompt - delegated to PromptManager."""
         try:
             from core.prompt_manager import prompt_manager
             return prompt_manager.get_unified_prompt()
         except ImportError:
             raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
 
-    def get_base_persona_prompt(self) -> str:
-        """Get the base persona prompt - delegated to PromptManager."""
+    def get_base_prompt(self) -> str:
+        """Get the base prompt - now always uses unified prompt."""
         try:
             from core.prompt_manager import prompt_manager
-            return prompt_manager.get_base_prompt()
+            return prompt_manager.get_unified_prompt()
         except ImportError:
             raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
 
-    def get_new_user_persona_prompt(self) -> str:
-        """Get the new user persona prompt - delegated to PromptManager."""
+    def get_new_user_prompt(self) -> str:
+        """Get the new user prompt - now always uses unified prompt."""
         try:
             from core.prompt_manager import prompt_manager
-            return prompt_manager.get_new_user_prompt()
+            return prompt_manager.get_unified_prompt()
         except ImportError:
             raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
 
-    def get_small_model_persona(self) -> str:
-        """Get optimized prompt for 4B models - delegated to PromptManager."""
+    def get_model_prompt(self) -> str:
+        """Get optimized prompt for models - now always uses unified prompt."""
         try:
             from core.prompt_manager import prompt_manager
-            return prompt_manager.get_4b_model_prompt()
+            return prompt_manager.get_unified_prompt()
+        except ImportError:
+            raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")
         except ImportError:
             raise ValueError("Could not import prompt_manager. Please ensure core.prompt_manager is available.")

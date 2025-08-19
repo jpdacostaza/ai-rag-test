@@ -61,8 +61,17 @@ class PerformanceMonitor:
     async def start_monitoring(self):
         """Start the performance monitoring system."""
         if not self._started:
+            # Initialize CPU monitoring baseline
+            try:
+                # Make an initial CPU call to establish baseline (will return 0.0, but that's expected)
+                psutil.cpu_percent(interval=None)
+                logger.info("Performance monitoring: CPU baseline established")
+            except Exception as e:
+                logger.warning(f"Performance monitoring: Failed to establish CPU baseline: {e}")
+            
             self.monitoring_task = asyncio.create_task(self._monitoring_loop())
             self._started = True
+            logger.info("Performance monitoring started")
             log_service_status("performance_monitor", "info", "Performance monitoring started")
 
     async def stop_monitoring(self):
@@ -88,7 +97,10 @@ class PerformanceMonitor:
         try:
             # System metrics
             memory = psutil.virtual_memory()
-            cpu_percent = psutil.cpu_percent(interval=1)
+            
+            # Get CPU percentage with proper interval for accurate measurement
+            # Use interval=0.1 for non-blocking, quick measurement
+            cpu_percent = psutil.cpu_percent(interval=0.1)
             
             # Connection pool metrics
             pool_stats = pool_manager.get_all_stats()

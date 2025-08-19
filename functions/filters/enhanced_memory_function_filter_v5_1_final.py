@@ -340,6 +340,97 @@ class Filter:
             self._log(f"[ERROR] Retrieval error: {str(e)}")
             return []
 
+    def _load_unified_prompt(self) -> str:
+        """Load unified prompt by making an HTTP request to the backend"""
+        try:
+            # Try to get the unified prompt via API first
+            import urllib.request
+            import urllib.error
+            import json
+            
+            # Try the debug endpoint we created
+            api_urls = [
+                "http://backend:3000/debug/unified-prompt",
+                "http://localhost:3000/debug/unified-prompt",
+                "http://backend-main:3000/debug/unified-prompt"
+            ]
+            
+            for url in api_urls:
+                try:
+                    self._log(f"Trying to fetch unified prompt from: {url}")
+                    with urllib.request.urlopen(url, timeout=10) as response:
+                        if response.status == 200:
+                            data = json.loads(response.read().decode('utf-8'))
+                            if data.get("success") and data.get("system_prompt"):
+                                unified_prompt = data["system_prompt"]
+                                self._log(f"Successfully loaded unified prompt from API: {url} ({len(unified_prompt)} chars)")
+                                return unified_prompt
+                except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+                    self._log(f"API call failed for {url}: {e}")
+                    continue
+            
+            # Try to get the unified prompt from the PromptManager (if available)
+            import sys
+            import os
+            sys.path.append('/opt/backend')
+            sys.path.append('/opt/backend/core')
+            
+            try:
+                from core.prompt_manager import prompt_manager
+                unified_prompt = prompt_manager.get_unified_prompt()
+                self._log(f"Successfully loaded unified prompt from PromptManager ({len(unified_prompt)} chars)")
+                return unified_prompt
+            except ImportError as ie:
+                self._log(f"Could not import PromptManager: {ie}")
+            except Exception as pe:
+                self._log(f"PromptManager failed: {pe}")
+            
+            # Fallback: Try to load directly from config file
+            config_paths = [
+                "/opt/backend/config/unified_prompt.json",
+                "/app/config/unified_prompt.json",  # OpenWebUI container path
+                "config/unified_prompt.json"
+            ]
+            
+            for config_path in config_paths:
+                try:
+                    if os.path.exists(config_path):
+                        with open(config_path, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
+                            unified_prompt = config.get('prompt', {}).get('system_message', '')
+                            if unified_prompt:
+                                self._log(f"Successfully loaded unified prompt from file: {config_path} ({len(unified_prompt)} chars)")
+                                return unified_prompt
+                except Exception as fe:
+                    self._log(f"Failed to load from {config_path}: {fe}")
+            
+            # No HTTP fallback needed - use built-in fallback prompt
+            self._log("Could not load unified prompt from any source, using built-in fallback")
+            
+            # Provide a reasonable fallback prompt for the memory system
+            fallback_prompt = """You are a helpful AI assistant with memory capabilities.
+
+**MEMORY INTEGRATION**: When memory context is provided in your messages, use it confidently to provide personalized responses based on what you know about the user.
+
+**AVAILABLE CAPABILITIES**:
+• Remember user details and preferences across conversations
+• Access to conversation history and user context
+• Personalized responses based on stored memories
+
+**RESPONSE STYLE**: Direct, helpful responses that acknowledge and utilize memory context when provided.
+
+Ready to assist with personalized responses based on your memory and context."""
+            
+            self._log(f"Using fallback prompt ({len(fallback_prompt)} chars)")
+            return fallback_prompt
+            
+            # If everything fails, raise an error - no fallbacks per user requirement
+            raise ValueError("Cannot access unified_prompt.json from any source - no fallback prompts allowed")
+            
+        except Exception as e:
+            self._log(f"ERROR: Failed to load unified prompt: {e}")
+            raise ValueError(f"Cannot load unified prompt: {e}")
+
     async def inlet(self, body: Dict[str, Any], user: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Process incoming messages and retrieve relevant memories"""
         
@@ -388,11 +479,16 @@ class Filter:
             
             # If no system message exists, create one with memory context
             if not system_message_found:
-                enhanced_system_prompt = f"""You are a helpful AI assistant with memory capabilities.
+                # Load unified prompt directly from file instead of importing core module
+                try:
+                    unified_prompt = self._load_unified_prompt()
+                    enhanced_system_prompt = f"""{unified_prompt}
 
-{memory_context}
-
-Please assist the user with their request while naturally incorporating any relevant information you know about them."""
+{memory_context}"""
+                except Exception as e:
+                    # If unified prompt fails, the system should fail - no fallbacks
+                    self._log(f"ERROR: Error loading unified prompt: {e}")
+                    raise ValueError(f"Cannot load unified prompt: {e}")
                 
                 memory_message = {
                     "role": "system", 

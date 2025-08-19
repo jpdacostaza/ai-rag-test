@@ -61,7 +61,7 @@ class LLMSettings(BaseSettings):
     
     # System prompt
     default_system_prompt: str = Field(
-        default="You are a helpful assistant. Provide clear, accurate, and concise responses.",
+        default="System prompt handled by PromptManager only",
         description="Default system prompt"
     )
     
@@ -275,12 +275,9 @@ def get_app_start_time():
     return time.time()
 
 
-def get_default_system_prompt():
-    """Legacy compatibility for default system prompt."""
-    return settings.llm.default_system_prompt
+# System prompt now handled by PromptManager only
+# Use: from core.prompt_manager import prompt_manager; prompt_manager.get_unified_prompt()
 
-
-# Legacy constants for compatibility
-DEFAULT_SYSTEM_PROMPT = settings.llm.default_system_prompt
+# Legacy constants for compatibility  
 DEFAULT_MODEL = settings.llm.ollama_model
 OLLAMA_BASE_URL = settings.llm.ollama_url

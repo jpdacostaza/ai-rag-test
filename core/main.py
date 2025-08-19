@@ -416,23 +416,29 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
                 # Add system message first (if any) with memory context injection + delimiters
                 system_messages = [m for m in messages if m.get("role") == "system"]
                 if system_messages:
-                    # Replace OpenWebUI system message with our unified prompt
+                    # Preserve any existing system content and append our unified prompt
                     enhanced_system_message = system_messages[0].copy()
                     original_content = enhanced_system_message.get("content", "")
-                    log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - replacing with unified prompt")
-                    log_service_status("PROMPT", "info", f"Original OpenWebUI prompt preview: {original_content[:100]}...")
+                    log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - appending unified prompt")
+                    log_service_status("PROMPT", "info", f"Original system content preview: {original_content[:100]}...")
                     
-                    # Always use our unified prompt instead of OpenWebUI's prompt
+                    # Get our unified prompt
                     system_content = prompt_manager.get_unified_prompt()
-                    log_service_status("PROMPT", "info", f"Injecting unified prompt for streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
-                    log_service_status("PROMPT", "info", f"Our unified prompt preview: {system_content[:100]}...")
+                    log_service_status("PROMPT", "info", f"Appending unified prompt: {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                    
+                    # Always append our prompt to preserve any existing content (like RAG injections)
+                    if original_content.strip():
+                        combined_content = f"{original_content}\n\n--- SYSTEM INSTRUCTIONS ---\n{system_content}"
+                    else:
+                        combined_content = system_content
                     
                     if memory_context:
                         memory_injections_total.inc()
-                        enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
-                        log_service_status("PROMPT", "info", f"Enhanced unified prompt with memory: total {len(enhanced_system_message['content'])} chars")
+                        enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{combined_content}"
+                        log_service_status("PROMPT", "info", f"Enhanced system prompt with memory: total {len(enhanced_system_message['content'])} chars")
                     else:
-                        enhanced_system_message["content"] = system_content
+                        enhanced_system_message["content"] = combined_content
+                        log_service_status("PROMPT", "info", f"Combined system prompt: total {len(enhanced_system_message['content'])} chars")
                     stream_messages.append(enhanced_system_message)
                 else:
                     # Add unified prompt system message with memory context
@@ -664,21 +670,28 @@ async def openai_chat_completions(request: Request, body: dict = Body(...)):
             # Add system message first (if any) with memory context injection + delimiters
             system_messages = [m for m in messages if m.get("role") == "system"]
             if system_messages:
-                # Replace OpenWebUI system message with our unified prompt
+                # Preserve any existing system content and append our unified prompt
                 enhanced_system_message = system_messages[0].copy()
                 original_content = enhanced_system_message.get("content", "")
-                log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - replacing with unified prompt")
+                log_service_status("PROMPT", "info", f"Found existing system message: {len(original_content)} chars - appending unified prompt")
                 
-                # Always use our unified prompt instead of OpenWebUI's prompt
+                # Get our unified prompt
                 system_content = prompt_manager.get_unified_prompt()
-                log_service_status("PROMPT", "info", f"Injecting unified prompt for non-streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                log_service_status("PROMPT", "info", f"Appending unified prompt for non-streaming: {len(system_content)} chars (~{len(system_content)//4} tokens)")
+                
+                # Always append our prompt to preserve any existing content (like RAG injections)
+                if original_content.strip():
+                    combined_content = f"{original_content}\n\n--- SYSTEM INSTRUCTIONS ---\n{system_content}"
+                else:
+                    combined_content = system_content
                 
                 if memory_context:
                     memory_injections_total.inc()
-                    enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{system_content}"
-                    log_service_status("PROMPT", "info", f"Enhanced unified prompt with memory: total {len(enhanced_system_message['content'])} chars")
+                    enhanced_system_message["content"] = f"<BEGIN_MEMORY_CONTEXT>\n{memory_context}\n<END_MEMORY_CONTEXT>\n{combined_content}"
+                    log_service_status("PROMPT", "info", f"Enhanced system prompt with memory: total {len(enhanced_system_message['content'])} chars")
                 else:
-                    enhanced_system_message["content"] = system_content
+                    enhanced_system_message["content"] = combined_content
+                    log_service_status("PROMPT", "info", f"Combined system prompt: total {len(enhanced_system_message['content'])} chars")
                 llm_messages.append(enhanced_system_message)
             else:
                 # Add unified prompt system message with memory context

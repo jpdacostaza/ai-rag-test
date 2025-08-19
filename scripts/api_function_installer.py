@@ -27,7 +27,7 @@ from typing import Dict, List, Optional
 OPENWEBUI_URL = "http://openwebui:8080"
 ADMIN_EMAIL = "admin@theroot.za.net"
 JWT_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiY2E5ZGZkLTAxYTgtNDMwMi1iODU5LTlkNjFkMDU4ZTA2MCJ9.B11QggyALNEN9Amf2MYAinwYi6ciBfCTrwJxFb5xR9M"
-API_KEY = "sk-9fa8c351765b4d6cbdabb332268238b0"
+API_KEY = "sk-fa7e66d80712465e967646753b2ec846"
 
 FUNCTION_DIRS = [
     "/app/backend/data/functions/filters",

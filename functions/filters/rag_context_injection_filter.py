@@ -28,8 +28,20 @@ class Filter:
             default=2000, description="Maximum characters of context to inject"
         )
         trigger_keywords: List[str] = Field(
-            default=["cv", "resume", "experience", "skills", "work", "job", "education", "background"],
-            description="Keywords that trigger RAG search"
+            default=[
+                # CV/Resume related
+                "cv", "resume", "experience", "skills", "work", "job", "education", "background",
+                "employment", "career", "qualifications", "achievements", "portfolio",
+                # Document access phrases
+                "document", "documents", "file", "files", "upload", "uploaded", "content",
+                "information", "details", "data", "text", "pdf", "word", "doc",
+                # Question indicators
+                "what", "who", "when", "where", "why", "how", "tell me", "show me", 
+                "explain", "describe", "list", "summary", "about", "regarding",
+                # General content requests
+                "my", "your", "user", "personal", "professional", "contact", "address"
+            ],
+            description="Keywords that trigger RAG search for any uploaded documents"
         )
         chroma_db_path: str = Field(
             default="/app/backend/data/vector_db",
@@ -152,7 +164,7 @@ class Filter:
                 # Also add a shorter reminder right before the user message
                 reminder_message = {
                     "role": "system",
-                    "content": "IMPORTANT: The user has uploaded their CV/resume. Use the document context provided above to answer questions about their background, experience, and skills. Do NOT say you cannot access their information."
+                    "content": "IMPORTANT: The user has uploaded documents. Use the document content provided above to answer questions about their information. Do NOT say you cannot access their documents or information."
                 }
                 body["messages"].insert(-1, reminder_message)
                 print(f"[RAG_INJECTION] Added reminder message before user query")
@@ -188,6 +200,10 @@ class Filter:
     async def _search_user_documents(self, user_id: str, query: str) -> Optional[List[Dict]]:
         """Search user documents using OpenWebUI's ChromaClient with proper error handling"""
         try:
+            # Add the backend path for importing OpenWebUI modules  
+            import sys
+            sys.path.append('/app/backend')
+            
             # Use OpenWebUI's ChromaClient which is already configured
             from open_webui.retrieval.vector.dbs.chroma import ChromaClient
             
@@ -210,29 +226,36 @@ class Filter:
                 print(f"[RAG_INJECTION] Collection {collection_name} exists")
                 
                 # Get documents from collection using search method
-                # This is the working method we've verified before
+                # Generate embeddings first, then search
                 try:
+                    # Generate embeddings using sentence transformers (same model as OpenWebUI)
+                    from sentence_transformers import SentenceTransformer
+                    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+                    query_embeddings = model.encode([query])
+                    
+                    # Convert to list of lists as required by ChromaClient.search
+                    vectors = [query_embeddings[0].tolist()]
+                    
+                    print(f"[RAG_INJECTION] Generated embeddings: {len(vectors[0])} dimensions")
+                    
                     search_results = chroma_client.search(
                         collection_name=collection_name,
-                        query=query,  # Let ChromaClient handle embedding generation
-                        k=3
+                        vectors=vectors,
+                        limit=3
                     )
                     
                     print(f"[RAG_INJECTION] Search completed, results type: {type(search_results)}")
                     
-                    # Process results - OpenWebUI ChromaClient returns different format
-                    if hasattr(search_results, 'documents') and search_results.documents:
+                    # Process results - search_results should be SearchResult object
+                    if search_results and hasattr(search_results, 'documents') and search_results.documents:
                         documents = search_results.documents[0] if search_results.documents else []
                         distances = search_results.distances[0] if hasattr(search_results, 'distances') and search_results.distances else []
                         metadatas = search_results.metadatas[0] if hasattr(search_results, 'metadatas') and search_results.metadatas else []
-                    elif isinstance(search_results, list):
-                        # Handle list format if returned
-                        documents = search_results
-                        distances = [0.5] * len(documents)  # Default distance
-                        metadatas = [{}] * len(documents)  # Default metadata
                     else:
-                        print(f"[RAG_INJECTION] Unexpected result format: {search_results}")
-                        return None
+                        print(f"[RAG_INJECTION] No documents in search results")
+                        documents = []
+                        distances = []
+                        metadatas = []
                     
                     print(f"[RAG_INJECTION] Found {len(documents)} documents")
                     
@@ -246,11 +269,21 @@ class Filter:
                         similarity = 1.0 - distance if distance <= 1.0 else distance
                         
                         print(f"[RAG_INJECTION] Document {i}: similarity={similarity:.3f}")
-                        print(f"[RAG_INJECTION] Document {i} content preview: {doc[:200]}...")
+                        
+                        # Handle both single strings and lists of strings
+                        if isinstance(doc, list):
+                            # Join list of strings into single document
+                            content = ' '.join(doc)
+                            print(f"[RAG_INJECTION] Document {i} is list, joined to {len(content)} chars")
+                        else:
+                            content = doc
+                            print(f"[RAG_INJECTION] Document {i} is string, {len(content)} chars")
+                        
+                        print(f"[RAG_INJECTION] Document {i} content preview: {content[:200]}...")
                         
                         if similarity >= self.valves.similarity_threshold:
                             relevant_results.append({
-                                "content": doc,
+                                "content": content,
                                 "metadata": metadata or {},
                                 "similarity": similarity
                             })
@@ -260,38 +293,42 @@ class Filter:
                     
                 except Exception as search_error:
                     print(f"[RAG_INJECTION] Search method error: {search_error}")
-                    # Try alternative query method
+                    # Try alternative query method with filter
                     try:
-                        print(f"[RAG_INJECTION] Trying direct query method")
+                        print(f"[RAG_INJECTION] Trying query method with empty filter")
                         query_results = chroma_client.query(
                             collection_name=collection_name,
-                            query_texts=[query],
-                            n_results=3
+                            filter={},  # Empty filter to get all documents
+                            limit=3
                         )
                         
-                        if query_results and 'documents' in query_results:
-                            documents = query_results['documents'][0] if query_results['documents'] else []
-                            distances = query_results.get('distances', [[]])[0]
-                            metadatas = query_results.get('metadatas', [[{}]])[0]
+                        print(f"[RAG_INJECTION] Query results type: {type(query_results)}")
+                        
+                        if query_results and hasattr(query_results, 'documents') and query_results.documents:
+                            documents = query_results.documents[0] if query_results.documents else []
+                            metadatas = query_results.metadatas[0] if hasattr(query_results, 'metadatas') and query_results.metadatas else []
                             
                             print(f"[RAG_INJECTION] Query method found {len(documents)} documents")
                             
+                            # Since query doesn't do similarity search, we'll take all results with default similarity
                             relevant_results = []
                             for i, doc in enumerate(documents):
-                                distance = distances[i] if i < len(distances) else 0.5
                                 metadata = metadatas[i] if i < len(metadatas) else {}
-                                similarity = 1.0 - distance
+                                similarity = 0.8  # Default similarity for query results
                                 
-                                print(f"[RAG_INJECTION] Document {i}: similarity={similarity:.3f}")
+                                print(f"[RAG_INJECTION] Document {i}: similarity={similarity:.3f} (default)")
+                                print(f"[RAG_INJECTION] Document {i} content preview: {doc[:200]}...")
                                 
-                                if similarity >= self.valves.similarity_threshold:
-                                    relevant_results.append({
-                                        "content": doc,
-                                        "metadata": metadata,
-                                        "similarity": similarity
-                                    })
+                                relevant_results.append({
+                                    "content": doc,
+                                    "metadata": metadata,
+                                    "similarity": similarity
+                                })
                             
                             return relevant_results if relevant_results else None
+                        else:
+                            print(f"[RAG_INJECTION] Query method returned no documents")
+                            return None
                         
                     except Exception as query_error:
                         print(f"[RAG_INJECTION] Query method also failed: {query_error}")
@@ -322,7 +359,7 @@ class Filter:
             return ""
 
         message_parts = [
-            "🚨 CRITICAL: USER'S ACTUAL CV/RESUME CONTENT BELOW 🚨",
+            "🚨 CRITICAL: USER'S UPLOADED DOCUMENT CONTENT BELOW 🚨",
             "",
             "YOU HAVE FULL ACCESS TO THE USER'S CV INFORMATION.",
             "DO NOT SAY YOU CANNOT ACCESS THEIR CV - YOU CAN AND MUST USE THIS DATA.",

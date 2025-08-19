@@ -2,12 +2,13 @@
 Debug routes for development and monitoring
 """
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from typing import Dict, Any
 from datetime import datetime
 import sys
 
 from services.dependencies import get_cache_service, get_redis_service, get_vector_service
+from core.prompt_manager import prompt_manager
 
 debug_router = APIRouter(prefix="/debug", tags=["debug"])
 
@@ -90,10 +91,13 @@ async def get_all_service_stats(
 
 @debug_router.get("/memory")
 async def get_memory_usage() -> Dict[str, Any]:
-    """Get memory usage statistics without psutil"""
+    """Get memory usage statistics"""
     try:
         import os
         import resource
+        from core.unified_logging import get_logger
+        
+        logger = get_logger(__name__)
         
         # Get basic memory info
         pid = os.getpid()
@@ -109,11 +113,40 @@ async def get_memory_usage() -> Dict[str, Any]:
         except Exception:
             memory_mb = 0
 
+        # Get actual system metrics if psutil is available
+        memory_percent = 0
+        cpu_percent = 0
+        threads = 1
+        
+        try:
+            import psutil
+            
+            # Memory information
+            memory = psutil.virtual_memory()
+            memory_percent = round(memory.percent, 1)
+            
+            # CPU information (use non-blocking call)
+            cpu_percent = round(psutil.cpu_percent(interval=None), 1)
+            
+            # Thread count for current process
+            process = psutil.Process()
+            threads = process.num_threads()
+            
+            # If we got process memory, update it
+            if memory_mb == 0:
+                memory_mb = round(process.memory_info().rss / (1024 * 1024), 2)
+                
+        except ImportError:
+            # psutil not available, keep default values
+            pass
+        except Exception as e:
+            logger.warning(f"Error getting system metrics: {e}")
+
         return {
             "memory_usage_mb": round(memory_mb, 2),
-            "memory_percent": 0,  # Basic implementation
-            "cpu_percent": 0,     # Basic implementation
-            "threads": 1,         # Basic implementation
+            "memory_percent": memory_percent,
+            "cpu_percent": cpu_percent,
+            "threads": threads,
             "python_version": sys.version,
             "pid": pid,
         }
@@ -155,6 +188,22 @@ async def get_config() -> Dict[str, Any]:
         }
     except Exception as e:
         return {"error": str(e), "message": "Configuration not available"}
+
+
+@debug_router.get("/unified-prompt")
+async def get_unified_prompt() -> Dict[str, Any]:
+    """Get the unified prompt configuration"""
+    try:
+        unified_prompt = prompt_manager.get_unified_prompt()
+        return {
+            "success": True,
+            "system_prompt": unified_prompt,
+            "length": len(unified_prompt),
+            "timestamp": datetime.utcnow().isoformat(),
+            "source": "PromptManager"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load unified prompt: {str(e)}")
 
 
 @debug_router.get("/endpoints")

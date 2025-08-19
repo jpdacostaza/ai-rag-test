@@ -88,71 +88,21 @@ class ZeroConfigSetup:
         """Update persona files with latest configurations"""
         self.log("Updating persona configurations...", "WORKING")
         
-        # Use the most current persona configuration
-        latest_persona = {
-            "system_prompt": "You are a helpful AI assistant with memory and web search capabilities designed for efficient operation on 4B language models.\\n\\n**CRITICAL INSTRUCTION - READ FIRST**:\\nBEFORE answering ANY question, I MUST check if web search results are provided in my context. If search results are present, I MUST base my answer ONLY on those search results and IGNORE my training data completely.\\n\\n**SEARCH RESULT AUTHORITY PROTOCOL**:\\n1. FIRST: Check for web search results in my context\\n2. IF search results exist: Use ONLY the search results, ignore my training knowledge\\n3. IF search results contradict my training: The search results are 100% correct, my training is outdated\\n4. FOR ambiguous terms (Swift, Apple, etc.): Use search context to determine which meaning is correct\\n5. ALWAYS acknowledge the source: \\\"Based on the search results...\\\"\\n\\n**WEB SEARCH CAPABILITIES**:\\n- Access to real-time web search via optimized DuckDuckGo instances\\n- Automatic search for current events, weather, stock prices, recent developments\\n- Search when users ask for \\\"current\\\", \\\"latest\\\", \\\"today\\\" information\\n- Always use web search for time-sensitive information\\n- Cite sources when providing web-based information\\n\\n**MEMORY SYSTEM**:\\n- I can learn and remember information about you over time\\n- I'll naturally pick up on your preferences, interests, and background\\n- **IMPORTANT**: When memory context is provided to me, I use it confidently and naturally\\n- I remember conversations and details you've shared with me\\n- If memory context is in my system message, I acknowledge and reference it\\n- I never fabricate memories, but I do use provided memory context effectively\\n- **USER INTRODUCTIONS**: When a user says \\\"Hello my name is...\\\" or \\\"I work at...\\\" I MUST acknowledge this immediately and confirm I'll remember it\\n- **MEMORY CONFIRMATION**: I always confirm when I'm learning new information about a user\\n\\n**ANTI-HALLUCINATION**:\\n- I never make up personal details about users\\n- I never claim to remember things I don't actually know\\n- I'm transparent about what I know vs. what I'm learning\\n- I confidently use memory context when it's provided to me\\n- NEVER mix search results with my training data - keep them separate\\n\\n**CONVERSATION STYLE**:\\n- Helpful and conversational\\n- Efficient responses optimized for 4B models\\n- Natural web search integration when needed\\n- Confident use of provided memory context\\n- ALWAYS acknowledge when using search results vs my knowledge\\n- When users introduce themselves, I respond warmly and confirm I'll remember their information\\n\\nI'm here to help you with whatever you need, and I'll use any memory context provided to me to give you personalized assistance.",
-            
-            "capabilities": {
-                "web_search": {
-                    "type": "duckduckgo_optimized_4b_model",
-                    "primary_engine": "duckduckgo",
-                    "search_engines": {
-                        "primary": "duckduckgo_instances", 
-                        "fallback": "brave_search_api"
-                    },
-                    "primary_instances": [
-                        "html.duckduckgo.com",
-                        "duckduckgo.com"
-                    ],
-                    "automatic_triggers": [
-                        "current_events",
-                        "weather_conditions",
-                        "recent_developments", 
-                        "time_sensitive_queries",
-                        "explicit_search_requests"
-                    ],
-                    "performance": "optimized_for_4b_models",
-                    "response_time_target": "<500ms"
-                },
-                
-                "memory_system": {
-                    "type": "gradual_learning",
-                    "approach": "natural_conversation_based",
-                    "anti_hallucination": True,
-                    "memory_acknowledgment": "when_provided_use_confidently",
-                    "fabrication_prevention": "strict_but_use_provided_context",
-                    "new_user_handling": "clean_slate",
-                    "user_introduction_handling": "immediate_acknowledgment_and_confirmation"
-                },
-                
-                "context_disambiguation": {
-                    "priority_hierarchy": "search_results > memory_context > training_data",
-                    "conflict_resolution": "FORCE_search_context_override_training_data",
-                    "ambiguity_handling": "search_based_interpretation_MANDATORY",
-                    "override_mechanism": "immediate_context_adaptation_REQUIRED",
-                    "authority_source": "web_search_results_are_ONLY_authoritative_source",
-                    "training_data_policy": "IGNORE_when_search_results_present",
-                    "acknowledgment_required": "MUST_cite_search_results_explicitly"
-                },
-                
-                "optimization": {
-                    "target_models": ["4b_models", "qwen3_4b", "efficient_models"],
-                    "context_efficiency": "high", 
-                    "token_usage": "minimal",
-                    "response_speed": "fast"
-                }
-            },
-            
-            "updated": datetime.now().isoformat(),
-            "version": "3.0.0_verified"
-        }
+        # Load from unified_prompt.json as single source of truth - no fallbacks allowed
+        try:
+            unified_prompt_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config', 'unified_prompt.json')
+            with open(unified_prompt_path, 'r', encoding='utf-8') as f:
+                unified_config = json.load(f)
+                self.log("Loaded persona configuration from unified_prompt.json", "SUCCESS")
+        except Exception as e:
+            self.log(f"CRITICAL: Could not load unified_prompt.json: {e}", "ERROR")
+            raise ValueError(f"Setup requires unified_prompt.json to exist: {e}")
         
-        # Write updated persona file
-        persona_file = self.backend_dir / "config" / "unified_prompt.json"
-        with open(persona_file, 'w', encoding='utf-8') as f:
-            json.dump(latest_persona, f, indent=2, ensure_ascii=False)
+        # Verify the configuration was loaded and is valid
+        if not unified_config.get("system_prompt"):
+            raise ValueError("unified_prompt.json missing required system_prompt field")
             
-        self.log("Persona configurations updated with latest verified settings", "SUCCESS")
+        self.log("Persona configurations verified and ready", "SUCCESS")
         
     def start_services(self):
         """Start all Docker services"""

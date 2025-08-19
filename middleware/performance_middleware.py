@@ -56,6 +56,10 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         if PSUTIL_AVAILABLE and (enable_memory_tracking or enable_cpu_tracking):
             try:
                 self.process = psutil.Process()
+                # Initialize CPU monitoring by making a baseline call
+                if enable_cpu_tracking:
+                    # Make initial CPU call to establish baseline (this will return 0.0, but that's expected)
+                    self.process.cpu_percent()
             except Exception:
                 self.logger.warning("Failed to initialize psutil.Process, performance monitoring disabled")
                 self.enable_memory_tracking = False
@@ -82,6 +86,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         
         if self.enable_cpu_tracking and self.process:
             try:
+                # Get initial CPU time for more accurate measurement
                 initial_cpu_percent = self.process.cpu_percent()
             except Exception:
                 pass
@@ -124,7 +129,17 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         
         if self.enable_cpu_tracking and self.process:
             try:
+                # Get CPU usage for this process during the request
+                # The second call will give us the actual CPU usage since the initial call
                 cpu_usage = self.process.cpu_percent()
+                
+                # If still 0.0, try system-wide CPU as fallback
+                if cpu_usage == 0.0:
+                    try:
+                        # Use non-blocking system CPU measurement as fallback
+                        cpu_usage = psutil.cpu_percent(interval=None)
+                    except Exception:
+                        pass
             except Exception:
                 pass
         

@@ -258,27 +258,22 @@ class WebSearchTool:
         try:
             print(f"[WEB SEARCH] Using DDGS for: {query}")
             results: List[Dict[str, str]] = []
+            
+            # Detect news-related queries and prioritize news search
+            news_keywords = ["news", "headlines", "breaking", "latest", "today", "current", "recent"]
+            is_news_query = any(keyword in query.lower() for keyword in news_keywords)
+            
+            # Use European region for better European news results
+            region = "eu-en" if any(term in query.lower() for term in ["europe", "european", "eu", "bbc", "euronews"]) else "wt-wt"
+            
             with DDGS() as ddgs:
-                try:
-                    search_results = ddgs.text(
-                        query,
-                        region="wt-wt",
-                        safesearch="moderate",
-                        max_results=max_results,
-                    )
-                    for r in search_results:
-                        results.append({
-                            "title": r.get("title", ""),
-                            "link": r.get("href", ""),
-                            "snippet": r.get("body", ""),
-                            "source": "DuckDuckGo",
-                        })
-                except Exception as ddgs_error:
-                    print(f"[WEB SEARCH] Text search failed: {ddgs_error}")
+                if is_news_query:
+                    # Try news search first for news queries
                     try:
+                        print(f"[WEB SEARCH] Using NEWS search with region {region}")
                         news_results = ddgs.news(
                             query,
-                            region="wt-wt",
+                            region=region,
                             safesearch="moderate",
                             max_results=max_results,
                         )
@@ -289,8 +284,49 @@ class WebSearchTool:
                                 "snippet": r.get("body", ""),
                                 "source": "DuckDuckGo News",
                             })
+                        if results:
+                            return results
                     except Exception as news_error:
                         print(f"[WEB SEARCH] News search failed: {news_error}")
+                
+                # Fallback to text search or primary text search for non-news queries
+                try:
+                    print(f"[WEB SEARCH] Using TEXT search with region {region}")
+                    search_results = ddgs.text(
+                        query,
+                        region=region,
+                        safesearch="moderate",
+                        max_results=max_results,
+                    )
+                    for r in search_results:
+                        results.append({
+                            "title": r.get("title", ""),
+                            "link": r.get("href", ""),
+                            "snippet": r.get("body", ""),
+                            "source": "DuckDuckGo",
+                        })
+                except Exception as text_error:
+                    print(f"[WEB SEARCH] Text search failed: {text_error}")
+                    if not is_news_query:
+                        # Last resort: try news search for non-news queries
+                        try:
+                            news_results = ddgs.news(
+                                query,
+                                region=region,
+                                safesearch="moderate",
+                                max_results=max_results,
+                            )
+                            for r in news_results:
+                                results.append({
+                                    "title": r.get("title", ""),
+                                    "link": r.get("url", ""),
+                                    "snippet": r.get("body", ""),
+                                    "source": "DuckDuckGo News",
+                                })
+                        except Exception as final_error:
+                            print(f"[WEB SEARCH] Final news search failed: {final_error}")
+                            raise
+                    else:
                         raise
             return results
         except Exception as e:

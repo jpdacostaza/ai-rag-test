@@ -201,7 +201,7 @@ class ChatService:
         from core.prompt_manager import prompt_manager
         
         # Use the unified prompt manager to build context
-        system_prompt, messages = prompt_manager.build_context_with_persona(context, "unified")
+        system_prompt, messages = prompt_manager.build_context_with_prompt(context)
         
         return system_prompt, messages
     
